@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ArrowLeft, ArrowRight, Mail, Users, Target, Megaphone, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -396,11 +395,12 @@ export default function ClientSignupPage() {
                   <FormField
                     control={form.control}
                     name="primaryGoals"
-                    render={() => (
+                    render={({ field }) => (
                       <FormItem>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {GOAL_OPTIONS.map((goal) => {
-                            const isSelected = (form.watch("primaryGoals") || []).includes(goal.id);
+                            const currentGoals = field.value || [];
+                            const isSelected = currentGoals.includes(goal.id);
                             return (
                               <div
                                 key={goal.id}
@@ -413,7 +413,14 @@ export default function ClientSignupPage() {
                                 onClick={() => toggleGoal(goal.id)}
                                 data-testid={`goal-${goal.id}`}
                               >
-                                <Checkbox checked={isSelected} />
+                                <div className={cn(
+                                  "h-4 w-4 shrink-0 rounded-sm border flex items-center justify-center",
+                                  isSelected 
+                                    ? "bg-primary border-primary text-primary-foreground" 
+                                    : "border-primary"
+                                )}>
+                                  {isSelected && <CheckCircle2 className="h-3 w-3" />}
+                                </div>
                                 <span className="text-sm">{goal.label}</span>
                               </div>
                             );
