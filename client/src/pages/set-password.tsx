@@ -50,11 +50,8 @@ export default function SetPasswordPage() {
 
   const setPasswordMutation = useMutation({
     mutationFn: async (data: { password: string; token: string }) => {
-      return apiRequest("/api/auth/set-password", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await apiRequest("POST", "/api/auth/set-password", data);
+      return response.json();
     },
     onSuccess: () => {
       toast({

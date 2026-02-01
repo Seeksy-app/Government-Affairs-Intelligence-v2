@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
 import {
   insertClientSchema,
   insertContactSchema,
@@ -343,7 +344,7 @@ export async function registerRoutes(
       }
 
       if (application.emailVerified) {
-        return res.json({ message: "Email already verified. Your application is under review." });
+        return res.json({ message: "Email already verified. You can log in.", approved: true });
       }
 
       // Auto-approve: Create the client immediately upon email verification
@@ -355,14 +356,89 @@ export async function registerRoutes(
         isActive: true,
       });
 
+      // Generate password setup token
+      const setupToken = randomBytes(32).toString("hex");
+      const setupTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      // Create the user record with the setup token
+      const nameParts = application.contactName.split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      
+      const user = await authStorage.createUser({
+        email: application.email,
+        firstName,
+        lastName,
+      });
+
+      // Link user to client with admin role
+      await storage.createClientUser({
+        userId: user.id,
+        clientId: client.id,
+        role: "admin",
+      });
+
       await storage.updateClientApplication(application.id, {
         emailVerified: true,
-        emailVerificationToken: null,
+        emailVerificationToken: setupToken, // Reuse this field for password setup
+        emailVerificationExpires: setupTokenExpires,
         status: "approved",
         approvedClientId: client.id,
       });
 
-      // Send approval email
+      // Don't send email yet - let user set password first
+      res.json({ 
+        message: "Email verified! Please set up your password.", 
+        approved: true,
+        setupToken,
+        email: application.email,
+      });
+    } catch (error) {
+      console.error("Error verifying email:", error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  // Password Auth: Set password after email verification
+  app.post("/api/auth/set-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      // Find application with this setup token
+      const application = await storage.getClientApplicationByToken(token);
+      if (!application) {
+        return res.status(400).json({ message: "Invalid or expired setup token" });
+      }
+
+      if (application.emailVerificationExpires && new Date(application.emailVerificationExpires) < new Date()) {
+        return res.status(400).json({ message: "Setup token has expired. Please contact support." });
+      }
+
+      // Find the user by email
+      const user = await authStorage.getUserByEmail(application.email);
+      if (!user) {
+        return res.status(400).json({ message: "User not found. Please contact support." });
+      }
+
+      // Hash the password and save it
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+      await authStorage.setUserPassword(user.id, passwordHash);
+
+      // Clear the setup token
+      await storage.updateClientApplication(application.id, {
+        emailVerificationToken: null,
+      });
+
+      // Send welcome email
       const baseUrl = req.headers.host?.includes('localhost') 
         ? `http://${req.headers.host}` 
         : `https://${req.headers.host}`;
@@ -373,19 +449,111 @@ export async function registerRoutes(
         html: `
           <h2>Welcome Aboard!</h2>
           <p>Hi ${application.contactName},</p>
-          <p>Your email has been verified and your account for <strong>${application.companyName}</strong> is now active!</p>
-          <p>You can now log in using your work email through our secure authentication system.</p>
-          <p><a href="${baseUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
+          <p>Your account for <strong>${application.companyName}</strong> is now fully set up!</p>
+          <p>You can now log in using your email and password.</p>
+          <p><a href="${baseUrl}/login" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
           <p>Welcome to the Political Intelligence Platform!</p>
           <p>Best regards,<br>The Political Intelligence Team</p>
         `,
       });
 
-      res.json({ message: "Email verified and account created! You can now log in.", approved: true });
+      res.json({ message: "Password set successfully. You can now log in." });
     } catch (error) {
-      console.error("Error verifying email:", error);
-      res.status(500).json({ message: "Verification failed" });
+      console.error("Error setting password:", error);
+      res.status(500).json({ message: "Failed to set password" });
     }
+  });
+
+  // Password Auth: Login with email and password
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Find user by email
+      const user = await authStorage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Check if user has a password set
+      if (!user.passwordHash) {
+        return res.status(401).json({ message: "Password not set. Please complete your account setup." });
+      }
+
+      // Verify password
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Set up the session
+      const sessionUser = {
+        claims: {
+          sub: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+        },
+        expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week
+      };
+
+      req.login(sessionUser, (err) => {
+        if (err) {
+          console.error("Session login error:", err);
+          return res.status(500).json({ message: "Failed to create session" });
+        }
+
+        // Determine user role
+        (async () => {
+          try {
+            const superAdmin = await storage.getSuperAdminByUserId(user.id);
+            const clientUser = await storage.getClientUserByUserId(user.id);
+            
+            let role = "client";
+            if (superAdmin) {
+              role = "admin";
+            }
+            
+            res.json({ 
+              message: "Login successful",
+              role,
+              user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+              }
+            });
+          } catch (error) {
+            console.error("Error determining role:", error);
+            res.json({ message: "Login successful", role: "client" });
+          }
+        })();
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Password Auth: Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Session destroy error:", err);
+        }
+        res.json({ message: "Logged out successfully" });
+      });
+    });
   });
 
   // Admin: Get all client applications
