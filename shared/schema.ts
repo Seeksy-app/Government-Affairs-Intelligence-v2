@@ -382,3 +382,58 @@ export const insertPortalMatterAccessSchema = createInsertSchema(portalMatterAcc
 
 export type InsertPortalMatterAccess = z.infer<typeof insertPortalMatterAccessSchema>;
 export type PortalMatterAccess = typeof portalMatterAccess.$inferSelect;
+
+// YouTube watch list for auto-transcription
+export const youtubeWatchList = pgTable("youtube_watch_list", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  videoUrl: text("video_url").notNull(),
+  videoId: text("video_id").notNull(),
+  title: text("title"),
+  channelName: text("channel_name"),
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  transcriptAvailable: boolean("transcript_available").default(false),
+  lastCheckedAt: timestamp("last_checked_at"),
+  matterId: varchar("matter_id"), // optional - which matter to save to
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertYoutubeWatchListSchema = createInsertSchema(youtubeWatchList).omit({
+  id: true,
+  createdAt: true,
+  lastCheckedAt: true,
+});
+
+export type InsertYoutubeWatchList = z.infer<typeof insertYoutubeWatchListSchema>;
+export type YoutubeWatchList = typeof youtubeWatchList.$inferSelect;
+
+// Bill tracking for clients
+export const trackedBills = pgTable("tracked_bills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  congress: integer("congress").notNull(), // e.g., 119
+  billType: text("bill_type").notNull(), // hr, s, hjres, sjres, etc.
+  billNumber: integer("bill_number").notNull(),
+  title: text("title"),
+  sponsor: text("sponsor"),
+  sponsorParty: text("sponsor_party"),
+  sponsorState: text("sponsor_state"),
+  introducedDate: text("introduced_date"),
+  latestAction: text("latest_action"),
+  latestActionDate: text("latest_action_date"),
+  status: text("status"), // introduced, passed_house, passed_senate, enacted, etc.
+  policyArea: text("policy_area"),
+  notes: text("notes"),
+  matterId: varchar("matter_id"), // optional - link to a matter
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTrackedBillSchema = createInsertSchema(trackedBills).omit({
+  id: true,
+  createdAt: true,
+  lastSyncedAt: true,
+});
+
+export type InsertTrackedBill = z.infer<typeof insertTrackedBillSchema>;
+export type TrackedBill = typeof trackedBills.$inferSelect;

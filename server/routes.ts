@@ -15,7 +15,11 @@ import {
   insertSecurityControlSchema,
   insertClientPortalSchema,
   insertPortalMatterAccessSchema,
+  insertYoutubeWatchListSchema,
+  insertTrackedBillSchema,
 } from "@shared/schema";
+import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
+import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
 import { z } from "zod";
 import { sendEmail, sendDailyBrief, sendResearchUpdate } from "./services/email-service";
 
@@ -1871,6 +1875,284 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error in chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
+
+  // ============ YouTube Watch List Routes ============
+  
+  // Get transcript sources (quick links)
+  app.get("/api/transcript-sources", isAuthenticated, async (req, res) => {
+    res.json(TRANSCRIPT_SOURCES);
+  });
+
+  // Get YouTube watch list
+  app.get("/api/youtube-watchlist", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientUser = await storage.getClientUserByUserId(userId);
+      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const watchList = await storage.getYoutubeWatchList(clientUser.clientId);
+      res.json(watchList);
+    } catch (error) {
+      console.error("Error getting watch list:", error);
+      res.status(500).json({ message: "Failed to get watch list" });
+    }
+  });
+
+  // Add video to watch list
+  app.post("/api/youtube-watchlist", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientUser = await storage.getClientUserByUserId(userId);
+      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const { videoUrl, title, channelName, matterId } = req.body;
+      
+      const videoId = extractVideoId(videoUrl);
+      if (!videoId) {
+        return res.status(400).json({ message: "Invalid YouTube URL" });
+      }
+
+      // Check if transcript is already available
+      const hasTranscript = await checkTranscriptAvailable(videoId);
+      
+      const item = await storage.createYoutubeWatchListItem({
+        clientId: clientUser.clientId,
+        videoUrl,
+        videoId,
+        title,
+        channelName,
+        matterId,
+        status: hasTranscript ? "completed" : "pending",
+        transcriptAvailable: hasTranscript,
+      });
+
+      // If transcript is available, fetch it
+      if (hasTranscript) {
+        const transcript = await getTranscript(videoId);
+        res.json({ ...item, transcript });
+      } else {
+        res.json(item);
+      }
+    } catch (error) {
+      console.error("Error adding to watch list:", error);
+      res.status(500).json({ message: "Failed to add to watch list" });
+    }
+  });
+
+  // Check pending items in watch list
+  app.post("/api/youtube-watchlist/check", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientUser = await storage.getClientUserByUserId(userId);
+      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const result = await checkPendingWatchList(clientUser.clientId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking watch list:", error);
+      res.status(500).json({ message: "Failed to check watch list" });
+    }
+  });
+
+  // Delete from watch list
+  app.delete("/api/youtube-watchlist/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteYoutubeWatchListItem(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting from watch list:", error);
+      res.status(500).json({ message: "Failed to delete from watch list" });
+    }
+  });
+
+  // ============ Congress Bills Routes ============
+  
+  // Search bills
+  app.get("/api/bills/search", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const congress = parseInt(req.query.congress as string) || 119;
+      const billType = req.query.billType as string;
+      const keyword = req.query.keyword as string;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const api = new CongressAPI(apiKey);
+      
+      if (keyword) {
+        const bills = await api.searchByKeyword(keyword, congress, limit);
+        res.json({ bills });
+      } else {
+        const result = await api.searchBills({ congress, billType, limit, offset });
+        res.json(result);
+      }
+    } catch (error) {
+      console.error("Error searching bills:", error);
+      res.status(500).json({ message: "Failed to search bills" });
+    }
+  });
+
+  // Get bill details
+  app.get("/api/bills/:congress/:billType/:billNumber", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const { congress, billType, billNumber } = req.params;
+      const api = new CongressAPI(apiKey);
+      
+      const details = await api.getBillDetails(
+        parseInt(congress),
+        billType,
+        parseInt(billNumber)
+      );
+      res.json(details);
+    } catch (error) {
+      console.error("Error getting bill details:", error);
+      res.status(500).json({ message: "Failed to get bill details" });
+    }
+  });
+
+  // Get bill actions
+  app.get("/api/bills/:congress/:billType/:billNumber/actions", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const { congress, billType, billNumber } = req.params;
+      const api = new CongressAPI(apiKey);
+      
+      const actions = await api.getBillActions(
+        parseInt(congress),
+        billType,
+        parseInt(billNumber)
+      );
+      res.json(actions);
+    } catch (error) {
+      console.error("Error getting bill actions:", error);
+      res.status(500).json({ message: "Failed to get bill actions" });
+    }
+  });
+
+  // Get tracked bills
+  app.get("/api/tracked-bills", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientUser = await storage.getClientUserByUserId(userId);
+      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const bills = await storage.getTrackedBills(clientUser.clientId);
+      res.json(bills);
+    } catch (error) {
+      console.error("Error getting tracked bills:", error);
+      res.status(500).json({ message: "Failed to get tracked bills" });
+    }
+  });
+
+  // Track a bill
+  app.post("/api/tracked-bills", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientUser = await storage.getClientUserByUserId(userId);
+      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const billData = insertTrackedBillSchema.parse({
+        ...req.body,
+        clientId: clientUser.clientId,
+      });
+
+      // Check if already tracked
+      const existing = await storage.getTrackedBillByNumber(
+        clientUser.clientId,
+        billData.congress,
+        billData.billType,
+        billData.billNumber
+      );
+
+      if (existing) {
+        return res.status(400).json({ message: "Bill already tracked" });
+      }
+
+      const bill = await storage.createTrackedBill(billData);
+      res.json(bill);
+    } catch (error) {
+      console.error("Error tracking bill:", error);
+      res.status(500).json({ message: "Failed to track bill" });
+    }
+  });
+
+  // Update tracked bill
+  app.patch("/api/tracked-bills/:id", isAuthenticated, async (req, res) => {
+    try {
+      const bill = await storage.updateTrackedBill(req.params.id, req.body);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      res.json(bill);
+    } catch (error) {
+      console.error("Error updating tracked bill:", error);
+      res.status(500).json({ message: "Failed to update tracked bill" });
+    }
+  });
+
+  // Sync tracked bill with Congress.gov
+  app.post("/api/tracked-bills/:id/sync", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const bill = await storage.getTrackedBill(req.params.id);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+
+      const api = new CongressAPI(apiKey);
+      const details = await api.getBillDetails(bill.congress, bill.billType, bill.billNumber);
+
+      const updated = await storage.updateTrackedBill(bill.id, {
+        title: details.bill.title,
+        latestAction: details.bill.latestAction?.text,
+        latestActionDate: details.bill.latestAction?.actionDate,
+        lastSyncedAt: new Date(),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error syncing tracked bill:", error);
+      res.status(500).json({ message: "Failed to sync bill" });
+    }
+  });
+
+  // Delete tracked bill
+  app.delete("/api/tracked-bills/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteTrackedBill(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting tracked bill:", error);
+      res.status(500).json({ message: "Failed to delete tracked bill" });
     }
   });
 

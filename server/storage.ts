@@ -19,6 +19,8 @@ import {
   securityControls,
   clientPortals,
   portalMatterAccess,
+  youtubeWatchList,
+  trackedBills,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -55,6 +57,10 @@ import {
   type InsertClientPortal,
   type PortalMatterAccess,
   type InsertPortalMatterAccess,
+  type YoutubeWatchList,
+  type InsertYoutubeWatchList,
+  type TrackedBill,
+  type InsertTrackedBill,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -177,6 +183,22 @@ export interface IStorage {
   createPortalMatterAccess(access: InsertPortalMatterAccess): Promise<PortalMatterAccess>;
   deletePortalMatterAccess(id: string): Promise<void>;
   deletePortalMatterAccessByPortal(portalId: string): Promise<void>;
+
+  // YouTube Watch List
+  getYoutubeWatchList(clientId: string): Promise<YoutubeWatchList[]>;
+  getYoutubeWatchListItem(id: string): Promise<YoutubeWatchList | undefined>;
+  getYoutubeWatchListByStatus(clientId: string, status: string): Promise<YoutubeWatchList[]>;
+  createYoutubeWatchListItem(item: InsertYoutubeWatchList): Promise<YoutubeWatchList>;
+  updateYoutubeWatchListItem(id: string, item: Partial<InsertYoutubeWatchList & { lastCheckedAt: Date }>): Promise<YoutubeWatchList | undefined>;
+  deleteYoutubeWatchListItem(id: string): Promise<void>;
+
+  // Tracked Bills
+  getTrackedBills(clientId: string): Promise<TrackedBill[]>;
+  getTrackedBill(id: string): Promise<TrackedBill | undefined>;
+  getTrackedBillByNumber(clientId: string, congress: number, billType: string, billNumber: number): Promise<TrackedBill | undefined>;
+  createTrackedBill(bill: InsertTrackedBill): Promise<TrackedBill>;
+  updateTrackedBill(id: string, bill: Partial<InsertTrackedBill & { lastSyncedAt: Date }>): Promise<TrackedBill | undefined>;
+  deleteTrackedBill(id: string): Promise<void>;
 
   // Stats
   getAdminStats(): Promise<{
@@ -689,6 +711,70 @@ export class DatabaseStorage implements IStorage {
 
   async deletePortalMatterAccessByPortal(portalId: string): Promise<void> {
     await db.delete(portalMatterAccess).where(eq(portalMatterAccess.portalId, portalId));
+  }
+
+  // YouTube Watch List
+  async getYoutubeWatchList(clientId: string): Promise<YoutubeWatchList[]> {
+    return db.select().from(youtubeWatchList).where(eq(youtubeWatchList.clientId, clientId)).orderBy(desc(youtubeWatchList.createdAt));
+  }
+
+  async getYoutubeWatchListItem(id: string): Promise<YoutubeWatchList | undefined> {
+    const [item] = await db.select().from(youtubeWatchList).where(eq(youtubeWatchList.id, id));
+    return item;
+  }
+
+  async getYoutubeWatchListByStatus(clientId: string, status: string): Promise<YoutubeWatchList[]> {
+    return db.select().from(youtubeWatchList).where(and(eq(youtubeWatchList.clientId, clientId), eq(youtubeWatchList.status, status)));
+  }
+
+  async createYoutubeWatchListItem(item: InsertYoutubeWatchList): Promise<YoutubeWatchList> {
+    const [newItem] = await db.insert(youtubeWatchList).values(item).returning();
+    return newItem;
+  }
+
+  async updateYoutubeWatchListItem(id: string, item: Partial<InsertYoutubeWatchList & { lastCheckedAt: Date }>): Promise<YoutubeWatchList | undefined> {
+    const [updated] = await db.update(youtubeWatchList).set(item).where(eq(youtubeWatchList.id, id)).returning();
+    return updated;
+  }
+
+  async deleteYoutubeWatchListItem(id: string): Promise<void> {
+    await db.delete(youtubeWatchList).where(eq(youtubeWatchList.id, id));
+  }
+
+  // Tracked Bills
+  async getTrackedBills(clientId: string): Promise<TrackedBill[]> {
+    return db.select().from(trackedBills).where(eq(trackedBills.clientId, clientId)).orderBy(desc(trackedBills.createdAt));
+  }
+
+  async getTrackedBill(id: string): Promise<TrackedBill | undefined> {
+    const [bill] = await db.select().from(trackedBills).where(eq(trackedBills.id, id));
+    return bill;
+  }
+
+  async getTrackedBillByNumber(clientId: string, congress: number, billType: string, billNumber: number): Promise<TrackedBill | undefined> {
+    const [bill] = await db.select().from(trackedBills).where(
+      and(
+        eq(trackedBills.clientId, clientId),
+        eq(trackedBills.congress, congress),
+        eq(trackedBills.billType, billType),
+        eq(trackedBills.billNumber, billNumber)
+      )
+    );
+    return bill;
+  }
+
+  async createTrackedBill(bill: InsertTrackedBill): Promise<TrackedBill> {
+    const [newBill] = await db.insert(trackedBills).values(bill).returning();
+    return newBill;
+  }
+
+  async updateTrackedBill(id: string, bill: Partial<InsertTrackedBill & { lastSyncedAt: Date }>): Promise<TrackedBill | undefined> {
+    const [updated] = await db.update(trackedBills).set(bill).where(eq(trackedBills.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTrackedBill(id: string): Promise<void> {
+    await db.delete(trackedBills).where(eq(trackedBills.id, id));
   }
 }
 
