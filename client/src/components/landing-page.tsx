@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, FileText, Target, Briefcase } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, FileText, Target, Briefcase, Check } from "lucide-react";
 import heroCapitolImage from "@/assets/images/hero-capitol.jpg";
 import meetingImage from "@/assets/images/meeting.jpg";
 import dcMonumentsImage from "@/assets/images/dc-monuments.jpg";
@@ -19,6 +19,7 @@ export function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Features</a>
+            <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Pricing</a>
             <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors text-sm">About</a>
           </div>
           <div className="flex items-center gap-3">
@@ -217,6 +218,155 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 px-6 bg-card/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Choose the plan that fits your firm's needs. All plans include a 14-day free trial.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {/* Starter Plan */}
+            <Card className="relative">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-xl">Starter</CardTitle>
+                <CardDescription>For small firms getting started</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-bold">$299</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Up to 3 team members</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>500 contact records</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>5 active matters</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Basic news monitoring</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Email support</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6" variant="outline" asChild>
+                  <a href="/signup">Start Free Trial</a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Professional Plan */}
+            <Card className="relative border-primary">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
+                  Most Popular
+                </span>
+              </div>
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-xl">Professional</CardTitle>
+                <CardDescription>For growing advocacy practices</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-bold">$799</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Up to 10 team members</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Unlimited contacts</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>25 active matters</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>AI research agent</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Bill tracking with alerts</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Priority support</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6" asChild>
+                  <a href="/signup">Start Free Trial</a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Enterprise Plan */}
+            <Card className="relative">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-xl">Enterprise</CardTitle>
+                <CardDescription>For large firms and organizations</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-bold">$1,999</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Unlimited team members</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Unlimited contacts</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Unlimited matters</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Advanced AI research</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Client portals</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Dedicated account manager</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Custom integrations</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6" variant="outline" asChild>
+                  <a href="/signup">Contact Sales</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* About Section */}
       <section id="about" className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center space-y-8">
@@ -229,7 +379,7 @@ export function LandingPage() {
             enhance your intelligence gathering, and give you the competitive edge you need.
           </p>
           <Button size="lg" asChild data-testid="button-cta-bottom">
-            <a href="/api/login">Start Your Free Trial</a>
+            <a href="/signup">Start Your Free Trial</a>
           </Button>
         </div>
       </section>
