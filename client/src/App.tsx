@@ -16,6 +16,8 @@ import NotFound from "@/pages/not-found";
 import { LandingPage } from "@/components/landing-page";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminClients from "@/pages/admin-clients";
+import AdminKnowledgeBase from "@/pages/admin-knowledge-base";
+import AdminSecurity from "@/pages/admin-security";
 import ClientDashboard from "@/pages/client-dashboard";
 import Contacts from "@/pages/contacts";
 import News from "@/pages/news";
@@ -23,6 +25,10 @@ import NetworkPage from "@/pages/network";
 import SettingsPage from "@/pages/settings";
 import MattersPage from "@/pages/matters";
 import MatterDetailPage from "@/pages/matter-detail";
+import KnowledgeBase from "@/pages/knowledge-base";
+import Security from "@/pages/security";
+import ClientPortals from "@/pages/client-portals";
+import PublicPortal from "@/pages/public-portal";
 
 function AuthenticatedRouter() {
   return (
@@ -31,6 +37,8 @@ function AuthenticatedRouter() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/clients" component={AdminClients} />
       <Route path="/admin/users" component={AdminDashboard} />
+      <Route path="/admin/kb" component={AdminKnowledgeBase} />
+      <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}
@@ -40,6 +48,9 @@ function AuthenticatedRouter() {
       <Route path="/network" component={NetworkPage} />
       <Route path="/matters" component={MattersPage} />
       <Route path="/matters/:id" component={MatterDetailPage} />
+      <Route path="/portals" component={ClientPortals} />
+      <Route path="/kb" component={KnowledgeBase} />
+      <Route path="/security" component={Security} />
       <Route path="/settings" component={SettingsPage} />
       
       {/* Default redirect based on role */}
@@ -184,6 +195,7 @@ function AuthenticatedLayout() {
 
 function AppContent() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
 
   // Initialize theme from localStorage
   useEffect(() => {
@@ -192,6 +204,16 @@ function AppContent() {
       document.documentElement.classList.add("dark");
     }
   }, []);
+
+  // Public portal route - accessible without authentication
+  if (location.startsWith("/portal/")) {
+    return (
+      <Switch>
+        <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
 
   if (isLoading) {
     return (
