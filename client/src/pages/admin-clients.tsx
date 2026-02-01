@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, Search, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Building2, Plus, Search, MoreHorizontal, Edit, Trash2, UserCheck } from "lucide-react";
+import { useLocation } from "wouter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,7 @@ import type { Client, InsertClient } from "@shared/schema";
 
 export default function AdminClients() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -88,6 +90,21 @@ export default function AdminClients() {
     },
     onError: (error: Error) => {
       toast({ title: "Error deleting client", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const impersonateMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      return apiRequest("POST", `/api/admin/impersonate/${clientId}`);
+    },
+    onSuccess: (_, clientId) => {
+      const client = clients?.find(c => c.id === clientId);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      toast({ title: `Now viewing as ${client?.name || 'client'}` });
+      navigate("/dashboard");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error impersonating client", description: error.message, variant: "destructive" });
     },
   });
 
@@ -264,6 +281,13 @@ export default function AdminClients() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => impersonateMutation.mutate(client.id)}
+                            data-testid={`button-impersonate-${client.id}`}
+                          >
+                            <UserCheck className="w-4 h-4 mr-2" />
+                            View as Client
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(client)}>
                             <Edit className="w-4 h-4 mr-2" />
                             Edit

@@ -34,6 +34,7 @@ Newco is a multi-tenant SaaS platform for political consulting firms. It provide
 - Platform dashboard with statistics
 - Client management (CRUD)
 - User overview
+- **Client Impersonation**: View the platform as any client to troubleshoot or assist users
 
 ### For Client Users
 - **Contact Management**: Track political staffers, officials, and lobbyists
@@ -84,6 +85,8 @@ Newco is a multi-tenant SaaS platform for political consulting firms. It provide
 - `PATCH /api/admin/clients/:id` - Update client
 - `DELETE /api/admin/clients/:id` - Delete client
 - `GET /api/admin/stats` - Platform statistics
+- `POST /api/admin/impersonate/:clientId` - Start impersonating a client
+- `POST /api/admin/stop-impersonate` - Stop impersonating
 
 ### Client Routes
 - `GET /api/stats` - Client statistics

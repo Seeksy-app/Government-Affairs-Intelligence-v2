@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -8,7 +8,9 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
-import { Users } from "lucide-react";
+import { Users, X, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 import NotFound from "@/pages/not-found";
 import { LandingPage } from "@/components/landing-page";
@@ -111,16 +113,62 @@ function HomeRedirect() {
 }
 
 function AuthenticatedLayout() {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
+
+  const { data: userRole } = useQuery<{
+    isSuperAdmin: boolean;
+    impersonatingClientId?: string;
+    impersonatingClientName?: string;
+  }>({
+    queryKey: ["/api/user/role"],
+  });
+
+  const stopImpersonateMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/stop-impersonate");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/role"] });
+      toast({ title: "Returned to admin view" });
+      navigate("/admin");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error exiting impersonation", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const isImpersonating = userRole?.isSuperAdmin && userRole?.impersonatingClientId;
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
+          {isImpersonating && (
+            <div className="bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between gap-2" data-testid="banner-impersonation">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Viewing as: {userRole?.impersonatingClientName}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => stopImpersonateMutation.mutate()}
+                disabled={stopImpersonateMutation.isPending}
+                data-testid="button-stop-impersonation"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Exit
+              </Button>
+            </div>
+          )}
           <header className="flex items-center justify-between p-3 border-b gap-2">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />

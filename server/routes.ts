@@ -11,6 +11,13 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+declare module "express-session" {
+  interface SessionData {
+    impersonatingClientId?: string;
+    impersonatingClientName?: string;
+  }
+}
+
 const entityResearchSchema = z.object({
   entityName: z.string().min(1, "Entity name is required"),
   entityType: z.enum(["person", "organization", "company"]),
@@ -62,7 +69,14 @@ export async function registerRoutes(
       }
       
       if (superAdmin) {
-        return res.json({ isSuperAdmin: true });
+        // Check if impersonating a client
+        const impersonatingClientId = req.session?.impersonatingClientId;
+        const impersonatingClientName = req.session?.impersonatingClientName;
+        return res.json({ 
+          isSuperAdmin: true,
+          impersonatingClientId,
+          impersonatingClientName,
+        });
       }
 
       // Check if client user
@@ -246,12 +260,67 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Impersonate a client
+  app.post("/api/admin/impersonate/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const clientId = req.params.clientId as string;
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+      
+      req.session.impersonatingClientId = clientId;
+      req.session.impersonatingClientName = client.name;
+      
+      res.json({ 
+        success: true, 
+        impersonatingClientId: clientId,
+        impersonatingClientName: client.name,
+      });
+    } catch (error) {
+      console.error("Error impersonating client:", error);
+      res.status(500).json({ message: "Failed to impersonate client" });
+    }
+  });
+
+  // Admin: Stop impersonating
+  app.post("/api/admin/stop-impersonate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      delete req.session.impersonatingClientId;
+      delete req.session.impersonatingClientName;
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error stopping impersonation:", error);
+      res.status(500).json({ message: "Failed to stop impersonation" });
+    }
+  });
+
   // ==================== CLIENT USER ROUTES ====================
 
-  // Helper to get client ID for current user
+  // Helper to get client ID for current user (respects impersonation for super admins)
   const getClientId = async (req: any): Promise<string | null> => {
     const userId = getUserId(req);
     if (!userId) return null;
+    
+    // Check if super admin is impersonating
+    const superAdmin = await storage.getSuperAdminByUserId(userId);
+    if (superAdmin && req.session?.impersonatingClientId) {
+      return req.session.impersonatingClientId;
+    }
+    
     const clientUser = await storage.getClientUserByUserId(userId);
     return clientUser?.clientId || null;
   };
