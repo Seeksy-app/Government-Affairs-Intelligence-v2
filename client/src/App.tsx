@@ -19,6 +19,8 @@ import Contacts from "@/pages/contacts";
 import News from "@/pages/news";
 import NetworkPage from "@/pages/network";
 import SettingsPage from "@/pages/settings";
+import MattersPage from "@/pages/matters";
+import MatterDetailPage from "@/pages/matter-detail";
 
 function AuthenticatedRouter() {
   return (
@@ -34,6 +36,8 @@ function AuthenticatedRouter() {
       <Route path="/contacts" component={Contacts} />
       <Route path="/news" component={News} />
       <Route path="/network" component={NetworkPage} />
+      <Route path="/matters" component={MattersPage} />
+      <Route path="/matters/:id" component={MatterDetailPage} />
       <Route path="/settings" component={SettingsPage} />
       
       {/* Default redirect based on role */}

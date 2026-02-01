@@ -9,7 +9,19 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-export type ContentType = "url" | "youtube" | "pdf" | "docx" | "article";
+export type ContentType = "url" | "youtube" | "pdf" | "docx" | "article" | "extract" | "agent";
+
+export interface AgentQueryResult {
+  success: boolean;
+  data: Record<string, unknown>;
+  sources?: string[];
+}
+
+export interface ExtractSchema {
+  type: "object";
+  properties: Record<string, { type: string; description?: string }>;
+  required?: string[];
+}
 
 export interface ExtractedContent {
   title: string;
@@ -118,6 +130,144 @@ export async function extractDocxContent(buffer: Buffer, filename: string): Prom
     type: "docx",
     content: result.value,
   };
+}
+
+export async function extractStructuredData(
+  urls: string[],
+  prompt: string,
+  schema?: ExtractSchema
+): Promise<ExtractedContent> {
+  try {
+    const extractParams: Record<string, unknown> = {
+      prompt,
+    };
+    if (schema) {
+      extractParams.schema = schema;
+    }
+
+    const result = await firecrawl.extract(urls, extractParams);
+
+    if (!result.success) {
+      throw new Error("Extraction failed");
+    }
+
+    const dataStr = JSON.stringify(result.data, null, 2);
+
+    return {
+      title: `Extracted: ${prompt.slice(0, 50)}...`,
+      type: "extract",
+      content: dataStr,
+      metadata: { urls, schema },
+    };
+  } catch (error) {
+    console.error("Firecrawl extract error:", error);
+    throw new Error(`Failed to extract structured data: ${error}`);
+  }
+}
+
+export async function runAgentQuery(
+  prompt: string,
+  schema?: ExtractSchema
+): Promise<AgentQueryResult> {
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/agent", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        schema,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Agent request failed: ${error}`);
+    }
+
+    const result = await response.json();
+
+    return {
+      success: true,
+      data: result.data || result,
+      sources: result.sources || [],
+    };
+  } catch (error) {
+    console.error("Firecrawl agent error:", error);
+    throw new Error(`Agent query failed: ${error}`);
+  }
+}
+
+export async function researchPoliticalEntity(
+  entityName: string,
+  entityType: "person" | "organization" | "company"
+): Promise<ExtractedContent> {
+  const schemas: Record<string, ExtractSchema> = {
+    person: {
+      type: "object",
+      properties: {
+        fullName: { type: "string", description: "Full name of the person" },
+        currentTitle: { type: "string", description: "Current job title" },
+        currentOrganization: { type: "string", description: "Current employer or organization" },
+        bio: { type: "string", description: "Brief biography" },
+        education: { type: "string", description: "Educational background" },
+        previousRoles: { type: "string", description: "Previous positions held" },
+        policyAreas: { type: "string", description: "Policy areas of expertise or focus" },
+        contactInfo: { type: "string", description: "Any available contact information" },
+        linkedinUrl: { type: "string", description: "LinkedIn profile URL if available" },
+        politicalAffiliation: { type: "string", description: "Political party or affiliation" },
+      },
+    },
+    organization: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Organization name" },
+        type: { type: "string", description: "Type of organization (PAC, lobbying firm, advocacy group, etc.)" },
+        mission: { type: "string", description: "Mission or purpose" },
+        leadership: { type: "string", description: "Key leadership and executives" },
+        lobbyingActivity: { type: "string", description: "Known lobbying activities" },
+        policyFocus: { type: "string", description: "Policy areas of focus" },
+        clients: { type: "string", description: "Notable clients if applicable" },
+        politicalContributions: { type: "string", description: "Political contribution history" },
+      },
+    },
+    company: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Company name" },
+        industry: { type: "string", description: "Industry sector" },
+        headquarters: { type: "string", description: "Headquarters location" },
+        executives: { type: "string", description: "Key executives" },
+        lobbyingActivity: { type: "string", description: "Government relations and lobbying" },
+        politicalContributions: { type: "string", description: "PAC and political contributions" },
+        regulatoryIssues: { type: "string", description: "Regulatory issues and government interactions" },
+        policyPositions: { type: "string", description: "Known policy positions" },
+      },
+    },
+  };
+
+  const prompt = entityType === "person"
+    ? `Research ${entityName} and find their professional background, current role, career history, policy expertise, and any political connections or lobbying work.`
+    : entityType === "organization"
+    ? `Research the organization "${entityName}" and find their mission, leadership, lobbying activities, policy focus, and political involvement.`
+    : `Research the company "${entityName}" and find their government relations, lobbying activities, political contributions, and regulatory interactions.`;
+
+  try {
+    const result = await runAgentQuery(prompt, schemas[entityType]);
+
+    return {
+      title: `Research: ${entityName}`,
+      type: "agent",
+      content: JSON.stringify(result.data, null, 2),
+      summary: `AI research on ${entityType}: ${entityName}`,
+      metadata: { entityType, sources: result.sources },
+    };
+  } catch (error) {
+    console.error("Political entity research error:", error);
+    throw new Error(`Failed to research ${entityType}: ${error}`);
+  }
 }
 
 export async function generateSummary(content: string): Promise<string> {

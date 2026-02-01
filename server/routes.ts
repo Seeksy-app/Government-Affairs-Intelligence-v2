@@ -9,6 +9,23 @@ import {
   insertCareerHistorySchema,
   insertMatterSchema,
 } from "@shared/schema";
+import { z } from "zod";
+
+const entityResearchSchema = z.object({
+  entityName: z.string().min(1, "Entity name is required"),
+  entityType: z.enum(["person", "organization", "company"]),
+});
+
+const extractDataSchema = z.object({
+  urls: z.array(z.string().url()).min(1, "At least one URL is required"),
+  prompt: z.string().min(1, "Prompt is required"),
+  schema: z.record(z.unknown()).optional(),
+});
+
+const agentQuerySchema = z.object({
+  prompt: z.string().min(1, "Prompt is required"),
+  schema: z.record(z.unknown()).optional(),
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -805,6 +822,125 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error analyzing career:", error);
       res.status(500).json({ message: "Failed to analyze career" });
+    }
+  });
+
+  // ==================== AI AGENT RESEARCH ROUTES ====================
+
+  // Research a political entity using Firecrawl agent
+  app.post("/api/matters/:matterId/research/entity", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const parsed = entityResearchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+
+      const { entityName, entityType } = parsed.data;
+      const { researchPoliticalEntity, generateSummary } = await import("./services/research-agent");
+      const result = await researchPoliticalEntity(entityName, entityType);
+      const summary = await generateSummary(result.content);
+
+      const doc = await storage.createResearchDocument({
+        matterId: req.params.matterId,
+        clientId,
+        title: result.title,
+        type: "agent",
+        extractedContent: result.content,
+        summary,
+      });
+
+      res.status(201).json(doc);
+    } catch (error) {
+      console.error("Error researching entity:", error);
+      res.status(500).json({ message: "Failed to research entity. Please try again." });
+    }
+  });
+
+  // Extract structured data from URLs using Firecrawl
+  app.post("/api/matters/:matterId/research/extract", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const parsed = extractDataSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+
+      const { urls, prompt, schema } = parsed.data;
+      const { extractStructuredData, generateSummary } = await import("./services/research-agent");
+      const result = await extractStructuredData(urls, prompt, schema as any);
+      const summary = await generateSummary(result.content);
+
+      const doc = await storage.createResearchDocument({
+        matterId: req.params.matterId,
+        clientId,
+        title: result.title,
+        type: "extract",
+        sourceUrl: urls[0],
+        extractedContent: result.content,
+        summary,
+      });
+
+      res.status(201).json(doc);
+    } catch (error) {
+      console.error("Error extracting data:", error);
+      res.status(500).json({ message: "Failed to extract data. Please try again." });
+    }
+  });
+
+  // Run a custom agent query
+  app.post("/api/matters/:matterId/research/agent-query", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const parsed = agentQuerySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+
+      const { prompt, schema } = parsed.data;
+      const { runAgentQuery, generateSummary } = await import("./services/research-agent");
+      const result = await runAgentQuery(prompt, schema as any);
+
+      const content = JSON.stringify(result.data, null, 2);
+      const summary = await generateSummary(content);
+
+      const doc = await storage.createResearchDocument({
+        matterId: req.params.matterId,
+        clientId,
+        title: `Agent Query: ${prompt.slice(0, 40)}...`,
+        type: "agent",
+        extractedContent: content,
+        summary,
+      });
+
+      res.status(201).json({ ...doc, sources: result.sources });
+    } catch (error) {
+      console.error("Error running agent query:", error);
+      res.status(500).json({ message: "Agent query failed. Please try again." });
     }
   });
 
