@@ -1,19 +1,162 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
+import { Users } from "lucide-react";
 
-function Router() {
+import NotFound from "@/pages/not-found";
+import { LandingPage } from "@/components/landing-page";
+import AdminDashboard from "@/pages/admin-dashboard";
+import AdminClients from "@/pages/admin-clients";
+import ClientDashboard from "@/pages/client-dashboard";
+import Contacts from "@/pages/contacts";
+import News from "@/pages/news";
+import NetworkPage from "@/pages/network";
+import SettingsPage from "@/pages/settings";
+
+function AuthenticatedRouter() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      {/* Admin routes */}
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/clients" component={AdminClients} />
+      <Route path="/admin/users" component={AdminDashboard} />
+      <Route path="/admin/settings" component={SettingsPage} />
+      
+      {/* Client routes */}
+      <Route path="/dashboard" component={ClientDashboard} />
+      <Route path="/contacts" component={Contacts} />
+      <Route path="/news" component={News} />
+      <Route path="/network" component={NetworkPage} />
+      <Route path="/settings" component={SettingsPage} />
+      
+      {/* Default redirect based on role */}
+      <Route path="/" component={HomeRedirect} />
+      
+      {/* Fallback */}
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+function HomeRedirect() {
+  const [, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
+  const { data: userRole, isLoading: roleLoading } = useQuery<{
+    isSuperAdmin: boolean;
+    clientId?: string;
+    needsAssignment?: boolean;
+  }>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+  });
+  
+  useEffect(() => {
+    if (!isLoading && !roleLoading && userRole) {
+      if (userRole.isSuperAdmin) {
+        setLocation("/admin");
+      } else if (userRole.clientId) {
+        setLocation("/dashboard");
+      }
+      // If needsAssignment, stay on page showing message
+    }
+  }, [userRole, isLoading, roleLoading, setLocation]);
+
+  if (isLoading || roleLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+          <p className="text-muted-foreground mt-4">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (userRole?.needsAssignment) {
+    return (
+      <div className="flex items-center justify-center h-full p-6">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Users className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Awaiting Assignment</h2>
+          <p className="text-muted-foreground">
+            Your account has been created, but you haven't been assigned to a client organization yet. 
+            Please contact your administrator to be added to a client.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+        <p className="text-muted-foreground mt-4">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+function AuthenticatedLayout() {
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="flex items-center justify-between p-3 border-b gap-2">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <ThemeToggle />
+          </header>
+          <main className="flex-1 overflow-auto">
+            <AuthenticatedRouter />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+          <p className="text-muted-foreground mt-4">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  return <AuthenticatedLayout />;
 }
 
 function App() {
@@ -21,7 +164,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
