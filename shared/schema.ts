@@ -13,6 +13,8 @@ export const clients = pgTable("clients", {
   slug: text("slug").notNull().unique(),
   industry: text("industry"),
   logoUrl: text("logo_url"),
+  address: text("address"),
+  phone: text("phone"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

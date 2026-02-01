@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,34 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, ExternalLink, Copy, Settings, Users, Folder, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { ClientPortal, Matter } from "@shared/schema";
+import type { ClientPortal, Matter, Client } from "@shared/schema";
+
+// Helper function to generate slug from name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .substring(0, 50); // Limit length
+}
 
 export default function ClientPortals() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<ClientPortal | null>(null);
   const [isManageMattersOpen, setIsManageMattersOpen] = useState(false);
+
+  // Get client info for generating correct portal URL
+  const { data: clientInfo } = useQuery<{ client: Client }>({
+    queryKey: ["/api/client/info"],
+    queryFn: async () => {
+      const res = await fetch("/api/client/info");
+      if (!res.ok) throw new Error("Failed to get client info");
+      return res.json();
+    },
+  });
 
   const { data: portals = [] } = useQuery<ClientPortal[]>({
     queryKey: ["/api/portals"],
@@ -105,9 +126,13 @@ export default function ClientPortals() {
     },
   });
 
+  const getPortalUrl = (portal: ClientPortal) => {
+    const clientSlug = clientInfo?.client?.slug || 'client';
+    return `${window.location.origin}/portal/${clientSlug}/${portal.slug}`;
+  };
+
   const copyPortalUrl = (portal: ClientPortal) => {
-    const url = `${window.location.origin}/portal/${portal.slug}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(getPortalUrl(portal));
     toast({ title: "Link copied to clipboard" });
   };
 
@@ -140,7 +165,17 @@ export default function ClientPortals() {
                     <FormItem>
                       <FormLabel>Portal Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Acme Corporation" data-testid="input-portal-name" />
+                        <Input 
+                          {...field} 
+                          placeholder="Acme Corporation" 
+                          data-testid="input-portal-name"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Auto-generate slug from name
+                            const slug = generateSlug(e.target.value);
+                            portalForm.setValue("slug", slug);
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -156,7 +191,7 @@ export default function ClientPortals() {
                         <Input {...field} placeholder="acme-corp" data-testid="input-portal-slug" />
                       </FormControl>
                       <FormDescription>
-                        Your portal will be available at: {window.location.origin}/portal/{field.value || "your-slug"}
+                        Your portal will be available at: {window.location.origin}/portal/{clientInfo?.client?.slug || 'client'}/{field.value || "your-slug"}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -231,7 +266,7 @@ export default function ClientPortals() {
                       Copy Link
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <a href={`/portal/${selectedPortal.slug}`} target="_blank" rel="noopener noreferrer" data-testid="button-view-portal">
+                      <a href={getPortalUrl(selectedPortal)} target="_blank" rel="noopener noreferrer" data-testid="button-view-portal">
                         <ExternalLink className="w-4 h-4 mr-2" />
                         View
                       </a>
@@ -301,7 +336,7 @@ export default function ClientPortals() {
                     <div className="text-center py-8 border rounded-lg">
                       <Folder className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                       <p className="text-muted-foreground">No matters shared with this portal</p>
-                      <Button variant="link" onClick={() => setIsManageMattersOpen(true)}>
+                      <Button variant="ghost" onClick={() => setIsManageMattersOpen(true)} className="text-primary">
                         Add matters
                       </Button>
                     </div>
@@ -322,7 +357,7 @@ export default function ClientPortals() {
 
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm font-medium mb-1">Portal URL</p>
-                  <code className="text-xs">{window.location.origin}/portal/{selectedPortal.slug}</code>
+                  <code className="text-xs">{getPortalUrl(selectedPortal)}</code>
                 </div>
               </CardContent>
             </Card>

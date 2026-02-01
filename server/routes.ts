@@ -1809,6 +1809,27 @@ export async function registerRoutes(
     }
   });
 
+  // ============ Client Info Route ============
+  
+  // Get current client info (for portal URL generation)
+  app.get("/api/client/info", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const client = await storage.getClient(clientId);
+      if (!client) return res.status(404).json({ message: "Client not found" });
+
+      res.json({ client });
+    } catch (error) {
+      console.error("Error getting client info:", error);
+      res.status(500).json({ message: "Failed to get client info" });
+    }
+  });
+
   // ============ Client Portal Routes ============
 
   // List portals for client
@@ -2017,6 +2038,9 @@ export async function registerRoutes(
         name: portal.name,
         description: portal.description,
         clientName: client.name,
+        clientLogo: client.logoUrl,
+        clientAddress: client.address,
+        clientPhone: client.phone,
       });
     } catch (error) {
       console.error("Error getting public portal:", error);

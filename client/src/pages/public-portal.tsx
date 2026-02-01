@@ -4,13 +4,16 @@ import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Folder, FileText, ArrowLeft, Building2, Calendar } from "lucide-react";
+import { Folder, FileText, ArrowLeft, Building2, Calendar, MapPin, Phone } from "lucide-react";
 
 interface PortalInfo {
   id: string;
   name: string;
   description: string;
   clientName: string;
+  clientLogo?: string;
+  clientAddress?: string;
+  clientPhone?: string;
 }
 
 interface PortalMatter {
@@ -145,13 +148,39 @@ export default function PublicPortal() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b">
+      <div className="border-b bg-card">
         <div className="container mx-auto py-6">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-8 h-8" />
-            <div>
-              <h1 className="text-2xl font-bold">{portal.name}</h1>
-              <p className="text-muted-foreground">Provided by {portal.clientName}</p>
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              {portal.clientLogo ? (
+                <img 
+                  src={portal.clientLogo} 
+                  alt={portal.clientName} 
+                  className="w-16 h-16 object-contain rounded"
+                />
+              ) : (
+                <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
+                  <Building2 className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold">{portal.clientName}</h1>
+                <p className="text-muted-foreground">{portal.name}</p>
+              </div>
+            </div>
+            <div className="text-right text-sm text-muted-foreground space-y-1">
+              {portal.clientAddress && (
+                <div className="flex items-center gap-2 justify-end">
+                  <MapPin className="w-4 h-4" />
+                  <span>{portal.clientAddress}</span>
+                </div>
+              )}
+              {portal.clientPhone && (
+                <div className="flex items-center gap-2 justify-end">
+                  <Phone className="w-4 h-4" />
+                  <span>{portal.clientPhone}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
