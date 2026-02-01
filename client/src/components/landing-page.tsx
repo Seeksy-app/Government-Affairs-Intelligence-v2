@@ -27,7 +27,7 @@ export function LandingPage() {
               <a href="/signup">Sign Up</a>
             </Button>
             <Button asChild data-testid="button-login-nav">
-              <a href="/api/login">Sign In</a>
+              <a href="/login">Sign In</a>
             </Button>
           </div>
         </div>

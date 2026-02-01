@@ -27,6 +27,10 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  // In production, always use secure cookies; in development, allow non-HTTPS
+  const isProduction = process.env.NODE_ENV === "production";
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -34,7 +38,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
       maxAge: sessionTtl,
     },
   });
@@ -133,7 +138,23 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  // Check if user is authenticated at all
+  if (!req.isAuthenticated() || !user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Check for password-based authentication (has claims.sub but no refresh_token)
+  if (user.claims?.sub && !user.refresh_token) {
+    // Password-based session - check expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (user.expires_at && now > user.expires_at) {
+      return res.status(401).json({ message: "Session expired" });
+    }
+    return next();
+  }
+
+  // OIDC-based authentication (Replit Auth)
+  if (!user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 

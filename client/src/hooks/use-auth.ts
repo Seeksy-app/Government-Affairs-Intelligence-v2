@@ -18,6 +18,19 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
+  try {
+    // Try password-based logout first
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (response.ok) {
+      window.location.href = "/";
+      return;
+    }
+  } catch {
+    // Fall back to Replit auth logout
+  }
   window.location.href = "/api/logout";
 }
 
