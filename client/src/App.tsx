@@ -33,6 +33,8 @@ import AIAgentPage from "@/pages/ai-agent";
 import SourcesPage from "@/pages/sources";
 import ClientSignupPage from "@/pages/client-signup";
 import VerifyEmailPage from "@/pages/verify-email";
+import SetPasswordPage from "@/pages/set-password";
+import LoginPage from "@/pages/login";
 import AdminApplications from "@/pages/admin-applications";
 import BillTrackingPage from "@/pages/bill-tracking";
 
@@ -241,6 +243,8 @@ function AppContent() {
       <Switch>
         <Route path="/signup" component={ClientSignupPage} />
         <Route path="/verify-email" component={VerifyEmailPage} />
+        <Route path="/set-password" component={SetPasswordPage} />
+        <Route path="/login" component={LoginPage} />
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route component={LandingPage} />
       </Switch>

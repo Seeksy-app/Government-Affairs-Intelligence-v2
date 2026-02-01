@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Loader2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 
 export default function VerifyEmailPage() {
   const [, setLocation] = useLocation();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [setupToken, setSetupToken] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -25,6 +27,10 @@ export default function VerifyEmailPage() {
         if (res.ok) {
           setStatus("success");
           setMessage(data.message || "Your email has been verified successfully.");
+          if (data.setupToken) {
+            setSetupToken(data.setupToken);
+            setEmail(data.email);
+          }
         } else {
           setStatus("error");
           setMessage(data.message || "Verification failed.");
@@ -69,25 +75,52 @@ export default function VerifyEmailPage() {
           )}
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          {status === "success" && (
-            <p className="text-sm text-muted-foreground">
-              Your application is now under review. Our team will notify you once your account 
-              has been approved. This typically takes 1-2 business days.
-            </p>
+          {status === "success" && setupToken && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Your email has been verified! Now let's set up your password to secure your account.
+              </p>
+              <div className="pt-4">
+                <Button
+                  onClick={() => setLocation(`/set-password?token=${setupToken}&email=${encodeURIComponent(email || "")}`)}
+                  data-testid="button-set-password"
+                >
+                  Set Up Password
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </>
+          )}
+          {status === "success" && !setupToken && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Your email has been verified. You can now log in to your account.
+              </p>
+              <div className="pt-4">
+                <Link href="/login">
+                  <Button data-testid="button-go-login">
+                    Go to Login
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </>
           )}
           {status === "error" && (
             <p className="text-sm text-muted-foreground">
               If you believe this is an error, please try signing up again or contact support.
             </p>
           )}
-          <div className="pt-4">
-            <Link href="/">
-              <Button variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
-          </div>
+          {status === "error" && (
+            <div className="pt-4">
+              <Link href="/">
+                <Button variant="outline">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
