@@ -30,7 +30,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **UI**: Shadcn/ui components + Tailwind CSS
 - **Backend**: Express.js + TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Replit Auth (OIDC)
+- **Authentication**: Email/password with session cookies (bcrypt hashing)
 
 ## Key Features
 
@@ -59,11 +59,12 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ## Database Schema
 
 ### Core Tables
-- `users` - Authenticated users (via Replit Auth)
-- `sessions` - User sessions
+- `users` - Authenticated users with password hash
+- `sessions` - User sessions (PostgreSQL-backed)
 - `clients` - Client firms that license the platform
 - `client_users` - Links users to clients with roles
 - `super_admins` - Platform administrators
+- `pending_signups` - Self-service signup requests with email verification tokens
 
 ### Feature Tables
 - `contacts` - Political contacts database
@@ -78,10 +79,13 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ## API Routes
 
 ### Authentication
-- `GET /api/login` - Initiate login
-- `GET /api/logout` - Logout
+- `POST /api/auth/login` - Email/password login
+- `POST /api/auth/logout` - Logout (destroys session)
+- `POST /api/auth/set-password` - Set password after email verification
 - `GET /api/auth/user` - Get current user
 - `GET /api/user/role` - Get user role (admin/client)
+- `POST /api/client-signup` - Self-service client signup (sends verification email)
+- `GET /api/verify-email` - Verify email with token
 
 ### Admin Routes
 - `GET /api/admin/clients` - List all clients
