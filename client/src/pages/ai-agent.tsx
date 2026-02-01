@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio } from "lucide-react";
+import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio, FileText, ExternalLink, Clock, Bookmark, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Matter } from "@shared/schema";
@@ -25,6 +26,35 @@ interface SearchResult {
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+interface TranscriptSource {
+  name: string;
+  url: string;
+  description: string;
+}
+
+interface YoutubeWatchItem {
+  id: string;
+  videoUrl: string;
+  videoId: string;
+  title: string | null;
+  channelName: string | null;
+  status: string;
+  transcriptAvailable: boolean;
+  createdAt: string;
+}
+
+interface CongressBill {
+  congress: number;
+  type: string;
+  number: number;
+  title: string;
+  introducedDate: string;
+  latestAction?: {
+    actionDate: string;
+    text: string;
+  };
 }
 
 const SUGGESTED_PROMPTS = [
@@ -59,6 +89,60 @@ export default function AIAgentPage() {
 
   const { data: matters = [] } = useQuery<Matter[]>({
     queryKey: ["/api/matters"],
+  });
+
+  const { data: transcriptSources = [] } = useQuery<TranscriptSource[]>({
+    queryKey: ["/api/transcript-sources"],
+  });
+
+  const { data: watchList = [], refetch: refetchWatchList } = useQuery<YoutubeWatchItem[]>({
+    queryKey: ["/api/youtube-watchlist"],
+  });
+
+  const [billSearch, setBillSearch] = useState("");
+  const [billResults, setBillResults] = useState<CongressBill[]>([]);
+  const [billSearchLoading, setBillSearchLoading] = useState(false);
+
+  const searchBills = async () => {
+    if (!billSearch.trim()) return;
+    setBillSearchLoading(true);
+    try {
+      const res = await apiRequest("GET", `/api/bills/search?keyword=${encodeURIComponent(billSearch)}&limit=10`);
+      const data = await res.json();
+      setBillResults(data.bills || []);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to search bills", variant: "destructive" });
+    } finally {
+      setBillSearchLoading(false);
+    }
+  };
+
+  const addToWatchList = useMutation({
+    mutationFn: async (data: { videoUrl: string; title?: string }) => {
+      const res = await apiRequest("POST", "/api/youtube-watchlist", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchWatchList();
+      toast({ title: "Added to watch list" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add to watch list", variant: "destructive" });
+    },
+  });
+
+  const checkWatchList = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/youtube-watchlist/check");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      refetchWatchList();
+      toast({
+        title: "Check complete",
+        description: `${data.processed} transcripts now available, ${data.stillPending} still pending`,
+      });
+    },
   });
 
   const saveRecentSearch = (query: string) => {
@@ -447,6 +531,148 @@ export default function AIAgentPage() {
           </CardContent>
         </Card>
 
+        {/* Bills Search & Transcript Sources */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Congressional Bills & Transcripts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="bills" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="bills" data-testid="tab-bills">Bills</TabsTrigger>
+                <TabsTrigger value="transcripts" data-testid="tab-transcripts">Transcripts</TabsTrigger>
+                <TabsTrigger value="watchlist" data-testid="tab-watchlist">
+                  Watch List
+                  {watchList.filter(w => w.status === "pending").length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {watchList.filter(w => w.status === "pending").length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="bills" className="space-y-4 pt-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search bills by keyword (e.g., climate, healthcare, defense)"
+                    value={billSearch}
+                    onChange={(e) => setBillSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && searchBills()}
+                    data-testid="input-bill-search"
+                  />
+                  <Button onClick={searchBills} disabled={billSearchLoading} data-testid="button-search-bills">
+                    {billSearchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Search the 119th Congress (2025-2026) bills from Congress.gov
+                </p>
+                {billResults.length > 0 && (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {billResults.map((bill) => (
+                      <div key={`${bill.type}-${bill.number}`} className="p-3 border rounded-md space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{bill.type.toUpperCase()}.{bill.number}</Badge>
+                          <span className="text-xs text-muted-foreground">{bill.introducedDate}</span>
+                        </div>
+                        <p className="text-sm line-clamp-2">{bill.title}</p>
+                        {bill.latestAction && (
+                          <p className="text-xs text-muted-foreground">
+                            Latest: {bill.latestAction.text}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="transcripts" className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Quick links to official transcript and video sources
+                </p>
+                <div className="grid gap-2">
+                  {transcriptSources.map((source) => (
+                    <a
+                      key={source.name}
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-3 border rounded-md hover-elevate"
+                      data-testid={`link-source-${source.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{source.name}</p>
+                        <p className="text-xs text-muted-foreground">{source.description}</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="watchlist" className="space-y-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Videos waiting for transcripts to become available
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkWatchList.mutate()}
+                    disabled={checkWatchList.isPending}
+                    data-testid="button-check-watchlist"
+                  >
+                    {checkWatchList.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Check Now
+                  </Button>
+                </div>
+                {watchList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    No videos in watch list. Add YouTube URLs that don't have captions yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {watchList.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-md">
+                        <div className="flex items-center gap-3">
+                          <Youtube className={`w-5 h-5 ${item.status === "completed" ? "text-green-500" : "text-amber-500"}`} />
+                          <div>
+                            <p className="text-sm">{item.title || item.videoId}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={item.status === "completed" ? "default" : "secondary"} className="text-xs">
+                                {item.status}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <a
+                          href={item.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -553,14 +779,33 @@ export default function AIAgentPage() {
               <p className="flex items-center gap-2">
                 <Radio className="w-4 h-4" />
                 <span className="text-amber-600 dark:text-amber-400">
-                  Live streams require captions to be available after the stream ends
+                  Live streams: Add to Watch List and check back later
                 </span>
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setYoutubeDialogOpen(false)}>
               Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (youtubeUrl) {
+                  addToWatchList.mutate({ videoUrl: youtubeUrl });
+                  setYoutubeDialogOpen(false);
+                  setYoutubeUrl("");
+                }
+              }}
+              disabled={!youtubeUrl || addToWatchList.isPending}
+              data-testid="button-add-to-watchlist"
+            >
+              {addToWatchList.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Clock className="w-4 h-4 mr-2" />
+              )}
+              Add to Watch List
             </Button>
             <Button
               onClick={() => {
