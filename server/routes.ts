@@ -2321,7 +2321,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
-  // Sync tracked bill with Congress.gov
+  // Sync tracked bill with Congress.gov and detect changes
   app.post("/api/tracked-bills/:id/sync", isAuthenticated, async (req, res) => {
     try {
       const apiKey = process.env.CONGRESS_API_KEY;
@@ -2336,6 +2336,31 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const api = new CongressAPI(apiKey);
       const details = await api.getBillDetails(bill.congress, bill.billType, bill.billNumber);
+      
+      let changed = false;
+      const changes: Array<{ type: string; prev: string | null; next: string | null; desc: string }> = [];
+
+      // Detect action changes
+      if (bill.latestAction !== details.bill.latestAction?.text) {
+        changes.push({
+          type: "action_update",
+          prev: bill.latestAction,
+          next: details.bill.latestAction?.text || null,
+          desc: `New action: ${details.bill.latestAction?.text || 'Unknown'}`,
+        });
+        changed = true;
+      }
+
+      // Record detected changes
+      for (const change of changes) {
+        await storage.createBillChange({
+          trackedBillId: bill.id,
+          changeType: change.type,
+          previousValue: change.prev,
+          newValue: change.next,
+          description: change.desc,
+        });
+      }
 
       const updated = await storage.updateTrackedBill(bill.id, {
         title: details.bill.title,
@@ -2344,7 +2369,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         lastSyncedAt: new Date(),
       });
 
-      res.json(updated);
+      res.json({ ...updated, changed, changesDetected: changes.length });
     } catch (error) {
       console.error("Error syncing tracked bill:", error);
       res.status(500).json({ message: "Failed to sync bill" });
@@ -2359,6 +2384,87 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error deleting tracked bill:", error);
       res.status(500).json({ message: "Failed to delete tracked bill" });
+    }
+  });
+
+  // Get unread bill changes
+  app.get("/api/tracked-bills/changes/unread", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const clientUser = await storage.getClientUserByUserId(userId!);
+      if (!clientUser) {
+        return res.json([]);
+      }
+      const changes = await storage.getUnreadBillChanges(clientUser.clientId);
+      res.json(changes);
+    } catch (error) {
+      console.error("Error getting unread bill changes:", error);
+      res.status(500).json({ message: "Failed to get unread bill changes" });
+    }
+  });
+
+  // Get change history for a specific bill
+  app.get("/api/tracked-bills/:id/changes", isAuthenticated, async (req, res) => {
+    try {
+      const changes = await storage.getBillChangeHistory(req.params.id);
+      res.json(changes);
+    } catch (error) {
+      console.error("Error getting bill change history:", error);
+      res.status(500).json({ message: "Failed to get bill change history" });
+    }
+  });
+
+  // Mark bill change as read
+  app.post("/api/tracked-bills/changes/:changeId/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markBillChangeAsRead(req.params.changeId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking change as read:", error);
+      res.status(500).json({ message: "Failed to mark change as read" });
+    }
+  });
+
+  // Get/update alert settings for a bill
+  app.get("/api/tracked-bills/:id/alerts", isAuthenticated, async (req, res) => {
+    try {
+      const alert = await storage.getBillTrackingAlert(req.params.id);
+      res.json(alert || { 
+        alertOnStatusChange: true, 
+        alertOnNewAction: true, 
+        alertOnAmendment: true, 
+        alertOnCosponsorChange: false,
+        emailNotification: true 
+      });
+    } catch (error) {
+      console.error("Error getting bill alerts:", error);
+      res.status(500).json({ message: "Failed to get bill alerts" });
+    }
+  });
+
+  app.patch("/api/tracked-bills/:id/alerts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const clientUser = await storage.getClientUserByUserId(userId!);
+      if (!clientUser) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const existing = await storage.getBillTrackingAlert(req.params.id);
+      if (existing) {
+        const updated = await storage.updateBillTrackingAlert(existing.id, req.body);
+        res.json(updated);
+      } else {
+        const newAlert = await storage.createBillTrackingAlert({
+          trackedBillId: req.params.id,
+          clientId: clientUser.clientId,
+          ...req.body,
+        });
+        res.json(newAlert);
+      }
+    } catch (error) {
+      console.error("Error updating bill alerts:", error);
+      res.status(500).json({ message: "Failed to update bill alerts" });
     }
   });
 

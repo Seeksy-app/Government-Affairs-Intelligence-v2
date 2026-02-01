@@ -76,6 +76,14 @@ export const clientApplications = pgTable("client_applications", {
   emailVerificationExpires: timestamp("email_verification_expires"),
   rejectionReason: text("rejection_reason"),
   approvedClientId: varchar("approved_client_id"),
+  // Onboarding fields
+  primaryGoals: text("primary_goals").array(), // legislation_tracking, contact_management, research, news_monitoring
+  firmSize: text("firm_size"), // 1-5, 6-20, 21-50, 51-100, 100+
+  howHeardAboutUs: text("how_heard_about_us"), // referral, search, conference, advertisement, social_media, other
+  referralSource: text("referral_source"), // if referral, who referred
+  currentTools: text("current_tools"), // what tools they currently use
+  expectedUsers: text("expected_users"), // how many users expected
+  urgency: text("urgency"), // immediate, within_month, exploring
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -473,3 +481,45 @@ export const insertTrackedBillSchema = createInsertSchema(trackedBills).omit({
 
 export type InsertTrackedBill = z.infer<typeof insertTrackedBillSchema>;
 export type TrackedBill = typeof trackedBills.$inferSelect;
+
+// Bill change history (to track what changed in tracked bills)
+export const billChangeHistory = pgTable("bill_change_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trackedBillId: varchar("tracked_bill_id").notNull(),
+  changeType: text("change_type").notNull(), // status_change, action_update, amendment, cosponsors
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  description: text("description"),
+  detectedAt: timestamp("detected_at").defaultNow(),
+  isRead: boolean("is_read").default(false),
+});
+
+export const insertBillChangeHistorySchema = createInsertSchema(billChangeHistory).omit({
+  id: true,
+  detectedAt: true,
+  isRead: true,
+});
+
+export type InsertBillChangeHistory = z.infer<typeof insertBillChangeHistorySchema>;
+export type BillChangeHistory = typeof billChangeHistory.$inferSelect;
+
+// Bill tracking alerts (user preferences for notifications)
+export const billTrackingAlerts = pgTable("bill_tracking_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trackedBillId: varchar("tracked_bill_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  alertOnStatusChange: boolean("alert_on_status_change").default(true),
+  alertOnNewAction: boolean("alert_on_new_action").default(true),
+  alertOnAmendment: boolean("alert_on_amendment").default(true),
+  alertOnCosponsorChange: boolean("alert_on_cosponsor_change").default(false),
+  emailNotification: boolean("email_notification").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBillTrackingAlertSchema = createInsertSchema(billTrackingAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBillTrackingAlert = z.infer<typeof insertBillTrackingAlertSchema>;
+export type BillTrackingAlert = typeof billTrackingAlerts.$inferSelect;

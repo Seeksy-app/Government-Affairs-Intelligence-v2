@@ -21,6 +21,8 @@ import {
   portalMatterAccess,
   youtubeWatchList,
   trackedBills,
+  billChangeHistory,
+  billTrackingAlerts,
   clientApplications,
   type Client,
   type InsertClient,
@@ -62,6 +64,10 @@ import {
   type InsertYoutubeWatchList,
   type TrackedBill,
   type InsertTrackedBill,
+  type BillChangeHistory,
+  type InsertBillChangeHistory,
+  type BillTrackingAlert,
+  type InsertBillTrackingAlert,
   type ClientApplication,
   type InsertClientApplication,
 } from "@shared/schema";
@@ -202,6 +208,19 @@ export interface IStorage {
   createTrackedBill(bill: InsertTrackedBill): Promise<TrackedBill>;
   updateTrackedBill(id: string, bill: Partial<InsertTrackedBill & { lastSyncedAt: Date }>): Promise<TrackedBill | undefined>;
   deleteTrackedBill(id: string): Promise<void>;
+
+  // Bill Change History
+  getBillChangeHistory(trackedBillId: string): Promise<BillChangeHistory[]>;
+  getUnreadBillChanges(clientId: string): Promise<(BillChangeHistory & { bill: TrackedBill })[]>;
+  createBillChange(change: InsertBillChangeHistory): Promise<BillChangeHistory>;
+  markBillChangeAsRead(id: string): Promise<void>;
+  markAllBillChangesAsRead(trackedBillId: string): Promise<void>;
+
+  // Bill Tracking Alerts
+  getBillTrackingAlert(trackedBillId: string): Promise<BillTrackingAlert | undefined>;
+  createBillTrackingAlert(alert: InsertBillTrackingAlert): Promise<BillTrackingAlert>;
+  updateBillTrackingAlert(id: string, alert: Partial<InsertBillTrackingAlert>): Promise<BillTrackingAlert | undefined>;
+  deleteBillTrackingAlert(trackedBillId: string): Promise<void>;
 
   // Client Applications
   getClientApplications(): Promise<ClientApplication[]>;
@@ -816,6 +835,62 @@ export class DatabaseStorage implements IStorage {
   async updateClientApplication(id: string, app: Partial<ClientApplication>): Promise<ClientApplication | undefined> {
     const [updated] = await db.update(clientApplications).set({ ...app, updatedAt: new Date() }).where(eq(clientApplications.id, id)).returning();
     return updated;
+  }
+
+  // Bill Change History
+  async getBillChangeHistory(trackedBillId: string): Promise<BillChangeHistory[]> {
+    return db.select().from(billChangeHistory).where(eq(billChangeHistory.trackedBillId, trackedBillId)).orderBy(desc(billChangeHistory.detectedAt));
+  }
+
+  async getUnreadBillChanges(clientId: string): Promise<(BillChangeHistory & { bill: TrackedBill })[]> {
+    const bills = await db.select().from(trackedBills).where(eq(trackedBills.clientId, clientId));
+    const billIds = bills.map(b => b.id);
+    if (billIds.length === 0) return [];
+
+    const changes = await db.select().from(billChangeHistory)
+      .where(and(
+        eq(billChangeHistory.isRead, false),
+        or(...billIds.map(id => eq(billChangeHistory.trackedBillId, id)))
+      ))
+      .orderBy(desc(billChangeHistory.detectedAt));
+
+    return changes.map(change => {
+      const bill = bills.find(b => b.id === change.trackedBillId)!;
+      return { ...change, bill };
+    });
+  }
+
+  async createBillChange(change: InsertBillChangeHistory): Promise<BillChangeHistory> {
+    const [newChange] = await db.insert(billChangeHistory).values(change).returning();
+    return newChange;
+  }
+
+  async markBillChangeAsRead(id: string): Promise<void> {
+    await db.update(billChangeHistory).set({ isRead: true }).where(eq(billChangeHistory.id, id));
+  }
+
+  async markAllBillChangesAsRead(trackedBillId: string): Promise<void> {
+    await db.update(billChangeHistory).set({ isRead: true }).where(eq(billChangeHistory.trackedBillId, trackedBillId));
+  }
+
+  // Bill Tracking Alerts
+  async getBillTrackingAlert(trackedBillId: string): Promise<BillTrackingAlert | undefined> {
+    const [alert] = await db.select().from(billTrackingAlerts).where(eq(billTrackingAlerts.trackedBillId, trackedBillId));
+    return alert;
+  }
+
+  async createBillTrackingAlert(alert: InsertBillTrackingAlert): Promise<BillTrackingAlert> {
+    const [newAlert] = await db.insert(billTrackingAlerts).values(alert).returning();
+    return newAlert;
+  }
+
+  async updateBillTrackingAlert(id: string, alert: Partial<InsertBillTrackingAlert>): Promise<BillTrackingAlert | undefined> {
+    const [updated] = await db.update(billTrackingAlerts).set(alert).where(eq(billTrackingAlerts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteBillTrackingAlert(trackedBillId: string): Promise<void> {
+    await db.delete(billTrackingAlerts).where(eq(billTrackingAlerts.trackedBillId, trackedBillId));
   }
 }
 
