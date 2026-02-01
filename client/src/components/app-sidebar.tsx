@@ -45,25 +45,25 @@ export function AppSidebar() {
   const isImpersonating = isSuperAdmin && userRole?.impersonatingClientId;
 
   const superAdminItems = [
-    { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-    { title: "Clients", url: "/admin/clients", icon: Building2 },
-    { title: "Users", url: "/admin/users", icon: Users },
-    { title: "Knowledge Base", url: "/admin/kb", icon: Book },
-    { title: "Security", url: "/admin/security", icon: Lock },
-    { title: "Settings", url: "/admin/settings", icon: Settings },
+    { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
+    { title: "Clients", url: "/admin/clients", icon: Building2, tourId: "admin-clients" },
+    { title: "Users", url: "/admin/users", icon: Users, tourId: "admin-users" },
+    { title: "Knowledge Base", url: "/admin/kb", icon: Book, tourId: "admin-kb" },
+    { title: "Security", url: "/admin/security", icon: Lock, tourId: "admin-security" },
+    { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
   ];
 
   const clientItems = [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Contacts", url: "/contacts", icon: Users },
-    { title: "Matters", url: "/matters", icon: FolderOpen },
-    { title: "AI Agent", url: "/ai-agent", icon: Bot },
-    { title: "Network", url: "/network", icon: Network },
-    { title: "News", url: "/news", icon: Newspaper },
-    { title: "Client Portals", url: "/portals", icon: Share2 },
-    { title: "Knowledge Base", url: "/kb", icon: Book },
-    { title: "Security", url: "/security", icon: Lock },
-    { title: "Settings", url: "/settings", icon: Settings },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tourId: "dashboard" },
+    { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
+    { title: "Matters", url: "/matters", icon: FolderOpen, tourId: "matters" },
+    { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
+    { title: "Network", url: "/network", icon: Network, tourId: "network" },
+    { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
+    { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
+    { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
+    { title: "Security", url: "/security", icon: Lock, tourId: "security" },
+    { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
   ];
 
   // When impersonating, show client menu instead of admin menu
@@ -116,7 +116,11 @@ export function AppSidebar() {
                     asChild
                     isActive={location === item.url || location.startsWith(item.url + "/")}
                   >
-                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase()}`}>
+                    <Link 
+                      href={item.url} 
+                      data-testid={`nav-${item.title.toLowerCase()}`}
+                      data-tour={item.tourId}
+                    >
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
                     </Link>
