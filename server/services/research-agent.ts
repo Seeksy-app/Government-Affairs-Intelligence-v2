@@ -272,7 +272,7 @@ export async function researchPoliticalEntity(
 
 export async function generateSummary(content: string): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -313,7 +313,7 @@ Answer questions based on these documents. If the answer is not in the documents
   ];
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-4o",
     messages,
     stream: true,
     max_tokens: 2048,
@@ -346,7 +346,7 @@ export async function analyzeStafferCareer(careerHistory: {
     .join("\n");
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
