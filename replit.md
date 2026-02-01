@@ -1,7 +1,10 @@
-# Newco - Political Intelligence Platform
+# Political Intelligence Platform
 
 ## Overview
-Newco is a multi-tenant SaaS platform for political consulting firms. It provides tools for tracking political contacts, monitoring career paths, and aggregating news. The platform is designed to be licensed to government affairs firms.
+A multi-tenant SaaS platform for political consulting firms. It provides tools for tracking political contacts, monitoring career paths, and aggregating news. The platform is designed to be licensed to government affairs firms.
+
+## Future Integrations
+- **Gmail Integration**: User dismissed OAuth integration. If email features are needed later, will need to implement with manual API key/credentials from user.
 
 ## Current State
 - **MVP Complete**: The core platform is functional with authentication, multi-tenancy, and all primary features.
