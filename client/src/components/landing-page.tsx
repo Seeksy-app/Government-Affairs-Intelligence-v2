@@ -12,7 +12,7 @@ export function LandingPage() {
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
               <Building2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-lg">Newco</span>
+            <span className="font-semibold text-lg">Political Intel</span>
           </div>
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Features</a>
@@ -183,7 +183,7 @@ export function LandingPage() {
             Built for Government Affairs Professionals
           </h2>
           <p className="text-muted-foreground text-lg">
-            Newco was built by lobbyists, for lobbyists. We understand the unique challenges of 
+            This platform was built by lobbyists, for lobbyists. We understand the unique challenges of 
             navigating the political landscape and have created tools that streamline your workflow, 
             enhance your intelligence gathering, and give you the competitive edge you need.
           </p>
@@ -200,10 +200,10 @@ export function LandingPage() {
             <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
               <Building2 className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-sm text-muted-foreground">Newco Platform</span>
+            <span className="text-sm text-muted-foreground">Political Intel Platform</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Newco. All rights reserved.
+            &copy; {new Date().getFullYear()} Political Intelligence Platform. All rights reserved.
           </p>
         </div>
       </footer>

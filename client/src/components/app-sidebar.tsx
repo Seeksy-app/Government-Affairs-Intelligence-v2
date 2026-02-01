@@ -91,7 +91,7 @@ export function AppSidebar() {
             )}
           </div>
           <div>
-            <span className="font-semibold text-sm">Newco</span>
+            <span className="font-semibold text-sm">Political Intel</span>
             {isSuperAdmin && (
               <p className="text-xs text-muted-foreground">Super Admin</p>
             )}

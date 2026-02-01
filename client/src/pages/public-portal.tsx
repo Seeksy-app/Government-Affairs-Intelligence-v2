@@ -207,7 +207,7 @@ export default function PublicPortal() {
 
       <footer className="border-t mt-12">
         <div className="container mx-auto py-6 text-center text-sm text-muted-foreground">
-          <p>Powered by Newco Political Intelligence Platform</p>
+          <p>Powered by Political Intelligence Platform</p>
         </div>
       </footer>
     </div>
