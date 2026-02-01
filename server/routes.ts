@@ -1852,25 +1852,20 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         { role: "user", content: message }
       ];
 
-      const response = await fetch(`${openaiBaseUrl || "https://api.openai.com"}/v1/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages,
-          max_tokens: 1000,
-        }),
+      // Use the OpenAI SDK approach for better compatibility
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: openaiApiKey,
+        baseURL: openaiBaseUrl,
       });
 
-      if (!response.ok) {
-        throw new Error("OpenAI request failed");
-      }
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages,
+        max_tokens: 1000,
+      });
 
-      const data = await response.json();
-      const reply = data.choices?.[0]?.message?.content || "I couldn't generate a response.";
+      const reply = completion.choices?.[0]?.message?.content || "I couldn't generate a response.";
       
       res.json({ response: reply });
     } catch (error) {
