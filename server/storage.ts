@@ -229,6 +229,7 @@ export interface IStorage {
   getClientApplicationByToken(token: string): Promise<ClientApplication | undefined>;
   createClientApplication(app: InsertClientApplication & { emailVerificationToken: string; emailVerificationExpires: Date }): Promise<ClientApplication>;
   updateClientApplication(id: string, app: Partial<ClientApplication>): Promise<ClientApplication | undefined>;
+  deleteClientApplication(id: string): Promise<void>;
 
   // Stats
   getAdminStats(): Promise<{
@@ -835,6 +836,10 @@ export class DatabaseStorage implements IStorage {
   async updateClientApplication(id: string, app: Partial<ClientApplication>): Promise<ClientApplication | undefined> {
     const [updated] = await db.update(clientApplications).set({ ...app, updatedAt: new Date() }).where(eq(clientApplications.id, id)).returning();
     return updated;
+  }
+
+  async deleteClientApplication(id: string): Promise<void> {
+    await db.delete(clientApplications).where(eq(clientApplications.id, id));
   }
 
   // Bill Change History

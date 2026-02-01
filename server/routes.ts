@@ -480,6 +480,28 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: Delete application
+  app.delete("/api/admin/applications/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const application = await storage.getClientApplication(req.params.id);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      await storage.deleteClientApplication(application.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting application:", error);
+      res.status(500).json({ message: "Failed to delete application" });
+    }
+  });
+
   // Admin: Impersonate a client
   app.post("/api/admin/impersonate/:clientId", isAuthenticated, async (req, res) => {
     try {

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { CheckCircle2, XCircle, Clock, Mail, Building2, User, Phone, Globe, Calendar, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Mail, Building2, User, Phone, Globe, Calendar, Loader2, Trash2 } from "lucide-react";
 
 interface ClientApplication {
   id: string;
@@ -60,6 +60,21 @@ export default function AdminApplications() {
       setShowRejectDialog(false);
       setSelectedApp(null);
       setRejectReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/applications/${applicationId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
+      toast({ title: "Application Deleted", description: "The application has been permanently removed." });
+      setSelectedApp(null);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -213,6 +228,22 @@ export default function AdminApplications() {
                       </Button>
                     </div>
                   )}
+                  {!app.emailVerified && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete application from ${app.email}? This cannot be undone.`)) {
+                          deleteMutation.mutate(app.id);
+                        }
+                      }}
+                      data-testid={`button-delete-${app.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )
                 </div>
               ))}
             </div>

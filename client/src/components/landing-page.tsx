@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, Mail } from "lucide-react";
-import capitolImage from "@/assets/images/capitol.jpg";
+import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, FileText, Target, Briefcase } from "lucide-react";
+import heroCapitolImage from "@/assets/images/hero-capitol.jpg";
 import meetingImage from "@/assets/images/meeting.jpg";
 import dcMonumentsImage from "@/assets/images/dc-monuments.jpg";
 
@@ -33,69 +33,70 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-24 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight leading-tight">
-                  Political Intelligence
-                  <span className="text-primary"> Platform</span>
+          <div className="relative rounded-2xl overflow-hidden mb-12">
+            <img 
+              src={heroCapitolImage} 
+              alt="US Capitol Building" 
+              className="w-full h-64 md:h-80 object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="px-8 md:px-12 max-w-2xl space-y-4">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold tracking-tight leading-tight text-foreground">
+                  Delivering Results
+                  <span className="text-primary"> That Matter</span>
                 </h1>
-                <p className="text-lg text-muted-foreground max-w-xl">
-                  Track staffers, monitor legislation, and map relationships across the political landscape. 
-                  The intelligence platform trusted by leading government affairs firms.
+                <p className="text-base md:text-lg text-muted-foreground">
+                  Navigate the complexities of government with confidence. Strategic guidance, 
+                  comprehensive research, and tailored solutions for federal advocacy.
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <Button size="lg" asChild data-testid="button-get-started">
-                  <a href="/signup">Create Account</a>
-                </Button>
-                <Button size="lg" variant="outline" asChild data-testid="button-learn-more">
-                  <a href="/api/login">Sign In</a>
-                </Button>
-              </div>
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span>Enterprise-grade security</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  <span>Real-time updates</span>
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <Button size="lg" asChild data-testid="button-get-started">
+                    <a href="/signup">Get Started</a>
+                  </Button>
+                  <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur-sm" asChild data-testid="button-learn-more">
+                    <a href="#features">Learn More</a>
+                  </Button>
                 </div>
               </div>
             </div>
-            <div className="relative hidden lg:block">
-              <div className="relative rounded-2xl overflow-hidden">
-                <img 
-                  src={capitolImage} 
-                  alt="US Capitol Building" 
-                  className="w-full h-80 object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <div className="bg-card/90 backdrop-blur-sm border rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Staffer Tracking</p>
-                        <p className="text-xs text-muted-foreground">Monitor Capitol Hill movements</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Bot className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">AI Research Agent</p>
-                        <p className="text-xs text-muted-foreground">Intelligent policy analysis</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          </div>
+          
+          {/* Value Props */}
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="flex items-start gap-4 p-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Target className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Strategic Advocacy</h3>
+                <p className="text-sm text-muted-foreground">
+                  Beyond simple reporting and political intelligence to immediate strategy plans for success.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4 p-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Briefcase className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Professional Services</h3>
+                <p className="text-sm text-muted-foreground">
+                  Expert team dedicated to exceptional results with insights and innovative solutions.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4 p-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Policy Expertise</h3>
+                <p className="text-sm text-muted-foreground">
+                  Deep understanding of transportation, infrastructure, public safety, and regulatory landscapes.
+                </p>
               </div>
             </div>
           </div>
