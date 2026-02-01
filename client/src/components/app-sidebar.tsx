@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -48,6 +48,7 @@ export function AppSidebar() {
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
     { title: "Clients", url: "/admin/clients", icon: Building2, tourId: "admin-clients" },
     { title: "Users", url: "/admin/users", icon: Users, tourId: "admin-users" },
+    { title: "Sources", url: "/sources", icon: Database, tourId: "admin-sources" },
     { title: "Knowledge Base", url: "/admin/kb", icon: Book, tourId: "admin-kb" },
     { title: "Security", url: "/admin/security", icon: Lock, tourId: "admin-security" },
     { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
@@ -58,6 +59,7 @@ export function AppSidebar() {
     { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
     { title: "Matters", url: "/matters", icon: FolderOpen, tourId: "matters" },
     { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
+    { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
     { title: "Network", url: "/network", icon: Network, tourId: "network" },
     { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
     { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },

@@ -30,6 +30,7 @@ import Security from "@/pages/security";
 import ClientPortals from "@/pages/client-portals";
 import PublicPortal from "@/pages/public-portal";
 import AIAgentPage from "@/pages/ai-agent";
+import SourcesPage from "@/pages/sources";
 
 function AuthenticatedRouter() {
   return (
@@ -50,6 +51,7 @@ function AuthenticatedRouter() {
       <Route path="/matters" component={MattersPage} />
       <Route path="/matters/:id" component={MatterDetailPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
+      <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
       <Route path="/kb" component={KnowledgeBase} />
       <Route path="/security" component={Security} />
