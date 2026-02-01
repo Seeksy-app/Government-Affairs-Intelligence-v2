@@ -9,8 +9,23 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Bell, BellOff, ExternalLink, RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+
+// Congress sessions with their year ranges (most recent first)
+const CONGRESS_SESSIONS = [
+  { congress: 119, years: "2025-2027", label: "119th Congress (2025-2027)" },
+  { congress: 118, years: "2023-2025", label: "118th Congress (2023-2025)" },
+  { congress: 117, years: "2021-2023", label: "117th Congress (2021-2023)" },
+  { congress: 116, years: "2019-2021", label: "116th Congress (2019-2021)" },
+  { congress: 115, years: "2017-2019", label: "115th Congress (2017-2019)" },
+  { congress: 114, years: "2015-2017", label: "114th Congress (2015-2017)" },
+  { congress: 113, years: "2013-2015", label: "113th Congress (2013-2015)" },
+  { congress: 112, years: "2011-2013", label: "112th Congress (2011-2013)" },
+  { congress: 111, years: "2009-2011", label: "111th Congress (2009-2011)" },
+  { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
+];
 import type { TrackedBill, BillChangeHistory, BillTrackingAlert } from "@shared/schema";
 
 interface BillSearchResult {
@@ -27,6 +42,7 @@ interface BillSearchResult {
 export default function BillTrackingPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCongress, setSelectedCongress] = useState(119);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<BillSearchResult[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -41,8 +57,8 @@ export default function BillTrackingPage() {
   });
 
   const searchBillsMutation = useMutation({
-    mutationFn: async (query: string) => {
-      const res = await apiRequest("GET", `/api/bills/search?q=${encodeURIComponent(query)}`);
+    mutationFn: async ({ query, congress }: { query: string; congress: number }) => {
+      const res = await apiRequest("GET", `/api/bills/search?q=${encodeURIComponent(query)}&congress=${congress}`);
       return res.json();
     },
     onSuccess: (data) => {
@@ -132,7 +148,7 @@ export default function BillTrackingPage() {
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
-    searchBillsMutation.mutate(searchQuery);
+    searchBillsMutation.mutate({ query: searchQuery, congress: selectedCongress });
   };
 
   const getBillTypeLabel = (type: string) => {
@@ -179,8 +195,25 @@ export default function BillTrackingPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex gap-2">
+                  <Select 
+                    value={selectedCongress.toString()} 
+                    onValueChange={(value) => setSelectedCongress(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-[240px]" data-testid="select-congress">
+                      <SelectValue placeholder="Select Congress" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONGRESS_SESSIONS.map((session) => (
+                        <SelectItem key={session.congress} value={session.congress.toString()}>
+                          {session.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
                   <Input
-                    placeholder="Search bills..."
+                    placeholder="Search bills by keyword or number (e.g., HR 1234, climate)..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
