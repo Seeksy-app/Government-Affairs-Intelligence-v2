@@ -298,8 +298,10 @@ export async function registerRoutes(
         emailVerificationExpires: expires,
       });
 
-      // Send verification email
-      const verifyUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/verify-email?token=${token}`;
+      // Send verification email - use the request host to get correct domain for both dev and production
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['host'] || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
+      const verifyUrl = `${protocol}://${host}/verify-email?token=${token}`;
       
       await sendEmail({
         to: parsed.data.email,

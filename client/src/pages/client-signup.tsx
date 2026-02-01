@@ -25,7 +25,7 @@ const signupSchema = z.object({
   website: z.string().optional(),
   // Step 3: Your Goals
   primaryGoals: z.array(z.string()).optional(),
-  currentTools: z.string().optional(),
+  currentTools: z.array(z.string()).optional(),
   expectedUsers: z.string().optional(),
   // Step 4: How Did You Hear About Us
   howHeardAboutUs: z.string().optional(),
@@ -76,6 +76,24 @@ const URGENCY_OPTIONS = [
   { value: "exploring", label: "Just exploring options" },
 ];
 
+const CURRENT_TOOLS_OPTIONS = [
+  { id: "quorum", label: "Quorum" },
+  { id: "bloomberg_gov", label: "Bloomberg Government" },
+  { id: "congress_gov", label: "Congress.gov" },
+  { id: "govtrack", label: "GovTrack" },
+  { id: "legiscan", label: "LegiScan" },
+  { id: "fiscalnote", label: "FiscalNote" },
+  { id: "cq_roll_call", label: "CQ Roll Call" },
+  { id: "opensecrets", label: "OpenSecrets" },
+  { id: "zapier", label: "Zapier" },
+  { id: "monday", label: "Monday.com" },
+  { id: "asana", label: "Asana" },
+  { id: "salesforce", label: "Salesforce" },
+  { id: "hubspot", label: "HubSpot" },
+  { id: "spreadsheets", label: "Spreadsheets" },
+  { id: "other", label: "Other" },
+];
+
 export default function ClientSignupPage() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -93,7 +111,7 @@ export default function ClientSignupPage() {
       industry: "",
       website: "",
       primaryGoals: [],
-      currentTools: "",
+      currentTools: [],
       expectedUsers: "",
       howHeardAboutUs: "",
       referralSource: "",
@@ -104,7 +122,12 @@ export default function ClientSignupPage() {
 
   const signupMutation = useMutation({
     mutationFn: async (data: SignupForm) => {
-      const res = await apiRequest("POST", "/api/client-applications", data);
+      // primaryGoals stays as array (stored as array in DB), currentTools converted to string
+      const payload = {
+        ...data,
+        currentTools: (data.currentTools || []).join(","),
+      };
+      const res = await apiRequest("POST", "/api/client-applications", payload);
       return res.json();
     },
     onSuccess: (_, variables) => {
@@ -165,6 +188,15 @@ export default function ClientSignupPage() {
       form.setValue("primaryGoals", currentGoals.filter(g => g !== goalId));
     } else {
       form.setValue("primaryGoals", [...currentGoals, goalId]);
+    }
+  };
+
+  const toggleTool = (toolId: string) => {
+    const tools = form.getValues("currentTools") || [];
+    if (tools.includes(toolId)) {
+      form.setValue("currentTools", tools.filter(t => t !== toolId));
+    } else {
+      form.setValue("currentTools", [...tools, toolId]);
     }
   };
 
@@ -437,9 +469,35 @@ export default function ClientSignupPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>What tools do you currently use? (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Quorum, Bloomberg Gov, spreadsheets..." {...field} data-testid="input-current-tools" />
-                        </FormControl>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {CURRENT_TOOLS_OPTIONS.map((tool) => {
+                            const currentTools = field.value || [];
+                            const isSelected = currentTools.includes(tool.id);
+                            return (
+                              <div
+                                key={tool.id}
+                                className={cn(
+                                  "flex items-center gap-2 p-2 rounded-md border cursor-pointer transition-colors text-sm",
+                                  isSelected
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border hover-elevate"
+                                )}
+                                onClick={() => toggleTool(tool.id)}
+                                data-testid={`tool-${tool.id}`}
+                              >
+                                <div className={cn(
+                                  "h-3 w-3 shrink-0 rounded-sm border flex items-center justify-center",
+                                  isSelected 
+                                    ? "bg-primary border-primary text-primary-foreground" 
+                                    : "border-primary"
+                                )}>
+                                  {isSelected && <CheckCircle2 className="h-2 w-2" />}
+                                </div>
+                                <span>{tool.label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
