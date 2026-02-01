@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Matter } from "@shared/schema";
@@ -45,6 +46,12 @@ export default function AIAgentPage() {
   const [chatInput, setChatInput] = useState("");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedMatterId, setSelectedMatterId] = useState<string>("");
+  const [youtubeDialogOpen, setYoutubeDialogOpen] = useState(false);
+  const [webDialogOpen, setWebDialogOpen] = useState(false);
+  const [queryDialogOpen, setQueryDialogOpen] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [webUrl, setWebUrl] = useState("");
+  const [queryText, setQueryText] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem("ai-agent-recent-searches");
     return saved ? JSON.parse(saved) : [];
@@ -348,14 +355,29 @@ export default function AIAgentPage() {
                 )}
               </Button>
             </div>
-            <div className="flex gap-2 text-sm text-muted-foreground">
-              <Badge variant="outline" className="gap-1">
+            <div className="flex gap-2 text-sm">
+              <Badge 
+                variant="outline" 
+                className="gap-1 cursor-pointer hover-elevate"
+                onClick={() => setWebDialogOpen(true)}
+                data-testid="badge-web-pages"
+              >
                 <Globe className="w-3 h-3" /> Web Pages
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge 
+                variant="outline" 
+                className="gap-1 cursor-pointer hover-elevate"
+                onClick={() => setYoutubeDialogOpen(true)}
+                data-testid="badge-youtube"
+              >
                 <Youtube className="w-3 h-3" /> YouTube
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge 
+                variant="outline" 
+                className="gap-1 cursor-pointer hover-elevate"
+                onClick={() => setQueryDialogOpen(true)}
+                data-testid="badge-ai-queries"
+              >
                 <Bot className="w-3 h-3" /> AI Queries
               </Badge>
             </div>
@@ -503,6 +525,163 @@ export default function AIAgentPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* YouTube Dialog */}
+      <Dialog open={youtubeDialogOpen} onOpenChange={setYoutubeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Youtube className="w-5 h-5 text-red-500" />
+              Extract YouTube Video
+            </DialogTitle>
+            <DialogDescription>
+              Enter a YouTube URL to extract the video transcript
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              data-testid="input-youtube-url"
+            />
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                Works with regular YouTube videos that have captions
+              </p>
+              <p className="flex items-center gap-2">
+                <Radio className="w-4 h-4" />
+                <span className="text-amber-600 dark:text-amber-400">
+                  Live streams require captions to be available after the stream ends
+                </span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setYoutubeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (youtubeUrl) {
+                  urlSearchMutation.mutate(youtubeUrl);
+                  setYoutubeDialogOpen(false);
+                  setYoutubeUrl("");
+                }
+              }}
+              disabled={!youtubeUrl || urlSearchMutation.isPending}
+              data-testid="button-extract-youtube"
+            >
+              {urlSearchMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Youtube className="w-4 h-4 mr-2" />
+              )}
+              Extract Transcript
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Web Page Dialog */}
+      <Dialog open={webDialogOpen} onOpenChange={setWebDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-blue-500" />
+              Extract Web Page
+            </DialogTitle>
+            <DialogDescription>
+              Enter a URL to extract the page content
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="https://example.com/article"
+              value={webUrl}
+              onChange={(e) => setWebUrl(e.target.value)}
+              data-testid="input-web-url"
+            />
+            <div className="text-sm text-muted-foreground">
+              Supports news articles, government websites, press releases, and more
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWebDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (webUrl) {
+                  urlSearchMutation.mutate(webUrl);
+                  setWebDialogOpen(false);
+                  setWebUrl("");
+                }
+              }}
+              disabled={!webUrl || urlSearchMutation.isPending}
+              data-testid="button-extract-web"
+            >
+              {urlSearchMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Globe className="w-4 h-4 mr-2" />
+              )}
+              Extract Content
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Query Dialog */}
+      <Dialog open={queryDialogOpen} onOpenChange={setQueryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              AI Research Query
+            </DialogTitle>
+            <DialogDescription>
+              Ask the AI to research any topic
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder="e.g., Find recent lobbying activities related to healthcare reform..."
+              value={queryText}
+              onChange={(e) => setQueryText(e.target.value)}
+              className="min-h-[100px]"
+              data-testid="input-ai-query"
+            />
+            <div className="text-sm text-muted-foreground">
+              The AI will search the web and compile research on your topic
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQueryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (queryText) {
+                  queryMutation.mutate(queryText);
+                  setQueryDialogOpen(false);
+                  setQueryText("");
+                }
+              }}
+              disabled={!queryText || queryMutation.isPending}
+              data-testid="button-run-ai-query"
+            >
+              {queryMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Bot className="w-4 h-4 mr-2" />
+              )}
+              Run Query
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
