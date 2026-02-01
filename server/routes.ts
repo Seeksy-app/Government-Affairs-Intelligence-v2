@@ -8,6 +8,13 @@ import {
   insertNewsArticleSchema,
   insertCareerHistorySchema,
   insertMatterSchema,
+  insertKbCategorySchema,
+  insertKbArticleSchema,
+  insertKbTooltipSchema,
+  insertSecurityStatusSchema,
+  insertSecurityControlSchema,
+  insertClientPortalSchema,
+  insertPortalMatterAccessSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -1010,6 +1017,646 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error running agent query:", error);
       res.status(500).json({ message: "Agent query failed. Please try again." });
+    }
+  });
+
+  // ============ Knowledge Base Routes ============
+
+  // Admin KB Categories (owner scope)
+  app.get("/api/admin/kb/categories", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const categories = await storage.getKbCategories("owner");
+      res.json(categories);
+    } catch (error) {
+      console.error("Error getting KB categories:", error);
+      res.status(500).json({ message: "Failed to get categories" });
+    }
+  });
+
+  app.post("/api/admin/kb/categories", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const parsed = insertKbCategorySchema.safeParse({ ...req.body, scope: "owner" });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      const category = await storage.createKbCategory(parsed.data);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Error creating KB category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+
+  app.patch("/api/admin/kb/categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const category = await storage.updateKbCategory(req.params.id, req.body);
+      if (!category) return res.status(404).json({ message: "Category not found" });
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating KB category:", error);
+      res.status(500).json({ message: "Failed to update category" });
+    }
+  });
+
+  app.delete("/api/admin/kb/categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      await storage.deleteKbCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting KB category:", error);
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
+  // Admin KB Articles (owner scope)
+  app.get("/api/admin/kb/articles", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const articles = await storage.getKbArticles("owner");
+      res.json(articles);
+    } catch (error) {
+      console.error("Error getting KB articles:", error);
+      res.status(500).json({ message: "Failed to get articles" });
+    }
+  });
+
+  app.post("/api/admin/kb/articles", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const parsed = insertKbArticleSchema.safeParse({ ...req.body, scope: "owner" });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      const article = await storage.createKbArticle(parsed.data);
+      res.status(201).json(article);
+    } catch (error) {
+      console.error("Error creating KB article:", error);
+      res.status(500).json({ message: "Failed to create article" });
+    }
+  });
+
+  app.get("/api/admin/kb/articles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const article = await storage.getKbArticle(req.params.id);
+      if (!article) return res.status(404).json({ message: "Article not found" });
+      res.json(article);
+    } catch (error) {
+      console.error("Error getting KB article:", error);
+      res.status(500).json({ message: "Failed to get article" });
+    }
+  });
+
+  app.patch("/api/admin/kb/articles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const article = await storage.updateKbArticle(req.params.id, req.body);
+      if (!article) return res.status(404).json({ message: "Article not found" });
+      res.json(article);
+    } catch (error) {
+      console.error("Error updating KB article:", error);
+      res.status(500).json({ message: "Failed to update article" });
+    }
+  });
+
+  app.delete("/api/admin/kb/articles/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      await storage.deleteKbArticle(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting KB article:", error);
+      res.status(500).json({ message: "Failed to delete article" });
+    }
+  });
+
+  // Client KB Categories (client scope)
+  app.get("/api/kb/categories", isAuthenticated, async (req, res) => {
+    try {
+      const categories = await storage.getKbCategories("client");
+      res.json(categories);
+    } catch (error) {
+      console.error("Error getting KB categories:", error);
+      res.status(500).json({ message: "Failed to get categories" });
+    }
+  });
+
+  // Client KB Articles (client scope)
+  app.get("/api/kb/articles", isAuthenticated, async (req, res) => {
+    try {
+      const articles = await storage.getKbArticles("client");
+      // Only return published articles for clients
+      const published = articles.filter(a => a.isPublished);
+      res.json(published);
+    } catch (error) {
+      console.error("Error getting KB articles:", error);
+      res.status(500).json({ message: "Failed to get articles" });
+    }
+  });
+
+  app.get("/api/kb/articles/:slug", isAuthenticated, async (req, res) => {
+    try {
+      const article = await storage.getKbArticleBySlug(req.params.slug, "client");
+      if (!article || !article.isPublished) {
+        return res.status(404).json({ message: "Article not found" });
+      }
+      res.json(article);
+    } catch (error) {
+      console.error("Error getting KB article:", error);
+      res.status(500).json({ message: "Failed to get article" });
+    }
+  });
+
+  app.get("/api/kb/search", isAuthenticated, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        return res.json([]);
+      }
+      const articles = await storage.searchKbArticles("client", query);
+      res.json(articles);
+    } catch (error) {
+      console.error("Error searching KB:", error);
+      res.status(500).json({ message: "Failed to search" });
+    }
+  });
+
+  // KB Tooltips
+  app.get("/api/kb/tooltips", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      const scope = superAdmin ? "owner" : "client";
+      const tooltips = await storage.getKbTooltips(scope);
+      res.json(tooltips);
+    } catch (error) {
+      console.error("Error getting tooltips:", error);
+      res.status(500).json({ message: "Failed to get tooltips" });
+    }
+  });
+
+  // Admin KB Tooltips management
+  app.post("/api/admin/kb/tooltips", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const parsed = insertKbTooltipSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      const tooltip = await storage.createKbTooltip(parsed.data);
+      res.status(201).json(tooltip);
+    } catch (error) {
+      console.error("Error creating tooltip:", error);
+      res.status(500).json({ message: "Failed to create tooltip" });
+    }
+  });
+
+  // ============ Security Status Routes ============
+
+  // Admin security status (platform-wide)
+  app.get("/api/admin/security", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      let status = await storage.getSecurityStatus("owner");
+      if (!status) {
+        // Create default security status
+        status = await storage.createSecurityStatus({
+          scope: "owner",
+          level: "standard",
+          notes: "Platform security status",
+        });
+      }
+      const controls = await storage.getSecurityControls("owner");
+      res.json({ status, controls });
+    } catch (error) {
+      console.error("Error getting security status:", error);
+      res.status(500).json({ message: "Failed to get security status" });
+    }
+  });
+
+  app.patch("/api/admin/security/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const status = await storage.updateSecurityStatus(req.params.id, req.body);
+      if (!status) return res.status(404).json({ message: "Status not found" });
+      res.json(status);
+    } catch (error) {
+      console.error("Error updating security status:", error);
+      res.status(500).json({ message: "Failed to update security status" });
+    }
+  });
+
+  app.post("/api/admin/security/controls", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const parsed = insertSecurityControlSchema.safeParse({ ...req.body, scope: "owner" });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      const control = await storage.createSecurityControl(parsed.data);
+      res.status(201).json(control);
+    } catch (error) {
+      console.error("Error creating security control:", error);
+      res.status(500).json({ message: "Failed to create control" });
+    }
+  });
+
+  app.patch("/api/admin/security/controls/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      const control = await storage.updateSecurityControl(req.params.id, req.body);
+      if (!control) return res.status(404).json({ message: "Control not found" });
+      res.json(control);
+    } catch (error) {
+      console.error("Error updating security control:", error);
+      res.status(500).json({ message: "Failed to update control" });
+    }
+  });
+
+  app.delete("/api/admin/security/controls/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
+
+      await storage.deleteSecurityControl(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting security control:", error);
+      res.status(500).json({ message: "Failed to delete control" });
+    }
+  });
+
+  // Client security status
+  app.get("/api/security", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      let status = await storage.getSecurityStatus("client", clientId);
+      if (!status) {
+        status = await storage.createSecurityStatus({
+          scope: "client",
+          clientId,
+          level: "standard",
+          notes: "Client security status",
+        });
+      }
+      const controls = await storage.getSecurityControls("client", clientId);
+      res.json({ status, controls });
+    } catch (error) {
+      console.error("Error getting security status:", error);
+      res.status(500).json({ message: "Failed to get security status" });
+    }
+  });
+
+  // ============ Client Portal Routes ============
+
+  // List portals for client
+  app.get("/api/portals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portals = await storage.getClientPortals(clientId);
+      res.json(portals);
+    } catch (error) {
+      console.error("Error getting portals:", error);
+      res.status(500).json({ message: "Failed to get portals" });
+    }
+  });
+
+  app.post("/api/portals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const parsed = insertClientPortalSchema.safeParse({ ...req.body, clientId });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+
+      // Check slug uniqueness within client
+      const existing = await storage.getClientPortalBySlug(clientId, parsed.data.slug);
+      if (existing) {
+        return res.status(400).json({ message: "A portal with this URL slug already exists" });
+      }
+
+      const portal = await storage.createClientPortal(parsed.data);
+      res.status(201).json(portal);
+    } catch (error) {
+      console.error("Error creating portal:", error);
+      res.status(500).json({ message: "Failed to create portal" });
+    }
+  });
+
+  app.get("/api/portals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.id);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+      res.json(portal);
+    } catch (error) {
+      console.error("Error getting portal:", error);
+      res.status(500).json({ message: "Failed to get portal" });
+    }
+  });
+
+  app.patch("/api/portals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.id);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const updated = await storage.updateClientPortal(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating portal:", error);
+      res.status(500).json({ message: "Failed to update portal" });
+    }
+  });
+
+  app.delete("/api/portals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.id);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      await storage.deleteClientPortal(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting portal:", error);
+      res.status(500).json({ message: "Failed to delete portal" });
+    }
+  });
+
+  // Portal matter access
+  app.get("/api/portals/:id/matters", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.id);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const access = await storage.getPortalMatterAccess(req.params.id);
+      const matterIds = access.map(a => a.matterId);
+      const allMatters = await storage.getMatters(clientId);
+      const sharedMatters = allMatters.filter(m => matterIds.includes(m.id));
+      res.json(sharedMatters);
+    } catch (error) {
+      console.error("Error getting portal matters:", error);
+      res.status(500).json({ message: "Failed to get portal matters" });
+    }
+  });
+
+  app.post("/api/portals/:id/matters", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.id);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const { matterId } = req.body;
+      const matter = await storage.getMatter(matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const access = await storage.createPortalMatterAccess({
+        portalId: req.params.id,
+        matterId,
+      });
+      res.status(201).json(access);
+    } catch (error) {
+      console.error("Error adding portal matter:", error);
+      res.status(500).json({ message: "Failed to add matter to portal" });
+    }
+  });
+
+  app.delete("/api/portals/:portalId/matters/:matterId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const portal = await storage.getClientPortal(req.params.portalId);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const access = await storage.getPortalMatterAccess(req.params.portalId);
+      const toDelete = access.find(a => a.matterId === req.params.matterId);
+      if (toDelete) {
+        await storage.deletePortalMatterAccess(toDelete.id);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing portal matter:", error);
+      res.status(500).json({ message: "Failed to remove matter from portal" });
+    }
+  });
+
+  // ============ Public Portal Routes (no auth) ============
+
+  app.get("/api/public/portal/:clientSlug/:portalSlug", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      res.json({
+        id: portal.id,
+        name: portal.name,
+        description: portal.description,
+        clientName: client.name,
+      });
+    } catch (error) {
+      console.error("Error getting public portal:", error);
+      res.status(500).json({ message: "Failed to get portal" });
+    }
+  });
+
+  app.get("/api/public/portal/:clientSlug/:portalSlug/matters", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const access = await storage.getPortalMatterAccess(portal.id);
+      const matterIds = access.map(a => a.matterId);
+      const allMatters = await storage.getMatters(client.id);
+      const sharedMatters = allMatters.filter(m => matterIds.includes(m.id));
+      
+      // Return minimal info for public view
+      res.json(sharedMatters.map(m => ({
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        status: m.status,
+      })));
+    } catch (error) {
+      console.error("Error getting public portal matters:", error);
+      res.status(500).json({ message: "Failed to get matters" });
+    }
+  });
+
+  app.get("/api/public/portal/:clientSlug/:portalSlug/matters/:matterId/documents", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug, matterId } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      // Verify matter is shared with this portal
+      const access = await storage.getPortalMatterAccess(portal.id);
+      const hasAccess = access.some(a => a.matterId === matterId);
+      if (!hasAccess) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const documents = await storage.getResearchDocuments(matterId);
+      
+      // Return minimal info for public view (no extracted content)
+      res.json(documents.map(d => ({
+        id: d.id,
+        title: d.title,
+        type: d.type,
+        summary: d.summary,
+        createdAt: d.createdAt,
+      })));
+    } catch (error) {
+      console.error("Error getting public portal documents:", error);
+      res.status(500).json({ message: "Failed to get documents" });
     }
   });
 
