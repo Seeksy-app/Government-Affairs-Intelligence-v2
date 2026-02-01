@@ -147,6 +147,7 @@ export default function BillTrackingPage() {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
+    setSearchResults([]); // Clear old results before new search
     setIsSearching(true);
     searchBillsMutation.mutate({ query: searchQuery, congress: selectedCongress });
   };
