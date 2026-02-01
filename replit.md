@@ -5,6 +5,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 
 ## Future Integrations
 - **Gmail Integration**: User dismissed OAuth integration. If email features are needed later, will need to implement with manual API key/credentials from user.
+- **Resend Email**: Configured for sending transactional emails (daily briefs, research updates)
 
 ## Current State
 - **MVP Complete**: The core platform is functional with authentication, multi-tenancy, and all primary features.

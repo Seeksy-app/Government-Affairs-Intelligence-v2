@@ -29,6 +29,7 @@ import KnowledgeBase from "@/pages/knowledge-base";
 import Security from "@/pages/security";
 import ClientPortals from "@/pages/client-portals";
 import PublicPortal from "@/pages/public-portal";
+import AIAgentPage from "@/pages/ai-agent";
 
 function AuthenticatedRouter() {
   return (
@@ -48,6 +49,7 @@ function AuthenticatedRouter() {
       <Route path="/network" component={NetworkPage} />
       <Route path="/matters" component={MattersPage} />
       <Route path="/matters/:id" component={MatterDetailPage} />
+      <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/portals" component={ClientPortals} />
       <Route path="/kb" component={KnowledgeBase} />
       <Route path="/security" component={Security} />

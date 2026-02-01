@@ -17,6 +17,7 @@ import {
   insertPortalMatterAccessSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import { sendEmail, sendDailyBrief, sendResearchUpdate } from "./services/email-service";
 
 declare module "express-session" {
   interface SessionData {
@@ -1657,6 +1658,88 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting public portal documents:", error);
       res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Email routes
+  const sendEmailSchema = z.object({
+    to: z.string().email(),
+    subject: z.string().min(1),
+    html: z.string().optional(),
+    text: z.string().optional(),
+  });
+
+  app.post("/api/email/send", isAuthenticated, async (req, res) => {
+    try {
+      const validation = sendEmailSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0].message });
+      }
+
+      const result = await sendEmail(validation.data);
+      if (result.success) {
+        res.json({ success: true, message: "Email sent successfully" });
+      } else {
+        res.status(500).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
+  const sendBriefSchema = z.object({
+    to: z.string().email(),
+    clientName: z.string(),
+    matterName: z.string(),
+    briefContent: z.string(),
+    portalUrl: z.string().optional(),
+  });
+
+  app.post("/api/email/daily-brief", isAuthenticated, async (req, res) => {
+    try {
+      const validation = sendBriefSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0].message });
+      }
+
+      const result = await sendDailyBrief(validation.data);
+      if (result.success) {
+        res.json({ success: true, message: "Daily brief sent successfully" });
+      } else {
+        res.status(500).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Error sending daily brief:", error);
+      res.status(500).json({ message: "Failed to send daily brief" });
+    }
+  });
+
+  const sendUpdateSchema = z.object({
+    to: z.string().email(),
+    clientName: z.string(),
+    matterName: z.string(),
+    updateType: z.enum(["new_document", "ai_analysis", "question_answered"]),
+    summary: z.string(),
+    portalUrl: z.string().optional(),
+  });
+
+  app.post("/api/email/research-update", isAuthenticated, async (req, res) => {
+    try {
+      const validation = sendUpdateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0].message });
+      }
+
+      const result = await sendResearchUpdate(validation.data);
+      if (result.success) {
+        res.json({ success: true, message: "Research update sent successfully" });
+      } else {
+        res.status(500).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      console.error("Error sending research update:", error);
+      res.status(500).json({ message: "Failed to send research update" });
     }
   });
 
