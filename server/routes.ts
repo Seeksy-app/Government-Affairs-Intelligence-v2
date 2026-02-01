@@ -346,12 +346,42 @@ export async function registerRoutes(
         return res.json({ message: "Email already verified. Your application is under review." });
       }
 
+      // Auto-approve: Create the client immediately upon email verification
+      const slug = application.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const client = await storage.createClient({
+        name: application.companyName,
+        slug: slug + "-" + randomBytes(4).toString("hex"),
+        industry: application.industry || undefined,
+        isActive: true,
+      });
+
       await storage.updateClientApplication(application.id, {
         emailVerified: true,
         emailVerificationToken: null,
+        status: "approved",
+        approvedClientId: client.id,
       });
 
-      res.json({ message: "Email verified successfully! Your application is now under review." });
+      // Send approval email
+      const baseUrl = req.headers.host?.includes('localhost') 
+        ? `http://${req.headers.host}` 
+        : `https://${req.headers.host}`;
+      
+      await sendEmail({
+        to: application.email,
+        subject: "Welcome to the Political Intelligence Platform!",
+        html: `
+          <h2>Welcome Aboard!</h2>
+          <p>Hi ${application.contactName},</p>
+          <p>Your email has been verified and your account for <strong>${application.companyName}</strong> is now active!</p>
+          <p>You can now log in using your work email through our secure authentication system.</p>
+          <p><a href="${baseUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
+          <p>Welcome to the Political Intelligence Platform!</p>
+          <p>Best regards,<br>The Political Intelligence Team</p>
+        `,
+      });
+
+      res.json({ message: "Email verified and account created! You can now log in.", approved: true });
     } catch (error) {
       console.error("Error verifying email:", error);
       res.status(500).json({ message: "Verification failed" });
