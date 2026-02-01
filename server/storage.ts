@@ -8,6 +8,10 @@ import {
   careerHistory,
   contactConnections,
   newsArticles,
+  matters,
+  researchDocuments,
+  researchConversations,
+  researchMessages,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -22,6 +26,14 @@ import {
   type InsertContactConnection,
   type NewsArticle,
   type InsertNewsArticle,
+  type Matter,
+  type InsertMatter,
+  type ResearchDocument,
+  type InsertResearchDocument,
+  type ResearchConversation,
+  type InsertResearchConversation,
+  type ResearchMessage,
+  type InsertResearchMessage,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -73,6 +85,30 @@ export interface IStorage {
   deleteNewsArticle(id: string): Promise<void>;
   getRecentNews(clientId: string, limit?: number): Promise<NewsArticle[]>;
 
+  // Matters (sub-clients)
+  getMatters(clientId: string): Promise<Matter[]>;
+  getMatter(id: string): Promise<Matter | undefined>;
+  createMatter(matter: InsertMatter): Promise<Matter>;
+  updateMatter(id: string, matter: Partial<InsertMatter>): Promise<Matter | undefined>;
+  deleteMatter(id: string): Promise<void>;
+
+  // Research Documents
+  getResearchDocuments(matterId: string): Promise<ResearchDocument[]>;
+  getResearchDocument(id: string): Promise<ResearchDocument | undefined>;
+  createResearchDocument(doc: InsertResearchDocument): Promise<ResearchDocument>;
+  deleteResearchDocument(id: string): Promise<void>;
+  getAllResearchDocumentsForMatter(matterId: string): Promise<ResearchDocument[]>;
+
+  // Research Conversations
+  getResearchConversations(matterId: string): Promise<ResearchConversation[]>;
+  getResearchConversation(id: string): Promise<ResearchConversation | undefined>;
+  createResearchConversation(conv: InsertResearchConversation): Promise<ResearchConversation>;
+  deleteResearchConversation(id: string): Promise<void>;
+
+  // Research Messages
+  getResearchMessages(conversationId: string): Promise<ResearchMessage[]>;
+  createResearchMessage(msg: InsertResearchMessage): Promise<ResearchMessage>;
+
   // Stats
   getAdminStats(): Promise<{
     totalClients: number;
@@ -86,6 +122,7 @@ export interface IStorage {
     highPriorityContacts: number;
     totalNews: number;
     unreadNews: number;
+    totalMatters: number;
   }>;
 }
 
@@ -304,13 +341,98 @@ export class DatabaseStorage implements IStorage {
     const highPriority = clientContacts.filter((c) => c.priority && c.priority >= 4);
     const clientNews = await db.select().from(newsArticles).where(eq(newsArticles.clientId, clientId));
     const unread = clientNews.filter((n) => !n.isRead);
+    const clientMatters = await db.select().from(matters).where(eq(matters.clientId, clientId));
 
     return {
       totalContacts: clientContacts.length,
       highPriorityContacts: highPriority.length,
       totalNews: clientNews.length,
       unreadNews: unread.length,
+      totalMatters: clientMatters.length,
     };
+  }
+
+  // Matters (sub-clients)
+  async getMatters(clientId: string): Promise<Matter[]> {
+    return db.select().from(matters).where(eq(matters.clientId, clientId)).orderBy(desc(matters.updatedAt));
+  }
+
+  async getMatter(id: string): Promise<Matter | undefined> {
+    const [matter] = await db.select().from(matters).where(eq(matters.id, id));
+    return matter;
+  }
+
+  async createMatter(matter: InsertMatter): Promise<Matter> {
+    const [newMatter] = await db.insert(matters).values(matter).returning();
+    return newMatter;
+  }
+
+  async updateMatter(id: string, matter: Partial<InsertMatter>): Promise<Matter | undefined> {
+    const [updated] = await db
+      .update(matters)
+      .set({ ...matter, updatedAt: new Date() })
+      .where(eq(matters.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMatter(id: string): Promise<void> {
+    await db.delete(researchDocuments).where(eq(researchDocuments.matterId, id));
+    await db.delete(researchConversations).where(eq(researchConversations.matterId, id));
+    await db.delete(matters).where(eq(matters.id, id));
+  }
+
+  // Research Documents
+  async getResearchDocuments(matterId: string): Promise<ResearchDocument[]> {
+    return db.select().from(researchDocuments).where(eq(researchDocuments.matterId, matterId)).orderBy(desc(researchDocuments.createdAt));
+  }
+
+  async getResearchDocument(id: string): Promise<ResearchDocument | undefined> {
+    const [doc] = await db.select().from(researchDocuments).where(eq(researchDocuments.id, id));
+    return doc;
+  }
+
+  async createResearchDocument(doc: InsertResearchDocument): Promise<ResearchDocument> {
+    const [newDoc] = await db.insert(researchDocuments).values(doc).returning();
+    return newDoc;
+  }
+
+  async deleteResearchDocument(id: string): Promise<void> {
+    await db.delete(researchDocuments).where(eq(researchDocuments.id, id));
+  }
+
+  async getAllResearchDocumentsForMatter(matterId: string): Promise<ResearchDocument[]> {
+    return db.select().from(researchDocuments).where(eq(researchDocuments.matterId, matterId));
+  }
+
+  // Research Conversations
+  async getResearchConversations(matterId: string): Promise<ResearchConversation[]> {
+    return db.select().from(researchConversations).where(eq(researchConversations.matterId, matterId)).orderBy(desc(researchConversations.createdAt));
+  }
+
+  async getResearchConversation(id: string): Promise<ResearchConversation | undefined> {
+    const [conv] = await db.select().from(researchConversations).where(eq(researchConversations.id, id));
+    return conv;
+  }
+
+  async createResearchConversation(conv: InsertResearchConversation): Promise<ResearchConversation> {
+    const [newConv] = await db.insert(researchConversations).values(conv).returning();
+    return newConv;
+  }
+
+  async deleteResearchConversation(id: string): Promise<void> {
+    await db.delete(researchMessages).where(eq(researchMessages.conversationId, id));
+    await db.delete(researchConversations).where(eq(researchConversations.id, id));
+  }
+
+  // Research Messages
+  async getResearchMessages(conversationId: string): Promise<ResearchMessage[]> {
+    return db.select().from(researchMessages).where(eq(researchMessages.conversationId, conversationId)).orderBy(researchMessages.createdAt);
+  }
+
+  async createResearchMessage(msg: InsertResearchMessage): Promise<ResearchMessage> {
+    const [newMsg] = await db.insert(researchMessages).values(msg).returning();
+    return newMsg;
   }
 }
 

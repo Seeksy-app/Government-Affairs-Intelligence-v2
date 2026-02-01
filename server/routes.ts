@@ -7,6 +7,7 @@ import {
   insertContactSchema,
   insertNewsArticleSchema,
   insertCareerHistorySchema,
+  insertMatterSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(
@@ -471,6 +472,339 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating career history:", error);
       res.status(500).json({ message: "Failed to create career history" });
+    }
+  });
+
+  // ==================== MATTERS (SUB-CLIENTS) ROUTES ====================
+
+  // Get all matters for client
+  app.get("/api/matters", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const mattersList = await storage.getMatters(clientId);
+      res.json(mattersList);
+    } catch (error) {
+      console.error("Error getting matters:", error);
+      res.status(500).json({ message: "Failed to get matters" });
+    }
+  });
+
+  // Get single matter
+  app.get("/api/matters/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.id);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      res.json(matter);
+    } catch (error) {
+      console.error("Error getting matter:", error);
+      res.status(500).json({ message: "Failed to get matter" });
+    }
+  });
+
+  // Create matter
+  app.post("/api/matters", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const parsed = insertMatterSchema.safeParse({ ...req.body, clientId });
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const matter = await storage.createMatter(parsed.data);
+      res.status(201).json(matter);
+    } catch (error) {
+      console.error("Error creating matter:", error);
+      res.status(500).json({ message: "Failed to create matter" });
+    }
+  });
+
+  // Update matter
+  app.patch("/api/matters/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.id);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      const updated = await storage.updateMatter(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating matter:", error);
+      res.status(500).json({ message: "Failed to update matter" });
+    }
+  });
+
+  // Delete matter
+  app.delete("/api/matters/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.id);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      await storage.deleteMatter(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting matter:", error);
+      res.status(500).json({ message: "Failed to delete matter" });
+    }
+  });
+
+  // ==================== RESEARCH DOCUMENTS ROUTES ====================
+
+  // Get documents for a matter
+  app.get("/api/matters/:matterId/documents", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      const docs = await storage.getResearchDocuments(req.params.matterId);
+      res.json(docs);
+    } catch (error) {
+      console.error("Error getting documents:", error);
+      res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Add document from URL (uses Firecrawl/YouTube)
+  app.post("/api/matters/:matterId/documents/url", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      const { extractContentFromUrl, generateSummary } = await import("./services/research-agent");
+      const extracted = await extractContentFromUrl(url);
+      const summary = await generateSummary(extracted.content);
+
+      const doc = await storage.createResearchDocument({
+        matterId: req.params.matterId,
+        clientId,
+        title: extracted.title,
+        type: extracted.type,
+        sourceUrl: url,
+        extractedContent: extracted.content,
+        summary,
+      });
+
+      res.status(201).json(doc);
+    } catch (error) {
+      console.error("Error adding document from URL:", error);
+      res.status(500).json({ message: `Failed to extract content: ${error}` });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const doc = await storage.getResearchDocument(req.params.id);
+      if (!doc || doc.clientId !== clientId) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      await storage.deleteResearchDocument(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
+  // ==================== RESEARCH CONVERSATIONS ROUTES ====================
+
+  // Get conversations for a matter
+  app.get("/api/matters/:matterId/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      const convs = await storage.getResearchConversations(req.params.matterId);
+      res.json(convs);
+    } catch (error) {
+      console.error("Error getting conversations:", error);
+      res.status(500).json({ message: "Failed to get conversations" });
+    }
+  });
+
+  // Create conversation
+  app.post("/api/matters/:matterId/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const matter = await storage.getMatter(req.params.matterId);
+      if (!matter || matter.clientId !== clientId) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+
+      const conv = await storage.createResearchConversation({
+        matterId: req.params.matterId,
+        clientId,
+        title: req.body.title || "New Research Session",
+      });
+      res.status(201).json(conv);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Get messages for a conversation
+  app.get("/api/conversations/:convId/messages", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const conv = await storage.getResearchConversation(req.params.convId);
+      if (!conv || conv.clientId !== clientId) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      const messages = await storage.getResearchMessages(req.params.convId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting messages:", error);
+      res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  // Send message and get AI response (streaming)
+  app.post("/api/conversations/:convId/chat", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const conv = await storage.getResearchConversation(req.params.convId);
+      if (!conv || conv.clientId !== clientId) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const { question } = req.body;
+      if (!question) {
+        return res.status(400).json({ message: "Question is required" });
+      }
+
+      // Save user message
+      await storage.createResearchMessage({
+        conversationId: req.params.convId,
+        role: "user",
+        content: question,
+      });
+
+      // Get all documents for this matter
+      const docs = await storage.getAllResearchDocumentsForMatter(conv.matterId);
+      const documentContext = docs.map((d) => ({
+        title: d.title,
+        content: d.extractedContent || "",
+      }));
+
+      // Get conversation history
+      const history = await storage.getResearchMessages(req.params.convId);
+      const chatHistory = history.slice(-10).map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+      // Set up SSE
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const { chatWithContext } = await import("./services/research-agent");
+      let fullResponse = "";
+
+      for await (const chunk of chatWithContext(question, documentContext, chatHistory)) {
+        fullResponse += chunk;
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+
+      // Save assistant message
+      await storage.createResearchMessage({
+        conversationId: req.params.convId,
+        role: "assistant",
+        content: fullResponse,
+      });
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Error in chat:", error);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "Chat failed" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ message: "Failed to process chat" });
+      }
+    }
+  });
+
+  // ==================== CAREER ANALYSIS ROUTES ====================
+
+  // Analyze staffer career
+  app.get("/api/contacts/:contactId/career-analysis", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const contact = await storage.getContact(req.params.contactId);
+      if (!contact || contact.clientId !== clientId) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+
+      const history = await storage.getCareerHistory(req.params.contactId);
+      if (history.length === 0) {
+        return res.json({ summary: "No career history available", patterns: [], policyFocus: [], connections: [] });
+      }
+
+      const { analyzeStafferCareer } = await import("./services/research-agent");
+      const analysis = await analyzeStafferCareer(history);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing career:", error);
+      res.status(500).json({ message: "Failed to analyze career" });
     }
   });
 
