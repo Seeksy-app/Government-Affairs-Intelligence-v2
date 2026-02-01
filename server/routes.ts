@@ -1743,5 +1743,141 @@ export async function registerRoutes(
     }
   });
 
+  // Open-ended research routes (no matter required)
+  app.post("/api/research/extract-url", isAuthenticated, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      const { ResearchAgent } = await import("./services/research-agent");
+      const agent = new ResearchAgent();
+      
+      const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+      let result;
+      
+      if (isYouTube) {
+        result = await agent.extractYouTubeTranscript(url);
+      } else {
+        result = await agent.extractUrlContent(url);
+      }
+      
+      res.json({
+        title: result.title,
+        content: result.content,
+        summary: result.summary,
+        type: isYouTube ? "youtube" : "url",
+      });
+    } catch (error) {
+      console.error("Error extracting URL:", error);
+      res.status(500).json({ message: "Failed to extract content from URL" });
+    }
+  });
+
+  app.post("/api/research/entity", isAuthenticated, async (req, res) => {
+    try {
+      const validation = entityResearchSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0].message });
+      }
+
+      const { entityName, entityType } = validation.data;
+      const { ResearchAgent } = await import("./services/research-agent");
+      const agent = new ResearchAgent();
+      
+      const result = await agent.researchEntity(entityName, entityType);
+      
+      res.json({
+        title: `Research: ${entityName}`,
+        content: result.content,
+        summary: result.summary,
+        type: "entity",
+      });
+    } catch (error) {
+      console.error("Error researching entity:", error);
+      res.status(500).json({ message: "Failed to research entity" });
+    }
+  });
+
+  app.post("/api/research/query", isAuthenticated, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ message: "Query is required" });
+      }
+
+      const { ResearchAgent } = await import("./services/research-agent");
+      const agent = new ResearchAgent();
+      
+      const result = await agent.runAgentQuery(prompt);
+      
+      res.json({
+        title: prompt.substring(0, 50) + (prompt.length > 50 ? "..." : ""),
+        content: result.content,
+        summary: result.summary,
+        type: "query",
+      });
+    } catch (error) {
+      console.error("Error running query:", error);
+      res.status(500).json({ message: "Failed to run research query" });
+    }
+  });
+
+  app.post("/api/research/chat", isAuthenticated, async (req, res) => {
+    try {
+      const { message, context, history } = req.body;
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const openaiApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+      const openaiBaseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+      
+      if (!openaiApiKey) {
+        return res.status(500).json({ message: "OpenAI not configured" });
+      }
+
+      const messages = [
+        {
+          role: "system",
+          content: `You are a political intelligence research assistant. You help analyze political news, track career movements of government officials and staffers, and provide insights on lobbying activities and policy developments. Be concise but thorough.
+
+${context ? `Context from recent research:\n${context}` : "No research context available yet."}`
+        },
+        ...(history || []).map((h: any) => ({
+          role: h.role,
+          content: h.content,
+        })),
+        { role: "user", content: message }
+      ];
+
+      const response = await fetch(`${openaiBaseUrl || "https://api.openai.com"}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("OpenAI request failed");
+      }
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content || "I couldn't generate a response.";
+      
+      res.json({ response: reply });
+    } catch (error) {
+      console.error("Error in chat:", error);
+      res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
+
   return httpServer;
 }
