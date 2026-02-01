@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Building2, Users, Newspaper, Network, Shield, TrendingUp } from "lucide-react";
+import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, Mail } from "lucide-react";
+import capitolImage from "@/assets/images/capitol.jpg";
+import meetingImage from "@/assets/images/meeting.jpg";
+import dcMonumentsImage from "@/assets/images/dc-monuments.jpg";
 
 export function LandingPage() {
   return (
@@ -59,33 +62,33 @@ export function LandingPage() {
               </div>
             </div>
             <div className="relative hidden lg:block">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-2xl" />
-              <div className="bg-card border rounded-2xl p-8 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Contact Network</p>
-                    <p className="text-sm text-muted-foreground">Track 50,000+ political contacts</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Network className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Career Mapping</p>
-                    <p className="text-sm text-muted-foreground">Trace career paths and connections</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Newspaper className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">News Intelligence</p>
-                    <p className="text-sm text-muted-foreground">AI-powered news aggregation</p>
+              <div className="relative rounded-2xl overflow-hidden">
+                <img 
+                  src={capitolImage} 
+                  alt="US Capitol Building" 
+                  className="w-full h-80 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <div className="bg-card/90 backdrop-blur-sm border rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Staffer Tracking</p>
+                        <p className="text-xs text-muted-foreground">Monitor Capitol Hill movements</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">AI Research Agent</p>
+                        <p className="text-xs text-muted-foreground">Intelligent policy analysis</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -164,14 +167,46 @@ export function LandingPage() {
             <Card className="hover-elevate">
               <CardContent className="p-6 space-y-4">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-primary" />
+                  <Bot className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="font-semibold text-lg">Analytics Dashboard</h3>
+                <h3 className="font-semibold text-lg">AI Research Agent</h3>
                 <p className="text-muted-foreground text-sm">
-                  Visual insights into your network, engagement metrics, and trend analysis for strategic decision-making.
+                  Ask questions about your research documents, extract insights from web content and YouTube videos, and get AI-powered analysis.
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Image Banner Section */}
+      <section className="py-16 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="relative rounded-xl overflow-hidden group">
+              <img 
+                src={meetingImage} 
+                alt="Government affairs meeting" 
+                className="w-full h-64 object-cover transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="text-lg font-semibold text-white">Strategic Consulting</h3>
+                <p className="text-sm text-white/80">Empower your team with real-time political intelligence</p>
+              </div>
+            </div>
+            <div className="relative rounded-xl overflow-hidden group">
+              <img 
+                src={dcMonumentsImage} 
+                alt="Washington DC monuments" 
+                className="w-full h-64 object-cover transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <h3 className="text-lg font-semibold text-white">Capitol Hill Expertise</h3>
+                <p className="text-sm text-white/80">Deep insights into the corridors of power</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

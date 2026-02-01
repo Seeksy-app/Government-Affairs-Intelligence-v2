@@ -28,6 +28,8 @@ interface UserRole {
   clientId?: string;
   clientName?: string;
   role?: string;
+  impersonatingClientId?: string;
+  impersonatingClientName?: string;
 }
 
 export function AppSidebar() {
@@ -40,6 +42,7 @@ export function AppSidebar() {
   });
 
   const isSuperAdmin = userRole?.isSuperAdmin;
+  const isImpersonating = isSuperAdmin && userRole?.impersonatingClientId;
 
   const superAdminItems = [
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
@@ -62,8 +65,11 @@ export function AppSidebar() {
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
-  const menuItems = isSuperAdmin ? superAdminItems : clientItems;
-  const groupLabel = isSuperAdmin ? "Platform Admin" : userRole?.clientName || "Dashboard";
+  // When impersonating, show client menu instead of admin menu
+  const menuItems = (isSuperAdmin && !isImpersonating) ? superAdminItems : clientItems;
+  const groupLabel = (isSuperAdmin && !isImpersonating) 
+    ? "Platform Admin" 
+    : (isImpersonating ? userRole?.impersonatingClientName : userRole?.clientName) || "Dashboard";
 
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -84,7 +90,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            {isSuperAdmin ? (
+            {(isSuperAdmin && !isImpersonating) ? (
               <Shield className="w-5 h-5 text-primary-foreground" />
             ) : (
               <Building2 className="w-5 h-5 text-primary-foreground" />
@@ -92,7 +98,7 @@ export function AppSidebar() {
           </div>
           <div>
             <span className="font-semibold text-sm">Political Intel</span>
-            {isSuperAdmin && (
+            {(isSuperAdmin && !isImpersonating) && (
               <p className="text-xs text-muted-foreground">Super Admin</p>
             )}
           </div>
