@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, or, ilike } from "drizzle-orm";
 import {
   clients,
   clientUsers,
@@ -12,6 +12,13 @@ import {
   researchDocuments,
   researchConversations,
   researchMessages,
+  kbCategories,
+  kbArticles,
+  kbTooltips,
+  securityStatus,
+  securityControls,
+  clientPortals,
+  portalMatterAccess,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -34,6 +41,20 @@ import {
   type InsertResearchConversation,
   type ResearchMessage,
   type InsertResearchMessage,
+  type KbCategory,
+  type InsertKbCategory,
+  type KbArticle,
+  type InsertKbArticle,
+  type KbTooltip,
+  type InsertKbTooltip,
+  type SecurityStatus,
+  type InsertSecurityStatus,
+  type SecurityControl,
+  type InsertSecurityControl,
+  type ClientPortal,
+  type InsertClientPortal,
+  type PortalMatterAccess,
+  type InsertPortalMatterAccess,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -108,6 +129,54 @@ export interface IStorage {
   // Research Messages
   getResearchMessages(conversationId: string): Promise<ResearchMessage[]>;
   createResearchMessage(msg: InsertResearchMessage): Promise<ResearchMessage>;
+
+  // Knowledge Base Categories
+  getKbCategories(scope: string): Promise<KbCategory[]>;
+  getKbCategory(id: string): Promise<KbCategory | undefined>;
+  createKbCategory(category: InsertKbCategory): Promise<KbCategory>;
+  updateKbCategory(id: string, category: Partial<InsertKbCategory>): Promise<KbCategory | undefined>;
+  deleteKbCategory(id: string): Promise<void>;
+
+  // Knowledge Base Articles
+  getKbArticles(scope: string): Promise<KbArticle[]>;
+  getKbArticle(id: string): Promise<KbArticle | undefined>;
+  getKbArticleBySlug(slug: string, scope: string): Promise<KbArticle | undefined>;
+  createKbArticle(article: InsertKbArticle): Promise<KbArticle>;
+  updateKbArticle(id: string, article: Partial<InsertKbArticle>): Promise<KbArticle | undefined>;
+  deleteKbArticle(id: string): Promise<void>;
+  searchKbArticles(scope: string, query: string): Promise<KbArticle[]>;
+
+  // KB Tooltips
+  getKbTooltips(scope: string): Promise<KbTooltip[]>;
+  getKbTooltipByKey(key: string): Promise<KbTooltip | undefined>;
+  createKbTooltip(tooltip: InsertKbTooltip): Promise<KbTooltip>;
+  updateKbTooltip(id: string, tooltip: Partial<InsertKbTooltip>): Promise<KbTooltip | undefined>;
+  deleteKbTooltip(id: string): Promise<void>;
+
+  // Security Status
+  getSecurityStatus(scope: string, clientId?: string): Promise<SecurityStatus | undefined>;
+  createSecurityStatus(status: InsertSecurityStatus): Promise<SecurityStatus>;
+  updateSecurityStatus(id: string, status: Partial<InsertSecurityStatus>): Promise<SecurityStatus | undefined>;
+
+  // Security Controls
+  getSecurityControls(scope: string, clientId?: string): Promise<SecurityControl[]>;
+  createSecurityControl(control: InsertSecurityControl): Promise<SecurityControl>;
+  updateSecurityControl(id: string, control: Partial<InsertSecurityControl>): Promise<SecurityControl | undefined>;
+  deleteSecurityControl(id: string): Promise<void>;
+
+  // Client Portals
+  getClientPortals(clientId: string): Promise<ClientPortal[]>;
+  getClientPortal(id: string): Promise<ClientPortal | undefined>;
+  getClientPortalBySlug(clientId: string, slug: string): Promise<ClientPortal | undefined>;
+  createClientPortal(portal: InsertClientPortal): Promise<ClientPortal>;
+  updateClientPortal(id: string, portal: Partial<InsertClientPortal>): Promise<ClientPortal | undefined>;
+  deleteClientPortal(id: string): Promise<void>;
+
+  // Portal Matter Access
+  getPortalMatterAccess(portalId: string): Promise<PortalMatterAccess[]>;
+  createPortalMatterAccess(access: InsertPortalMatterAccess): Promise<PortalMatterAccess>;
+  deletePortalMatterAccess(id: string): Promise<void>;
+  deletePortalMatterAccessByPortal(portalId: string): Promise<void>;
 
   // Stats
   getAdminStats(): Promise<{
@@ -433,6 +502,193 @@ export class DatabaseStorage implements IStorage {
   async createResearchMessage(msg: InsertResearchMessage): Promise<ResearchMessage> {
     const [newMsg] = await db.insert(researchMessages).values(msg).returning();
     return newMsg;
+  }
+
+  // Knowledge Base Categories
+  async getKbCategories(scope: string): Promise<KbCategory[]> {
+    return db.select().from(kbCategories).where(eq(kbCategories.scope, scope)).orderBy(kbCategories.sortOrder);
+  }
+
+  async getKbCategory(id: string): Promise<KbCategory | undefined> {
+    const [category] = await db.select().from(kbCategories).where(eq(kbCategories.id, id));
+    return category;
+  }
+
+  async createKbCategory(category: InsertKbCategory): Promise<KbCategory> {
+    const [newCategory] = await db.insert(kbCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateKbCategory(id: string, category: Partial<InsertKbCategory>): Promise<KbCategory | undefined> {
+    const [updated] = await db.update(kbCategories).set(category).where(eq(kbCategories.id, id)).returning();
+    return updated;
+  }
+
+  async deleteKbCategory(id: string): Promise<void> {
+    await db.delete(kbCategories).where(eq(kbCategories.id, id));
+  }
+
+  // Knowledge Base Articles
+  async getKbArticles(scope: string): Promise<KbArticle[]> {
+    return db.select().from(kbArticles).where(eq(kbArticles.scope, scope)).orderBy(desc(kbArticles.updatedAt));
+  }
+
+  async getKbArticle(id: string): Promise<KbArticle | undefined> {
+    const [article] = await db.select().from(kbArticles).where(eq(kbArticles.id, id));
+    return article;
+  }
+
+  async getKbArticleBySlug(slug: string, scope: string): Promise<KbArticle | undefined> {
+    const [article] = await db.select().from(kbArticles).where(and(eq(kbArticles.slug, slug), eq(kbArticles.scope, scope)));
+    return article;
+  }
+
+  async createKbArticle(article: InsertKbArticle): Promise<KbArticle> {
+    const [newArticle] = await db.insert(kbArticles).values(article).returning();
+    return newArticle;
+  }
+
+  async updateKbArticle(id: string, article: Partial<InsertKbArticle>): Promise<KbArticle | undefined> {
+    const [updated] = await db.update(kbArticles).set({ ...article, updatedAt: new Date() }).where(eq(kbArticles.id, id)).returning();
+    return updated;
+  }
+
+  async deleteKbArticle(id: string): Promise<void> {
+    await db.delete(kbArticles).where(eq(kbArticles.id, id));
+  }
+
+  async searchKbArticles(scope: string, query: string): Promise<KbArticle[]> {
+    return db.select().from(kbArticles).where(
+      and(
+        eq(kbArticles.scope, scope),
+        eq(kbArticles.isPublished, true),
+        or(
+          ilike(kbArticles.title, `%${query}%`),
+          ilike(kbArticles.summary, `%${query}%`),
+          ilike(kbArticles.content, `%${query}%`)
+        )
+      )
+    ).orderBy(desc(kbArticles.updatedAt));
+  }
+
+  // KB Tooltips
+  async getKbTooltips(scope: string): Promise<KbTooltip[]> {
+    return db.select().from(kbTooltips).where(eq(kbTooltips.scope, scope));
+  }
+
+  async getKbTooltipByKey(key: string): Promise<KbTooltip | undefined> {
+    const [tooltip] = await db.select().from(kbTooltips).where(eq(kbTooltips.key, key));
+    return tooltip;
+  }
+
+  async createKbTooltip(tooltip: InsertKbTooltip): Promise<KbTooltip> {
+    const [newTooltip] = await db.insert(kbTooltips).values(tooltip).returning();
+    return newTooltip;
+  }
+
+  async updateKbTooltip(id: string, tooltip: Partial<InsertKbTooltip>): Promise<KbTooltip | undefined> {
+    const [updated] = await db.update(kbTooltips).set(tooltip).where(eq(kbTooltips.id, id)).returning();
+    return updated;
+  }
+
+  async deleteKbTooltip(id: string): Promise<void> {
+    await db.delete(kbTooltips).where(eq(kbTooltips.id, id));
+  }
+
+  // Security Status
+  async getSecurityStatus(scope: string, clientId?: string): Promise<SecurityStatus | undefined> {
+    if (scope === 'owner') {
+      const [status] = await db.select().from(securityStatus).where(eq(securityStatus.scope, 'owner'));
+      return status;
+    }
+    const [status] = await db.select().from(securityStatus).where(
+      and(eq(securityStatus.scope, 'client'), eq(securityStatus.clientId, clientId!))
+    );
+    return status;
+  }
+
+  async createSecurityStatus(status: InsertSecurityStatus): Promise<SecurityStatus> {
+    const [newStatus] = await db.insert(securityStatus).values(status).returning();
+    return newStatus;
+  }
+
+  async updateSecurityStatus(id: string, status: Partial<InsertSecurityStatus>): Promise<SecurityStatus | undefined> {
+    const [updated] = await db.update(securityStatus).set({ ...status, updatedAt: new Date() }).where(eq(securityStatus.id, id)).returning();
+    return updated;
+  }
+
+  // Security Controls
+  async getSecurityControls(scope: string, clientId?: string): Promise<SecurityControl[]> {
+    if (scope === 'owner') {
+      return db.select().from(securityControls).where(eq(securityControls.scope, 'owner'));
+    }
+    return db.select().from(securityControls).where(
+      and(eq(securityControls.scope, 'client'), eq(securityControls.clientId, clientId!))
+    );
+  }
+
+  async createSecurityControl(control: InsertSecurityControl): Promise<SecurityControl> {
+    const [newControl] = await db.insert(securityControls).values(control).returning();
+    return newControl;
+  }
+
+  async updateSecurityControl(id: string, control: Partial<InsertSecurityControl>): Promise<SecurityControl | undefined> {
+    const [updated] = await db.update(securityControls).set(control).where(eq(securityControls.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSecurityControl(id: string): Promise<void> {
+    await db.delete(securityControls).where(eq(securityControls.id, id));
+  }
+
+  // Client Portals
+  async getClientPortals(clientId: string): Promise<ClientPortal[]> {
+    return db.select().from(clientPortals).where(eq(clientPortals.clientId, clientId)).orderBy(desc(clientPortals.createdAt));
+  }
+
+  async getClientPortal(id: string): Promise<ClientPortal | undefined> {
+    const [portal] = await db.select().from(clientPortals).where(eq(clientPortals.id, id));
+    return portal;
+  }
+
+  async getClientPortalBySlug(clientId: string, slug: string): Promise<ClientPortal | undefined> {
+    const [portal] = await db.select().from(clientPortals).where(
+      and(eq(clientPortals.clientId, clientId), eq(clientPortals.slug, slug))
+    );
+    return portal;
+  }
+
+  async createClientPortal(portal: InsertClientPortal): Promise<ClientPortal> {
+    const [newPortal] = await db.insert(clientPortals).values(portal).returning();
+    return newPortal;
+  }
+
+  async updateClientPortal(id: string, portal: Partial<InsertClientPortal>): Promise<ClientPortal | undefined> {
+    const [updated] = await db.update(clientPortals).set({ ...portal, updatedAt: new Date() }).where(eq(clientPortals.id, id)).returning();
+    return updated;
+  }
+
+  async deleteClientPortal(id: string): Promise<void> {
+    await db.delete(portalMatterAccess).where(eq(portalMatterAccess.portalId, id));
+    await db.delete(clientPortals).where(eq(clientPortals.id, id));
+  }
+
+  // Portal Matter Access
+  async getPortalMatterAccess(portalId: string): Promise<PortalMatterAccess[]> {
+    return db.select().from(portalMatterAccess).where(eq(portalMatterAccess.portalId, portalId));
+  }
+
+  async createPortalMatterAccess(access: InsertPortalMatterAccess): Promise<PortalMatterAccess> {
+    const [newAccess] = await db.insert(portalMatterAccess).values(access).returning();
+    return newAccess;
+  }
+
+  async deletePortalMatterAccess(id: string): Promise<void> {
+    await db.delete(portalMatterAccess).where(eq(portalMatterAccess.id, id));
+  }
+
+  async deletePortalMatterAccessByPortal(portalId: string): Promise<void> {
+    await db.delete(portalMatterAccess).where(eq(portalMatterAccess.portalId, portalId));
   }
 }
 

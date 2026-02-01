@@ -244,3 +244,141 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+// Knowledge Base categories
+export const kbCategories = pgTable("kb_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(), // 'owner' or 'client'
+  name: text("name").notNull(),
+  description: text("description"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertKbCategorySchema = createInsertSchema(kbCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertKbCategory = z.infer<typeof insertKbCategorySchema>;
+export type KbCategory = typeof kbCategories.$inferSelect;
+
+// Knowledge Base articles
+export const kbArticles = pgTable("kb_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(), // 'owner' or 'client'
+  categoryId: varchar("category_id"),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  summary: text("summary"),
+  content: text("content"), // markdown content
+  isPublished: boolean("is_published").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertKbArticleSchema = createInsertSchema(kbArticles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertKbArticle = z.infer<typeof insertKbArticleSchema>;
+export type KbArticle = typeof kbArticles.$inferSelect;
+
+// Tooltips linking to KB articles
+export const kbTooltips = pgTable("kb_tooltips", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(), // 'owner' or 'client'
+  key: text("key").notNull().unique(), // unique identifier for the tooltip location
+  articleId: varchar("article_id"),
+  label: text("label").notNull(), // tooltip text
+  page: text("page"), // which page this tooltip appears on
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertKbTooltipSchema = createInsertSchema(kbTooltips).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertKbTooltip = z.infer<typeof insertKbTooltipSchema>;
+export type KbTooltip = typeof kbTooltips.$inferSelect;
+
+// Security status for owner and clients
+export const securityStatus = pgTable("security_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(), // 'owner' for platform, 'client' for specific client
+  clientId: varchar("client_id"), // null for owner scope
+  level: text("level").notNull().default("standard"), // basic, standard, enhanced, enterprise
+  notes: text("notes"),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSecurityStatusSchema = createInsertSchema(securityStatus).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSecurityStatus = z.infer<typeof insertSecurityStatusSchema>;
+export type SecurityStatus = typeof securityStatus.$inferSelect;
+
+// Security controls (individual security measures)
+export const securityControls = pgTable("security_controls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  scope: text("scope").notNull(), // 'owner' or 'client'
+  clientId: varchar("client_id"), // null for owner scope
+  name: text("name").notNull(),
+  category: text("category"), // access, encryption, audit, compliance
+  status: text("status").notNull().default("enabled"), // enabled, disabled, pending
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSecurityControlSchema = createInsertSchema(securityControls).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSecurityControl = z.infer<typeof insertSecurityControlSchema>;
+export type SecurityControl = typeof securityControls.$inferSelect;
+
+// Client portals (client-client sub-portals)
+export const clientPortals = pgTable("client_portals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  slug: text("slug").notNull(), // unique per client
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientPortalSchema = createInsertSchema(clientPortals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertClientPortal = z.infer<typeof insertClientPortalSchema>;
+export type ClientPortal = typeof clientPortals.$inferSelect;
+
+// Portal matter access (which matters are shared with which portal)
+export const portalMatterAccess = pgTable("portal_matter_access", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  portalId: varchar("portal_id").notNull(),
+  matterId: varchar("matter_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPortalMatterAccessSchema = createInsertSchema(portalMatterAccess).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPortalMatterAccess = z.infer<typeof insertPortalMatterAccessSchema>;
+export type PortalMatterAccess = typeof portalMatterAccess.$inferSelect;
