@@ -21,6 +21,7 @@ import {
   portalMatterAccess,
   youtubeWatchList,
   trackedBills,
+  clientApplications,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -61,6 +62,8 @@ import {
   type InsertYoutubeWatchList,
   type TrackedBill,
   type InsertTrackedBill,
+  type ClientApplication,
+  type InsertClientApplication,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -199,6 +202,14 @@ export interface IStorage {
   createTrackedBill(bill: InsertTrackedBill): Promise<TrackedBill>;
   updateTrackedBill(id: string, bill: Partial<InsertTrackedBill & { lastSyncedAt: Date }>): Promise<TrackedBill | undefined>;
   deleteTrackedBill(id: string): Promise<void>;
+
+  // Client Applications
+  getClientApplications(): Promise<ClientApplication[]>;
+  getClientApplication(id: string): Promise<ClientApplication | undefined>;
+  getClientApplicationByEmail(email: string): Promise<ClientApplication | undefined>;
+  getClientApplicationByToken(token: string): Promise<ClientApplication | undefined>;
+  createClientApplication(app: InsertClientApplication & { emailVerificationToken: string; emailVerificationExpires: Date }): Promise<ClientApplication>;
+  updateClientApplication(id: string, app: Partial<ClientApplication>): Promise<ClientApplication | undefined>;
 
   // Stats
   getAdminStats(): Promise<{
@@ -775,6 +786,36 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTrackedBill(id: string): Promise<void> {
     await db.delete(trackedBills).where(eq(trackedBills.id, id));
+  }
+
+  // Client Applications
+  async getClientApplications(): Promise<ClientApplication[]> {
+    return db.select().from(clientApplications).orderBy(desc(clientApplications.createdAt));
+  }
+
+  async getClientApplication(id: string): Promise<ClientApplication | undefined> {
+    const [app] = await db.select().from(clientApplications).where(eq(clientApplications.id, id));
+    return app;
+  }
+
+  async getClientApplicationByEmail(email: string): Promise<ClientApplication | undefined> {
+    const [app] = await db.select().from(clientApplications).where(eq(clientApplications.email, email));
+    return app;
+  }
+
+  async getClientApplicationByToken(token: string): Promise<ClientApplication | undefined> {
+    const [app] = await db.select().from(clientApplications).where(eq(clientApplications.emailVerificationToken, token));
+    return app;
+  }
+
+  async createClientApplication(app: InsertClientApplication & { emailVerificationToken: string; emailVerificationExpires: Date }): Promise<ClientApplication> {
+    const [newApp] = await db.insert(clientApplications).values(app).returning();
+    return newApp;
+  }
+
+  async updateClientApplication(id: string, app: Partial<ClientApplication>): Promise<ClientApplication | undefined> {
+    const [updated] = await db.update(clientApplications).set({ ...app, updatedAt: new Date() }).where(eq(clientApplications.id, id)).returning();
+    return updated;
   }
 }
 

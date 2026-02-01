@@ -31,6 +31,9 @@ import ClientPortals from "@/pages/client-portals";
 import PublicPortal from "@/pages/public-portal";
 import AIAgentPage from "@/pages/ai-agent";
 import SourcesPage from "@/pages/sources";
+import ClientSignupPage from "@/pages/client-signup";
+import VerifyEmailPage from "@/pages/verify-email";
+import AdminApplications from "@/pages/admin-applications";
 
 function AuthenticatedRouter() {
   return (
@@ -38,6 +41,7 @@ function AuthenticatedRouter() {
       {/* Admin routes */}
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/clients" component={AdminClients} />
+      <Route path="/admin/applications" component={AdminApplications} />
       <Route path="/admin/users" component={AdminDashboard} />
       <Route path="/admin/kb" component={AdminKnowledgeBase} />
       <Route path="/admin/security" component={AdminSecurity} />
@@ -231,7 +235,14 @@ function AppContent() {
   }
 
   if (!user) {
-    return <LandingPage />;
+    return (
+      <Switch>
+        <Route path="/signup" component={ClientSignupPage} />
+        <Route path="/verify-email" component={VerifyEmailPage} />
+        <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route component={LandingPage} />
+      </Switch>
+    );
   }
 
   return <AuthenticatedLayout />;

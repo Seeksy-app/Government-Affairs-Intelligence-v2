@@ -21,9 +21,14 @@ export function LandingPage() {
             <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Features</a>
             <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors text-sm">About</a>
           </div>
-          <Button asChild data-testid="button-login-nav">
-            <a href="/api/login">Sign In</a>
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" asChild data-testid="button-signup-nav">
+              <a href="/signup">Sign Up</a>
+            </Button>
+            <Button asChild data-testid="button-login-nav">
+              <a href="/api/login">Sign In</a>
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -44,10 +49,10 @@ export function LandingPage() {
               </div>
               <div className="flex flex-wrap gap-4">
                 <Button size="lg" asChild data-testid="button-get-started">
-                  <a href="/api/login">Get Started</a>
+                  <a href="/signup">Create Account</a>
                 </Button>
-                <Button size="lg" variant="outline" data-testid="button-learn-more">
-                  Learn More
+                <Button size="lg" variant="outline" asChild data-testid="button-learn-more">
+                  <a href="/api/login">Sign In</a>
                 </Button>
               </div>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">

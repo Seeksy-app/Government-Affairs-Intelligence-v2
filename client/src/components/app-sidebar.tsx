@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -46,6 +46,7 @@ export function AppSidebar() {
 
   const superAdminItems = [
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
+    { title: "Applications", url: "/admin/applications", icon: ClipboardList, tourId: "admin-applications" },
     { title: "Clients", url: "/admin/clients", icon: Building2, tourId: "admin-clients" },
     { title: "Users", url: "/admin/users", icon: Users, tourId: "admin-users" },
     { title: "Sources", url: "/sources", icon: Database, tourId: "admin-sources" },

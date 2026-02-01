@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
 import {
@@ -17,6 +18,7 @@ import {
   insertPortalMatterAccessSchema,
   insertYoutubeWatchListSchema,
   insertTrackedBillSchema,
+  insertClientApplicationSchema,
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
@@ -269,6 +271,210 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error removing user from client:", error);
       res.status(500).json({ message: "Failed to remove user from client" });
+    }
+  });
+
+  // Public: Submit client application (signup)
+  app.post("/api/client-applications", async (req, res) => {
+    try {
+      const parsed = insertClientApplicationSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid application data", errors: parsed.error.errors });
+      }
+
+      // Check if email already exists
+      const existing = await storage.getClientApplicationByEmail(parsed.data.email);
+      if (existing) {
+        return res.status(400).json({ message: "An application with this email already exists" });
+      }
+
+      // Generate verification token
+      const token = randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      const application = await storage.createClientApplication({
+        ...parsed.data,
+        emailVerificationToken: token,
+        emailVerificationExpires: expires,
+      });
+
+      // Send verification email
+      const verifyUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/verify-email?token=${token}`;
+      
+      await sendEmail({
+        to: parsed.data.email,
+        subject: "Verify your email - Political Intelligence Platform",
+        html: `
+          <h2>Welcome to the Political Intelligence Platform</h2>
+          <p>Hi ${parsed.data.contactName},</p>
+          <p>Thank you for applying to join the Political Intelligence Platform. Please verify your email address by clicking the link below:</p>
+          <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Verify Email</a></p>
+          <p>Or copy and paste this link: ${verifyUrl}</p>
+          <p>This link expires in 24 hours.</p>
+          <p>After verification, our team will review your application and you'll receive a notification once approved.</p>
+          <p>Best regards,<br>The Political Intelligence Team</p>
+        `,
+      });
+
+      res.status(201).json({ success: true, message: "Application submitted. Please check your email to verify." });
+    } catch (error) {
+      console.error("Error creating client application:", error);
+      res.status(500).json({ message: "Failed to submit application" });
+    }
+  });
+
+  // Public: Verify email
+  app.get("/api/client-applications/verify", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+
+      const application = await storage.getClientApplicationByToken(token);
+      if (!application) {
+        return res.status(400).json({ message: "Invalid or expired verification token" });
+      }
+
+      if (application.emailVerificationExpires && new Date(application.emailVerificationExpires) < new Date()) {
+        return res.status(400).json({ message: "Verification token has expired. Please submit a new application." });
+      }
+
+      if (application.emailVerified) {
+        return res.json({ message: "Email already verified. Your application is under review." });
+      }
+
+      await storage.updateClientApplication(application.id, {
+        emailVerified: true,
+        emailVerificationToken: null,
+      });
+
+      res.json({ message: "Email verified successfully! Your application is now under review." });
+    } catch (error) {
+      console.error("Error verifying email:", error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  // Admin: Get all client applications
+  app.get("/api/admin/applications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const applications = await storage.getClientApplications();
+      res.json(applications);
+    } catch (error) {
+      console.error("Error getting applications:", error);
+      res.status(500).json({ message: "Failed to get applications" });
+    }
+  });
+
+  // Admin: Approve application
+  app.post("/api/admin/applications/:id/approve", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const application = await storage.getClientApplication(req.params.id);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      if (!application.emailVerified) {
+        return res.status(400).json({ message: "Cannot approve application with unverified email" });
+      }
+
+      if (application.status !== "pending") {
+        return res.status(400).json({ message: "Application already processed" });
+      }
+
+      // Create the client
+      const slug = application.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const client = await storage.createClient({
+        name: application.companyName,
+        slug: slug + "-" + randomBytes(4).toString("hex"),
+        industry: application.industry || undefined,
+        isActive: true,
+      });
+
+      // Update application
+      await storage.updateClientApplication(application.id, {
+        status: "approved",
+        approvedClientId: client.id,
+      });
+
+      // Send approval email
+      await sendEmail({
+        to: application.email,
+        subject: "Your Application Has Been Approved! - Political Intelligence Platform",
+        html: `
+          <h2>Congratulations!</h2>
+          <p>Hi ${application.contactName},</p>
+          <p>Your application for <strong>${application.companyName}</strong> has been approved!</p>
+          <p>Your account is now active. You can log in using your work email through our secure authentication system.</p>
+          <p><a href="${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
+          <p>Welcome to the Political Intelligence Platform!</p>
+          <p>Best regards,<br>The Political Intelligence Team</p>
+        `,
+      });
+
+      res.json({ success: true, client });
+    } catch (error) {
+      console.error("Error approving application:", error);
+      res.status(500).json({ message: "Failed to approve application" });
+    }
+  });
+
+  // Admin: Reject application
+  app.post("/api/admin/applications/:id/reject", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const application = await storage.getClientApplication(req.params.id);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      if (application.status !== "pending") {
+        return res.status(400).json({ message: "Application already processed" });
+      }
+
+      const { reason } = req.body;
+
+      await storage.updateClientApplication(application.id, {
+        status: "rejected",
+        rejectionReason: reason || null,
+      });
+
+      // Send rejection email
+      await sendEmail({
+        to: application.email,
+        subject: "Application Update - Political Intelligence Platform",
+        html: `
+          <h2>Application Update</h2>
+          <p>Hi ${application.contactName},</p>
+          <p>Thank you for your interest in the Political Intelligence Platform.</p>
+          <p>After reviewing your application for <strong>${application.companyName}</strong>, we are unable to approve it at this time.</p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+          <p>If you believe this is an error or would like more information, please contact our support team.</p>
+          <p>Best regards,<br>The Political Intelligence Team</p>
+        `,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error rejecting application:", error);
+      res.status(500).json({ message: "Failed to reject application" });
     }
   });
 

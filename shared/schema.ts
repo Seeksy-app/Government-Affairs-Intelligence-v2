@@ -59,6 +59,42 @@ export const insertSuperAdminSchema = createInsertSchema(superAdmins).omit({
 export type InsertSuperAdmin = z.infer<typeof insertSuperAdminSchema>;
 export type SuperAdmin = typeof superAdmins.$inferSelect;
 
+// Client applications (pending client signups)
+export const clientApplications = pgTable("client_applications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyName: text("company_name").notNull(),
+  contactName: text("contact_name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  industry: text("industry"),
+  companySize: text("company_size"),
+  website: text("website"),
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpires: timestamp("email_verification_expires"),
+  rejectionReason: text("rejection_reason"),
+  approvedClientId: varchar("approved_client_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientApplicationSchema = createInsertSchema(clientApplications).omit({
+  id: true,
+  status: true,
+  emailVerified: true,
+  emailVerificationToken: true,
+  emailVerificationExpires: true,
+  rejectionReason: true,
+  approvedClientId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertClientApplication = z.infer<typeof insertClientApplicationSchema>;
+export type ClientApplication = typeof clientApplications.$inferSelect;
+
 // Political contacts (staffers, officials, etc.)
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
