@@ -1,6 +1,6 @@
-import { users, type User, type UpsertUser } from "@shared/models/auth";
+import { users, passwordResetTokens, type User, type UpsertUser, type PasswordResetToken } from "@shared/models/auth";
 import { db } from "../../db";
-import { eq } from "drizzle-orm";
+import { eq, and, gt, isNull } from "drizzle-orm";
 
 // Interface for auth storage operations
 export interface IAuthStorage {
@@ -9,6 +9,9 @@ export interface IAuthStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(userData: { email: string; firstName?: string; lastName?: string }): Promise<User>;
   setUserPassword(userId: string, passwordHash: string): Promise<void>;
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
+  getValidPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markTokenAsUsed(tokenId: string): Promise<void>;
 }
 
 class AuthStorage implements IAuthStorage {
@@ -54,6 +57,39 @@ class AuthStorage implements IAuthStorage {
       .update(users)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(users.id, userId));
+  }
+
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    const [resetToken] = await db
+      .insert(passwordResetTokens)
+      .values({
+        userId,
+        token,
+        expiresAt,
+      })
+      .returning();
+    return resetToken;
+  }
+
+  async getValidPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.token, token),
+          gt(passwordResetTokens.expiresAt, new Date()),
+          isNull(passwordResetTokens.usedAt)
+        )
+      );
+    return resetToken;
+  }
+
+  async markTokenAsUsed(tokenId: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.id, tokenId));
   }
 }
 

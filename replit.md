@@ -65,6 +65,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `client_users` - Links users to clients with roles
 - `super_admins` - Platform administrators
 - `pending_signups` - Self-service signup requests with email verification tokens
+- `password_reset_tokens` - Password reset tokens (1 hour expiry)
 
 ### Feature Tables
 - `contacts` - Political contacts database
@@ -82,6 +83,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `POST /api/auth/login` - Email/password login
 - `POST /api/auth/logout` - Logout (destroys session)
 - `POST /api/auth/set-password` - Set password after email verification
+- `POST /api/auth/forgot-password` - Request password reset email
+- `POST /api/auth/reset-password` - Reset password with token
 - `GET /api/auth/user` - Get current user
 - `GET /api/user/role` - Get user role (admin/client)
 - `POST /api/client-signup` - Self-service client signup (sends verification email)

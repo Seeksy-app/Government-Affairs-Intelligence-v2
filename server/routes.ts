@@ -24,7 +24,7 @@ import {
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
 import { z } from "zod";
-import { sendEmail, sendDailyBrief, sendResearchUpdate } from "./services/email-service";
+import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail } from "./services/email-service";
 
 declare module "express-session" {
   interface SessionData {
@@ -554,6 +554,85 @@ export async function registerRoutes(
         res.json({ message: "Logged out successfully" });
       });
     });
+  });
+
+  // Password reset request
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Always return success to prevent email enumeration
+      const successMessage = "If an account with that email exists, we've sent a password reset link.";
+      
+      const user = await authStorage.getUserByEmail(email.toLowerCase());
+      if (!user) {
+        return res.json({ message: successMessage });
+      }
+
+      // Generate reset token (64 bytes = 128 hex chars)
+      const token = randomBytes(64).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await authStorage.createPasswordResetToken(user.id, token, expiresAt);
+
+      // Build reset URL
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : "http://localhost:5000";
+      const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+      // Send email
+      await sendPasswordResetEmail({
+        to: user.email!,
+        firstName: user.firstName || "there",
+        resetUrl,
+      });
+
+      res.json({ message: successMessage });
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      const resetToken = await authStorage.getValidPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset link. Please request a new one." });
+      }
+
+      // Hash the new password
+      const passwordHash = await bcrypt.hash(password, 10);
+      
+      // Update user password
+      await authStorage.setUserPassword(resetToken.userId, passwordHash);
+      
+      // Mark token as used
+      await authStorage.markTokenAsUsed(resetToken.id);
+
+      res.json({ message: "Password reset successfully. You can now log in with your new password." });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
   });
 
   // Admin: Get all client applications
