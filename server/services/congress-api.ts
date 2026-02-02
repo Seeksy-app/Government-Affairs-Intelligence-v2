@@ -308,14 +308,22 @@ export class CongressAPI {
       limit: 600 
     });
     
-    const queryLower = query.toLowerCase();
+    // Split query into words for more flexible matching
+    const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+    const stopWords = ['the', 'of', 'and', 'for', 'house', 'senate', 'speaker', 'leader', 'rep', 'sen', 'congressman', 'congresswoman', 'senator', 'representative'];
+    const meaningfulWords = queryWords.filter(w => !stopWords.includes(w));
     
     return members.filter(m => {
-      // Name match
-      const nameMatch = !query || 
-        m.name.toLowerCase().includes(queryLower) ||
-        m.firstName.toLowerCase().includes(queryLower) ||
-        m.lastName.toLowerCase().includes(queryLower);
+      // Name match - check if any meaningful word matches name parts
+      const nameLower = m.name.toLowerCase();
+      const firstNameLower = m.firstName.toLowerCase();
+      const lastNameLower = m.lastName.toLowerCase();
+      
+      const nameMatch = meaningfulWords.length === 0 || meaningfulWords.some(word => 
+        nameLower.includes(word) ||
+        firstNameLower.includes(word) ||
+        lastNameLower.includes(word)
+      );
       
       // Party filter
       const partyMatch = !options.party || m.party === options.party;
