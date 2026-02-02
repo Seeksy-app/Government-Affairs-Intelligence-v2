@@ -579,12 +579,11 @@ export async function registerRoutes(
 
       await authStorage.createPasswordResetToken(user.id, token, expiresAt);
 
-      // Build reset URL
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : process.env.REPL_SLUG 
-        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-        : "http://localhost:5000";
+      // Build reset URL - prefer APP_URL for production, fall back to dev domain
+      const baseUrl = process.env.APP_URL 
+        || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+        || (process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : null)
+        || "http://localhost:5000";
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
       // Send email
