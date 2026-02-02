@@ -1315,8 +1315,10 @@ export async function registerRoutes(
 
   // Send message and get AI response (streaming)
   app.post("/api/conversations/:convId/chat", isAuthenticated, async (req, res) => {
+    console.log("Chat request received for conversation:", req.params.convId);
     try {
       const clientId = await getClientId(req);
+      console.log("Client ID for chat:", clientId);
       if (!clientId) {
         return res.status(403).json({ message: "Not assigned to a client" });
       }
