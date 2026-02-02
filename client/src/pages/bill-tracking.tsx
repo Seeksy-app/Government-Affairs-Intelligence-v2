@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Bell, BellOff, ExternalLink, RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock, BarChart3 } from "lucide-react";
+import { Search, Plus, Bell, BellOff, ExternalLink, RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 
 // Congress sessions with their year ranges (most recent first)
 const CONGRESS_SESSIONS = [
@@ -27,14 +27,6 @@ const CONGRESS_SESSIONS = [
   { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
 ];
 import type { TrackedBill, BillChangeHistory, BillTrackingAlert } from "@shared/schema";
-
-interface KalshiMarket {
-  ticker: string;
-  title: string;
-  yes_price: number;
-  volume: number;
-  status: string;
-}
 
 interface BillSearchResult {
   congress: number;
@@ -62,10 +54,6 @@ export default function BillTrackingPage() {
 
   const { data: unreadChanges } = useQuery<(BillChangeHistory & { bill: TrackedBill })[]>({
     queryKey: ["/api/tracked-bills/changes/unread"],
-  });
-
-  const { data: legislativeMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
-    queryKey: ["/api/kalshi/political-markets", { limit: 10 }],
   });
 
   const searchBillsMutation = useMutation({
@@ -304,54 +292,6 @@ export default function BillTrackingPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Legislative Prediction Markets */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Legislative Prediction Markets
-          </CardTitle>
-          <CardDescription>Real-time odds on political outcomes from Kalshi</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {marketsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="p-3 rounded-lg border">
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-6 w-16" />
-                </div>
-              ))}
-            </div>
-          ) : legislativeMarkets && legislativeMarkets.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {legislativeMarkets.slice(0, 8).map((market) => (
-                <div
-                  key={market.ticker}
-                  className="p-3 rounded-lg border hover-elevate"
-                  data-testid={`market-item-${market.ticker}`}
-                >
-                  <p className="text-xs font-medium line-clamp-2 mb-2">{market.title}</p>
-                  <div className="flex items-center justify-between gap-1">
-                    <Badge variant={market.yes_price >= 50 ? "default" : "secondary"} className="text-xs">
-                      {market.yes_price}% Yes
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {market.volume.toLocaleString()} vol
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-muted-foreground">
-              <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No legislative prediction markets currently active</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Tracked Bills */}
       {isLoading ? (

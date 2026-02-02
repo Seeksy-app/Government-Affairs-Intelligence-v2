@@ -2631,9 +2631,20 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       };
       const normalizedType = typeNormalization[billType] || billType.toLowerCase().replace(/\./g, '');
 
+      // Ensure billNumber is an integer (API may return string)
+      const billNumber = typeof req.body.billNumber === 'string' 
+        ? parseInt(req.body.billNumber, 10) 
+        : req.body.billNumber;
+
+      // Validate billNumber is a valid number
+      if (isNaN(billNumber) || billNumber === undefined || billNumber === null) {
+        return res.status(400).json({ message: "Invalid bill number provided" });
+      }
+
       const billData = insertTrackedBillSchema.parse({
         ...req.body,
         billType: normalizedType,
+        billNumber,
         clientId,
       });
 

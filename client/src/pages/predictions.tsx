@@ -27,7 +27,7 @@ type FilterCategory = "all" | "politics" | "elections" | "congress";
 
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("all");
+  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("politics");
   const [sortBy, setSortBy] = useState<"volume" | "price" | "name">("volume");
 
   const { data: marketsData, isLoading, refetch, isFetching } = useQuery<{ markets: KalshiMarket[]; cursor?: string }>({
@@ -276,7 +276,7 @@ export default function PredictionsPage() {
                 variant="outline" 
                 onClick={() => {
                   setSearchQuery("");
-                  setCategoryFilter("all");
+                  setCategoryFilter("politics");
                 }}
                 data-testid="button-clear-filters"
               >
