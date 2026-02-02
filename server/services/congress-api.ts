@@ -162,13 +162,19 @@ export class CongressAPI {
   }
 
   async searchByKeyword(keyword: string, congress = 119, limit = 50): Promise<CongressBill[]> {
+    console.log(`[Congress API] Searching for keyword: "${keyword}", congress: ${congress}`);
+    
     // Check if the search looks like a bill number (e.g., "H.R. 3854", "HR3854", "S. 123", "S123", "SB3726", "HB1234")
     const billNumberMatch = keyword.match(/^(H\.?R\.?|S\.?B?|H\.?B\.?|H\.?J\.?RES\.?|S\.?J\.?RES\.?|H\.?CON\.?RES\.?|S\.?CON\.?RES\.?|H\.?RES\.?|S\.?RES\.?)\s*(\d+)$/i);
+    
+    console.log(`[Congress API] Bill number match result:`, billNumberMatch);
     
     if (billNumberMatch) {
       // Parse the bill type and number
       let typeStr = billNumberMatch[1].toUpperCase().replace(/\./g, '');
       const number = parseInt(billNumberMatch[2]);
+      
+      console.log(`[Congress API] Parsed - typeStr: "${typeStr}", number: ${number}`);
       
       // Map to API bill types (including LegiScan format SB/HB)
       const typeMap: { [key: string]: string } = {
@@ -185,8 +191,11 @@ export class CongressAPI {
       };
       
       const billType = typeMap[typeStr];
+      console.log(`[Congress API] Mapped billType: "${billType}"`);
+      
       if (billType) {
         try {
+          console.log(`[Congress API] Fetching bill details for ${congress}/${billType}/${number}`);
           // Try to get the specific bill directly
           const billDetails = await this.getBillDetails(congress, billType, number);
           if (billDetails.bill) {
@@ -206,8 +215,9 @@ export class CongressAPI {
               sponsors: bill.sponsors,
             }];
           }
-        } catch (e) {
+        } catch (e: any) {
           // Bill not found, fall through to text search
+          console.log(`[Congress API] Bill lookup failed:`, e?.message || e);
         }
       }
     }
