@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -66,18 +67,35 @@ export default function NetworkPage() {
     queryKey: ["/api/contacts/with-history"],
   });
   
-  // Build query key with filter params
-  const memberFilters = {
-    search: memberSearch || undefined,
-    chamber: chamberFilter !== "all" ? chamberFilter : undefined,
-    party: partyFilter !== "all" ? partyFilter : undefined,
-    state: stateFilter !== "all" ? stateFilter : undefined,
+  // Build query key with filter params - state to track when search should run
+  const [searchTrigger, setSearchTrigger] = useState(0);
+  
+  // Build the URL with query parameters
+  const buildMemberSearchUrl = () => {
+    const params = new URLSearchParams();
+    if (memberSearch) params.set("search", memberSearch);
+    if (chamberFilter !== "all") params.set("chamber", chamberFilter);
+    if (partyFilter !== "all") params.set("party", partyFilter);
+    if (stateFilter !== "all") params.set("state", stateFilter);
+    const queryStr = params.toString();
+    return `/api/congress/members${queryStr ? `?${queryStr}` : ""}`;
   };
   
-  const { data: congressMembers, isLoading: membersLoading } = useQuery<CongressMember[]>({
-    queryKey: ["/api/congress/members", memberFilters],
-    enabled: showMemberSearch,
+  const memberSearchUrl = buildMemberSearchUrl();
+  
+  const { data: congressMembers, isLoading: membersLoading, refetch: refetchMembers } = useQuery<CongressMember[]>({
+    queryKey: [memberSearchUrl, searchTrigger],
+    queryFn: async () => {
+      const res = await fetch(memberSearchUrl, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch members");
+      return res.json();
+    },
+    enabled: showMemberSearch && searchTrigger > 0,
   });
+  
+  const handleMemberSearch = () => {
+    setSearchTrigger(t => t + 1);
+  };
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || !contacts) return [];
@@ -150,15 +168,25 @@ export default function NetworkPage() {
             <div className="space-y-4">
               {/* Search and Filters */}
               <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name..."
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    className="pl-9"
-                    data-testid="input-member-search"
-                  />
+                <div className="relative flex-1 flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name (e.g. Johnson, Mike Johnson)..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleMemberSearch()}
+                      className="pl-9"
+                      data-testid="input-member-search"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleMemberSearch}
+                    disabled={membersLoading}
+                    data-testid="button-search-members"
+                  >
+                    {membersLoading ? "Searching..." : "Search"}
+                  </Button>
                 </div>
                 
                 <Select value={chamberFilter} onValueChange={setChamberFilter}>
