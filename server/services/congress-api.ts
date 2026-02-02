@@ -253,8 +253,8 @@ export class CongressAPI {
       const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
         : rawChamber.toLowerCase().includes('house') ? 'House' 
         : rawChamber;
-      // Normalize party to abbreviation
-      const rawParty = m.party || '';
+      // Normalize party to abbreviation - API returns partyName like "Democratic", "Republican"
+      const rawParty = m.partyName || m.party || '';
       const party = rawParty.toLowerCase().includes('republican') ? 'R'
         : rawParty.toLowerCase().includes('democrat') ? 'D'
         : rawParty === 'R' || rawParty === 'D' || rawParty === 'I' ? rawParty
@@ -294,8 +294,8 @@ export class CongressAPI {
       const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
         : rawChamber.toLowerCase().includes('house') ? 'House' 
         : rawChamber;
-      // Normalize party to abbreviation
-      const rawParty = m.party || '';
+      // Normalize party to abbreviation - API may return partyName or party
+      const rawParty = m.partyName || m.party || '';
       const party = rawParty.toLowerCase().includes('republican') ? 'R'
         : rawParty.toLowerCase().includes('democrat') ? 'D'
         : rawParty === 'R' || rawParty === 'D' || rawParty === 'I' ? rawParty
@@ -387,7 +387,8 @@ interface CongressMember {
   name: string;
   state: string;
   district?: number;
-  party: string;
+  party?: string;
+  partyName?: string;  // API returns partyName like "Democratic", "Republican"
   url: string;
   depiction?: {
     imageUrl: string;
