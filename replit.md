@@ -45,6 +45,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **Career Pattern Analysis**: Track career histories and connections
 - **News Aggregation**: Monitor political news with filtering
 - **Network Visualization**: View relationships and organizations
+- **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
 - **AI Research Agent**: Context-aware Q&A from research documents using OpenAI
 
@@ -128,6 +129,10 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `POST /api/matters/:matterId/research/extract` - Extract structured data from URLs
 - `POST /api/matters/:matterId/research/agent-query` - Run custom agent query
 - `GET /api/contacts/:contactId/career-analysis` - AI career analysis
+
+### Congress API Routes
+- `GET /api/congress/members` - Search current Members of Congress (filters: search, chamber, party, state)
+- `GET /api/congress/members/:bioguideId` - Get detailed info for a specific member
 
 ## Development
 
