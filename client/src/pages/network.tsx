@@ -1,8 +1,11 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Network, Users, Building2, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Network, Users, Building2, ArrowRight, Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Contact, CareerHistory } from "@shared/schema";
 
 interface ContactWithHistory extends Contact {
@@ -10,23 +13,126 @@ interface ContactWithHistory extends Contact {
 }
 
 export default function NetworkPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
   });
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || !contacts) return [];
+    const query = searchQuery.toLowerCase();
+    return contacts.filter(c => 
+      c.firstName.toLowerCase().includes(query) ||
+      c.lastName.toLowerCase().includes(query) ||
+      (c.organization && c.organization.toLowerCase().includes(query)) ||
+      (c.title && c.title.toLowerCase().includes(query))
+    );
+  }, [searchQuery, contacts]);
 
   const highPriorityContacts = contacts?.filter(c => c.priority && c.priority >= 4) || [];
   const recentContacts = contacts?.slice(0, 10) || [];
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-serif" data-testid="text-network-title">
-          Network
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Visualize career paths and connections
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-serif" data-testid="text-network-title">
+            Network
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Visualize career paths and connections
+          </p>
+        </div>
+        
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search staffers by name, title, or org..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+            data-testid="input-search-staffers"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery("")}
+              data-testid="button-clear-search"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
+
+      {searchQuery.trim() && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Search Results ({searchResults.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {searchResults.length > 0 ? (
+              <div className="space-y-4">
+                {searchResults.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className="p-4 rounded-lg border hover-elevate"
+                    data-testid={`search-result-${contact.id}`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                        {contact.firstName[0]}{contact.lastName[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">
+                          {contact.firstName} {contact.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {contact.title} {contact.organization ? `at ${contact.organization}` : ""}
+                        </p>
+                      </div>
+                      {contact.priority && contact.priority >= 4 && (
+                        <Badge variant="outline">Priority {contact.priority}</Badge>
+                      )}
+                    </div>
+                    
+                    {contact.careerHistory && contact.careerHistory.length > 0 ? (
+                      <div className="relative pl-4 border-l-2 border-primary/30 space-y-3 ml-6">
+                        {contact.careerHistory.map((career) => (
+                          <div key={career.id} className="relative">
+                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
+                            <div className="pl-3">
+                              <p className="text-sm font-medium">{career.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {career.organization}
+                                {career.startYear && ` (${career.startYear}${career.endYear ? `-${career.endYear}` : "-present"})`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground ml-6">No career history recorded</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No staffers found for "{searchQuery}"</p>
+                <p className="text-sm">Try a different name, title, or organization</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Key Contacts */}
