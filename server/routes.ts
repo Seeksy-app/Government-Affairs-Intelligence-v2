@@ -1373,13 +1373,14 @@ export async function registerRoutes(
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
-    } catch (error) {
-      console.error("Error in chat:", error);
+    } catch (error: any) {
+      console.error("Error in chat:", error?.message || error);
+      console.error("Error stack:", error?.stack);
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ error: "Chat failed" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: error?.message || "Chat failed" })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ message: "Failed to process chat" });
+        res.status(500).json({ message: error?.message || "Failed to process chat" });
       }
     }
   });
