@@ -2651,9 +2651,11 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const bill = await storage.createTrackedBill(billData);
       res.json(bill);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error tracking bill:", error);
-      res.status(500).json({ message: "Failed to track bill" });
+      console.error("Request body:", req.body);
+      console.error("Error details:", error?.message, error?.stack);
+      res.status(500).json({ message: "Failed to track bill", error: error?.message });
     }
   });
 

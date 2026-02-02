@@ -42,7 +42,7 @@ interface BillSearchResult {
   number: number;
   title: string;
   latestAction?: { text: string; actionDate: string };
-  sponsors?: Array<{ firstName: string; lastName: string; party: string; state: string }>;
+  sponsors?: Array<{ bioguideId?: string; fullName: string; firstName?: string; lastName?: string; party: string; state: string }>;
   policyArea?: { name: string };
   introducedDate?: string;
 }
@@ -89,14 +89,20 @@ export default function BillTrackingPage() {
 
   const trackBillMutation = useMutation({
     mutationFn: async (bill: BillSearchResult) => {
+      // Get sponsor name - handle both fullName format and firstName/lastName format
+      const sponsor = bill.sponsors?.[0];
+      const sponsorName = sponsor 
+        ? (sponsor.fullName || `${sponsor.firstName || ''} ${sponsor.lastName || ''}`.trim())
+        : null;
+      
       const res = await apiRequest("POST", "/api/tracked-bills", {
         congress: bill.congress,
         billType: bill.type,
         billNumber: bill.number,
         title: bill.title,
-        sponsor: bill.sponsors?.[0] ? `${bill.sponsors[0].firstName} ${bill.sponsors[0].lastName}` : null,
-        sponsorParty: bill.sponsors?.[0]?.party,
-        sponsorState: bill.sponsors?.[0]?.state,
+        sponsor: sponsorName,
+        sponsorParty: sponsor?.party,
+        sponsorState: sponsor?.state,
         introducedDate: bill.introducedDate,
         latestAction: bill.latestAction?.text,
         latestActionDate: bill.latestAction?.actionDate,
