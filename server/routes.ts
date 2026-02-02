@@ -23,6 +23,7 @@ import {
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
+import { kalshiApi } from "./services/kalshi-api";
 import { z } from "zod";
 import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail } from "./services/email-service";
 
@@ -2867,6 +2868,77 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error fetching member bills:", error);
       res.status(500).json({ message: "Failed to fetch member bills" });
+    }
+  });
+
+  // ========== Kalshi Prediction Markets ==========
+
+  // Get top political prediction markets
+  app.get("/api/kalshi/political-markets", isAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const markets = await kalshiApi.getTopPoliticalEvents(limit);
+      res.json(markets);
+    } catch (error) {
+      console.error("Error fetching Kalshi political markets:", error);
+      res.status(500).json({ message: "Failed to fetch prediction markets" });
+    }
+  });
+
+  // Get all open markets
+  app.get("/api/kalshi/markets", isAuthenticated, async (req, res) => {
+    try {
+      const { series_ticker, event_ticker, status, limit, cursor } = req.query;
+      const result = await kalshiApi.getMarkets({
+        seriesTicker: series_ticker as string,
+        eventTicker: event_ticker as string,
+        status: (status as "open" | "closed" | "settled" | "all") || "open",
+        limit: limit ? parseInt(limit as string) : 50,
+        cursor: cursor as string,
+      });
+      res.json(result || { markets: [], cursor: null });
+    } catch (error) {
+      console.error("Error fetching Kalshi markets:", error);
+      res.status(500).json({ message: "Failed to fetch markets" });
+    }
+  });
+
+  // Get specific market details
+  app.get("/api/kalshi/markets/:ticker", isAuthenticated, async (req, res) => {
+    try {
+      const result = await kalshiApi.getMarket(req.params.ticker);
+      if (!result) {
+        return res.status(404).json({ message: "Market not found" });
+      }
+      res.json(result.market);
+    } catch (error) {
+      console.error("Error fetching Kalshi market:", error);
+      res.status(500).json({ message: "Failed to fetch market" });
+    }
+  });
+
+  // Get event details
+  app.get("/api/kalshi/events/:eventTicker", isAuthenticated, async (req, res) => {
+    try {
+      const result = await kalshiApi.getEvent(req.params.eventTicker);
+      if (!result) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      res.json(result.event);
+    } catch (error) {
+      console.error("Error fetching Kalshi event:", error);
+      res.status(500).json({ message: "Failed to fetch event" });
+    }
+  });
+
+  // Search for bill-related markets
+  app.get("/api/kalshi/bill-markets/:billNumber", isAuthenticated, async (req, res) => {
+    try {
+      const markets = await kalshiApi.searchBillMarkets(req.params.billNumber);
+      res.json(markets);
+    } catch (error) {
+      console.error("Error searching Kalshi bill markets:", error);
+      res.status(500).json({ message: "Failed to search bill markets" });
     }
   });
 

@@ -1,10 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Network, Newspaper, TrendingUp, Activity, Star } from "lucide-react";
+import { Users, Network, Newspaper, TrendingUp, Activity, Star, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type { Contact, NewsArticle } from "@shared/schema";
+
+interface KalshiMarket {
+  ticker: string;
+  title: string;
+  yes_price: number;
+  volume: number;
+  status: string;
+}
 
 interface ClientStats {
   totalContacts: number;
@@ -24,6 +33,10 @@ export default function ClientDashboard() {
 
   const { data: recentNews, isLoading: newsLoading } = useQuery<NewsArticle[]>({
     queryKey: ["/api/news/recent"],
+  });
+
+  const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
+    queryKey: ["/api/kalshi/political-markets"],
   });
 
   const StatCard = ({ title, value, icon: Icon, description }: { title: string; value: number | undefined; icon: any; description?: string }) => (
@@ -201,6 +214,64 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prediction Markets Widget */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Political Prediction Markets
+          </CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/predictions">View All</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {marketsLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="p-3 rounded-lg border">
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : predictionMarkets && predictionMarkets.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {predictionMarkets.slice(0, 6).map((market) => (
+                <div
+                  key={market.ticker}
+                  className="p-3 rounded-lg border hover-elevate"
+                  data-testid={`market-item-${market.ticker}`}
+                >
+                  <p className="text-sm font-medium line-clamp-2 mb-2">
+                    {market.title}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={market.yes_price >= 50 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {market.yes_price}% Yes
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      Vol: {market.volume.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No prediction markets available</p>
+              <p className="text-sm">Political markets will appear when active</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
