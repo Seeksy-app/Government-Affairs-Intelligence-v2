@@ -2515,7 +2515,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const congress = parseInt(req.query.congress as string) || 119;
       const billType = req.query.billType as string;
-      const keyword = req.query.keyword as string;
+      const keyword = (req.query.keyword || req.query.q) as string; // Support both q and keyword
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
 
