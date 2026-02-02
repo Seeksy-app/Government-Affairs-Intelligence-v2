@@ -2605,7 +2605,14 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       // Use getClientId to support admin impersonation
       const clientId = await getClientId(req);
-      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      if (!clientId) {
+        // Check if this is a super admin who isn't impersonating
+        const superAdmin = await storage.getSuperAdminByUserId(userId);
+        if (superAdmin) {
+          return res.status(403).json({ message: "Please impersonate a client first to track bills. Go to Admin > Clients and click 'Impersonate' on a client." });
+        }
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
 
       const billData = insertTrackedBillSchema.parse({
         ...req.body,
