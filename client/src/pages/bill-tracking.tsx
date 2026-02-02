@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Bell, BellOff, ExternalLink, RefreshCw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Search, Plus, Bell, ExternalLink, RefreshCw, Trash2, AlertCircle, Clock, Briefcase, FolderOpen } from "lucide-react";
 
 // Congress sessions with their year ranges (most recent first)
 const CONGRESS_SESSIONS = [
@@ -26,7 +26,7 @@ const CONGRESS_SESSIONS = [
   { congress: 111, years: "2009-2011", label: "111th Congress (2009-2011)" },
   { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
 ];
-import type { TrackedBill, BillChangeHistory, BillTrackingAlert } from "@shared/schema";
+import type { TrackedBill, BillChangeHistory, BillTrackingAlert, Matter } from "@shared/schema";
 
 interface BillSearchResult {
   congress: number;
@@ -54,6 +54,26 @@ export default function BillTrackingPage() {
 
   const { data: unreadChanges } = useQuery<(BillChangeHistory & { bill: TrackedBill })[]>({
     queryKey: ["/api/tracked-bills/changes/unread"],
+  });
+
+  const { data: matters } = useQuery<Matter[]>({
+    queryKey: ["/api/matters"],
+  });
+
+  const assignMatterMutation = useMutation({
+    mutationFn: async ({ billId, matterId }: { billId: string; matterId: string | null }) => {
+      const res = await apiRequest("PATCH", `/api/tracked-bills/${billId}`, { matterId });
+      return res.json();
+    },
+    onSuccess: (updatedBill: TrackedBill) => {
+      toast({ title: "Matter Assigned", description: "Bill has been assigned to the matter." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
+      // Update selectedBill state to reflect the change immediately
+      setSelectedBill(updatedBill);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Assign", description: error.message, variant: "destructive" });
+    },
   });
 
   const searchBillsMutation = useMutation({
@@ -340,15 +360,23 @@ export default function BillTrackingPage() {
                 <CardTitle className="text-base line-clamp-2">{bill.title}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="space-y-1 text-sm">
+                <div className="space-y-2 text-sm">
                   {bill.sponsor && (
                     <p className="text-muted-foreground">
                       Sponsor: {bill.sponsor} {bill.sponsorParty && `(${bill.sponsorParty}${bill.sponsorState ? `-${bill.sponsorState}` : ""})`}
                     </p>
                   )}
-                  {bill.policyArea && (
-                    <Badge variant="secondary" className="text-xs">{bill.policyArea}</Badge>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {bill.policyArea && (
+                      <Badge variant="secondary" className="text-xs">{bill.policyArea}</Badge>
+                    )}
+                    {bill.matterId && matters && (
+                      <Badge variant="outline" className="text-xs flex items-center gap-1">
+                        <FolderOpen className="w-3 h-3" />
+                        {matters.find(m => m.id === bill.matterId)?.name || "Assigned"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 
                 {bill.latestAction && (
@@ -402,17 +430,52 @@ export default function BillTrackingPage() {
         </Card>
       )}
 
-      {/* Alert Settings Dialog */}
+      {/* Bill Settings Dialog */}
       <Dialog open={!!selectedBill} onOpenChange={(open) => !open && setSelectedBill(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alert Settings</DialogTitle>
+            <DialogTitle>Bill Settings</DialogTitle>
             <DialogDescription>
-              Configure notifications for {selectedBill && `${getBillTypeLabel(selectedBill.billType)} ${selectedBill.billNumber}`}
+              Configure {selectedBill && `${getBillTypeLabel(selectedBill.billType)} ${selectedBill.billNumber}`}
             </DialogDescription>
           </DialogHeader>
           {selectedBill && (
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="matter-select" className="flex flex-col gap-1">
+                  <span className="flex items-center gap-1">
+                    <FolderOpen className="w-4 h-4" />
+                    Assign to Matter
+                  </span>
+                  <span className="text-xs text-muted-foreground font-normal">Link this bill to a client matter for organization</span>
+                </Label>
+                <Select
+                  value={selectedBill.matterId || "none"}
+                  onValueChange={(value) => {
+                    assignMatterMutation.mutate({
+                      billId: selectedBill.id,
+                      matterId: value === "none" ? null : value
+                    });
+                  }}
+                >
+                  <SelectTrigger data-testid="select-matter">
+                    <SelectValue placeholder="Select a matter..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No matter assigned</SelectItem>
+                    {matters?.map((matter) => (
+                      <SelectItem key={matter.id} value={matter.id}>
+                        {matter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">Alert Settings</h4>
+              </div>
+              
               <div className="flex items-center justify-between">
                 <Label htmlFor="status-change" className="flex flex-col gap-1">
                   <span>Status Changes</span>

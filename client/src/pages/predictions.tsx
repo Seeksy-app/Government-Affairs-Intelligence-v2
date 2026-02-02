@@ -55,7 +55,17 @@ export default function PredictionsPage() {
             title.includes("trump") ||
             title.includes("biden") ||
             title.includes("democrat") ||
-            title.includes("republican")
+            title.includes("republican") ||
+            title.includes("government") ||
+            title.includes("cabinet") ||
+            title.includes("nominee") ||
+            title.includes("fed chair") ||
+            title.includes("supreme") ||
+            title.includes("shutdown") ||
+            title.includes("vance") ||
+            title.includes("newsom") ||
+            title.includes("costa rica") ||
+            title.includes("party")
           );
         case "elections":
           return matchesSearch && (
