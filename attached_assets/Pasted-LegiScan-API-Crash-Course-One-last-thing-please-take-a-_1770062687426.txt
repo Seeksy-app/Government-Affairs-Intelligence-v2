@@ -1,0 +1,33 @@
+LegiScan API Crash Course
+One last thing, please take a minute to read and agree...
+Print this page
+Query Limits
+Public API keys have 30,000 queries to spend per month, resetting on the first of each month
+Pull API subscriptions for expanded query limits and Push API subscriptions for full enterprise replication
+Timing guidelines for each operation on Page 7 of the LegiScan API Manual should be followed
+Recommend local caching of JSON response to minimize spend on replayability
+Datasets
+All individual getBill, getRollCall and getPerson JSON payloads in a single ZIP file for each legislative session
+Created weekly on Sunday morning at 5am Eastern
+Approximately 1000 API queries for 3,500,000+ records for all 2010 - 2026 data
+ZIP archive files are Base64 encoded in their JSON transport
+Texts & Documents
+Bill documents are available via getBillText, getAmendment and getSupplement hooks
+Necessary doc_id, amendment_id, supplement_id identifiers are availble in getBill payloads
+Document blobs are Base64 encoded in their JSON transport
+One-time ML training snapshot of 300GB text data for for all 2010 - 2026 available as separate paid service
+Hashes
+32-character hash values are available to detect data changes and optimize query spend
+change_hash + bill_id for bill data; available in getBill, getMasterList, getSearch, getMasterListRaw, getSearchRaw
+dataset_hash + session_id for dataset archives; available in getDatasetList, getDataset
+Store and compare hash values, if hash is the same the data is the same so use local cache and avoid query spend
+Work Loop
+Typical loop driven by checking getMasterListRaw or getSearchRaw periodically
+Use change_hash in the results to determine when to spend queries updating individual data
+Repeat getMasterListRaw or getSearchRaw daily/weekly or as needed within query spend
+Turnkey LegiScan API Client available to processes Pull, Push and Bulk data into a defined SQL schema
+Housekeeping
+Scraping the legiscan.com front end site is prohibited and will result in suspended access
+Creating multiple Public API service keys is prohibited and will result in suspended access
+All data is licensed under Creative Commons Attribution 4.0; do as you like but you must give LegiScan attribution
+Play nice!

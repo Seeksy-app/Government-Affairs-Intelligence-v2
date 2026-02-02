@@ -208,7 +208,11 @@ export default function MatterDetailPage() {
         body: JSON.stringify({ question }),
       });
 
-      if (!response.ok) throw new Error("Chat failed");
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Chat API error:", response.status, errorData);
+        throw new Error(`Chat failed: ${response.status}`);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
