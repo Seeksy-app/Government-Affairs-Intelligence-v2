@@ -169,6 +169,187 @@ export class CongressAPI {
       bill.title?.toLowerCase().includes(searchLower)
     ).slice(0, limit);
   }
+
+  // Get all current members of Congress
+  async getCurrentMembers(options: {
+    chamber?: 'house' | 'senate';
+    limit?: number;
+  } = {}): Promise<SimpleMember[]> {
+    const { chamber, limit = 500 } = options;
+    
+    const response = await this.fetch<{
+      members: CongressMember[];
+    }>('/member', { 
+      currentMember: 'true',
+      limit 
+    });
+
+    let members = response.members.map(m => {
+      const currentTerm = m.terms?.item?.[m.terms.item.length - 1];
+      return {
+        bioguideId: m.bioguideId,
+        name: m.name,
+        firstName: m.name.split(',')[1]?.trim().split(' ')[0] || m.name.split(' ')[0],
+        lastName: m.name.split(',')[0]?.trim() || m.name,
+        state: m.state,
+        district: m.district,
+        party: m.party,
+        chamber: currentTerm?.chamber || 'Unknown',
+        imageUrl: m.depiction?.imageUrl,
+      } as SimpleMember;
+    });
+
+    // Filter by chamber if specified
+    if (chamber === 'house') {
+      members = members.filter(m => m.chamber === 'House of Representatives');
+    } else if (chamber === 'senate') {
+      members = members.filter(m => m.chamber === 'Senate');
+    }
+
+    return members;
+  }
+
+  // Get member details by bioguide ID
+  async getMemberDetails(bioguideId: string): Promise<SimpleMember | null> {
+    try {
+      const response = await this.fetch<MemberDetails>(`/member/${bioguideId}`);
+      const m = response.member;
+      const currentTerm = m.terms?.item?.[m.terms.item.length - 1];
+      
+      return {
+        bioguideId: m.bioguideId,
+        name: m.name,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        state: m.state,
+        district: m.district,
+        party: m.party,
+        chamber: currentTerm?.chamber || 'Unknown',
+        imageUrl: m.depiction?.imageUrl,
+        phone: m.addressInformation?.phoneNumber,
+        officeAddress: m.addressInformation?.officeAddress,
+        website: m.officialWebsiteUrl,
+        leadership: m.leadership?.map(l => l.type),
+      };
+    } catch (error) {
+      console.error('Error fetching member details:', error);
+      return null;
+    }
+  }
+
+  // Search members by name
+  async searchMembers(query: string, options: {
+    chamber?: 'house' | 'senate';
+    party?: 'D' | 'R' | 'I';
+    state?: string;
+  } = {}): Promise<SimpleMember[]> {
+    const members = await this.getCurrentMembers({ 
+      chamber: options.chamber,
+      limit: 600 
+    });
+    
+    const queryLower = query.toLowerCase();
+    
+    return members.filter(m => {
+      // Name match
+      const nameMatch = !query || 
+        m.name.toLowerCase().includes(queryLower) ||
+        m.firstName.toLowerCase().includes(queryLower) ||
+        m.lastName.toLowerCase().includes(queryLower);
+      
+      // Party filter
+      const partyMatch = !options.party || m.party === options.party;
+      
+      // State filter
+      const stateMatch = !options.state || m.state === options.state;
+      
+      return nameMatch && partyMatch && stateMatch;
+    });
+  }
+
+  // Get leadership members
+  async getLeadership(): Promise<SimpleMember[]> {
+    const members = await this.getCurrentMembers({ limit: 600 });
+    
+    // Get details for all members to find leadership
+    const leadershipMembers: SimpleMember[] = [];
+    
+    // Known leadership bioguide IDs (we'll fetch a sample to get leadership info)
+    // For efficiency, we'll return members with known leadership titles in their details
+    for (const member of members.slice(0, 50)) {
+      const details = await this.getMemberDetails(member.bioguideId);
+      if (details?.leadership && details.leadership.length > 0) {
+        leadershipMembers.push(details);
+      }
+    }
+    
+    return leadershipMembers;
+  }
+}
+
+// Member interfaces
+interface CongressMember {
+  bioguideId: string;
+  name: string;
+  state: string;
+  district?: number;
+  party: string;
+  url: string;
+  depiction?: {
+    imageUrl: string;
+    attribution: string;
+  };
+  terms?: {
+    item: Array<{
+      chamber: string;
+      startYear: number;
+      endYear?: number;
+    }>;
+  };
+}
+
+interface MemberDetails {
+  member: CongressMember & {
+    firstName: string;
+    lastName: string;
+    directOrderName: string;
+    honorificName: string;
+    officialWebsiteUrl?: string;
+    addressInformation?: {
+      officeAddress: string;
+      city: string;
+      district: string;
+      zipCode: string;
+      phoneNumber: string;
+    };
+    currentMember: boolean;
+    leadership?: Array<{
+      type: string;
+      congress: number;
+    }>;
+    partyHistory?: Array<{
+      partyName: string;
+      partyAbbreviation: string;
+      startYear: number;
+      endYear?: number;
+    }>;
+  };
+}
+
+export interface SimpleMember {
+  bioguideId: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  state: string;
+  district?: number;
+  party: string;
+  chamber: string;
+  imageUrl?: string;
+  phone?: string;
+  officeAddress?: string;
+  website?: string;
+  leadership?: string[];
 }
 
 export function formatBillId(congress: number, billType: string, billNumber: number): string {
