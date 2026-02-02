@@ -162,18 +162,20 @@ export class CongressAPI {
   }
 
   async searchByKeyword(keyword: string, congress = 119, limit = 50): Promise<CongressBill[]> {
-    // Check if the search looks like a bill number (e.g., "H.R. 3854", "HR3854", "S. 123", "S123")
-    const billNumberMatch = keyword.match(/^(H\.?R\.?|S\.?|H\.?J\.?RES\.?|S\.?J\.?RES\.?|H\.?CON\.?RES\.?|S\.?CON\.?RES\.?|H\.?RES\.?|S\.?RES\.?)\s*(\d+)$/i);
+    // Check if the search looks like a bill number (e.g., "H.R. 3854", "HR3854", "S. 123", "S123", "SB3726", "HB1234")
+    const billNumberMatch = keyword.match(/^(H\.?R\.?|S\.?B?|H\.?B\.?|H\.?J\.?RES\.?|S\.?J\.?RES\.?|H\.?CON\.?RES\.?|S\.?CON\.?RES\.?|H\.?RES\.?|S\.?RES\.?)\s*(\d+)$/i);
     
     if (billNumberMatch) {
       // Parse the bill type and number
       let typeStr = billNumberMatch[1].toUpperCase().replace(/\./g, '');
       const number = parseInt(billNumberMatch[2]);
       
-      // Map to API bill types
+      // Map to API bill types (including LegiScan format SB/HB)
       const typeMap: { [key: string]: string } = {
         'HR': 'hr',
+        'HB': 'hr',     // LegiScan House Bill format
         'S': 's',
+        'SB': 's',      // LegiScan Senate Bill format
         'HJRES': 'hjres',
         'SJRES': 'sjres',
         'HCONRES': 'hconres',
