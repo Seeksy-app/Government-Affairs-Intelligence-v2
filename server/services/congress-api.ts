@@ -241,6 +241,13 @@ export class CongressAPI {
       const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
         : rawChamber.toLowerCase().includes('house') ? 'House' 
         : rawChamber;
+      // Normalize party to abbreviation
+      const rawParty = m.party || '';
+      const party = rawParty.toLowerCase().includes('republican') ? 'R'
+        : rawParty.toLowerCase().includes('democrat') ? 'D'
+        : rawParty === 'R' || rawParty === 'D' || rawParty === 'I' ? rawParty
+        : rawParty.toLowerCase().includes('independent') ? 'I'
+        : 'I';
       return {
         bioguideId: m.bioguideId,
         name: m.name,
@@ -248,7 +255,7 @@ export class CongressAPI {
         lastName: m.name.split(',')[0]?.trim() || m.name,
         state: m.state,
         district: m.district,
-        party: m.party,
+        party,
         chamber,
         imageUrl: m.depiction?.imageUrl,
       } as SimpleMember;
@@ -275,6 +282,13 @@ export class CongressAPI {
       const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
         : rawChamber.toLowerCase().includes('house') ? 'House' 
         : rawChamber;
+      // Normalize party to abbreviation
+      const rawParty = m.party || '';
+      const party = rawParty.toLowerCase().includes('republican') ? 'R'
+        : rawParty.toLowerCase().includes('democrat') ? 'D'
+        : rawParty === 'R' || rawParty === 'D' || rawParty === 'I' ? rawParty
+        : rawParty.toLowerCase().includes('independent') ? 'I'
+        : 'I';
       
       return {
         bioguideId: m.bioguideId,
@@ -283,7 +297,7 @@ export class CongressAPI {
         lastName: m.lastName,
         state: m.state,
         district: m.district,
-        party: m.party,
+        party,
         chamber,
         imageUrl: m.depiction?.imageUrl,
         phone: m.addressInformation?.phoneNumber,

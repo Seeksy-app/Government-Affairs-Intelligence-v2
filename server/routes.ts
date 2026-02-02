@@ -2851,5 +2851,22 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // Get member sponsored bills
+  app.get("/api/congress/members/:bioguideId/bills", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const api = new CongressAPI(apiKey);
+      const bills = await api.getMemberBills(req.params.bioguideId, 20);
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching member bills:", error);
+      res.status(500).json({ message: "Failed to fetch member bills" });
+    }
+  });
+
   return httpServer;
 }

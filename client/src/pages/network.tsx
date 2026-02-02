@@ -5,10 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import type { Contact, CareerHistory } from "@shared/schema";
 
 interface CongressMember {
@@ -25,6 +28,18 @@ interface CongressMember {
   officeAddress?: string;
   website?: string;
   leadership?: string[];
+}
+
+interface MemberBill {
+  congress: number;
+  type: string;
+  number: number;
+  title: string;
+  introducedDate: string;
+  latestAction?: {
+    actionDate: string;
+    text: string;
+  };
 }
 
 const US_STATES = [
@@ -96,6 +111,31 @@ export default function NetworkPage() {
   const handleMemberSearch = () => {
     setSearchTrigger(t => t + 1);
   };
+
+  // Selected member for detail view
+  const [selectedMember, setSelectedMember] = useState<CongressMember | null>(null);
+  
+  // Fetch member details when selected
+  const { data: memberDetails, isLoading: detailsLoading } = useQuery<CongressMember>({
+    queryKey: ["/api/congress/members", selectedMember?.bioguideId],
+    queryFn: async () => {
+      const res = await fetch(`/api/congress/members/${selectedMember?.bioguideId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch member details");
+      return res.json();
+    },
+    enabled: !!selectedMember?.bioguideId,
+  });
+  
+  // Fetch member bills when selected
+  const { data: memberBills, isLoading: billsLoading } = useQuery<{ sponsoredLegislation: MemberBill[] }>({
+    queryKey: ["/api/congress/members", selectedMember?.bioguideId, "bills"],
+    queryFn: async () => {
+      const res = await fetch(`/api/congress/members/${selectedMember?.bioguideId}/bills`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch member bills");
+      return res.json();
+    },
+    enabled: !!selectedMember?.bioguideId,
+  });
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || !contacts) return [];
@@ -266,7 +306,8 @@ export default function NetworkPage() {
                     {congressMembers.slice(0, 50).map((member) => (
                       <div
                         key={member.bioguideId}
-                        className="p-4 rounded-lg border hover-elevate"
+                        className="p-4 rounded-lg border hover-elevate cursor-pointer"
+                        onClick={() => setSelectedMember(member)}
                         data-testid={`member-card-${member.bioguideId}`}
                       >
                         <div className="flex items-start gap-3">
@@ -608,6 +649,146 @@ export default function NetworkPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Member Detail Sheet */}
+      <Sheet open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
+        <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-3">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={memberDetails?.imageUrl || selectedMember?.imageUrl} alt={selectedMember?.name || ""} />
+                <AvatarFallback className="text-lg">
+                  {selectedMember?.firstName?.[0]}{selectedMember?.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span>{selectedMember?.firstName} {selectedMember?.lastName}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      (memberDetails?.party || selectedMember?.party) === "D" 
+                        ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                        : (memberDetails?.party || selectedMember?.party) === "R" 
+                        ? "border-red-500 text-red-600 dark:text-red-400"
+                        : "border-gray-500"
+                    }
+                  >
+                    {(memberDetails?.party || selectedMember?.party) === "D" ? "Democrat" : 
+                     (memberDetails?.party || selectedMember?.party) === "R" ? "Republican" : "Independent"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {selectedMember?.state}{selectedMember?.district ? `-${selectedMember?.district}` : ""}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedMember?.chamber === "House" ? "Representative" : 
+                   selectedMember?.chamber === "Senate" ? "Senator" : selectedMember?.chamber}
+                </p>
+              </div>
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Details for {selectedMember?.firstName} {selectedMember?.lastName}
+            </SheetDescription>
+          </SheetHeader>
+          
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-6 pb-6">
+              {/* Leadership Roles */}
+              {(memberDetails?.leadership && memberDetails.leadership.length > 0) && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Leadership Roles</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {memberDetails.leadership.map((role, idx) => (
+                      <Badge key={idx}>{role}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Contact Information */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Contact Information</h4>
+                <div className="space-y-2">
+                  {(memberDetails?.phone || selectedMember?.phone) && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href={`tel:${memberDetails?.phone || selectedMember?.phone}`} className="hover:underline">
+                        {memberDetails?.phone || selectedMember?.phone}
+                      </a>
+                    </div>
+                  )}
+                  {(memberDetails?.officeAddress || selectedMember?.officeAddress) && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <span>{memberDetails?.officeAddress || selectedMember?.officeAddress}</span>
+                    </div>
+                  )}
+                  {(memberDetails?.website || selectedMember?.website) && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      <a 
+                        href={memberDetails?.website || selectedMember?.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline flex items-center gap-1"
+                      >
+                        Official Website <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <Separator />
+              
+              {/* Sponsored Bills */}
+              <div>
+                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Sponsored Legislation
+                </h4>
+                {billsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3 rounded-lg border">
+                        <Skeleton className="h-4 w-24 mb-2" />
+                        <Skeleton className="h-3 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : memberBills?.sponsoredLegislation && memberBills.sponsoredLegislation.length > 0 ? (
+                  <div className="space-y-3">
+                    {memberBills.sponsoredLegislation.slice(0, 10).map((bill) => (
+                      <div key={`${bill.type}-${bill.number}`} className="p-3 rounded-lg border hover-elevate">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {bill.type.toUpperCase()} {bill.number}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(bill.introducedDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium line-clamp-2">{bill.title}</p>
+                        {bill.latestAction && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                            Latest: {bill.latestAction.text}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No sponsored legislation found</p>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
