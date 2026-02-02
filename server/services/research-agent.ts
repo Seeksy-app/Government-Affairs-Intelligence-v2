@@ -1,6 +1,7 @@
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { YoutubeTranscript } from "youtube-transcript";
 import OpenAI from "openai";
+import { CongressAPI } from "./congress-api";
 
 const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! });
 
@@ -8,6 +9,10 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
+
+const congressApi = process.env.CONGRESS_API_KEY 
+  ? new CongressAPI(process.env.CONGRESS_API_KEY)
+  : null;
 
 export type ContentType = "url" | "youtube" | "pdf" | "docx" | "article" | "extract" | "agent";
 
@@ -292,20 +297,170 @@ export interface ChatMessage {
   content: string;
 }
 
+interface ParsedBill {
+  original: string;
+  type: string;
+  number: number;
+}
+
+function extractBillReferences(text: string): ParsedBill[] {
+  const billPatterns = [
+    { pattern: /H\.?R\.?\s*(\d+)/gi, type: 'hr' },
+    { pattern: /H\.?B\.?\s*(\d+)/gi, type: 'hr' },
+    { pattern: /S\.?B\.?\s*(\d+)/gi, type: 's' },
+    { pattern: /S\.?\s*(\d+)(?!\d)/gi, type: 's' },
+    { pattern: /H\.?J\.?\s*RES\.?\s*(\d+)/gi, type: 'hjres' },
+    { pattern: /S\.?J\.?\s*RES\.?\s*(\d+)/gi, type: 'sjres' },
+    { pattern: /H\.?\s*CON\.?\s*RES\.?\s*(\d+)/gi, type: 'hconres' },
+    { pattern: /S\.?\s*CON\.?\s*RES\.?\s*(\d+)/gi, type: 'sconres' },
+    { pattern: /H\.?\s*RES\.?\s*(\d+)/gi, type: 'hres' },
+    { pattern: /S\.?\s*RES\.?\s*(\d+)/gi, type: 'sres' },
+  ];
+  
+  const refs: ParsedBill[] = [];
+  const seen = new Set<string>();
+  
+  for (const { pattern, type } of billPatterns) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(text)) !== null) {
+      const number = parseInt(match[1]);
+      const key = `${type}-${number}`;
+      if (!seen.has(key) && number > 0) {
+        seen.add(key);
+        refs.push({
+          original: match[0].replace(/\s+/g, ' ').trim(),
+          type,
+          number
+        });
+      }
+    }
+  }
+  return refs;
+}
+
+async function fetchBillContext(parsedBills: ParsedBill[]): Promise<string> {
+  if (!congressApi || parsedBills.length === 0) {
+    return parsedBills.length > 0 && !congressApi 
+      ? "\n\n⚠️ Congress.gov API key not configured - unable to fetch live bill data."
+      : "";
+  }
+  
+  const billInfos: string[] = [];
+  
+  for (const { original, type, number } of parsedBills.slice(0, 5)) {
+    try {
+      console.log(`[AI Agent] Fetching bill: ${type} ${number}`);
+      
+      const bills = await congressApi.searchByKeyword(`${type.toUpperCase()}${number}`, 119, 1);
+      if (bills && bills.length > 0) {
+        const bill = bills[0];
+        let info = `**${original}**: ${bill.title}\n`;
+        info += `- Introduced: ${bill.introducedDate || 'Unknown'}\n`;
+        info += `- Chamber: ${bill.originChamber || 'Unknown'}\n`;
+        
+        if (bill.latestAction) {
+          info += `- Latest Action (${bill.latestAction.actionDate}): ${bill.latestAction.text}\n`;
+        }
+        
+        try {
+          const summaries = await congressApi.getBillSummaries(119, type, number);
+          if (summaries?.summaries?.length > 0) {
+            const summary = summaries.summaries[0].text.replace(/<[^>]*>/g, '').slice(0, 1500);
+            info += `- Summary: ${summary}\n`;
+          }
+        } catch (e) {
+          console.log(`[AI Agent] No summary available for ${type} ${number}`);
+        }
+        
+        try {
+          const cosponsors = await congressApi.getBillCosponsors(119, type, number, 10);
+          if (cosponsors?.cosponsors?.length > 0) {
+            const names = cosponsors.cosponsors.slice(0, 5).map(c => `${c.fullName} (${c.party}-${c.state})`);
+            info += `- Cosponsors: ${names.join(', ')}\n`;
+          }
+        } catch (e) {
+          console.log(`[AI Agent] No cosponsors available for ${type} ${number}`);
+        }
+        
+        billInfos.push(info);
+      } else {
+        billInfos.push(`**${original}**: Bill not found in 119th Congress data`);
+      }
+    } catch (error) {
+      console.error(`Error fetching bill ${original}:`, error);
+      billInfos.push(`**${original}**: Error retrieving bill data`);
+    }
+  }
+  
+  return billInfos.length > 0 
+    ? `\n\n=== CONGRESSIONAL BILL DATA (from Congress.gov API) ===\n\n${billInfos.join('\n---\n')}`
+    : "";
+}
+
+async function fetchWebResearch(question: string): Promise<string> {
+  if (!process.env.FIRECRAWL_API_KEY) return "";
+  
+  const politicalKeywords = ['bill', 'legislation', 'congress', 'senator', 'representative', 'policy', 'vote', 'committee', 'hearing'];
+  const hasPoliticalContext = politicalKeywords.some(kw => question.toLowerCase().includes(kw));
+  
+  if (!hasPoliticalContext) return "";
+  
+  try {
+    const researchPrompt = `Research the following political/legislative topic and provide key findings: ${question}`;
+    const result = await runAgentQuery(researchPrompt);
+    if (result.success && result.data) {
+      const sources = result.sources?.join(', ') || 'Web research';
+      return `\n\n=== WEB RESEARCH (from Firecrawl) ===\nSources: ${sources}\n\n${JSON.stringify(result.data, null, 2).slice(0, 3000)}`;
+    }
+  } catch (error) {
+    console.error("Web research error:", error);
+  }
+  
+  return "";
+}
+
 export async function* chatWithContext(
   question: string,
   documents: { title: string; content: string }[],
-  conversationHistory: ChatMessage[] = []
+  conversationHistory: ChatMessage[] = [],
+  enableApiEnrichment: boolean = true
 ): AsyncGenerator<string> {
-  const contextText = documents
+  let enrichedContext = "";
+  
+  if (enableApiEnrichment) {
+    const billRefs = extractBillReferences(question);
+    console.log("Detected bill references:", billRefs);
+    
+    if (billRefs.length > 0) {
+      yield "🔍 Searching Congress.gov for bill information...\n\n";
+      enrichedContext += await fetchBillContext(billRefs);
+    }
+    
+    if (documents.length === 0 && billRefs.length === 0 && question.length > 20) {
+      yield "🌐 Searching the web for relevant information...\n\n";
+      enrichedContext += await fetchWebResearch(question);
+    }
+  }
+  
+  const documentContext = documents
     .map((doc, i) => `[Document ${i + 1}: ${doc.title}]\n${doc.content.slice(0, 10000)}`)
     .join("\n\n---\n\n");
 
-  const systemPrompt = `You are a research assistant for a political consulting firm. You have access to the following research documents:
+  const systemPrompt = `You are an expert research assistant for a political consulting firm specializing in government affairs, legislation, and policy analysis.
 
-${contextText}
+You have access to the following information:
 
-Answer questions based on these documents. If the answer is not in the documents, say so clearly. Be thorough but concise. When referencing information, mention which document it comes from.`;
+=== UPLOADED RESEARCH DOCUMENTS ===
+${documentContext || "(No documents uploaded to this matter yet)"}
+${enrichedContext}
+
+INSTRUCTIONS:
+- Synthesize information from ALL available sources (documents, Congress.gov data, web research)
+- When discussing bills, include their status, sponsors, and key provisions
+- Cite your sources (e.g., "According to Congress.gov..." or "From the uploaded document...")
+- If asked about something not in your context, explain what information would be helpful
+- Be thorough, accurate, and actionable in your responses`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
