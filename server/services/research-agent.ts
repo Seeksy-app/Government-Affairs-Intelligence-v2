@@ -347,12 +347,23 @@ async function fetchBillContext(parsedBills: ParsedBill[]): Promise<string> {
   }
   
   const billInfos: string[] = [];
+  const timeout = 8000; // 8 second timeout per bill
   
-  for (const { original, type, number } of parsedBills.slice(0, 5)) {
+  for (const { original, type, number } of parsedBills.slice(0, 3)) {
     try {
       console.log(`[AI Agent] Fetching bill: ${type} ${number}`);
       
-      const bills = await congressApi.searchByKeyword(`${type.toUpperCase()}${number}`, 119, 1);
+      // Create a timeout promise
+      const timeoutPromise = new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), timeout)
+      );
+      
+      // Race between the fetch and timeout
+      const bills = await Promise.race([
+        congressApi.searchByKeyword(`${type.toUpperCase()}${number}`, 119, 1),
+        timeoutPromise
+      ]) as any;
+      
       if (bills && bills.length > 0) {
         const bill = bills[0];
         let info = `**${original}**: ${bill.title}\n`;
@@ -363,33 +374,14 @@ async function fetchBillContext(parsedBills: ParsedBill[]): Promise<string> {
           info += `- Latest Action (${bill.latestAction.actionDate}): ${bill.latestAction.text}\n`;
         }
         
-        try {
-          const summaries = await congressApi.getBillSummaries(119, type, number);
-          if (summaries?.summaries?.length > 0) {
-            const summary = summaries.summaries[0].text.replace(/<[^>]*>/g, '').slice(0, 1500);
-            info += `- Summary: ${summary}\n`;
-          }
-        } catch (e) {
-          console.log(`[AI Agent] No summary available for ${type} ${number}`);
-        }
-        
-        try {
-          const cosponsors = await congressApi.getBillCosponsors(119, type, number, 10);
-          if (cosponsors?.cosponsors?.length > 0) {
-            const names = cosponsors.cosponsors.slice(0, 5).map(c => `${c.fullName} (${c.party}-${c.state})`);
-            info += `- Cosponsors: ${names.join(', ')}\n`;
-          }
-        } catch (e) {
-          console.log(`[AI Agent] No cosponsors available for ${type} ${number}`);
-        }
-        
+        // Skip slower API calls for summaries/cosponsors to improve speed
         billInfos.push(info);
       } else {
         billInfos.push(`**${original}**: Bill not found in 119th Congress data`);
       }
-    } catch (error) {
-      console.error(`Error fetching bill ${original}:`, error);
-      billInfos.push(`**${original}**: Error retrieving bill data`);
+    } catch (error: any) {
+      console.error(`Error fetching bill ${original}:`, error?.message || error);
+      billInfos.push(`**${original}**: Unable to retrieve bill data`);
     }
   }
   

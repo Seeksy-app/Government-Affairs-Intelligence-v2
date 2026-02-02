@@ -232,25 +232,45 @@ export class CongressAPI {
     ).slice(0, limit);
   }
 
-  // Get all current members of Congress
+  // Get all current members of Congress with pagination
   async getCurrentMembers(options: {
     chamber?: 'house' | 'senate';
     limit?: number;
   } = {}): Promise<SimpleMember[]> {
-    const { chamber, limit = 500 } = options;
+    const { chamber } = options;
+    const allMembers: CongressMember[] = [];
+    let offset = 0;
+    const pageSize = 250;
     
-    const response = await this.fetch<{
-      members: CongressMember[];
-    }>('/member', { 
-      currentMember: 'true',
-      limit 
-    });
+    // Paginate through all results (Congress has ~535 members)
+    while (offset < 600) {
+      try {
+        const response = await this.fetch<{
+          members: CongressMember[];
+        }>('/member', { 
+          currentMember: 'true',
+          limit: pageSize,
+          offset
+        });
+        
+        if (!response.members || response.members.length === 0) break;
+        allMembers.push(...response.members);
+        
+        if (response.members.length < pageSize) break;
+        offset += pageSize;
+      } catch (e) {
+        console.error(`Error fetching members at offset ${offset}:`, e);
+        break;
+      }
+    }
+    
+    console.log(`[Congress API] Fetched ${allMembers.length} total current members`);
 
-    let members = response.members.map(m => {
+    let members = allMembers.map(m => {
       const currentTerm = m.terms?.item?.[m.terms.item.length - 1];
       // Normalize chamber to simple values
       const rawChamber = currentTerm?.chamber || 'Unknown';
-      const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
+      const normalizedChamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
         : rawChamber.toLowerCase().includes('house') ? 'House' 
         : rawChamber;
       // Normalize party to abbreviation - API returns partyName like "Democratic", "Republican"
@@ -268,7 +288,7 @@ export class CongressAPI {
         state: m.state,
         district: m.district,
         party,
-        chamber,
+        chamber: normalizedChamber,
         imageUrl: m.depiction?.imageUrl,
       } as SimpleMember;
     });

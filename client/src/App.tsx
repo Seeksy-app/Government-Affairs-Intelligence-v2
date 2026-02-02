@@ -39,6 +39,7 @@ import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import AdminApplications from "@/pages/admin-applications";
 import BillTrackingPage from "@/pages/bill-tracking";
+import PredictionsPage from "@/pages/predictions";
 
 function AuthenticatedRouter() {
   return (
@@ -60,6 +61,7 @@ function AuthenticatedRouter() {
       <Route path="/matters" component={MattersPage} />
       <Route path="/matters/:id" component={MatterDetailPage} />
       <Route path="/bills" component={BillTrackingPage} />
+      <Route path="/predictions" component={PredictionsPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
