@@ -98,18 +98,29 @@ export default function NetworkPage() {
   
   const memberSearchUrl = buildMemberSearchUrl();
   
+  // Track if filters were applied (so we can auto-refresh on filter change)
+  const hasFilters = chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all";
+  
   const { data: congressMembers, isLoading: membersLoading, refetch: refetchMembers } = useQuery<CongressMember[]>({
-    queryKey: [memberSearchUrl, searchTrigger],
+    queryKey: ["congress-members", memberSearch, chamberFilter, partyFilter, stateFilter, searchTrigger],
     queryFn: async () => {
       const res = await fetch(memberSearchUrl, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch members");
       return res.json();
     },
-    enabled: showMemberSearch && searchTrigger > 0,
+    enabled: showMemberSearch && (searchTrigger > 0 || hasFilters),
   });
   
   const handleMemberSearch = () => {
     setSearchTrigger(t => t + 1);
+  };
+  
+  // Auto-search when filters change and search panel is open
+  const handleFilterChange = (setter: (val: string) => void, value: string) => {
+    setter(value);
+    if (showMemberSearch && searchTrigger === 0) {
+      setSearchTrigger(1);
+    }
   };
 
   // Selected member for detail view
@@ -229,7 +240,7 @@ export default function NetworkPage() {
                   </Button>
                 </div>
                 
-                <Select value={chamberFilter} onValueChange={setChamberFilter}>
+                <Select value={chamberFilter} onValueChange={(v) => handleFilterChange(setChamberFilter, v)}>
                   <SelectTrigger className="w-full md:w-40" data-testid="select-chamber">
                     <SelectValue placeholder="Chamber" />
                   </SelectTrigger>
@@ -240,7 +251,7 @@ export default function NetworkPage() {
                   </SelectContent>
                 </Select>
                 
-                <Select value={partyFilter} onValueChange={setPartyFilter}>
+                <Select value={partyFilter} onValueChange={(v) => handleFilterChange(setPartyFilter, v)}>
                   <SelectTrigger className="w-full md:w-40" data-testid="select-party">
                     <SelectValue placeholder="Party" />
                   </SelectTrigger>
@@ -252,7 +263,7 @@ export default function NetworkPage() {
                   </SelectContent>
                 </Select>
                 
-                <Select value={stateFilter} onValueChange={setStateFilter}>
+                <Select value={stateFilter} onValueChange={(v) => handleFilterChange(setStateFilter, v)}>
                   <SelectTrigger className="w-full md:w-44" data-testid="select-state">
                     <SelectValue placeholder="State" />
                   </SelectTrigger>
