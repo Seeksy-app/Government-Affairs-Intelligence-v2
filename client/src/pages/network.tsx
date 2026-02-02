@@ -4,9 +4,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Contact, CareerHistory } from "@shared/schema";
+
+interface CongressMember {
+  bioguideId: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  state: string;
+  district?: number;
+  party: string;
+  chamber: string;
+  imageUrl?: string;
+  phone?: string;
+  officeAddress?: string;
+  website?: string;
+  leadership?: string[];
+}
+
+const US_STATES = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" }, { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" }, { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" }, { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" }, { code: "LA", name: "Louisiana" },
+  { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" }, { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" }, { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" }, { code: "NJ", name: "New Jersey" },
+  { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" }, { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" }, { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" }, { code: "TN", name: "Tennessee" },
+  { code: "TX", name: "Texas" }, { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" }, { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" }, { code: "DC", name: "DC" },
+  { code: "PR", name: "Puerto Rico" }, { code: "GU", name: "Guam" }, { code: "VI", name: "Virgin Islands" },
+  { code: "AS", name: "American Samoa" }, { code: "MP", name: "Northern Mariana Islands" },
+];
 
 interface ContactWithHistory extends Contact {
   careerHistory?: CareerHistory[];
@@ -15,8 +55,28 @@ interface ContactWithHistory extends Contact {
 export default function NetworkPage() {
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Congress Member filters
+  const [memberSearch, setMemberSearch] = useState("");
+  const [chamberFilter, setChamberFilter] = useState<string>("all");
+  const [partyFilter, setPartyFilter] = useState<string>("all");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [showMemberSearch, setShowMemberSearch] = useState(false);
+  
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
+  });
+  
+  // Build query key with filter params
+  const memberFilters = {
+    search: memberSearch || undefined,
+    chamber: chamberFilter !== "all" ? chamberFilter : undefined,
+    party: partyFilter !== "all" ? partyFilter : undefined,
+    state: stateFilter !== "all" ? stateFilter : undefined,
+  };
+  
+  const { data: congressMembers, isLoading: membersLoading } = useQuery<CongressMember[]>({
+    queryKey: ["/api/congress/members", memberFilters],
+    enabled: showMemberSearch,
   });
 
   const searchResults = useMemo(() => {
@@ -67,6 +127,202 @@ export default function NetworkPage() {
           )}
         </div>
       </div>
+
+      {/* Members of Congress Search Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5" />
+              Members of Congress
+            </CardTitle>
+            <Button
+              variant={showMemberSearch ? "default" : "outline"}
+              onClick={() => setShowMemberSearch(!showMemberSearch)}
+              data-testid="button-toggle-member-search"
+            >
+              {showMemberSearch ? "Hide Search" : "Search Members"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showMemberSearch && (
+          <CardContent>
+            <div className="space-y-4">
+              {/* Search and Filters */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-member-search"
+                  />
+                </div>
+                
+                <Select value={chamberFilter} onValueChange={setChamberFilter}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-chamber">
+                    <SelectValue placeholder="Chamber" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Chambers</SelectItem>
+                    <SelectItem value="senate">Senate</SelectItem>
+                    <SelectItem value="house">House</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={partyFilter} onValueChange={setPartyFilter}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-party">
+                    <SelectValue placeholder="Party" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Parties</SelectItem>
+                    <SelectItem value="D">Democrat</SelectItem>
+                    <SelectItem value="R">Republican</SelectItem>
+                    <SelectItem value="I">Independent</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={stateFilter} onValueChange={setStateFilter}>
+                  <SelectTrigger className="w-full md:w-44" data-testid="select-state">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    {US_STATES.map(state => (
+                      <SelectItem key={state.code} value={state.code}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {(memberSearch || chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setMemberSearch("");
+                      setChamberFilter("all");
+                      setPartyFilter("all");
+                      setStateFilter("all");
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              
+              {/* Results */}
+              {membersLoading ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="p-4 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-24 mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : congressMembers && congressMembers.length > 0 ? (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Showing {Math.min(congressMembers.length, 50)} of {congressMembers.length} members
+                  </p>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {congressMembers.slice(0, 50).map((member) => (
+                      <div
+                        key={member.bioguideId}
+                        className="p-4 rounded-lg border hover-elevate"
+                        data-testid={`member-card-${member.bioguideId}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={member.imageUrl} alt={member.name} />
+                            <AvatarFallback>
+                              {member.firstName?.[0]}{member.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{member.firstName} {member.lastName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge 
+                                variant="outline" 
+                                className={
+                                  member.party === "D" 
+                                    ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                                    : member.party === "R" 
+                                    ? "border-red-500 text-red-600 dark:text-red-400"
+                                    : "border-gray-500"
+                                }
+                              >
+                                {member.party === "D" ? "Democrat" : member.party === "R" ? "Republican" : "Independent"}
+                              </Badge>
+                              <Badge variant="secondary">
+                                {member.state}{member.district ? `-${member.district}` : ""}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {member.chamber === "House" ? "Representative" : member.chamber === "Senate" ? "Senator" : member.chamber}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {member.leadership && member.leadership.length > 0 && (
+                          <div className="mt-2 pt-2 border-t">
+                            <div className="flex flex-wrap gap-1">
+                              {member.leadership.map((role, idx) => (
+                                <Badge key={idx} variant="default" className="text-xs">
+                                  {role}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {(member.phone || member.website) && (
+                          <div className="mt-2 pt-2 border-t space-y-1">
+                            {member.phone && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                <span>{member.phone}</span>
+                              </div>
+                            )}
+                            {member.website && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Globe className="h-3 w-3" />
+                                <a 
+                                  href={member.website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="hover:underline truncate"
+                                >
+                                  Official Website
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Landmark className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No members found</p>
+                  <p className="text-sm">Try adjusting your filters or search term</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {searchQuery.trim() && (
         <Card>

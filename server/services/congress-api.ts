@@ -186,6 +186,11 @@ export class CongressAPI {
 
     let members = response.members.map(m => {
       const currentTerm = m.terms?.item?.[m.terms.item.length - 1];
+      // Normalize chamber to simple values
+      const rawChamber = currentTerm?.chamber || 'Unknown';
+      const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
+        : rawChamber.toLowerCase().includes('house') ? 'House' 
+        : rawChamber;
       return {
         bioguideId: m.bioguideId,
         name: m.name,
@@ -194,14 +199,14 @@ export class CongressAPI {
         state: m.state,
         district: m.district,
         party: m.party,
-        chamber: currentTerm?.chamber || 'Unknown',
+        chamber,
         imageUrl: m.depiction?.imageUrl,
       } as SimpleMember;
     });
 
     // Filter by chamber if specified
     if (chamber === 'house') {
-      members = members.filter(m => m.chamber === 'House of Representatives');
+      members = members.filter(m => m.chamber === 'House');
     } else if (chamber === 'senate') {
       members = members.filter(m => m.chamber === 'Senate');
     }
@@ -215,6 +220,11 @@ export class CongressAPI {
       const response = await this.fetch<MemberDetails>(`/member/${bioguideId}`);
       const m = response.member;
       const currentTerm = m.terms?.item?.[m.terms.item.length - 1];
+      // Normalize chamber
+      const rawChamber = currentTerm?.chamber || 'Unknown';
+      const chamber = rawChamber.toLowerCase().includes('senate') ? 'Senate' 
+        : rawChamber.toLowerCase().includes('house') ? 'House' 
+        : rawChamber;
       
       return {
         bioguideId: m.bioguideId,
@@ -224,7 +234,7 @@ export class CongressAPI {
         state: m.state,
         district: m.district,
         party: m.party,
-        chamber: currentTerm?.chamber || 'Unknown',
+        chamber,
         imageUrl: m.depiction?.imageUrl,
         phone: m.addressInformation?.phoneNumber,
         officeAddress: m.addressInformation?.officeAddress,

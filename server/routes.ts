@@ -2793,5 +2793,56 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== Members of Congress Search ==========
+  
+  // Get all current members of Congress with filtering
+  app.get("/api/congress/members", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const { chamber, party, state, search } = req.query;
+      const api = new CongressAPI(apiKey);
+      
+      const members = await api.searchMembers(
+        (search as string) || '',
+        {
+          chamber: chamber as 'house' | 'senate' | undefined,
+          party: party as 'D' | 'R' | 'I' | undefined,
+          state: state as string | undefined,
+        }
+      );
+
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching members:", error);
+      res.status(500).json({ message: "Failed to fetch members" });
+    }
+  });
+
+  // Get member details by bioguide ID
+  app.get("/api/congress/members/:bioguideId", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const api = new CongressAPI(apiKey);
+      const member = await api.getMemberDetails(req.params.bioguideId);
+
+      if (!member) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      res.json(member);
+    } catch (error) {
+      console.error("Error fetching member details:", error);
+      res.status(500).json({ message: "Failed to fetch member details" });
+    }
+  });
+
   return httpServer;
 }
