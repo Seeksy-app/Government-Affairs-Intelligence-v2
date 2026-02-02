@@ -104,9 +104,24 @@ export default function NetworkPage() {
   const { data: congressMembers, isLoading: membersLoading, refetch: refetchMembers } = useQuery<CongressMember[]>({
     queryKey: ["congress-members", memberSearch, chamberFilter, partyFilter, stateFilter, searchTrigger],
     queryFn: async () => {
-      const res = await fetch(memberSearchUrl, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch members");
-      return res.json();
+      // Build URL inside queryFn to avoid stale closure
+      const params = new URLSearchParams();
+      if (memberSearch) params.set("search", memberSearch);
+      if (chamberFilter !== "all") params.set("chamber", chamberFilter);
+      if (partyFilter !== "all") params.set("party", partyFilter);
+      if (stateFilter !== "all") params.set("state", stateFilter);
+      const queryStr = params.toString();
+      const url = `/api/congress/members${queryStr ? `?${queryStr}` : ""}`;
+      
+      console.log("Fetching Congress members:", url);
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) {
+        console.error("Congress API error:", res.status, await res.text());
+        throw new Error("Failed to fetch members");
+      }
+      const data = await res.json();
+      console.log("Congress members result:", data.length, "members");
+      return data;
     },
     enabled: showMemberSearch && (searchTrigger > 0 || hasFilters),
   });
