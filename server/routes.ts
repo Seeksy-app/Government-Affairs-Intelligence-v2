@@ -2617,8 +2617,23 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         return res.status(403).json({ message: "Not assigned to a client" });
       }
 
+      // Normalize bill type from display format ("H.R.", "S.") to API format ("hr", "s")
+      let billType = req.body.billType || '';
+      const typeNormalization: { [key: string]: string } = {
+        'H.R.': 'hr', 'HR': 'hr', 'hr': 'hr',
+        'S.': 's', 'S': 's', 's': 's',
+        'H.J.RES.': 'hjres', 'HJRES': 'hjres', 'hjres': 'hjres',
+        'S.J.RES.': 'sjres', 'SJRES': 'sjres', 'sjres': 'sjres',
+        'H.CON.RES.': 'hconres', 'HCONRES': 'hconres', 'hconres': 'hconres',
+        'S.CON.RES.': 'sconres', 'SCONRES': 'sconres', 'sconres': 'sconres',
+        'H.RES.': 'hres', 'HRES': 'hres', 'hres': 'hres',
+        'S.RES.': 'sres', 'SRES': 'sres', 'sres': 'sres',
+      };
+      const normalizedType = typeNormalization[billType] || billType.toLowerCase().replace(/\./g, '');
+
       const billData = insertTrackedBillSchema.parse({
         ...req.body,
+        billType: normalizedType,
         clientId,
       });
 
