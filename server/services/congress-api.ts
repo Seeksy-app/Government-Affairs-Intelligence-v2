@@ -162,11 +162,61 @@ export class CongressAPI {
   }
 
   async searchByKeyword(keyword: string, congress = 119, limit = 50): Promise<CongressBill[]> {
+    // Check if the search looks like a bill number (e.g., "H.R. 3854", "HR3854", "S. 123", "S123")
+    const billNumberMatch = keyword.match(/^(H\.?R\.?|S\.?|H\.?J\.?RES\.?|S\.?J\.?RES\.?|H\.?CON\.?RES\.?|S\.?CON\.?RES\.?|H\.?RES\.?|S\.?RES\.?)\s*(\d+)$/i);
+    
+    if (billNumberMatch) {
+      // Parse the bill type and number
+      let typeStr = billNumberMatch[1].toUpperCase().replace(/\./g, '');
+      const number = parseInt(billNumberMatch[2]);
+      
+      // Map to API bill types
+      const typeMap: { [key: string]: string } = {
+        'HR': 'hr',
+        'S': 's',
+        'HJRES': 'hjres',
+        'SJRES': 'sjres',
+        'HCONRES': 'hconres',
+        'SCONRES': 'sconres',
+        'HRES': 'hres',
+        'SRES': 'sres',
+      };
+      
+      const billType = typeMap[typeStr];
+      if (billType) {
+        try {
+          // Try to get the specific bill directly
+          const billDetails = await this.getBillDetails(congress, billType, number);
+          if (billDetails.bill) {
+            const bill = billDetails.bill;
+            return [{
+              congress: bill.congress,
+              type: bill.type,
+              number: bill.number,
+              title: bill.title,
+              latestAction: bill.latestAction,
+              introducedDate: bill.introducedDate,
+              originChamber: bill.originChamber,
+              originChamberCode: bill.originChamberCode || (bill.originChamber === 'House' ? 'H' : 'S'),
+              updateDate: bill.updateDate || new Date().toISOString(),
+              url: bill.url || `https://api.congress.gov/v3/bill/${congress}/${billType}/${number}`,
+              policyArea: bill.policyArea,
+              sponsors: bill.sponsors,
+            }];
+          }
+        } catch (e) {
+          // Bill not found, fall through to text search
+        }
+      }
+    }
+    
+    // Fall back to text search: fetch bills and filter by title
     const allBills = await this.searchBills({ congress, limit: 250 });
     
     const searchLower = keyword.toLowerCase();
     return allBills.bills.filter(bill => 
-      bill.title?.toLowerCase().includes(searchLower)
+      bill.title?.toLowerCase().includes(searchLower) ||
+      `${bill.type}.${bill.number}`.toLowerCase().includes(searchLower.replace(/\s+/g, '').replace(/\./g, ''))
     ).slice(0, limit);
   }
 
