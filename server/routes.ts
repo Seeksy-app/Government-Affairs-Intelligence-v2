@@ -2286,22 +2286,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "URL is required" });
       }
 
-      const { ResearchAgent } = await import("./services/research-agent");
-      const agent = new ResearchAgent();
+      const { extractContentFromUrl, extractYouTubeContent, generateSummary } = await import("./services/research-agent");
       
       const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
       let result;
       
       if (isYouTube) {
-        result = await agent.extractYouTubeTranscript(url);
+        result = await extractYouTubeContent(url);
       } else {
-        result = await agent.extractUrlContent(url);
+        result = await extractContentFromUrl(url);
       }
+      
+      const summary = result.content ? await generateSummary(result.content) : undefined;
       
       res.json({
         title: result.title,
         content: result.content,
-        summary: result.summary,
+        summary: summary,
         type: isYouTube ? "youtube" : "url",
       });
     } catch (error) {
@@ -2318,10 +2319,9 @@ export async function registerRoutes(
       }
 
       const { entityName, entityType } = validation.data;
-      const { ResearchAgent } = await import("./services/research-agent");
-      const agent = new ResearchAgent();
+      const { researchPoliticalEntity } = await import("./services/research-agent");
       
-      const result = await agent.researchEntity(entityName, entityType);
+      const result = await researchPoliticalEntity(entityName, entityType);
       
       res.json({
         title: `Research: ${entityName}`,
@@ -2342,15 +2342,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Query is required" });
       }
 
-      const { ResearchAgent } = await import("./services/research-agent");
-      const agent = new ResearchAgent();
+      const { runAgentQuery } = await import("./services/research-agent");
       
-      const result = await agent.runAgentQuery(prompt);
+      const result = await runAgentQuery(prompt);
       
       res.json({
         title: prompt.substring(0, 50) + (prompt.length > 50 ? "..." : ""),
-        content: result.content,
-        summary: result.summary,
+        content: JSON.stringify(result.data, null, 2),
+        summary: `AI research query completed with ${result.sources?.length || 0} sources`,
         type: "query",
       });
     } catch (error) {
@@ -2395,9 +2394,9 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       });
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5.1",
         messages,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       });
 
       const reply = completion.choices?.[0]?.message?.content || "I couldn't generate a response.";

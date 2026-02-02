@@ -110,8 +110,9 @@ export async function extractYouTubeContent(url: string): Promise<ExtractedConte
 }
 
 export async function extractPdfContent(buffer: Buffer, filename: string): Promise<ExtractedContent> {
-  const pdfParse = await import("pdf-parse");
-  const data = await pdfParse.default(buffer);
+  const pdfParseModule = await import("pdf-parse");
+  const pdfParse = pdfParseModule.default || pdfParseModule;
+  const data = await pdfParse(buffer);
 
   return {
     title: filename,
@@ -272,7 +273,7 @@ export async function researchPoliticalEntity(
 
 export async function generateSummary(content: string): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.1",
     messages: [
       {
         role: "system",
@@ -280,7 +281,7 @@ export async function generateSummary(content: string): Promise<string> {
       },
       { role: "user", content: content.slice(0, 15000) },
     ],
-    max_tokens: 200,
+    max_completion_tokens: 200,
   });
 
   return response.choices[0]?.message?.content || "";
@@ -313,10 +314,10 @@ Answer questions based on these documents. If the answer is not in the documents
   ];
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.1",
     messages,
     stream: true,
-    max_tokens: 2048,
+    max_completion_tokens: 2048,
   });
 
   for await (const chunk of stream) {
@@ -346,7 +347,7 @@ export async function analyzeStafferCareer(careerHistory: {
     .join("\n");
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.1",
     messages: [
       {
         role: "system",
