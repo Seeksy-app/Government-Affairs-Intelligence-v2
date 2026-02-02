@@ -2603,17 +2603,18 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      const clientUser = await storage.getClientUserByUserId(userId);
-      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
+      // Use getClientId to support admin impersonation
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
 
       const billData = insertTrackedBillSchema.parse({
         ...req.body,
-        clientId: clientUser.clientId,
+        clientId,
       });
 
       // Check if already tracked
       const existing = await storage.getTrackedBillByNumber(
-        clientUser.clientId,
+        clientId,
         billData.congress,
         billData.billType,
         billData.billNumber
