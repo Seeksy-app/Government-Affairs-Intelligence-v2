@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Users, 
   Plus, 
@@ -30,7 +31,9 @@ import {
   Upload,
   BarChart3,
   RefreshCw,
-  User
+  User,
+  ExternalLink,
+  CheckSquare
 } from "lucide-react";
 import type { Staffer } from "@shared/schema";
 
@@ -138,6 +141,9 @@ export default function StaffersPage() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("search");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedStaffers, setSelectedStaffers] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [exportingMiro, setExportingMiro] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [memberFilter, setMemberFilter] = useState("");
@@ -219,6 +225,67 @@ export default function StaffersPage() {
   });
 
   const staffers = searchResult?.staffers || [];
+
+  const toggleSelectStaffer = (id: string) => {
+    setSelectedStaffers((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllStaffers = () => {
+    if (selectedStaffers.length === staffers.length) {
+      setSelectedStaffers([]);
+    } else {
+      setSelectedStaffers(staffers.map((s) => s.id));
+    }
+  };
+
+  const handleMapSelectedToMiro = async () => {
+    if (selectedStaffers.length === 0) return;
+    setExportingMiro(true);
+    try {
+      const res = await apiRequest("/api/miro/map-multiple", {
+        method: "POST",
+        body: JSON.stringify({
+          stafferIds: selectedStaffers,
+          boardName: `Selected Staffers (${selectedStaffers.length})`,
+        }),
+      });
+      toast({ title: "Miro board created", description: `Created board with ${res.itemsCreated} items` });
+      window.open(res.miroBoardUrl, "_blank");
+      setSelectedStaffers([]);
+      setSelectMode(false);
+    } catch (error) {
+      toast({
+        title: "Failed to create Miro board",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingMiro(false);
+    }
+  };
+
+  const handleMapOfficeToMiro = async () => {
+    if (!memberFilter) return;
+    setExportingMiro(true);
+    try {
+      const res = await apiRequest("/api/miro/map-office", {
+        method: "POST",
+        body: JSON.stringify({ memberName: memberFilter }),
+      });
+      toast({ title: "Miro board created", description: `Created board with ${res.itemsCreated} items for ${memberFilter}` });
+      window.open(res.miroBoardUrl, "_blank");
+    } catch (error) {
+      toast({
+        title: "Failed to create Miro board",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingMiro(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">

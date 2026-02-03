@@ -4035,6 +4035,89 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // Export office staffers to Miro (all staffers for a member)
+  app.post("/api/miro/map-office", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      
+      const { memberName } = req.body;
+      if (!memberName) {
+        return res.status(400).json({ message: "memberName is required" });
+      }
+
+      // Get all staffers for this member
+      const allStaffers = await storage.searchStaffers({
+        clientId,
+        member: memberName,
+      });
+
+      if (allStaffers.length === 0) {
+        return res.status(404).json({ message: "No staffers found for this member" });
+      }
+
+      // Get career positions for each staffer
+      const staffersWithPositions = await Promise.all(
+        allStaffers.map(async (s) => ({
+          ...s,
+          careerPositions: await storage.getStafferCareerPositions(s.id),
+        }))
+      );
+
+      const { exportOfficeToMiro } = await import("./services/miro-service");
+      const result = await exportOfficeToMiro({ memberName, staffers: staffersWithPositions });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error exporting office to Miro:", error);
+      res.status(500).json({ message: "Failed to export office to Miro: " + (error instanceof Error ? error.message : "Unknown error") });
+    }
+  });
+
+  // Export multiple selected staffers to Miro
+  app.post("/api/miro/map-multiple", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      
+      const { stafferIds, boardName } = req.body;
+      if (!stafferIds || !Array.isArray(stafferIds) || stafferIds.length === 0) {
+        return res.status(400).json({ message: "stafferIds array is required" });
+      }
+
+      // Get all selected staffers with their data
+      const staffersWithData = await Promise.all(
+        stafferIds.map(async (id: string) => {
+          const staffer = await storage.getStaffer(id);
+          if (!staffer || staffer.clientId !== clientId) return null;
+          const careerPositions = await storage.getStafferCareerPositions(id);
+          const connections = await storage.getStafferConnections(id);
+          return { ...staffer, careerPositions, connections };
+        })
+      );
+
+      const validStaffers = staffersWithData.filter(Boolean);
+      if (validStaffers.length === 0) {
+        return res.status(404).json({ message: "No valid staffers found" });
+      }
+
+      const { exportMultipleStaffersToMiro } = await import("./services/miro-service");
+      const result = await exportMultipleStaffersToMiro({ 
+        boardName: boardName || `Selected Staffers Network`, 
+        staffers: validStaffers as any
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error exporting multiple staffers to Miro:", error);
+      res.status(500).json({ message: "Failed to export to Miro: " + (error instanceof Error ? error.message : "Unknown error") });
+    }
+  });
+
   // Import staffers from CSV
   app.post("/api/staffers/import", isAuthenticated, async (req, res) => {
     try {
