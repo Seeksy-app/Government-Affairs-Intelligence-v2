@@ -52,24 +52,43 @@ async function buildAll() {
     "p-limit",
     "p-retry",
     "nanoid",
+    "google-auth-library",
+    "@google-cloud/storage",
+    "resend",
+    "@mendable/firecrawl-js",
   ];
   
   // Combine with other externals
   const allExternals = [...new Set([...externals, ...esmOnlyPackages])];
 
+  // Build as ESM first, then create a CJS wrapper
   await esbuild({
     entryPoints: ["server/index.ts"],
     platform: "node",
     bundle: true,
-    format: "cjs",
-    outfile: "dist/index.cjs",
+    format: "esm",
+    outfile: "dist/index.mjs",
     define: {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
     external: allExternals,
     logLevel: "info",
+    banner: {
+      js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url);`,
+    },
   });
+  
+  // Create a CJS wrapper that dynamically imports the ESM module
+  const { writeFile } = await import("fs/promises");
+  const cjsWrapper = `
+// CJS wrapper for ESM module
+import("./index.mjs").catch(err => {
+  console.error("Failed to load ESM module:", err);
+  process.exit(1);
+});
+`;
+  await writeFile("dist/index.cjs", cjsWrapper.trim());
 }
 
 buildAll().catch((err) => {
