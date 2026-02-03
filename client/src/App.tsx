@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { Users, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { GlobalAIChat } from "@/components/global-ai-chat";
 
 import NotFound from "@/pages/not-found";
 import { LandingPage } from "@/components/landing-page";
@@ -202,7 +203,10 @@ function AuthenticatedLayout() {
           )}
           <header className="flex items-center justify-between p-3 border-b gap-2">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <GlobalAIChat />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto">
             <AuthenticatedRouter />
