@@ -688,6 +688,38 @@ export const insertFavoriteCongressMemberSchema = createInsertSchema(favoriteCon
 export type InsertFavoriteCongressMember = z.infer<typeof insertFavoriteCongressMemberSchema>;
 export type FavoriteCongressMember = typeof favoriteCongressMembers.$inferSelect;
 
+// Customers - People tracked in the customers portal (Congress members, staffers, etc.)
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  name: text("name").notNull(),
+  title: text("title"), // e.g., "Chief of Staff", "Senator", "Representative"
+  organization: text("organization"), // e.g., "Office of Sen. Johnson", "House Ways and Means Committee"
+  email: text("email"),
+  phone: text("phone"),
+  party: text("party"), // D, R, I for political figures
+  state: text("state"),
+  sourceType: text("source_type").notNull(), // 'congress_member', 'staffer', 'manual'
+  sourceId: text("source_id"), // bioguideId for congress members, null for staffers
+  imageUrl: text("image_url"),
+  notes: text("notes"),
+  tags: text("tags").array(), // for categorizing customers
+  matterId: varchar("matter_id"), // optional: link to a matter
+  isActive: boolean("is_active").default(true),
+  lastContactedAt: timestamp("last_contacted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCustomerSchema = createInsertSchema(customers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
+
 // Tracked influencers (via Influencers Club API)
 export const trackedInfluencers = pgTable("tracked_influencers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -101,6 +101,9 @@ import {
   type InsertInfluencerPost,
   type FavoriteCongressMember,
   type InsertFavoriteCongressMember,
+  customers,
+  type Customer,
+  type InsertCustomer,
   type Staffer,
   type InsertStaffer,
   type StafferCareerPosition,
@@ -323,6 +326,16 @@ export interface IStorage {
   getPoliticalOrganizationByName(name: string): Promise<PoliticalOrganization | undefined>;
   createPoliticalOrganization(org: InsertPoliticalOrganization): Promise<PoliticalOrganization>;
   updatePoliticalOrganization(id: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined>;
+
+  // Customers
+  getCustomers(clientId: string): Promise<Customer[]>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomersByMatter(matterId: string): Promise<Customer[]>;
+  searchCustomers(clientId: string, query: string): Promise<Customer[]>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  deleteCustomer(id: string): Promise<void>;
+  getCustomerBySourceId(clientId: string, sourceType: string, sourceId: string): Promise<Customer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1408,6 +1421,61 @@ export class DatabaseStorage implements IStorage {
       .where(eq(politicalOrganizations.id, id))
       .returning();
     return updated;
+  }
+
+  // Customers
+  async getCustomers(clientId: string): Promise<Customer[]> {
+    return db.select().from(customers).where(eq(customers.clientId, clientId)).orderBy(desc(customers.createdAt));
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+
+  async getCustomersByMatter(matterId: string): Promise<Customer[]> {
+    return db.select().from(customers).where(eq(customers.matterId, matterId)).orderBy(customers.name);
+  }
+
+  async searchCustomers(clientId: string, query: string): Promise<Customer[]> {
+    return db.select().from(customers).where(
+      and(
+        eq(customers.clientId, clientId),
+        or(
+          ilike(customers.name, `%${query}%`),
+          ilike(customers.organization, `%${query}%`),
+          ilike(customers.title, `%${query}%`)
+        )
+      )
+    ).orderBy(customers.name).limit(50);
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db.insert(customers).values(customer).returning();
+    return newCustomer;
+  }
+
+  async updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updated] = await db.update(customers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    await db.delete(customers).where(eq(customers.id, id));
+  }
+
+  async getCustomerBySourceId(clientId: string, sourceType: string, sourceId: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(
+      and(
+        eq(customers.clientId, clientId),
+        eq(customers.sourceType, sourceType),
+        eq(customers.sourceId, sourceId)
+      )
+    );
+    return customer;
   }
 }
 
