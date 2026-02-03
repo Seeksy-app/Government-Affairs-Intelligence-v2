@@ -2913,18 +2913,26 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
-  // Get all open markets
+  // Get all open markets (filtered for political content)
   app.get("/api/kalshi/markets", isAuthenticated, async (req, res) => {
     try {
-      const { series_ticker, event_ticker, status, limit, cursor } = req.query;
-      const result = await kalshiApi.getMarkets({
-        seriesTicker: series_ticker as string,
-        eventTicker: event_ticker as string,
-        status: (status as "open" | "closed" | "settled" | "all") || "open",
-        limit: limit ? parseInt(limit as string) : 50,
-        cursor: cursor as string,
-      });
-      res.json(result || { markets: [], cursor: null });
+      const { series_ticker, event_ticker, limit } = req.query;
+      const requestLimit = limit ? parseInt(limit as string) : 200;
+      
+      // If specific filters are provided, use them
+      if (series_ticker || event_ticker) {
+        const result = await kalshiApi.getMarkets({
+          seriesTicker: series_ticker as string,
+          eventTicker: event_ticker as string,
+          status: "open",
+          limit: requestLimit,
+        });
+        res.json(result || { markets: [], cursor: null });
+      } else {
+        // Otherwise, return political markets only
+        const markets = await kalshiApi.searchPoliticalMarkets(requestLimit);
+        res.json({ markets, cursor: null });
+      }
     } catch (error) {
       console.error("Error fetching Kalshi markets:", error);
       res.status(500).json({ message: "Failed to fetch markets" });

@@ -281,61 +281,56 @@ export default function PredictionsPage() {
             {visibleMarkets.map((market) => (
               <Card 
                 key={market.ticker} 
-                className="hover-elevate cursor-pointer" 
+                className="hover-elevate cursor-pointer flex flex-col" 
                 onClick={() => handleMarketClick(market)}
                 data-testid={`card-market-${market.ticker}`}
               >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {market.ticker}
-                    </Badge>
-                    {market.category && (
-                      <Badge variant="secondary" className="text-xs">
-                        {market.category}
-                      </Badge>
-                    )}
-                  </div>
-                  <CardTitle className="text-base line-clamp-2">{market.title}</CardTitle>
+                <CardHeader className="pb-3 flex-1">
+                  <CardTitle className="text-sm font-medium leading-snug line-clamp-3">
+                    {market.title}
+                  </CardTitle>
                   {market.subtitle && (
-                    <CardDescription className="text-xs line-clamp-1">{market.subtitle}</CardDescription>
+                    <CardDescription className="text-xs line-clamp-1 mt-1">
+                      {market.subtitle}
+                    </CardDescription>
                   )}
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Yes</p>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-2xl font-bold ${getPriceColor(market.yes_price)}`}>
-                          {market.yes_price}%
+                <CardContent className="pt-0 space-y-3">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Yes odds</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-3xl font-bold ${getPriceColor(market.yes_price)}`}>
+                          {market.yes_price}
                         </span>
+                        <span className={`text-lg ${getPriceColor(market.yes_price)}`}>%</span>
                         {market.yes_price >= 50 ? (
-                          <TrendingUp className="h-4 w-4 text-green-500" />
+                          <TrendingUp className="h-4 w-4 text-green-500 ml-1" />
                         ) : (
-                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          <TrendingDown className="h-4 w-4 text-red-500 ml-1" />
                         )}
                       </div>
                     </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-xs text-muted-foreground">No</p>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground mb-1">No odds</p>
                       <span className="text-xl font-semibold text-muted-foreground">
-                        {100 - market.yes_price}%
+                        {market.no_price}%
                       </span>
                     </div>
                   </div>
 
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${market.yes_price}%` }}
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${Math.max(market.yes_price, 2)}%` }}
                     />
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Vol: {formatVolume(market.volume)}</span>
-                    <span className="flex items-center gap-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <span className="font-medium">{formatVolume(market.volume)} traded</span>
+                    <span className="flex items-center gap-1 text-primary">
                       <Activity className="w-3 h-3" />
-                      View Details
+                      Details
                     </span>
                   </div>
                 </CardContent>

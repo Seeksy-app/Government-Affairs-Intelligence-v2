@@ -2,6 +2,26 @@ import crypto from "crypto";
 
 const KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2";
 
+// Raw API response format
+interface KalshiMarketRaw {
+  ticker: string;
+  event_ticker: string;
+  title: string;
+  subtitle?: string;
+  yes_bid?: number;
+  yes_ask?: number;
+  no_bid?: number;
+  no_ask?: number;
+  last_price?: number;
+  volume: number;
+  open_interest: number;
+  status: string;
+  close_time: string;
+  result?: string;
+  category?: string;
+}
+
+// Transformed format for frontend
 export interface KalshiMarket {
   ticker: string;
   event_ticker: string;
@@ -15,6 +35,28 @@ export interface KalshiMarket {
   close_time: string;
   result?: string;
   category?: string;
+}
+
+// Transform raw API response to our format
+function transformMarket(raw: KalshiMarketRaw): KalshiMarket {
+  // Use yes_bid if available, otherwise last_price, otherwise 50 as default
+  const yesPrice = raw.yes_bid ?? raw.last_price ?? 50;
+  const noPrice = raw.no_bid ?? (100 - yesPrice);
+  
+  return {
+    ticker: raw.ticker,
+    event_ticker: raw.event_ticker,
+    title: raw.title,
+    subtitle: raw.subtitle,
+    yes_price: yesPrice,
+    no_price: noPrice,
+    volume: raw.volume || 0,
+    open_interest: raw.open_interest || 0,
+    status: raw.status,
+    close_time: raw.close_time,
+    result: raw.result,
+    category: raw.category,
+  };
 }
 
 export interface KalshiEvent {
@@ -136,12 +178,22 @@ class KalshiAPI {
     const queryString = params.toString();
     const path = `/markets${queryString ? `?${queryString}` : ""}`;
     // Markets endpoint is public - no auth required
-    return this.request<{ markets: KalshiMarket[]; cursor?: string }>(path, "GET", false);
+    const result = await this.request<{ markets: KalshiMarketRaw[]; cursor?: string }>(path, "GET", false);
+    
+    if (!result) return null;
+    
+    // Transform raw markets to our format
+    return {
+      markets: result.markets.map(transformMarket),
+      cursor: result.cursor,
+    };
   }
 
   async getMarket(ticker: string): Promise<{ market: KalshiMarket } | null> {
     // Single market endpoint is public - no auth required
-    return this.request<{ market: KalshiMarket }>(`/markets/${ticker}`, "GET", false);
+    const result = await this.request<{ market: KalshiMarketRaw }>(`/markets/${ticker}`, "GET", false);
+    if (!result) return null;
+    return { market: transformMarket(result.market) };
   }
 
   async getEvent(eventTicker: string): Promise<{ event: KalshiEvent } | null> {
@@ -172,31 +224,49 @@ class KalshiAPI {
     return this.request<{ series: KalshiSeries }>(`/series/${ticker}`, "GET", false);
   }
 
-  async searchPoliticalMarkets(limit: number = 20): Promise<KalshiMarket[]> {
-    const politicalCategories = ["Politics", "Elections", "Congress", "Government"];
-    const allMarkets: KalshiMarket[] = [];
+  private isPoliticalMarket(title: string, ticker: string): boolean {
+    const lowerTitle = title.toLowerCase();
+    const lowerTicker = ticker.toLowerCase();
+    
+    // Exclude sports markets
+    if (lowerTicker.includes("nba") || lowerTicker.includes("nfl") || 
+        lowerTicker.includes("mlb") || lowerTicker.includes("nhl") ||
+        lowerTicker.includes("sports") || lowerTicker.includes("esports") ||
+        lowerTicker.includes("soccer") || lowerTicker.includes("golf")) {
+      return false;
+    }
+    
+    // Include political keywords
+    const politicalKeywords = [
+      "president", "trump", "biden", "vance", "newsom", "harris",
+      "democrat", "republican", "congress", "senate", "house",
+      "election", "vote", "nominee", "cabinet", "secretary",
+      "fed chair", "federal reserve", "supreme court", "scotus",
+      "shutdown", "government", "tariff", "stimulus", "impeach",
+      "legislation", "bill", "veto", "poll", "party", "governor",
+      "mayor", "attorney general", "khamenei", "leader", "costa rica",
+      "world leader", "prime minister", "chancellor"
+    ];
+    
+    return politicalKeywords.some(keyword => lowerTitle.includes(keyword));
+  }
 
-    const result = await this.getMarkets({ status: "open", limit: 100 });
-    if (result?.markets) {
-      const politicalMarkets = result.markets.filter(
-        (m) =>
-          politicalCategories.some((cat) =>
-            m.category?.toLowerCase().includes(cat.toLowerCase())
-          ) ||
-          m.title.toLowerCase().includes("president") ||
-          m.title.toLowerCase().includes("congress") ||
-          m.title.toLowerCase().includes("senate") ||
-          m.title.toLowerCase().includes("election") ||
-          m.title.toLowerCase().includes("bill") ||
-          m.title.toLowerCase().includes("trump") ||
-          m.title.toLowerCase().includes("biden") ||
-          m.title.toLowerCase().includes("democrat") ||
-          m.title.toLowerCase().includes("republican") ||
-          m.title.toLowerCase().includes("legislation") ||
-          m.title.toLowerCase().includes("veto") ||
-          m.title.toLowerCase().includes("impeach")
+  async searchPoliticalMarkets(limit: number = 200): Promise<KalshiMarket[]> {
+    const allMarkets: KalshiMarket[] = [];
+    let cursor: string | undefined;
+    
+    // Fetch multiple pages to find political markets
+    for (let i = 0; i < 5 && allMarkets.length < limit; i++) {
+      const result = await this.getMarkets({ status: "open", limit: 200, cursor });
+      if (!result?.markets?.length) break;
+      
+      const politicalMarkets = result.markets.filter(m => 
+        this.isPoliticalMarket(m.title, m.ticker)
       );
       allMarkets.push(...politicalMarkets);
+      
+      cursor = result.cursor;
+      if (!cursor) break;
     }
 
     return allMarkets.slice(0, limit);
