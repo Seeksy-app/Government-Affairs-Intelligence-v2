@@ -27,6 +27,8 @@ import {
   trackedSocialAccounts,
   socialTrackingKeywords,
   trackedSocialPosts,
+  trackedInfluencers,
+  influencerPosts,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -79,6 +81,10 @@ import {
   type InsertSocialTrackingKeyword,
   type TrackedSocialPost,
   type InsertTrackedSocialPost,
+  type TrackedInfluencer,
+  type InsertTrackedInfluencer,
+  type InfluencerPost,
+  type InsertInfluencerPost,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -986,6 +992,79 @@ export class DatabaseStorage implements IStorage {
 
   async socialPostExists(postId: string, accountId: string): Promise<boolean> {
     const [existing] = await db.select().from(trackedSocialPosts).where(and(eq(trackedSocialPosts.postId, postId), eq(trackedSocialPosts.accountId, accountId)));
+    return !!existing;
+  }
+
+  // Tracked Influencers (Influencers Club API)
+  async getTrackedInfluencers(clientId: string): Promise<TrackedInfluencer[]> {
+    return db.select().from(trackedInfluencers).where(eq(trackedInfluencers.clientId, clientId)).orderBy(desc(trackedInfluencers.createdAt));
+  }
+
+  async getTrackedInfluencer(id: string): Promise<TrackedInfluencer | undefined> {
+    const [influencer] = await db.select().from(trackedInfluencers).where(eq(trackedInfluencers.id, id));
+    return influencer;
+  }
+
+  async createTrackedInfluencer(influencer: InsertTrackedInfluencer): Promise<TrackedInfluencer> {
+    const [newInfluencer] = await db.insert(trackedInfluencers).values(influencer).returning();
+    return newInfluencer;
+  }
+
+  async updateTrackedInfluencer(id: string, influencer: Partial<InsertTrackedInfluencer>): Promise<TrackedInfluencer | undefined> {
+    const [updated] = await db.update(trackedInfluencers).set({ ...influencer, updatedAt: new Date() }).where(eq(trackedInfluencers.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTrackedInfluencer(id: string): Promise<void> {
+    await db.delete(influencerPosts).where(eq(influencerPosts.influencerId, id));
+    await db.delete(trackedInfluencers).where(eq(trackedInfluencers.id, id));
+  }
+
+  async influencerExists(clientId: string, platform: string, username: string): Promise<boolean> {
+    const [existing] = await db.select().from(trackedInfluencers).where(
+      and(
+        eq(trackedInfluencers.clientId, clientId),
+        eq(trackedInfluencers.platform, platform),
+        ilike(trackedInfluencers.username, username)
+      )
+    );
+    return !!existing;
+  }
+
+  // Influencer Posts
+  async getInfluencerPosts(clientId: string, limit: number = 100): Promise<InfluencerPost[]> {
+    return db.select().from(influencerPosts).where(eq(influencerPosts.clientId, clientId)).orderBy(desc(influencerPosts.createdAt)).limit(limit);
+  }
+
+  async getInfluencerPostsByInfluencer(influencerId: string, limit: number = 50): Promise<InfluencerPost[]> {
+    return db.select().from(influencerPosts).where(eq(influencerPosts.influencerId, influencerId)).orderBy(desc(influencerPosts.createdAt)).limit(limit);
+  }
+
+  async getInfluencerPost(id: string): Promise<InfluencerPost | undefined> {
+    const [post] = await db.select().from(influencerPosts).where(eq(influencerPosts.id, id));
+    return post;
+  }
+
+  async createInfluencerPost(post: InsertInfluencerPost): Promise<InfluencerPost> {
+    const [newPost] = await db.insert(influencerPosts).values(post).returning();
+    return newPost;
+  }
+
+  async markInfluencerPostAsRead(id: string): Promise<void> {
+    await db.update(influencerPosts).set({ isRead: true }).where(eq(influencerPosts.id, id));
+  }
+
+  async toggleInfluencerPostFlag(id: string): Promise<InfluencerPost | undefined> {
+    const [post] = await db.select().from(influencerPosts).where(eq(influencerPosts.id, id));
+    if (!post) return undefined;
+    const [updated] = await db.update(influencerPosts).set({ isFlagged: !post.isFlagged }).where(eq(influencerPosts.id, id)).returning();
+    return updated;
+  }
+
+  async influencerPostExists(postId: string, influencerId: string): Promise<boolean> {
+    const [existing] = await db.select().from(influencerPosts).where(
+      and(eq(influencerPosts.postId, postId), eq(influencerPosts.influencerId, influencerId))
+    );
     return !!existing;
   }
 }

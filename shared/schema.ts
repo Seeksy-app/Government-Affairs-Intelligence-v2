@@ -597,3 +597,70 @@ export const insertTrackedSocialPostSchema = createInsertSchema(trackedSocialPos
 
 export type InsertTrackedSocialPost = z.infer<typeof insertTrackedSocialPostSchema>;
 export type TrackedSocialPost = typeof trackedSocialPosts.$inferSelect;
+
+// Tracked influencers (via Influencers Club API)
+export const trackedInfluencers = pgTable("tracked_influencers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  platform: text("platform").notNull(), // instagram, youtube, tiktok, twitter, twitch, onlyfans
+  username: text("username").notNull(),
+  displayName: text("display_name"),
+  profileUrl: text("profile_url"),
+  profilePictureUrl: text("profile_picture_url"),
+  bio: text("bio"),
+  followerCount: integer("follower_count"),
+  followingCount: integer("following_count"),
+  postCount: integer("post_count"),
+  engagementRate: text("engagement_rate"), // stored as string for precision
+  isVerified: boolean("is_verified").default(false),
+  location: text("location"),
+  email: text("email"),
+  isActive: boolean("is_active").default(true),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncError: text("last_sync_error"),
+  rawData: text("raw_data"), // JSON string of full API response for additional data
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTrackedInfluencerSchema = createInsertSchema(trackedInfluencers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTrackedInfluencer = z.infer<typeof insertTrackedInfluencerSchema>;
+export type TrackedInfluencer = typeof trackedInfluencers.$inferSelect;
+
+// Influencer posts tracked from the API
+export const influencerPosts = pgTable("influencer_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  influencerId: varchar("influencer_id").notNull(),
+  platform: text("platform").notNull(),
+  postId: text("post_id").notNull(), // platform-specific post ID
+  postUrl: text("post_url"),
+  content: text("content"),
+  postType: text("post_type"), // post, reel, short, video, story
+  mediaType: text("media_type"), // image, video, carousel
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  shares: integer("shares").default(0),
+  views: integer("views"),
+  engagementRate: text("engagement_rate"),
+  hashtags: text("hashtags").array(),
+  postedAt: timestamp("posted_at"),
+  isRead: boolean("is_read").default(false),
+  isFlagged: boolean("is_flagged").default(false),
+  rawData: text("raw_data"), // JSON string for additional post data
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInfluencerPostSchema = createInsertSchema(influencerPosts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertInfluencerPost = z.infer<typeof insertInfluencerPostSchema>;
+export type InfluencerPost = typeof influencerPosts.$inferSelect;
