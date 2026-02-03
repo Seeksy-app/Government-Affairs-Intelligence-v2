@@ -26,7 +26,10 @@ import {
   Share2,
   CheckCircle,
   AlertCircle,
-  Search
+  Search,
+  Tag,
+  X,
+  Edit2
 } from "lucide-react";
 import { SiInstagram, SiYoutube, SiTiktok, SiTwitch } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
@@ -61,9 +64,12 @@ export default function InfluencerTrackingPage() {
   const [newUsername, setNewUsername] = useState("");
   const [newPlatform, setNewPlatform] = useState("instagram");
   const [newNotes, setNewNotes] = useState("");
+  const [newKeywords, setNewKeywords] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState<string>("all");
   const [selectedInfluencer, setSelectedInfluencer] = useState<string | null>(null);
+  const [editingKeywords, setEditingKeywords] = useState<string | null>(null);
+  const [editKeywordsValue, setEditKeywordsValue] = useState("");
 
   const { data: influencers, isLoading: loadingInfluencers } = useQuery<TrackedInfluencer[]>({
     queryKey: ["/api/influencers"],
@@ -74,7 +80,7 @@ export default function InfluencerTrackingPage() {
   });
 
   const addInfluencerMutation = useMutation({
-    mutationFn: async (data: { username: string; platform: string; notes?: string }) => {
+    mutationFn: async (data: { username: string; platform: string; notes?: string; keywords?: string[] }) => {
       return apiRequest("POST", "/api/influencers", data);
     },
     onSuccess: () => {
@@ -83,11 +89,31 @@ export default function InfluencerTrackingPage() {
       setNewUsername("");
       setNewPlatform("instagram");
       setNewNotes("");
+      setNewKeywords("");
       toast({ title: "Influencer added", description: "The influencer is now being tracked" });
     },
     onError: (error: any) => {
       toast({ 
         title: "Failed to add influencer", 
+        description: error.message || "Please try again", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const updateKeywordsMutation = useMutation({
+    mutationFn: async ({ id, keywords }: { id: string; keywords: string[] }) => {
+      return apiRequest("PATCH", `/api/influencers/${id}`, { keywords });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/influencers"] });
+      setEditingKeywords(null);
+      setEditKeywordsValue("");
+      toast({ title: "Keywords updated" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to update keywords", 
         description: error.message || "Please try again", 
         variant: "destructive" 
       });
@@ -213,6 +239,19 @@ export default function InfluencerTrackingPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="keywords">Keywords to Watch (optional)</Label>
+                  <Input
+                    id="keywords"
+                    placeholder="Comma-separated: policy, legislation, vote..."
+                    value={newKeywords}
+                    onChange={(e) => setNewKeywords(e.target.value)}
+                    data-testid="input-keywords"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter keywords separated by commas to highlight matching posts
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="notes">Notes (optional)</Label>
                   <Textarea
                     id="notes"
@@ -228,11 +267,17 @@ export default function InfluencerTrackingPage() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => addInfluencerMutation.mutate({
-                    username: newUsername,
-                    platform: newPlatform,
-                    notes: newNotes || undefined,
-                  })}
+                  onClick={() => {
+                    const keywords = newKeywords.trim() 
+                      ? newKeywords.split(",").map(k => k.trim()).filter(k => k.length > 0)
+                      : undefined;
+                    addInfluencerMutation.mutate({
+                      username: newUsername,
+                      platform: newPlatform,
+                      notes: newNotes || undefined,
+                      keywords,
+                    });
+                  }}
                   disabled={!newUsername || addInfluencerMutation.isPending}
                   data-testid="button-submit-influencer"
                 >
@@ -343,6 +388,75 @@ export default function InfluencerTrackingPage() {
                           {influencer.bio}
                         </p>
                       )}
+                      
+                      {/* Keywords Section */}
+                      <div className="mt-3 pt-3 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Tag className="h-3 w-3" />
+                            <span>Keywords</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2"
+                            onClick={() => {
+                              setEditingKeywords(influencer.id);
+                              setEditKeywordsValue(influencer.keywords?.join(", ") || "");
+                            }}
+                            data-testid={`button-edit-keywords-${influencer.id}`}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {editingKeywords === influencer.id ? (
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="policy, legislation, vote..."
+                              value={editKeywordsValue}
+                              onChange={(e) => setEditKeywordsValue(e.target.value)}
+                              className="h-8 text-xs"
+                              data-testid="input-edit-keywords"
+                            />
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => {
+                                  const keywords = editKeywordsValue.trim()
+                                    ? editKeywordsValue.split(",").map(k => k.trim()).filter(k => k.length > 0)
+                                    : [];
+                                  updateKeywordsMutation.mutate({ id: influencer.id, keywords });
+                                }}
+                                disabled={updateKeywordsMutation.isPending}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => {
+                                  setEditingKeywords(null);
+                                  setEditKeywordsValue("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : influencer.keywords && influencer.keywords.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {influencer.keywords.map((keyword, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">No keywords set</p>
+                        )}
+                      </div>
 
                       <div className="flex items-center justify-between mt-4 pt-3 border-t">
                         <div className="flex gap-1">

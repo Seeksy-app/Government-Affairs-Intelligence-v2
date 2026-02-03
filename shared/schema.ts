@@ -620,6 +620,7 @@ export const trackedInfluencers = pgTable("tracked_influencers", {
   lastSyncError: text("last_sync_error"),
   rawData: text("raw_data"), // JSON string of full API response for additional data
   notes: text("notes"),
+  keywords: text("keywords").array(), // Keywords to watch for in posts and comments
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -3346,7 +3346,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
-      const { username, platform, notes } = req.body;
+      const { username, platform, notes, keywords } = req.body;
       if (!username || !platform) {
         return res.status(400).json({ message: "Username and platform are required" });
       }
@@ -3371,6 +3371,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         username: username.replace(/^@/, ""),
         profileUrl: getPlatformProfileUrl(platform, username.replace(/^@/, "")),
         notes,
+        keywords: keywords && Array.isArray(keywords) ? keywords : null,
         isActive: true,
       };
       
