@@ -368,7 +368,18 @@ export default function NetworkPage() {
   // Staffer lookup mutation
   const stafferMutation = useMutation({
     mutationFn: async (member: CongressMember) => {
-      const prompt = `Find the current key staff members for ${member.firstName} ${member.lastName}, ${member.chamber === "House" ? "Representative" : "Senator"} from ${member.state}. Include their names, titles, and contact information if available. Focus on Chief of Staff, Legislative Director, Communications Director, and other senior staff.`;
+      const prompt = `Find the current key staff members for ${member.firstName} ${member.lastName}, ${member.chamber === "House" ? "Representative" : "Senator"} from ${member.state}.
+
+Please format your response as a numbered list with each staffer in this exact format:
+1. [Title/Role]:
+- Name: [Full Name]
+- Email: [email@domain.gov if available]
+
+2. [Title/Role]:
+- Name: [Full Name]
+- Email: [email@domain.gov if available]
+
+Focus on: Chief of Staff, Legislative Director, Communications Director, Press Secretary, Scheduler, and other senior staff. Include as many staffers as you can find with their actual names.`;
       const res = await apiRequest("POST", "/api/research/chat", {
         message: prompt,
         context: "",
@@ -1239,47 +1250,49 @@ export default function NetworkPage() {
                 <div className="flex items-center gap-2">
                   <span>{selectedMember?.firstName} {selectedMember?.lastName}</span>
                   {selectedMember && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isFavorite(selectedMember.bioguideId)) {
-                          removeFavoriteMutation.mutate(selectedMember.bioguideId);
-                        } else {
-                          addFavoriteMutation.mutate(selectedMember);
-                        }
-                      }}
-                      data-testid="button-toggle-favorite"
-                    >
-                      <Star 
-                        className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
-                      />
-                    </Button>
-                    <Button
-                      variant={isCustomer('congress_member', selectedMember.bioguideId) ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isCustomer('congress_member', selectedMember.bioguideId)) {
-                          addCustomerMutation.mutate({
-                            name: `${selectedMember.firstName} ${selectedMember.lastName}`,
-                            title: selectedMember.chamber === "House" ? "Representative" : "Senator",
-                            organization: `U.S. ${selectedMember.chamber}`,
-                            party: selectedMember.party,
-                            state: selectedMember.state,
-                            sourceType: 'congress_member',
-                            sourceId: selectedMember.bioguideId,
-                            imageUrl: selectedMember.imageUrl,
-                          });
-                        }
-                      }}
-                      disabled={isCustomer('congress_member', selectedMember.bioguideId) || addCustomerMutation.isPending}
-                      data-testid="button-add-to-customers"
-                    >
-                      {isCustomer('congress_member', selectedMember.bioguideId) ? "In Customers" : 
-                       addCustomerMutation.isPending ? "Adding..." : "Add to Customers"}
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isFavorite(selectedMember.bioguideId)) {
+                            removeFavoriteMutation.mutate(selectedMember.bioguideId);
+                          } else {
+                            addFavoriteMutation.mutate(selectedMember);
+                          }
+                        }}
+                        data-testid="button-toggle-favorite"
+                      >
+                        <Star 
+                          className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
+                        />
+                      </Button>
+                      <Button
+                        variant={isCustomer('congress_member', selectedMember.bioguideId) ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isCustomer('congress_member', selectedMember.bioguideId)) {
+                            addCustomerMutation.mutate({
+                              name: `${selectedMember.firstName} ${selectedMember.lastName}`,
+                              title: selectedMember.chamber === "House" ? "Representative" : "Senator",
+                              organization: `U.S. ${selectedMember.chamber}`,
+                              party: selectedMember.party,
+                              state: selectedMember.state,
+                              sourceType: 'congress_member',
+                              sourceId: selectedMember.bioguideId,
+                              imageUrl: selectedMember.imageUrl,
+                            });
+                          }
+                        }}
+                        disabled={isCustomer('congress_member', selectedMember.bioguideId) || addCustomerMutation.isPending}
+                        data-testid="button-add-to-customers"
+                      >
+                        {isCustomer('congress_member', selectedMember.bioguideId) ? "In Customers" : 
+                         addCustomerMutation.isPending ? "Adding..." : "Add to Customers"}
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">

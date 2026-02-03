@@ -4455,7 +4455,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
-  // Export office staffers to Miro (all staffers for a member)
+  // Export office staffers to Miro (using staffers passed from frontend)
   app.post("/api/miro/map-office", isAuthenticated, async (req, res) => {
     try {
       const clientId = getClientId(req);
@@ -4463,31 +4463,35 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         return res.status(403).json({ message: "Not associated with a client" });
       }
       
-      const { memberName } = req.body;
+      const { memberName, staffers, chamber, party, state, district } = req.body;
       if (!memberName) {
         return res.status(400).json({ message: "memberName is required" });
       }
 
-      // Get all staffers for this member
-      const allStaffers = await storage.searchStaffers({
-        clientId,
-        member: memberName,
-      });
-
-      if (allStaffers.length === 0) {
-        return res.status(404).json({ message: "No staffers found for this member" });
+      // Use staffers passed from frontend (parsed from AI response)
+      if (!staffers || !Array.isArray(staffers) || staffers.length === 0) {
+        return res.status(400).json({ message: "No staffers provided" });
       }
 
-      // Get career positions for each staffer
-      const staffersWithPositions = await Promise.all(
-        allStaffers.map(async (s) => ({
-          ...s,
-          careerPositions: await storage.getStafferCareerPositions(s.id),
-        }))
-      );
+      // Convert frontend staffers to the format expected by Miro service
+      const formattedStaffers = staffers.map((s: { name: string; title: string; email?: string }) => ({
+        id: crypto.randomUUID(),
+        clientId,
+        name: s.name,
+        currentPosition: s.title,
+        currentOrganization: `Office of ${memberName}`,
+        member: memberName,
+        email: s.email || null,
+        party: party || null,
+        pathwayType: null,
+        yearsInCurrentRole: null,
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
 
       const { exportOfficeToMiro } = await import("./services/miro-service");
-      const result = await exportOfficeToMiro({ memberName, staffers: staffersWithPositions });
+      const result = await exportOfficeToMiro({ memberName, staffers: formattedStaffers });
       
       res.json(result);
     } catch (error) {
