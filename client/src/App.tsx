@@ -46,6 +46,8 @@ import SocialTrackingPage from "@/pages/social-tracking";
 import InfluencerTrackingPage from "@/pages/influencer-tracking";
 import StaffersPage from "@/pages/staffers";
 import StafferDetailPage from "@/pages/staffer-detail";
+import TermsPage from "@/pages/terms";
+import PrivacyPage from "@/pages/privacy";
 
 function AuthenticatedRouter() {
   return (
@@ -235,11 +237,13 @@ function AppContent() {
     }
   }, []);
 
-  // Public portal route - accessible without authentication
-  if (location.startsWith("/portal/")) {
+  // Public routes - accessible without authentication
+  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy") {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/privacy" component={PrivacyPage} />
         <Route component={NotFound} />
       </Switch>
     );
@@ -266,6 +270,8 @@ function AppContent() {
         <Route path="/reset-password" component={ResetPasswordPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route path="/terms" component={TermsPage} />
+        <Route path="/privacy" component={PrivacyPage} />
         <Route component={LandingPage} />
       </Switch>
     );

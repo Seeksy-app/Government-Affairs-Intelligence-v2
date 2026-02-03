@@ -1,0 +1,113 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
+
+export default function TermsPage() {
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-back-home">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl" data-testid="text-terms-title">Terms and Conditions</CardTitle>
+            <p className="text-muted-foreground text-sm">Last updated: February 3, 2026</p>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
+            <section>
+              <h2 className="text-lg font-semibold">1. Acceptance of Terms</h2>
+              <p className="text-muted-foreground">
+                By accessing and using this Political Intelligence Platform ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by these terms, please do not use this Service.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">2. Description of Service</h2>
+              <p className="text-muted-foreground">
+                The Political Intelligence Platform is a multi-tenant SaaS platform designed for political consulting firms. The Service provides tools for tracking political contacts, monitoring career paths, aggregating news, managing client relationships, and conducting research.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">3. User Accounts</h2>
+              <p className="text-muted-foreground">
+                To access certain features of the Service, you must register for an account. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete. You are responsible for safeguarding your password and for all activities that occur under your account.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">4. Acceptable Use</h2>
+              <p className="text-muted-foreground">
+                You agree not to use the Service to:
+              </p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+                <li>Violate any applicable laws or regulations</li>
+                <li>Infringe upon the rights of others</li>
+                <li>Transmit any harmful, threatening, or offensive content</li>
+                <li>Attempt to gain unauthorized access to the Service or its related systems</li>
+                <li>Interfere with or disrupt the integrity or performance of the Service</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">5. Intellectual Property</h2>
+              <p className="text-muted-foreground">
+                The Service and its original content, features, and functionality are owned by the platform operator and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">6. Data and Privacy</h2>
+              <p className="text-muted-foreground">
+                Your use of the Service is also governed by our Privacy Policy. Please review our Privacy Policy to understand our practices regarding the collection, use, and disclosure of your information.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">7. Third-Party Integrations</h2>
+              <p className="text-muted-foreground">
+                The Service may integrate with third-party services including but not limited to Miro, Congress.gov API, and various AI services. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">8. Limitation of Liability</h2>
+              <p className="text-muted-foreground">
+                In no event shall the platform operator be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">9. Termination</h2>
+              <p className="text-muted-foreground">
+                We may terminate or suspend your account and bar access to the Service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever, including without limitation if you breach the Terms.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">10. Changes to Terms</h2>
+              <p className="text-muted-foreground">
+                We reserve the right to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold">11. Contact Us</h2>
+              <p className="text-muted-foreground">
+                If you have any questions about these Terms, please contact us through the platform's support channels.
+              </p>
+            </section>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
