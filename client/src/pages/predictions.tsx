@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Search, TrendingUp, TrendingDown, RefreshCw, Filter, Clock, ChevronDown, Activity, Info } from "lucide-react";
+import { Search, RefreshCw, Clock, Plus, Activity, Info } from "lucide-react";
 
 interface KalshiMarket {
   ticker: string;
@@ -24,19 +23,30 @@ interface KalshiMarket {
   category?: string;
 }
 
-type FilterCategory = "all" | "politics" | "elections" | "congress";
+type FilterCategory = "all" | "us-elections" | "primaries" | "trump" | "foreign" | "international" | "congress" | "scotus" | "local";
 
-const REFRESH_INTERVAL = 20 * 60 * 1000; // 20 minutes in milliseconds
+const CATEGORY_TABS: { value: FilterCategory; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "us-elections", label: "US Elections" },
+  { value: "primaries", label: "Primaries" },
+  { value: "trump", label: "Trump" },
+  { value: "foreign", label: "Foreign Elections" },
+  { value: "international", label: "International" },
+  { value: "congress", label: "Congress" },
+  { value: "scotus", label: "SCOTUS & courts" },
+  { value: "local", label: "Local" },
+];
+
+const REFRESH_INTERVAL = 20 * 60 * 1000;
 const INITIAL_DISPLAY_COUNT = 20;
 
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("all");
-  const [sortBy, setSortBy] = useState<"volume" | "price" | "name">("volume");
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [selectedMarket, setSelectedMarket] = useState<KalshiMarket | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [timeUntilRefresh, setTimeUntilRefresh] = useState<string>("20 min");
+  const [timeUntilRefresh, setTimeUntilRefresh] = useState<string>("20m");
 
   const { data: marketsData, isLoading, refetch, isFetching } = useQuery<{ markets: KalshiMarket[]; cursor?: string }>({
     queryKey: ["/api/kalshi/markets"],
@@ -50,23 +60,21 @@ export default function PredictionsPage() {
       return res.json();
     },
     refetchInterval: REFRESH_INTERVAL,
-    staleTime: REFRESH_INTERVAL - 60000, // Consider stale 1 minute before next refresh
+    staleTime: REFRESH_INTERVAL - 60000,
   });
 
-  // Update last refresh time when data changes
   useEffect(() => {
     if (marketsData) {
       setLastRefresh(new Date());
     }
   }, [marketsData]);
 
-  // Reactive countdown timer - updates every minute
   const updateCountdown = useCallback(() => {
     const now = new Date();
     const nextRefresh = new Date(lastRefresh.getTime() + REFRESH_INTERVAL);
     const diff = nextRefresh.getTime() - now.getTime();
     if (diff <= 0) {
-      setTimeUntilRefresh("Refreshing...");
+      setTimeUntilRefresh("...");
     } else {
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
@@ -86,14 +94,28 @@ export default function PredictionsPage() {
 
   const markets = marketsData?.markets || [];
 
-  // Politics keywords for filtering
-  const politicsKeywords = [
-    "president", "trump", "biden", "democrat", "republican", "government",
-    "cabinet", "nominee", "fed chair", "supreme", "shutdown", "vance",
-    "newsom", "costa rica", "party", "senate", "congress", "election",
-    "vote", "primary", "tariff", "stimulus", "leader", "khamenei",
-    "world leader", "rican", "presidential"
-  ];
+  const getCategoryKeywords = (category: FilterCategory): string[] => {
+    switch (category) {
+      case "us-elections":
+        return ["president", "presidential", "election", "2024", "2028", "nominee", "democratic", "republican", "vote"];
+      case "primaries":
+        return ["primary", "primaries", "nomination", "caucus"];
+      case "trump":
+        return ["trump", "maga", "donald"];
+      case "foreign":
+        return ["foreign", "uk", "france", "germany", "brazil", "mexico", "canada", "australia", "japan", "india", "china", "russia", "starmer", "macron", "trudeau"];
+      case "international":
+        return ["international", "world", "global", "khamenei", "iran", "israel", "ukraine", "war", "nato", "un", "leader"];
+      case "congress":
+        return ["congress", "senate", "house", "bill", "legislation", "speaker", "representative", "senator"];
+      case "scotus":
+        return ["supreme", "court", "scotus", "judge", "justice", "ruling", "decision"];
+      case "local":
+        return ["governor", "mayor", "state", "local", "city"];
+      default:
+        return [];
+    }
+  };
 
   const filteredMarkets = markets
     .filter((market) => {
@@ -104,72 +126,27 @@ export default function PredictionsPage() {
       if (categoryFilter === "all") return matchesSearch;
       
       const title = market.title.toLowerCase();
-      const category = market.category?.toLowerCase() || "";
+      const keywords = getCategoryKeywords(categoryFilter);
+      const matchesCategory = keywords.some(keyword => title.includes(keyword));
       
-      switch (categoryFilter) {
-        case "politics":
-          return matchesSearch && (
-            category.includes("politic") ||
-            politicsKeywords.some(keyword => title.includes(keyword))
-          );
-        case "elections":
-          return matchesSearch && (
-            category.includes("election") ||
-            title.includes("election") ||
-            title.includes("vote") ||
-            title.includes("primary") ||
-            title.includes("nominee")
-          );
-        case "congress":
-          return matchesSearch && (
-            title.includes("congress") ||
-            title.includes("senate") ||
-            title.includes("house") ||
-            title.includes("bill") ||
-            title.includes("legislation")
-          );
-        default:
-          return matchesSearch;
-      }
+      return matchesSearch && matchesCategory;
     })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "volume":
-          return b.volume - a.volume;
-        case "price":
-          return b.yes_price - a.yes_price;
-        case "name":
-          return a.title.localeCompare(b.title);
-        default:
-          return 0;
-      }
-    });
+    .sort((a, b) => b.volume - a.volume);
 
   const visibleMarkets = filteredMarkets.slice(0, displayCount);
   const hasMore = filteredMarkets.length > displayCount;
 
-  const getPriceColor = (price: number) => {
-    if (price >= 70) return "text-green-600 dark:text-green-400";
-    if (price >= 50) return "text-yellow-600 dark:text-yellow-400";
-    if (price >= 30) return "text-orange-600 dark:text-orange-400";
-    return "text-red-600 dark:text-red-400";
-  };
-
   const formatVolume = (vol: number) => {
     if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
-    if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}K`;
+    if (vol >= 1000) return `$${Math.round(vol / 1000)}K`;
     return `$${vol}`;
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { 
-      month: "short", 
-      day: "numeric", 
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+  const formatVolumeCompact = (vol: number) => {
+    if (vol >= 1000000000) return `$${(vol / 1000000000).toFixed(2)}B`;
+    if (vol >= 1000000) return `$${(vol / 1000000).toFixed(0)}M`;
+    if (vol >= 1000) return `$${Math.round(vol / 1000)}K`;
+    return `$${vol}`;
   };
 
   const handleShowMore = () => {
@@ -180,161 +157,182 @@ export default function PredictionsPage() {
     setSelectedMarket(market);
   };
 
+  const MarketCard = ({ market }: { market: KalshiMarket }) => {
+    return (
+      <Card 
+        className="hover-elevate cursor-pointer"
+        onClick={() => handleMarketClick(market)}
+        data-testid={`card-market-${market.ticker}`}
+      >
+        <CardContent className="p-4">
+          <div className="flex gap-3">
+            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+              <span className="text-xl font-semibold text-muted-foreground" aria-hidden="true">
+                {market.title.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm leading-tight line-clamp-2 mb-3">
+                {market.title}
+              </h3>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground text-sm truncate flex-1">
+                    {market.yes_price >= 50 ? "Yes" : "No"} likely
+                  </span>
+                  <span className="font-semibold text-sm">
+                    {Math.max(market.yes_price, market.no_price)}%
+                  </span>
+                  <div className="flex gap-1">
+                    <Badge 
+                      variant="outline"
+                      className="cursor-pointer bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Yes
+                    </Badge>
+                    <Badge 
+                      variant="outline"
+                      className="cursor-pointer bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      No
+                    </Badge>
+                  </div>
+                </div>
+                
+                {market.subtitle && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground text-sm truncate flex-1">
+                      {market.subtitle.slice(0, 30)}
+                    </span>
+                    <span className="font-semibold text-sm">
+                      {Math.min(market.yes_price, market.no_price)}%
+                    </span>
+                    <div className="flex gap-1">
+                      <Badge 
+                        variant="outline"
+                        className="cursor-pointer bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Yes
+                      </Badge>
+                      <Badge 
+                        variant="outline"
+                        className="cursor-pointer bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        No
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-4 pt-3 border-t">
+            <span className="text-muted-foreground text-sm">
+              {formatVolumeCompact(market.volume)}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMarketClick(market);
+              }}
+              aria-label={`View details for ${market.title}`}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-serif flex items-center gap-2" data-testid="text-predictions-title">
-            <BarChart3 className="h-8 w-8" />
-            Prediction Markets
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Real-time political odds powered by Kalshi
-          </p>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="relative flex-1 max-w-md min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search markets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-markets"
+            aria-label="Search prediction markets"
+          />
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="w-4 h-4" />
+          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="w-4 h-4" aria-hidden="true" />
             <span>Next refresh: {timeUntilRefresh}</span>
           </div>
           <Button
             variant="outline"
+            size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
             data-testid="button-refresh-markets"
+            aria-label="Refresh markets"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search markets..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-search-markets"
-                />
-              </div>
-            </div>
-            <Select value={categoryFilter} onValueChange={(v) => {
-              setCategoryFilter(v as FilterCategory);
+      <div 
+        className="flex gap-2 overflow-x-auto pb-2" 
+        role="tablist" 
+        aria-label="Market categories"
+      >
+        {CATEGORY_TABS.map((tab) => (
+          <Button
+            key={tab.value}
+            variant={categoryFilter === tab.value ? "default" : "secondary"}
+            size="sm"
+            onClick={() => {
+              setCategoryFilter(tab.value);
               setDisplayCount(INITIAL_DISPLAY_COUNT);
-            }}>
-              <SelectTrigger className="w-[180px]" data-testid="select-category">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Markets</SelectItem>
-                <SelectItem value="politics">Politics</SelectItem>
-                <SelectItem value="elections">Elections</SelectItem>
-                <SelectItem value="congress">Congress</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as "volume" | "price" | "name")}>
-              <SelectTrigger className="w-[180px]" data-testid="select-sort">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="volume">Highest Volume</SelectItem>
-                <SelectItem value="price">Highest Odds</SelectItem>
-                <SelectItem value="name">Alphabetical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+            }}
+            role="tab"
+            aria-selected={categoryFilter === tab.value}
+            data-testid={`tab-${tab.value}`}
+            className="whitespace-nowrap"
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      <h2 className="text-2xl font-bold">Politics</h2>
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-4 w-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-16 w-full" />
+              <CardContent className="p-4">
+                <div className="flex gap-3">
+                  <Skeleton className="w-12 h-12 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       ) : visibleMarkets.length > 0 ? (
         <>
-          <div className="text-sm text-muted-foreground">
-            Showing {visibleMarkets.length} of {filteredMarkets.length} {filteredMarkets.length === 1 ? 'market' : 'markets'}
-          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visibleMarkets.map((market) => (
-              <Card 
-                key={market.ticker} 
-                className="hover-elevate cursor-pointer flex flex-col" 
-                onClick={() => handleMarketClick(market)}
-                data-testid={`card-market-${market.ticker}`}
-              >
-                <CardHeader className="pb-3 flex-1">
-                  <CardTitle className="text-sm font-medium leading-snug line-clamp-3">
-                    {market.title}
-                  </CardTitle>
-                  {market.subtitle && (
-                    <CardDescription className="text-xs line-clamp-1 mt-1">
-                      {market.subtitle}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Yes odds</p>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-3xl font-bold ${getPriceColor(market.yes_price)}`}>
-                          {market.yes_price}
-                        </span>
-                        <span className={`text-lg ${getPriceColor(market.yes_price)}`}>%</span>
-                        {market.yes_price >= 50 ? (
-                          <TrendingUp className="h-4 w-4 text-green-500 ml-1" />
-                        ) : (
-                          <TrendingDown className="h-4 w-4 text-red-500 ml-1" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground mb-1">No odds</p>
-                      <span className="text-xl font-semibold text-muted-foreground">
-                        {market.no_price}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${Math.max(market.yes_price, 2)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                    <span className="font-medium">{formatVolume(market.volume)} traded</span>
-                    <span className="flex items-center gap-1 text-primary">
-                      <Activity className="w-3 h-3" />
-                      Details
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+              <MarketCard key={market.ticker} market={market} />
             ))}
           </div>
           
@@ -343,11 +341,9 @@ export default function PredictionsPage() {
               <Button
                 variant="outline"
                 onClick={handleShowMore}
-                className="w-full max-w-xs"
                 data-testid="button-show-more"
               >
-                <ChevronDown className="w-4 h-4 mr-2" />
-                Show More ({filteredMarkets.length - displayCount} remaining)
+                Load More ({filteredMarkets.length - displayCount} remaining)
               </Button>
             </div>
           )}
@@ -356,13 +352,13 @@ export default function PredictionsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-              <BarChart3 className="w-6 h-6 text-muted-foreground" />
+              <Activity className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
             </div>
             <h3 className="font-medium mb-2">No Markets Found</h3>
             <p className="text-muted-foreground text-sm mb-4">
               {searchQuery || categoryFilter !== "all" 
                 ? "Try adjusting your filters or search query."
-                : "No prediction markets are currently available. Please check that the Kalshi API is configured correctly."}
+                : "No prediction markets are currently available."}
             </p>
             {(searchQuery || categoryFilter !== "all") && (
               <Button 
@@ -380,7 +376,6 @@ export default function PredictionsPage() {
         </Card>
       )}
 
-      {/* Market Detail Dialog */}
       <Dialog open={!!selectedMarket} onOpenChange={(open) => !open && setSelectedMarket(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -397,85 +392,42 @@ export default function PredictionsPage() {
           
           {selectedMarket && (
             <div className="space-y-6">
-              {/* Probability Chart Visualization */}
-              <Card className="overflow-hidden">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    Probability Indicator
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="h-32 relative bg-gradient-to-r from-red-100 via-yellow-100 to-green-100 dark:from-red-950/30 dark:via-yellow-950/30 dark:to-green-950/30">
-                    {/* Grid lines */}
-                    <div className="absolute inset-0 flex">
-                      {[0, 25, 50, 75, 100].map((val) => (
-                        <div 
-                          key={val} 
-                          className="flex-1 border-r border-dashed border-muted-foreground/20 last:border-r-0 relative"
-                        >
-                          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground">
-                            {val}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Probability indicator line */}
-                    <div 
-                      className="absolute top-0 bottom-0 w-1 bg-primary shadow-lg shadow-primary/50 transition-all duration-500"
-                      style={{ left: `${selectedMarket.yes_price}%` }}
-                    >
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-primary border-2 border-background shadow-lg" />
-                      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-bold whitespace-nowrap shadow-lg">
-                        {selectedMarket.yes_price}% Yes
-                      </div>
-                    </div>
-                    {/* Low/High labels */}
-                    <div className="absolute top-2 left-2 text-xs font-medium text-red-600 dark:text-red-400">Unlikely</div>
-                    <div className="absolute top-2 right-2 text-xs font-medium text-green-600 dark:text-green-400">Likely</div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Probability Display */}
               <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                <Card className="bg-teal-50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800">
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-muted-foreground mb-1">Yes Probability</p>
-                    <p className={`text-4xl font-bold ${getPriceColor(selectedMarket.yes_price)}`}>
+                    <p className="text-sm text-muted-foreground mb-1">Yes</p>
+                    <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">
                       {selectedMarket.yes_price}%
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+                <Card className="bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800">
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-muted-foreground mb-1">No Probability</p>
-                    <p className="text-4xl font-bold text-muted-foreground">
-                      {100 - selectedMarket.yes_price}%
+                    <p className="text-sm text-muted-foreground mb-1">No</p>
+                    <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">
+                      {selectedMarket.no_price}%
                     </p>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Probability Bar */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-green-600 dark:text-green-400 font-medium">Yes: {selectedMarket.yes_price}%</span>
-                  <span className="text-red-600 dark:text-red-400 font-medium">No: {100 - selectedMarket.yes_price}%</span>
+                  <span className="text-teal-600 dark:text-teal-400">Yes: {selectedMarket.yes_price}%</span>
+                  <span className="text-rose-600 dark:text-rose-400">No: {selectedMarket.no_price}%</span>
                 </div>
-                <div className="h-4 bg-muted rounded-full overflow-hidden flex">
+                <div className="h-3 bg-muted rounded-full overflow-hidden flex">
                   <div 
-                    className="h-full bg-green-500 transition-all"
+                    className="h-full bg-teal-500 transition-all"
                     style={{ width: `${selectedMarket.yes_price}%` }}
                   />
                   <div 
-                    className="h-full bg-red-500 transition-all"
-                    style={{ width: `${100 - selectedMarket.yes_price}%` }}
+                    className="h-full bg-rose-500 transition-all"
+                    style={{ width: `${selectedMarket.no_price}%` }}
                   />
                 </div>
               </div>
 
-              {/* Market Stats */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-3 bg-muted/50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Volume</p>
@@ -491,28 +443,13 @@ export default function PredictionsPage() {
                 </div>
               </div>
 
-              {/* Close Time */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>Closes: {formatTime(selectedMarket.close_time)}</span>
-              </div>
-
-              {/* Info Note */}
-              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <Info className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                <p className="text-sm text-blue-800 dark:text-blue-300">
+              <div className="flex items-start gap-2 p-3 bg-muted/30 rounded-lg border">
+                <Info className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">
                   This is a prediction market showing crowd-sourced probability estimates. 
                   Odds update in real-time based on market activity.
                 </p>
               </div>
-
-              {/* Category */}
-              {selectedMarket.category && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Category:</span>
-                  <Badge variant="secondary">{selectedMarket.category}</Badge>
-                </div>
-              )}
             </div>
           )}
         </DialogContent>
