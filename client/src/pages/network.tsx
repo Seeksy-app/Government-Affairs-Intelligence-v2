@@ -1181,9 +1181,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                               disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
                             >
                               <SelectTrigger className="w-[160px]" data-testid="select-assign-to-client">
-                                <SelectValue placeholder="Assign to Client">
-                                  {currentPortalName || "Assign to Client"}
-                                </SelectValue>
+                                <SelectValue placeholder={currentPortalName || "Assign to Client"} />
                               </SelectTrigger>
                               <SelectContent>
                                 {portals.map((portal) => (
@@ -1412,9 +1410,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                         disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
                                       >
                                         <SelectTrigger className="w-[140px] text-xs" data-testid={`select-staffer-client-${idx}`}>
-                                          <SelectValue placeholder="Select client...">
-                                            {currentPortalName || "Select client..."}
-                                          </SelectValue>
+                                          <SelectValue placeholder={currentPortalName || "Select client..."} />
                                         </SelectTrigger>
                                         <SelectContent>
                                           {portals.map((portal) => (
