@@ -57,6 +57,14 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **Structured Data Extraction**: Extract specific data points from URLs using schemas
 - **PDF/DOCX Processing**: Upload and process document files
 
+### Social Media Tracking
+- **X/Twitter Tracking**: Track X accounts and posts via Firecrawl scraping
+- **Keyword Matching**: Filter posts by keywords (global or per-account)
+- **Influencer Tracking** (Influencers Club API): Track influencers across multiple platforms
+  - Platforms: Instagram, YouTube, TikTok, Twitter, Twitch, OnlyFans
+  - Profile enrichment: followers, engagement rate, bio, recent posts
+  - Post tracking with engagement metrics
+
 ## Database Schema
 
 ### Core Tables
@@ -77,6 +85,11 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `research_documents` - Extracted content from URLs, YouTube, PDFs, and agent queries
 - `research_conversations` - AI conversation sessions per matter
 - `research_messages` - Messages in research conversations
+- `tracked_social_accounts` - X/Twitter accounts to track
+- `social_tracking_keywords` - Keywords to filter posts
+- `tracked_social_posts` - Scraped posts from tracked accounts
+- `tracked_influencers` - Influencers tracked via Influencers Club API
+- `influencer_posts` - Posts from tracked influencers
 
 ## API Routes
 
@@ -134,6 +147,18 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `GET /api/congress/members` - Search current Members of Congress (filters: search, chamber, party, state)
 - `GET /api/congress/members/:bioguideId` - Get detailed info for a specific member
 
+### Influencer Tracking Routes
+- `GET /api/influencers` - List tracked influencers
+- `POST /api/influencers` - Add influencer to track (enriches via Influencers Club API)
+- `PATCH /api/influencers/:id` - Update influencer
+- `DELETE /api/influencers/:id` - Remove influencer
+- `POST /api/influencers/:id/sync` - Refresh influencer data from API
+- `GET /api/influencers/posts` - Get all influencer posts
+- `GET /api/influencers/:id/posts` - Get posts for specific influencer
+- `PATCH /api/influencer-posts/:id/read` - Mark post as read
+- `PATCH /api/influencer-posts/:id/flag` - Toggle post flag
+- `GET /api/influencers/credits` - Check API credits
+
 ## Development
 
 ### Scripts
@@ -145,6 +170,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `SESSION_SECRET` - Session encryption key
 - `ISSUER_URL` - OIDC issuer (Replit)
 - `FIRECRAWL_API_KEY` - Firecrawl API key for web scraping and agent queries
+- `INFLUENCERS_API_KEY` - Influencers Club API key for influencer tracking
 - `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (via Replit AI Integrations)
 - `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL (via Replit AI Integrations)
 

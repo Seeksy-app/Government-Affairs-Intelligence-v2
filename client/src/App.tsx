@@ -41,6 +41,7 @@ import AdminApplications from "@/pages/admin-applications";
 import BillTrackingPage from "@/pages/bill-tracking";
 import PredictionsPage from "@/pages/predictions";
 import SocialTrackingPage from "@/pages/social-tracking";
+import InfluencerTrackingPage from "@/pages/influencer-tracking";
 
 function AuthenticatedRouter() {
   return (
@@ -64,6 +65,7 @@ function AuthenticatedRouter() {
       <Route path="/bills" component={BillTrackingPage} />
       <Route path="/predictions" component={PredictionsPage} />
       <Route path="/social" component={SocialTrackingPage} />
+      <Route path="/influencers" component={InfluencerTrackingPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
