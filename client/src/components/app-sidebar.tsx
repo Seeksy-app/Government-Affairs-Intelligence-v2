@@ -84,6 +84,7 @@ export function AppSidebar() {
     label: "Intelligence",
     icon: TrendingUp,
     items: [
+      { title: "Resources", url: "/resources", icon: Users, tourId: "resources" },
       { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
       { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
       { title: "Network", url: "/network", icon: Network, tourId: "network" },

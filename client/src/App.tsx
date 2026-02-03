@@ -29,6 +29,7 @@ import MatterDetailPage from "@/pages/matter-detail";
 import KnowledgeBase from "@/pages/knowledge-base";
 import Security from "@/pages/security";
 import ClientPortals from "@/pages/client-portals";
+import ClientResources from "@/pages/client-resources";
 import PublicPortal from "@/pages/public-portal";
 import AIAgentPage from "@/pages/ai-agent";
 import SourcesPage from "@/pages/sources";
@@ -74,6 +75,7 @@ function AuthenticatedRouter() {
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
+      <Route path="/resources" component={ClientResources} />
       <Route path="/kb" component={KnowledgeBase} />
       <Route path="/security" component={Security} />
       <Route path="/settings" component={SettingsPage} />

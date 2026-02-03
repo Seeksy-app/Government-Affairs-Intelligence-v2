@@ -227,8 +227,7 @@ export default function NetworkPage() {
   const getFavorite = (bioguideId: string) => favorites?.find(f => f.bioguideId === bioguideId);
 
   // Customers Portal
-  const [showCustomersPortal, setShowCustomersPortal] = useState(false);
-  const { data: customersList, isLoading: customersLoading } = useQuery<Customer[]>({
+    const { data: customersList, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
 
@@ -636,140 +635,6 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           </CardContent>
         </Card>
       )}
-
-      {/* Customers Portal Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Customers Portal ({customersList?.length || 0})
-            </CardTitle>
-            <Button
-              variant={showCustomersPortal ? "default" : "outline"}
-              onClick={() => setShowCustomersPortal(!showCustomersPortal)}
-              data-testid="button-toggle-customers"
-            >
-              {showCustomersPortal ? "Hide Customers" : "View Customers"}
-            </Button>
-          </div>
-        </CardHeader>
-        {showCustomersPortal && (
-          <CardContent>
-            {customersLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : customersList && customersList.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {customersList.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="p-4 border rounded-lg hover-elevate"
-                    data-testid={`card-customer-${customer.id}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={customer.imageUrl || undefined} alt={customer.name} />
-                        <AvatarFallback>
-                          {customer.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm truncate">{customer.name}</h4>
-                        {customer.title && (
-                          <p className="text-xs text-muted-foreground truncate">{customer.title}</p>
-                        )}
-                        {customer.organization && (
-                          <p className="text-xs text-muted-foreground truncate">{customer.organization}</p>
-                        )}
-                        <div className="flex items-center gap-1 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {customer.sourceType === 'congress_member' ? 'Member' : 
-                             customer.sourceType === 'staffer' ? 'Staffer' : 'Manual'}
-                          </Badge>
-                          {customer.party && (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                customer.party === "D" ? "border-blue-500 text-blue-600" : 
-                                customer.party === "R" ? "border-red-500 text-red-600" : ""
-                              }`}
-                            >
-                              {customer.party}
-                            </Badge>
-                          )}
-                          {customer.state && (
-                            <span className="text-xs text-muted-foreground">{customer.state}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {(customer.email || customer.phone) && (
-                      <div className="mt-2 space-y-1">
-                        {customer.email && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            <span className="truncate">{customer.email}</span>
-                          </div>
-                        )}
-                        {customer.phone && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{customer.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {customer.matterId && matters && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                        <Briefcase className="h-3 w-3" />
-                        <span className="truncate">{matters.find(m => m.id === customer.matterId)?.name || 'Assigned'}</span>
-                      </div>
-                    )}
-                    <div className="mt-3 flex items-center gap-2">
-                      <Select
-                        value={customer.matterId || "none"}
-                        onValueChange={(val) => {
-                          updateCustomerMutation.mutate({
-                            id: customer.id,
-                            data: { matterId: val === "none" ? null : val }
-                          });
-                        }}
-                      >
-                        <SelectTrigger className="h-7 text-xs flex-1">
-                          <SelectValue placeholder="Assign to Matter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No Matter</SelectItem>
-                          {matters?.map((matter) => (
-                            <SelectItem key={matter.id} value={matter.id}>{matter.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() => deleteCustomerMutation.mutate(customer.id)}
-                        data-testid="button-remove-customer"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No customers yet</p>
-                <p className="text-sm">Add Congress members or staffers as customers from their detail panels</p>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
 
       {/* Members of Congress Search Section */}
       <Card>
@@ -1287,10 +1152,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                           }
                         }}
                         disabled={isCustomer('congress_member', selectedMember.bioguideId) || addCustomerMutation.isPending}
-                        data-testid="button-add-to-customers"
+                        data-testid="button-add-to-resources"
                       >
-                        {isCustomer('congress_member', selectedMember.bioguideId) ? "In Customers" : 
-                         addCustomerMutation.isPending ? "Adding..." : "Add to Customers"}
+                        {isCustomer('congress_member', selectedMember.bioguideId) ? "In Resources" : 
+                         addCustomerMutation.isPending ? "Adding..." : "Add to Resources"}
                       </Button>
                     </>
                   )}
@@ -1458,10 +1323,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                     }
                                   }}
                                   disabled={isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`)}
-                                  data-testid={`button-add-staffer-customer-${idx}`}
+                                  data-testid={`button-add-staffer-resource-${idx}`}
                                 >
                                   <Users className="h-4 w-4 mr-1" />
-                                  {isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`) ? "Added" : "Customer"}
+                                  {isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`) ? "Added" : "Resource"}
                                 </Button>
                                 <Button
                                   variant="ghost"
