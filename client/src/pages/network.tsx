@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -137,6 +137,7 @@ export default function NetworkPage() {
   // Staffer lookup
   const [stafferInfo, setStafferInfo] = useState<string | null>(null);
   const [stafferLoading, setStafferLoading] = useState(false);
+  const [miroMapping, setMiroMapping] = useState(false);
   
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
@@ -245,6 +246,45 @@ export default function NetworkPage() {
     setStafferInfo(null);
     setStafferLoading(true);
     stafferMutation.mutate(member);
+  };
+
+  const handleMapToMiro = async (member: CongressMember, staffers: ParsedStaffer[]) => {
+    if (staffers.length === 0) {
+      toast({ title: "No staffers to map", description: "Find staffers first before mapping to Miro", variant: "destructive" });
+      return;
+    }
+    
+    setMiroMapping(true);
+    try {
+      const response = await apiRequest("POST", "/api/miro/map-office", {
+        memberName: `${member.firstName} ${member.lastName}`,
+        chamber: member.chamber,
+        party: member.party,
+        state: member.state,
+        district: member.district,
+        staffers: staffers.map(s => ({
+          name: s.name,
+          title: s.role,
+          email: s.email || null
+        }))
+      });
+      const data = await response.json();
+      
+      toast({ 
+        title: "Office mapped to Miro!", 
+        description: "Opening board in new tab..." 
+      });
+      
+      window.open(data.miroBoardUrl, '_blank');
+    } catch (error: any) {
+      toast({ 
+        title: "Failed to map to Miro", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setMiroMapping(false);
+    }
   };
   
   const handleMemberSearch = () => {
@@ -982,14 +1022,37 @@ export default function NetworkPage() {
                       ) : (
                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{stafferInfo.replace(/\*\*/g, '')}</p>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setStafferInfo(null)}
-                      >
-                        Clear
-                      </Button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {staffers.length > 0 && selectedMember && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleMapToMiro(selectedMember, staffers)}
+                            disabled={miroMapping}
+                            data-testid="button-map-to-miro"
+                          >
+                            {miroMapping ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Mapping...
+                              </>
+                            ) : (
+                              <>
+                                <Map className="h-4 w-4 mr-1" />
+                                Map Office to Miro
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => setStafferInfo(null)}
+                        >
+                          Clear
+                        </Button>
+                      </div>
                     </div>
                   );
                 })()}
