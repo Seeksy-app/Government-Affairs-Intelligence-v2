@@ -104,7 +104,11 @@ class KalshiAPI {
       });
 
       if (!response.ok) {
+        const errorBody = await response.text();
         console.error(`Kalshi API error: ${response.status} ${response.statusText}`);
+        console.error(`Kalshi API error body: ${errorBody}`);
+        console.error(`Kalshi request path: ${path}`);
+        console.error(`Kalshi auth enabled: ${requiresAuth}, has key: ${!!this.apiKeyId}`);
         return null;
       }
 
@@ -131,15 +135,18 @@ class KalshiAPI {
 
     const queryString = params.toString();
     const path = `/markets${queryString ? `?${queryString}` : ""}`;
-    return this.request<{ markets: KalshiMarket[]; cursor?: string }>(path, "GET", true);
+    // Markets endpoint is public - no auth required
+    return this.request<{ markets: KalshiMarket[]; cursor?: string }>(path, "GET", false);
   }
 
   async getMarket(ticker: string): Promise<{ market: KalshiMarket } | null> {
-    return this.request<{ market: KalshiMarket }>(`/markets/${ticker}`, "GET", true);
+    // Single market endpoint is public - no auth required
+    return this.request<{ market: KalshiMarket }>(`/markets/${ticker}`, "GET", false);
   }
 
   async getEvent(eventTicker: string): Promise<{ event: KalshiEvent } | null> {
-    return this.request<{ event: KalshiEvent }>(`/events/${eventTicker}`, "GET", true);
+    // Events endpoint is public - no auth required
+    return this.request<{ event: KalshiEvent }>(`/events/${eventTicker}`, "GET", false);
   }
 
   async getEvents(options: {
@@ -156,11 +163,13 @@ class KalshiAPI {
 
     const queryString = params.toString();
     const path = `/events${queryString ? `?${queryString}` : ""}`;
-    return this.request<{ events: KalshiEvent[]; cursor?: string }>(path, "GET", true);
+    // Events endpoint is public - no auth required
+    return this.request<{ events: KalshiEvent[]; cursor?: string }>(path, "GET", false);
   }
 
   async getSeries(ticker: string): Promise<{ series: KalshiSeries } | null> {
-    return this.request<{ series: KalshiSeries }>(`/series/${ticker}`, "GET", true);
+    // Series endpoint is public - no auth required
+    return this.request<{ series: KalshiSeries }>(`/series/${ticker}`, "GET", false);
   }
 
   async searchPoliticalMarkets(limit: number = 20): Promise<KalshiMarket[]> {

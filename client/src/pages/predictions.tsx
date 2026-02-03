@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Search, TrendingUp, TrendingDown, ExternalLink, RefreshCw, Filter } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BarChart3, Search, TrendingUp, TrendingDown, RefreshCw, Filter, Clock, ChevronDown, Activity, Info } from "lucide-react";
 
 interface KalshiMarket {
   ticker: string;
@@ -25,16 +26,65 @@ interface KalshiMarket {
 
 type FilterCategory = "all" | "politics" | "elections" | "congress";
 
+const REFRESH_INTERVAL = 20 * 60 * 1000; // 20 minutes in milliseconds
+const INITIAL_DISPLAY_COUNT = 20;
+
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("politics");
+  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("all");
   const [sortBy, setSortBy] = useState<"volume" | "price" | "name">("volume");
+  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
+  const [selectedMarket, setSelectedMarket] = useState<KalshiMarket | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [timeUntilRefresh, setTimeUntilRefresh] = useState<string>("20 min");
 
   const { data: marketsData, isLoading, refetch, isFetching } = useQuery<{ markets: KalshiMarket[]; cursor?: string }>({
-    queryKey: ["/api/kalshi/markets", { status: "open", limit: 100 }],
+    queryKey: ["/api/kalshi/markets", { status: "open", limit: 200 }],
+    refetchInterval: REFRESH_INTERVAL,
+    staleTime: REFRESH_INTERVAL - 60000, // Consider stale 1 minute before next refresh
   });
 
+  // Update last refresh time when data changes
+  useEffect(() => {
+    if (marketsData) {
+      setLastRefresh(new Date());
+    }
+  }, [marketsData]);
+
+  // Reactive countdown timer - updates every minute
+  const updateCountdown = useCallback(() => {
+    const now = new Date();
+    const nextRefresh = new Date(lastRefresh.getTime() + REFRESH_INTERVAL);
+    const diff = nextRefresh.getTime() - now.getTime();
+    if (diff <= 0) {
+      setTimeUntilRefresh("Refreshing...");
+    } else {
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      if (minutes > 0) {
+        setTimeUntilRefresh(`${minutes}m ${seconds}s`);
+      } else {
+        setTimeUntilRefresh(`${seconds}s`);
+      }
+    }
+  }, [lastRefresh]);
+
+  useEffect(() => {
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [updateCountdown]);
+
   const markets = marketsData?.markets || [];
+
+  // Politics keywords for filtering
+  const politicsKeywords = [
+    "president", "trump", "biden", "democrat", "republican", "government",
+    "cabinet", "nominee", "fed chair", "supreme", "shutdown", "vance",
+    "newsom", "costa rica", "party", "senate", "congress", "election",
+    "vote", "primary", "tariff", "stimulus", "leader", "khamenei",
+    "world leader", "rican", "presidential"
+  ];
 
   const filteredMarkets = markets
     .filter((market) => {
@@ -51,28 +101,15 @@ export default function PredictionsPage() {
         case "politics":
           return matchesSearch && (
             category.includes("politic") ||
-            title.includes("president") ||
-            title.includes("trump") ||
-            title.includes("biden") ||
-            title.includes("democrat") ||
-            title.includes("republican") ||
-            title.includes("government") ||
-            title.includes("cabinet") ||
-            title.includes("nominee") ||
-            title.includes("fed chair") ||
-            title.includes("supreme") ||
-            title.includes("shutdown") ||
-            title.includes("vance") ||
-            title.includes("newsom") ||
-            title.includes("costa rica") ||
-            title.includes("party")
+            politicsKeywords.some(keyword => title.includes(keyword))
           );
         case "elections":
           return matchesSearch && (
             category.includes("election") ||
             title.includes("election") ||
             title.includes("vote") ||
-            title.includes("primary")
+            title.includes("primary") ||
+            title.includes("nominee")
           );
         case "congress":
           return matchesSearch && (
@@ -99,6 +136,9 @@ export default function PredictionsPage() {
       }
     });
 
+  const visibleMarkets = filteredMarkets.slice(0, displayCount);
+  const hasMore = filteredMarkets.length > displayCount;
+
   const getPriceColor = (price: number) => {
     if (price >= 70) return "text-green-600 dark:text-green-400";
     if (price >= 50) return "text-yellow-600 dark:text-yellow-400";
@@ -107,9 +147,28 @@ export default function PredictionsPage() {
   };
 
   const formatVolume = (vol: number) => {
-    if (vol >= 1000000) return `${(vol / 1000000).toFixed(1)}M`;
-    if (vol >= 1000) return `${(vol / 1000).toFixed(1)}K`;
-    return vol.toString();
+    if (vol >= 1000000) return `$${(vol / 1000000).toFixed(1)}M`;
+    if (vol >= 1000) return `$${(vol / 1000).toFixed(1)}K`;
+    return `$${vol}`;
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { 
+      month: "short", 
+      day: "numeric", 
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
+  const handleShowMore = () => {
+    setDisplayCount(prev => prev + 20);
+  };
+
+  const handleMarketClick = (market: KalshiMarket) => {
+    setSelectedMarket(market);
   };
 
   return (
@@ -124,15 +183,21 @@ export default function PredictionsPage() {
             Real-time political odds powered by Kalshi
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          data-testid="button-refresh-markets"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="w-4 h-4" />
+            <span>Next refresh: {timeUntilRefresh}</span>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            data-testid="button-refresh-markets"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -156,7 +221,10 @@ export default function PredictionsPage() {
                 />
               </div>
             </div>
-            <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as FilterCategory)}>
+            <Select value={categoryFilter} onValueChange={(v) => {
+              setCategoryFilter(v as FilterCategory);
+              setDisplayCount(INITIAL_DISPLAY_COUNT);
+            }}>
               <SelectTrigger className="w-[180px]" data-testid="select-category">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -182,8 +250,8 @@ export default function PredictionsPage() {
       </Card>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <Card key={i}>
               <CardHeader>
                 <Skeleton className="h-5 w-24" />
@@ -195,14 +263,19 @@ export default function PredictionsPage() {
             </Card>
           ))}
         </div>
-      ) : filteredMarkets.length > 0 ? (
+      ) : visibleMarkets.length > 0 ? (
         <>
           <div className="text-sm text-muted-foreground">
-            Showing {filteredMarkets.length} {filteredMarkets.length === 1 ? 'market' : 'markets'}
+            Showing {visibleMarkets.length} of {filteredMarkets.length} {filteredMarkets.length === 1 ? 'market' : 'markets'}
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredMarkets.map((market) => (
-              <Card key={market.ticker} className="hover-elevate" data-testid={`card-market-${market.ticker}`}>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {visibleMarkets.map((market) => (
+              <Card 
+                key={market.ticker} 
+                className="hover-elevate cursor-pointer" 
+                onClick={() => handleMarketClick(market)}
+                data-testid={`card-market-${market.ticker}`}
+              >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <Badge variant="outline" className="text-xs shrink-0">
@@ -222,7 +295,7 @@ export default function PredictionsPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Yes Probability</p>
+                      <p className="text-xs text-muted-foreground">Yes</p>
                       <div className="flex items-center gap-2">
                         <span className={`text-2xl font-bold ${getPriceColor(market.yes_price)}`}>
                           {market.yes_price}%
@@ -235,7 +308,7 @@ export default function PredictionsPage() {
                       </div>
                     </div>
                     <div className="text-right space-y-1">
-                      <p className="text-xs text-muted-foreground">No Probability</p>
+                      <p className="text-xs text-muted-foreground">No</p>
                       <span className="text-xl font-semibold text-muted-foreground">
                         {100 - market.yes_price}%
                       </span>
@@ -250,24 +323,30 @@ export default function PredictionsPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Volume: {formatVolume(market.volume)}</span>
-                    <span>Open Interest: {formatVolume(market.open_interest)}</span>
-                  </div>
-
-                  <div className="pt-2 border-t">
-                    <a
-                      href={`https://kalshi.com/markets/${market.ticker.toLowerCase()}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary flex items-center gap-1 hover:underline"
-                    >
-                      View on Kalshi <ExternalLink className="w-3 h-3" />
-                    </a>
+                    <span>Vol: {formatVolume(market.volume)}</span>
+                    <span className="flex items-center gap-1">
+                      <Activity className="w-3 h-3" />
+                      View Details
+                    </span>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+          
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={handleShowMore}
+                className="w-full max-w-xs"
+                data-testid="button-show-more"
+              >
+                <ChevronDown className="w-4 h-4 mr-2" />
+                Show More ({filteredMarkets.length - displayCount} remaining)
+              </Button>
+            </div>
+          )}
         </>
       ) : (
         <Card>
@@ -279,14 +358,14 @@ export default function PredictionsPage() {
             <p className="text-muted-foreground text-sm mb-4">
               {searchQuery || categoryFilter !== "all" 
                 ? "Try adjusting your filters or search query."
-                : "No prediction markets are currently available."}
+                : "No prediction markets are currently available. Please check that the Kalshi API is configured correctly."}
             </p>
             {(searchQuery || categoryFilter !== "all") && (
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setSearchQuery("");
-                  setCategoryFilter("politics");
+                  setCategoryFilter("all");
                 }}
                 data-testid="button-clear-filters"
               >
@@ -296,6 +375,144 @@ export default function PredictionsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Market Detail Dialog */}
+      <Dialog open={!!selectedMarket} onOpenChange={(open) => !open && setSelectedMarket(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-3">
+              <div className="flex-1">
+                <Badge variant="outline" className="mb-2">{selectedMarket?.ticker}</Badge>
+                <h2 className="text-xl font-bold">{selectedMarket?.title}</h2>
+                {selectedMarket?.subtitle && (
+                  <p className="text-sm text-muted-foreground mt-1">{selectedMarket.subtitle}</p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedMarket && (
+            <div className="space-y-6">
+              {/* Probability Chart Visualization */}
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    Probability Indicator
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="h-32 relative bg-gradient-to-r from-red-100 via-yellow-100 to-green-100 dark:from-red-950/30 dark:via-yellow-950/30 dark:to-green-950/30">
+                    {/* Grid lines */}
+                    <div className="absolute inset-0 flex">
+                      {[0, 25, 50, 75, 100].map((val) => (
+                        <div 
+                          key={val} 
+                          className="flex-1 border-r border-dashed border-muted-foreground/20 last:border-r-0 relative"
+                        >
+                          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground">
+                            {val}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Probability indicator line */}
+                    <div 
+                      className="absolute top-0 bottom-0 w-1 bg-primary shadow-lg shadow-primary/50 transition-all duration-500"
+                      style={{ left: `${selectedMarket.yes_price}%` }}
+                    >
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-primary border-2 border-background shadow-lg" />
+                      <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-2 py-1 rounded text-xs font-bold whitespace-nowrap shadow-lg">
+                        {selectedMarket.yes_price}% Yes
+                      </div>
+                    </div>
+                    {/* Low/High labels */}
+                    <div className="absolute top-2 left-2 text-xs font-medium text-red-600 dark:text-red-400">Unlikely</div>
+                    <div className="absolute top-2 right-2 text-xs font-medium text-green-600 dark:text-green-400">Likely</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Probability Display */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Yes Probability</p>
+                    <p className={`text-4xl font-bold ${getPriceColor(selectedMarket.yes_price)}`}>
+                      {selectedMarket.yes_price}%
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">No Probability</p>
+                    <p className="text-4xl font-bold text-muted-foreground">
+                      {100 - selectedMarket.yes_price}%
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Probability Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-600 dark:text-green-400 font-medium">Yes: {selectedMarket.yes_price}%</span>
+                  <span className="text-red-600 dark:text-red-400 font-medium">No: {100 - selectedMarket.yes_price}%</span>
+                </div>
+                <div className="h-4 bg-muted rounded-full overflow-hidden flex">
+                  <div 
+                    className="h-full bg-green-500 transition-all"
+                    style={{ width: `${selectedMarket.yes_price}%` }}
+                  />
+                  <div 
+                    className="h-full bg-red-500 transition-all"
+                    style={{ width: `${100 - selectedMarket.yes_price}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Market Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Volume</p>
+                  <p className="font-bold">{formatVolume(selectedMarket.volume)}</p>
+                </div>
+                <div className="text-center p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Open Interest</p>
+                  <p className="font-bold">{formatVolume(selectedMarket.open_interest)}</p>
+                </div>
+                <div className="text-center p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  <p className="font-bold capitalize">{selectedMarket.status}</p>
+                </div>
+              </div>
+
+              {/* Close Time */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>Closes: {formatTime(selectedMarket.close_time)}</span>
+              </div>
+
+              {/* Info Note */}
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <Info className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  This is a prediction market showing crowd-sourced probability estimates. 
+                  Odds update in real-time based on market activity.
+                </p>
+              </div>
+
+              {/* Category */}
+              {selectedMarket.category && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Category:</span>
+                  <Badge variant="secondary">{selectedMarket.category}</Badge>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
