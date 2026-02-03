@@ -4763,5 +4763,114 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // Miro OAuth - Initiate authorization
+  app.get("/api/miro/auth", isAuthenticated, (req, res) => {
+    const clientId = process.env.MIRO_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ message: "MIRO_CLIENT_ID is not configured" });
+    }
+
+    const redirectUri = `${req.protocol}://${req.get("host")}/api/miro/callback`;
+    const state = crypto.randomUUID();
+    
+    // Store state in session for verification
+    (req.session as any).miroOAuthState = state;
+
+    const authUrl = new URL("https://miro.com/oauth/authorize");
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("client_id", clientId);
+    authUrl.searchParams.set("redirect_uri", redirectUri);
+    authUrl.searchParams.set("state", state);
+
+    res.json({ authUrl: authUrl.toString() });
+  });
+
+  // Miro OAuth - Handle callback
+  app.get("/api/miro/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || typeof code !== "string") {
+        return res.redirect("/settings?miro=error&message=No authorization code received");
+      }
+
+      const clientId = process.env.MIRO_CLIENT_ID;
+      const clientSecret = process.env.MIRO_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        return res.redirect("/settings?miro=error&message=Miro credentials not configured");
+      }
+
+      const redirectUri = `${req.protocol}://${req.get("host")}/api/miro/callback`;
+
+      // Exchange code for access token
+      const tokenResponse = await fetch("https://api.miro.com/v1/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error("Miro token exchange failed:", errorText);
+        return res.redirect("/settings?miro=error&message=Failed to get access token");
+      }
+
+      const tokenData = await tokenResponse.json() as { access_token: string; refresh_token?: string; expires_in?: number };
+      
+      // Store the access token - for now we'll store it in memory
+      // In production, this should be stored in the database per-client
+      process.env.MIRO_API_KEY = tokenData.access_token;
+      
+      console.log("Miro OAuth successful, access token obtained");
+      res.redirect("/settings?miro=success");
+    } catch (error) {
+      console.error("Miro OAuth callback error:", error);
+      res.redirect("/settings?miro=error&message=OAuth callback failed");
+    }
+  });
+
+  // Miro OAuth - Check connection status
+  app.get("/api/miro/status", isAuthenticated, async (req, res) => {
+    const hasApiKey = !!process.env.MIRO_API_KEY;
+    const hasCredentials = !!(process.env.MIRO_CLIENT_ID && process.env.MIRO_CLIENT_SECRET);
+    
+    if (hasApiKey) {
+      // Try to verify the token is valid
+      try {
+        const response = await fetch("https://api.miro.com/v1/users/me", {
+          headers: {
+            "Authorization": `Bearer ${process.env.MIRO_API_KEY}`,
+          },
+        });
+        
+        if (response.ok) {
+          const userData = await response.json() as { name?: string; email?: string };
+          return res.json({ 
+            connected: true, 
+            hasCredentials,
+            user: userData 
+          });
+        }
+      } catch (error) {
+        // Token is invalid
+      }
+    }
+    
+    res.json({ 
+      connected: false, 
+      hasCredentials,
+      needsAuth: hasCredentials && !hasApiKey 
+    });
+  });
+
   return httpServer;
 }

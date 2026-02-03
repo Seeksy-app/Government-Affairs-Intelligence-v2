@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings, User, Shield, LogOut, Mail } from "lucide-react";
+import { Settings, User, Shield, LogOut, Mail, Link2, CheckCircle2, ExternalLink } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -15,13 +19,65 @@ interface UserRole {
   role?: string;
 }
 
+interface MiroStatus {
+  connected: boolean;
+  hasCredentials: boolean;
+  needsAuth?: boolean;
+  user?: { name?: string; email?: string };
+}
+
 export default function SettingsPage() {
   const { user, logout, isLoggingOut } = useAuth();
+  const [location] = useLocation();
+  const { toast } = useToast();
 
   const { data: userRole } = useQuery<UserRole>({
     queryKey: ["/api/user/role"],
     enabled: !!user,
   });
+
+  const { data: miroStatus, isLoading: miroLoading } = useQuery<MiroStatus>({
+    queryKey: ["/api/miro/status"],
+    enabled: !!user,
+  });
+
+  const connectMiro = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("GET", "/api/miro/auth");
+      return res.json();
+    },
+    onSuccess: (data: { authUrl: string }) => {
+      window.location.href = data.authUrl;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to initiate Miro connection",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check for Miro OAuth result in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const miroResult = params.get("miro");
+    if (miroResult === "success") {
+      toast({
+        title: "Miro Connected",
+        description: "Your Miro account has been successfully connected!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/miro/status"] });
+      window.history.replaceState({}, "", "/settings");
+    } else if (miroResult === "error") {
+      toast({
+        title: "Connection Failed",
+        description: params.get("message") || "Failed to connect to Miro",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, [location, toast]);
 
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {
@@ -99,6 +155,55 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-sm">{userRole.clientName}</span>
               </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Integrations Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+          <CardDescription>Connect external services</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded bg-yellow-500 flex items-center justify-center">
+                <span className="text-white font-bold text-lg">M</span>
+              </div>
+              <div>
+                <p className="font-medium">Miro</p>
+                <p className="text-sm text-muted-foreground">
+                  {miroStatus?.connected 
+                    ? `Connected${miroStatus.user?.name ? ` as ${miroStatus.user.name}` : ""}`
+                    : "Create visual network maps"
+                  }
+                </p>
+              </div>
+            </div>
+            {miroStatus?.connected ? (
+              <Badge variant="secondary" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Connected
+              </Badge>
+            ) : miroStatus?.hasCredentials ? (
+              <Button
+                size="sm"
+                onClick={() => connectMiro.mutate()}
+                disabled={connectMiro.isPending}
+                data-testid="button-connect-miro"
+              >
+                {connectMiro.isPending ? "Connecting..." : "Connect"}
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Not Configured
+              </Badge>
             )}
           </div>
         </CardContent>
