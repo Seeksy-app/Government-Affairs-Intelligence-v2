@@ -24,6 +24,7 @@ import {
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
 import { kalshiApi } from "./services/kalshi-api";
+import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
 import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail } from "./services/email-service";
 
@@ -3165,6 +3166,40 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error toggling post flag:", error);
       res.status(500).json({ message: "Failed to toggle flag" });
+    }
+  });
+
+  // Sync specific account
+  app.post("/api/social/accounts/:id/sync", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const account = await storage.getTrackedSocialAccount(req.params.id);
+      if (!account || account.clientId !== clientId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      const result = await syncAccountPosts(req.params.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Error syncing account:", error);
+      res.status(500).json({ message: "Failed to sync account" });
+    }
+  });
+
+  // Sync all accounts for client
+  app.post("/api/social/sync", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const result = await syncAllClientAccounts(clientId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error syncing all accounts:", error);
+      res.status(500).json({ message: "Failed to sync accounts" });
     }
   });
 

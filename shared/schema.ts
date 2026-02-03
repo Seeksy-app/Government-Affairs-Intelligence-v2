@@ -535,7 +535,8 @@ export const trackedSocialAccounts = pgTable("tracked_social_accounts", {
   displayName: text("display_name"),
   profileUrl: text("profile_url"),
   isActive: boolean("is_active").default(true),
-  lastCheckedAt: timestamp("last_checked_at"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncError: text("last_sync_error"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -544,7 +545,6 @@ export const insertTrackedSocialAccountSchema = createInsertSchema(trackedSocial
   id: true,
   createdAt: true,
   updatedAt: true,
-  lastCheckedAt: true,
 });
 
 export type InsertTrackedSocialAccount = z.infer<typeof insertTrackedSocialAccountSchema>;
@@ -593,8 +593,6 @@ export const trackedSocialPosts = pgTable("tracked_social_posts", {
 export const insertTrackedSocialPostSchema = createInsertSchema(trackedSocialPosts).omit({
   id: true,
   createdAt: true,
-  isRead: true,
-  isFlagged: true,
 });
 
 export type InsertTrackedSocialPost = z.infer<typeof insertTrackedSocialPostSchema>;
