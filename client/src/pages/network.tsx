@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2 } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,6 +67,60 @@ const US_STATES = [
 
 interface ContactWithHistory extends Contact {
   careerHistory?: CareerHistory[];
+}
+
+interface ParsedStaffer {
+  role: string;
+  name: string;
+  email?: string;
+}
+
+function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffer[] } {
+  const lines = text.split('\n');
+  const staffers: ParsedStaffer[] = [];
+  let intro = '';
+  let currentStaffer: Partial<ParsedStaffer> = {};
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    // Check for role line (bold text like **Chief of Staff:**)
+    const roleMatch = trimmed.match(/^\*\*(.+?):\*\*$/);
+    if (roleMatch) {
+      if (currentStaffer.role && currentStaffer.name) {
+        staffers.push(currentStaffer as ParsedStaffer);
+      }
+      currentStaffer = { role: roleMatch[1] };
+      continue;
+    }
+    
+    // Check for name line (like - **Hayden Haynes**)
+    const nameMatch = trimmed.match(/^-\s*\*\*(.+?)\*\*$/);
+    if (nameMatch) {
+      currentStaffer.name = nameMatch[1];
+      continue;
+    }
+    
+    // Check for email line (like - **Email:** email@domain.gov)
+    const emailMatch = trimmed.match(/^-\s*\*\*Email:\*\*\s*(.+)$/);
+    if (emailMatch) {
+      currentStaffer.email = emailMatch[1];
+      continue;
+    }
+    
+    // If no current staffer being parsed, this is intro text
+    if (!currentStaffer.role) {
+      intro = trimmed.replace(/\*\*/g, '');
+    }
+  }
+  
+  // Don't forget the last staffer
+  if (currentStaffer.role && currentStaffer.name) {
+    staffers.push(currentStaffer as ParsedStaffer);
+  }
+  
+  return { intro, staffers };
 }
 
 export default function NetworkPage() {
@@ -881,19 +935,64 @@ export default function NetworkPage() {
                   </div>
                 )}
                 
-                {stafferInfo && (
-                  <div className="p-4 rounded-lg border bg-muted/30">
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{stafferInfo}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-3 text-xs"
-                      onClick={() => setStafferInfo(null)}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                )}
+                {stafferInfo && (() => {
+                  const { intro, staffers } = parseStafferInfo(stafferInfo);
+                  return (
+                    <div className="space-y-3">
+                      {intro && (
+                        <p className="text-sm text-muted-foreground">{intro}</p>
+                      )}
+                      {staffers.length > 0 ? (
+                        <div className="space-y-2">
+                          {staffers.map((staffer, idx) => (
+                            <div key={idx} className="p-3 rounded-lg border bg-card flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-sm">{staffer.name}</span>
+                                  <Badge variant="secondary" className="text-xs">{staffer.role}</Badge>
+                                </div>
+                                {staffer.email && (
+                                  <a 
+                                    href={`mailto:${staffer.email}`}
+                                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                    {staffer.email}
+                                  </a>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="shrink-0"
+                                onClick={() => {
+                                  const nameParts = staffer.name.split(' ');
+                                  const firstName = nameParts[0] || '';
+                                  const lastName = nameParts.slice(1).join(' ') || '';
+                                  window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.role)}&organization=${encodeURIComponent(selectedMember ? `Office of ${selectedMember.name}` : '')}`;
+                                }}
+                                data-testid={`button-add-staffer-${idx}`}
+                              >
+                                <UserPlus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{stafferInfo.replace(/\*\*/g, '')}</p>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => setStafferInfo(null)}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  );
+                })()}
                 
                 {!stafferInfo && !stafferLoading && (
                   <p className="text-sm text-muted-foreground">

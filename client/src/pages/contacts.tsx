@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import type { Contact, InsertContact } from "@shared/schema";
 
 export default function Contacts() {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterChamber, setFilterChamber] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -51,6 +53,36 @@ export default function Contacts() {
     notes: "",
     priority: 0,
   });
+
+  // Handle query parameters for adding a new contact from staffer lookup
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('add') === 'true') {
+      const firstName = urlParams.get('firstName') || '';
+      const lastName = urlParams.get('lastName') || '';
+      const email = urlParams.get('email') || '';
+      const title = urlParams.get('title') || '';
+      const organization = urlParams.get('organization') || '';
+      
+      setFormData({
+        firstName,
+        lastName,
+        email,
+        title,
+        organization,
+        phone: "",
+        party: "",
+        state: "",
+        chamber: "",
+        notes: "",
+        priority: 0,
+      });
+      setEditingContact(null);
+      setIsDialogOpen(true);
+      // Clear the URL params without reloading
+      window.history.replaceState({}, '', '/contacts');
+    }
+  }, []);
 
   const { data: contacts, isLoading } = useQuery<Contact[]>({
     queryKey: ["/api/contacts"],
