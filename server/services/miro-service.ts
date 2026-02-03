@@ -247,16 +247,26 @@ interface ExportOfficeParams {
 export async function exportOfficeToMiro(params: ExportOfficeParams): Promise<{ miroBoardUrl: string; miroBoardId: string; itemsCreated: number }> {
   const apiKey = process.env.MIRO_API_KEY;
   if (!apiKey) {
-    throw new Error("MIRO_API_KEY is not configured");
+    throw new Error("MIRO_API_KEY is not configured. Please add your Miro API key in Settings.");
   }
 
   const api = new MiroApi(apiKey);
   const { memberName, staffers } = params;
 
-  const board = await api.createBoard({
-    name: `${memberName} Staff Network - ${new Date().toISOString().split('T')[0]}`,
-    description: `Staff network visualization for ${memberName}`,
-  });
+  let board;
+  try {
+    board = await api.createBoard({
+      name: `${memberName} Staff Network - ${new Date().toISOString().split('T')[0]}`,
+      description: `Staff network visualization for ${memberName}`,
+    });
+  } catch (error: any) {
+    console.error("Miro API error creating board:", error);
+    if (error.response) {
+      console.error("Miro API response status:", error.response.status);
+      console.error("Miro API response data:", error.response.data);
+    }
+    throw new Error(`Miro API error: ${error.message || 'Failed to create board'}. Please verify your MIRO_API_KEY is valid and has board creation permissions.`);
+  }
 
   const boardId = board.id;
   if (!boardId) {
