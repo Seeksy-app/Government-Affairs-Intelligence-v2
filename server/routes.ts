@@ -2200,6 +2200,181 @@ export async function registerRoutes(
     }
   });
 
+  // Portal AI Chat - Get conversations for a portal
+  app.get("/api/public/portal/:clientSlug/:portalSlug/conversations", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const conversations = await storage.getPortalConversations(portal.id);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error getting portal conversations:", error);
+      res.status(500).json({ message: "Failed to get conversations" });
+    }
+  });
+
+  // Portal AI Chat - Create new conversation
+  app.post("/api/public/portal/:clientSlug/:portalSlug/conversations", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const conversation = await storage.createPortalConversation({
+        portalId: portal.id,
+        title: req.body.title || "New Conversation",
+      });
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating portal conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Portal AI Chat - Get messages for a conversation
+  app.get("/api/public/portal/:clientSlug/:portalSlug/conversations/:convId/messages", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug, convId } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const conversation = await storage.getPortalConversation(convId);
+      if (!conversation || conversation.portalId !== portal.id) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const messages = await storage.getPortalMessages(convId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting portal messages:", error);
+      res.status(500).json({ message: "Failed to get messages" });
+    }
+  });
+
+  // Portal AI Chat - Send message and get AI response (streaming)
+  app.post("/api/public/portal/:clientSlug/:portalSlug/conversations/:convId/chat", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug, convId } = req.params;
+      const { message } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const conversation = await storage.getPortalConversation(convId);
+      if (!conversation || conversation.portalId !== portal.id) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // Save user message
+      await storage.createPortalMessage({
+        conversationId: convId,
+        role: "user",
+        content: message,
+      });
+
+      // Get documents from all matters shared with this portal
+      const portalAccess = await storage.getPortalMatterAccess(portal.id);
+      const matterIds = portalAccess.map(a => a.matterId);
+      
+      let allDocuments: any[] = [];
+      for (const matterId of matterIds) {
+        const docs = await storage.getResearchDocuments(matterId);
+        allDocuments = allDocuments.concat(docs);
+      }
+
+      // Get previous messages for context
+      const existingMessages = await storage.getPortalMessages(convId);
+      const conversationHistory = existingMessages.map(m => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+      // Build document context
+      const documentContext = allDocuments
+        .map((doc, i) => `[Document ${i + 1}: ${doc.title}]\n${doc.content?.slice(0, 5000) || doc.summary || ''}`)
+        .join("\n\n---\n\n");
+
+      // Set up SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const { chatWithPortalContext } = await import("./services/research-agent");
+      
+      let fullResponse = "";
+      for await (const chunk of chatWithPortalContext(
+        message,
+        documentContext,
+        conversationHistory,
+        portal.name
+      )) {
+        fullResponse += chunk;
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
+
+      // Save assistant response
+      await storage.createPortalMessage({
+        conversationId: convId,
+        role: "assistant",
+        content: fullResponse,
+      });
+
+      // Update conversation title if first message
+      if (existingMessages.length === 0) {
+        const title = message.length > 50 ? message.slice(0, 50) + "..." : message;
+        await storage.updatePortalConversation(convId, { title });
+      }
+
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Error in portal AI chat:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to process chat" });
+      } else {
+        res.write(`data: ${JSON.stringify({ error: "Chat processing failed" })}\n\n`);
+        res.end();
+      }
+    }
+  });
+
   // Email routes
   const sendEmailSchema = z.object({
     to: z.string().email(),

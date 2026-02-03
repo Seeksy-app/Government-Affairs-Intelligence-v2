@@ -19,6 +19,8 @@ import {
   securityControls,
   clientPortals,
   portalMatterAccess,
+  portalConversations,
+  portalMessages,
   youtubeWatchList,
   trackedBills,
   billChangeHistory,
@@ -73,6 +75,10 @@ import {
   type InsertClientPortal,
   type PortalMatterAccess,
   type InsertPortalMatterAccess,
+  type PortalConversation,
+  type InsertPortalConversation,
+  type PortalMessage,
+  type InsertPortalMessage,
   type YoutubeWatchList,
   type InsertYoutubeWatchList,
   type TrackedBill,
@@ -832,6 +838,41 @@ export class DatabaseStorage implements IStorage {
 
   async deletePortalMatterAccessByPortal(portalId: string): Promise<void> {
     await db.delete(portalMatterAccess).where(eq(portalMatterAccess.portalId, portalId));
+  }
+
+  // Portal Conversations (for Firm's Client AI chat)
+  async getPortalConversations(portalId: string): Promise<PortalConversation[]> {
+    return db.select().from(portalConversations).where(eq(portalConversations.portalId, portalId)).orderBy(desc(portalConversations.updatedAt));
+  }
+
+  async getPortalConversation(id: string): Promise<PortalConversation | undefined> {
+    const [conv] = await db.select().from(portalConversations).where(eq(portalConversations.id, id));
+    return conv;
+  }
+
+  async createPortalConversation(conv: InsertPortalConversation): Promise<PortalConversation> {
+    const [newConv] = await db.insert(portalConversations).values(conv).returning();
+    return newConv;
+  }
+
+  async updatePortalConversation(id: string, data: Partial<InsertPortalConversation>): Promise<PortalConversation | undefined> {
+    const [updated] = await db.update(portalConversations).set({ ...data, updatedAt: new Date() }).where(eq(portalConversations.id, id)).returning();
+    return updated;
+  }
+
+  async deletePortalConversation(id: string): Promise<void> {
+    await db.delete(portalMessages).where(eq(portalMessages.conversationId, id));
+    await db.delete(portalConversations).where(eq(portalConversations.id, id));
+  }
+
+  // Portal Messages
+  async getPortalMessages(conversationId: string): Promise<PortalMessage[]> {
+    return db.select().from(portalMessages).where(eq(portalMessages.conversationId, conversationId)).orderBy(portalMessages.createdAt);
+  }
+
+  async createPortalMessage(msg: InsertPortalMessage): Promise<PortalMessage> {
+    const [newMsg] = await db.insert(portalMessages).values(msg).returning();
+    return newMsg;
   }
 
   // YouTube Watch List

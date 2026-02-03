@@ -525,3 +525,43 @@ Respond in JSON format: { "summary": "...", "patterns": ["..."], "policyFocus": 
     connections: result.connections || [],
   };
 }
+
+// Portal-specific AI chat - only accesses documents shared in the portal
+export async function* chatWithPortalContext(
+  question: string,
+  documentContext: string,
+  conversationHistory: { role: "user" | "assistant"; content: string }[],
+  portalName: string
+): AsyncGenerator<string> {
+  const systemPrompt = `You are a helpful AI research assistant for the "${portalName}" portal. You help answer questions about the research documents and materials that have been shared with you.
+
+You have access to the following research documents:
+${documentContext || "No documents have been shared yet."}
+
+Guidelines:
+- Only answer questions based on the documents and information shared above
+- If asked about something not covered in the documents, politely explain that you can only help with the shared research materials
+- Be helpful, accurate, and professional
+- Cite specific documents when referencing information
+- If no documents are available, let the user know they can ask their research team to share relevant materials`;
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...conversationHistory,
+    { role: "user", content: question },
+  ];
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-5.1",
+    messages,
+    stream: true,
+    max_completion_tokens: 2048,
+  });
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) {
+      yield content;
+    }
+  }
+}

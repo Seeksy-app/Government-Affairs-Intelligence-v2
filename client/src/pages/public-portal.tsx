@@ -1,10 +1,15 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Folder, FileText, ArrowLeft, Building2, Calendar, MapPin, Phone } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Folder, FileText, ArrowLeft, Building2, Calendar, MapPin, Phone,
+  MessageCircle, X, Send, Bot, User, Loader2
+} from "lucide-react";
 
 interface PortalInfo {
   id: string;
@@ -31,14 +36,35 @@ interface PortalDocument {
   createdAt: string;
 }
 
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
 export default function PublicPortal() {
   const params = useParams<{ clientSlug: string; portalSlug: string }>();
   const [selectedMatter, setSelectedMatter] = useState<PortalMatter | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const [streamingMessage, setStreamingMessage] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const baseUrl = `/api/public/portal/${params.clientSlug}/${params.portalSlug}`;
 
   const { data: portal, isLoading: portalLoading, error: portalError } = useQuery<PortalInfo>({
     queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug],
     queryFn: async () => {
-      const res = await fetch(`/api/public/portal/${params.clientSlug}/${params.portalSlug}`);
+      const res = await fetch(`${baseUrl}`);
       if (!res.ok) throw new Error("Portal not found");
       return res.json();
     },
@@ -47,7 +73,7 @@ export default function PublicPortal() {
   const { data: matters = [] } = useQuery<PortalMatter[]>({
     queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug, "matters"],
     queryFn: async () => {
-      const res = await fetch(`/api/public/portal/${params.clientSlug}/${params.portalSlug}/matters`);
+      const res = await fetch(`${baseUrl}/matters`);
       if (!res.ok) throw new Error("Failed to load matters");
       return res.json();
     },
@@ -57,12 +83,106 @@ export default function PublicPortal() {
   const { data: documents = [] } = useQuery<PortalDocument[]>({
     queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug, "matters", selectedMatter?.id, "documents"],
     queryFn: async () => {
-      const res = await fetch(`/api/public/portal/${params.clientSlug}/${params.portalSlug}/matters/${selectedMatter!.id}/documents`);
+      const res = await fetch(`${baseUrl}/matters/${selectedMatter!.id}/documents`);
       if (!res.ok) throw new Error("Failed to load documents");
       return res.json();
     },
     enabled: !!selectedMatter,
   });
+
+  const { data: messages = [], refetch: refetchMessages } = useQuery<ChatMessage[]>({
+    queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug, "conversations", activeConversation, "messages"],
+    queryFn: async () => {
+      const res = await fetch(`${baseUrl}/conversations/${activeConversation}/messages`);
+      if (!res.ok) throw new Error("Failed to load messages");
+      return res.json();
+    },
+    enabled: !!activeConversation,
+  });
+
+  const createConversationMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${baseUrl}/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "New Conversation" }),
+      });
+      if (!res.ok) throw new Error("Failed to create conversation");
+      return res.json();
+    },
+    onSuccess: (data: Conversation) => {
+      setActiveConversation(data.id);
+    },
+  });
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, streamingMessage, pendingUserMessage]);
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || isStreaming) return;
+    
+    let convId = activeConversation;
+    
+    if (!convId) {
+      const newConv = await createConversationMutation.mutateAsync();
+      convId = newConv.id;
+    }
+
+    const userMessage = chatInput;
+    setChatInput("");
+    setPendingUserMessage(userMessage);
+    setIsStreaming(true);
+    setStreamingMessage("");
+
+    try {
+      const response = await fetch(`${baseUrl}/conversations/${convId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      if (!response.ok) throw new Error("Chat failed");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let fullMessage = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                fullMessage += parsed.content;
+                setStreamingMessage(fullMessage);
+              }
+            } catch {}
+          }
+        }
+      }
+
+      await refetchMessages();
+    } catch (error) {
+      console.error("Chat error:", error);
+    } finally {
+      setIsStreaming(false);
+      setStreamingMessage("");
+      setPendingUserMessage(null);
+    }
+  };
 
   if (portalLoading) {
     return (
@@ -84,6 +204,110 @@ export default function PublicPortal() {
       </div>
     );
   }
+
+  const ChatPanel = () => (
+    <div className="fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)]">
+      <Card className="shadow-xl">
+        <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base">AI Research Assistant</CardTitle>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(false)} data-testid="button-close-chat">
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="h-80 p-4">
+            {messages.length === 0 && !streamingMessage && (
+              <div className="text-center text-muted-foreground py-8">
+                <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Ask me anything about the research shared in this portal.</p>
+              </div>
+            )}
+            <div className="space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  data-testid={`chat-message-${msg.role}-${msg.id}`}
+                  className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  {msg.role === "assistant" && (
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                      <Bot className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                  {msg.role === "user" && (
+                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {pendingUserMessage && (
+                <div className="flex gap-2 justify-end" data-testid="chat-message-pending">
+                  <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-primary text-primary-foreground">
+                    {pendingUserMessage}
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                </div>
+              )}
+              {streamingMessage && (
+                <div className="flex gap-2 justify-start" data-testid="chat-message-streaming">
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted">
+                    {streamingMessage}
+                  </div>
+                </div>
+              )}
+              {isStreaming && !streamingMessage && (
+                <div className="flex gap-2 justify-start" data-testid="chat-loading">
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="rounded-lg px-3 py-2 bg-muted">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div ref={chatEndRef} />
+          </ScrollArea>
+          <div className="p-3 border-t flex gap-2">
+            <Input
+              placeholder="Ask a question..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+              disabled={isStreaming}
+              data-testid="input-chat-message"
+            />
+            <Button
+              size="icon"
+              onClick={sendMessage}
+              disabled={!chatInput.trim() || isStreaming}
+              data-testid="button-send-chat"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   if (selectedMatter) {
     return (
@@ -142,6 +366,19 @@ export default function PublicPortal() {
             )}
           </div>
         </div>
+
+        {!isChatOpen && (
+          <Button
+            className="fixed bottom-4 right-4 rounded-full shadow-lg"
+            size="lg"
+            onClick={() => setIsChatOpen(true)}
+            data-testid="button-open-chat"
+          >
+            <MessageCircle className="w-5 h-5 mr-2" />
+            Ask AI
+          </Button>
+        )}
+        {isChatOpen && <ChatPanel />}
       </div>
     );
   }
@@ -239,6 +476,19 @@ export default function PublicPortal() {
           <p>Powered by Political Intelligence Platform</p>
         </div>
       </footer>
+
+      {!isChatOpen && (
+        <Button
+          className="fixed bottom-4 right-4 rounded-full shadow-lg"
+          size="lg"
+          onClick={() => setIsChatOpen(true)}
+          data-testid="button-open-chat"
+        >
+          <MessageCircle className="w-5 h-5 mr-2" />
+          Ask AI
+        </Button>
+      )}
+      {isChatOpen && <ChatPanel />}
     </div>
   );
 }

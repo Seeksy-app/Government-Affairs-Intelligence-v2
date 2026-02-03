@@ -429,6 +429,41 @@ export const insertPortalMatterAccessSchema = createInsertSchema(portalMatterAcc
 export type InsertPortalMatterAccess = z.infer<typeof insertPortalMatterAccessSchema>;
 export type PortalMatterAccess = typeof portalMatterAccess.$inferSelect;
 
+// Portal AI Conversations (for Firm's Client portals)
+export const portalConversations = pgTable("portal_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  portalId: varchar("portal_id").notNull(),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPortalConversationSchema = createInsertSchema(portalConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPortalConversation = z.infer<typeof insertPortalConversationSchema>;
+export type PortalConversation = typeof portalConversations.$inferSelect;
+
+// Portal AI Messages
+export const portalMessages = pgTable("portal_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull(),
+  role: text("role").notNull(), // 'user' or 'assistant'
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPortalMessageSchema = createInsertSchema(portalMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPortalMessage = z.infer<typeof insertPortalMessageSchema>;
+export type PortalMessage = typeof portalMessages.$inferSelect;
+
 // YouTube watch list for auto-transcription
 export const youtubeWatchList = pgTable("youtube_watch_list", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
