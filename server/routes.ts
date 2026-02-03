@@ -3228,5 +3228,283 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ============ Influencer Tracking Routes (Influencers Club API) ============
+
+  // Get all tracked influencers for client
+  app.get("/api/influencers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const influencers = await storage.getTrackedInfluencers(clientId);
+      res.json(influencers);
+    } catch (error) {
+      console.error("Error fetching influencers:", error);
+      res.status(500).json({ message: "Failed to fetch influencers" });
+    }
+  });
+
+  // Add new influencer to track
+  app.post("/api/influencers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const { username, platform, notes } = req.body;
+      if (!username || !platform) {
+        return res.status(400).json({ message: "Username and platform are required" });
+      }
+      
+      const validPlatforms = ["instagram", "youtube", "tiktok", "twitter", "twitch", "onlyfans"];
+      if (!validPlatforms.includes(platform)) {
+        return res.status(400).json({ message: "Invalid platform" });
+      }
+      
+      const exists = await storage.influencerExists(clientId, platform, username);
+      if (exists) {
+        return res.status(400).json({ message: "This influencer is already being tracked" });
+      }
+
+      const { enrichByHandle, parseInfluencerData, getPlatformProfileUrl } = await import("./services/influencers-api");
+      
+      const enrichResult = await enrichByHandle(username, platform, "raw");
+      
+      let influencerData: any = {
+        clientId,
+        platform,
+        username: username.replace(/^@/, ""),
+        profileUrl: getPlatformProfileUrl(platform, username.replace(/^@/, "")),
+        notes,
+        isActive: true,
+      };
+      
+      if (enrichResult.success && enrichResult.data) {
+        const parsed = parseInfluencerData(platform, enrichResult.data);
+        influencerData = {
+          ...influencerData,
+          displayName: parsed.displayName,
+          bio: parsed.bio,
+          followerCount: parsed.followerCount,
+          followingCount: parsed.followingCount,
+          postCount: parsed.postCount,
+          profilePictureUrl: parsed.profilePictureUrl,
+          isVerified: parsed.isVerified,
+          engagementRate: parsed.engagementRate,
+          location: parsed.location,
+          email: parsed.email,
+          rawData: JSON.stringify(enrichResult.data),
+          lastSyncAt: new Date(),
+        };
+      } else {
+        influencerData.lastSyncError = enrichResult.error || "Failed to fetch profile data";
+      }
+      
+      const influencer = await storage.createTrackedInfluencer(influencerData);
+      res.status(201).json(influencer);
+    } catch (error) {
+      console.error("Error adding influencer:", error);
+      res.status(500).json({ message: "Failed to add influencer" });
+    }
+  });
+
+  // Update influencer
+  app.patch("/api/influencers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const influencer = await storage.getTrackedInfluencer(req.params.id);
+      if (!influencer || influencer.clientId !== clientId) {
+        return res.status(404).json({ message: "Influencer not found" });
+      }
+      const updated = await storage.updateTrackedInfluencer(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating influencer:", error);
+      res.status(500).json({ message: "Failed to update influencer" });
+    }
+  });
+
+  // Delete influencer
+  app.delete("/api/influencers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const influencer = await storage.getTrackedInfluencer(req.params.id);
+      if (!influencer || influencer.clientId !== clientId) {
+        return res.status(404).json({ message: "Influencer not found" });
+      }
+      await storage.deleteTrackedInfluencer(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting influencer:", error);
+      res.status(500).json({ message: "Failed to delete influencer" });
+    }
+  });
+
+  // Sync/refresh influencer data
+  app.post("/api/influencers/:id/sync", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const influencer = await storage.getTrackedInfluencer(req.params.id);
+      if (!influencer || influencer.clientId !== clientId) {
+        return res.status(404).json({ message: "Influencer not found" });
+      }
+      
+      const { enrichByHandle, parseInfluencerData } = await import("./services/influencers-api");
+      const enrichResult = await enrichByHandle(influencer.username, influencer.platform as any, "raw");
+      
+      if (!enrichResult.success) {
+        await storage.updateTrackedInfluencer(req.params.id, {
+          lastSyncError: enrichResult.error || "Failed to fetch profile data",
+        });
+        return res.status(400).json({ message: enrichResult.error || "Failed to sync" });
+      }
+      
+      const parsed = parseInfluencerData(influencer.platform as any, enrichResult.data);
+      const updated = await storage.updateTrackedInfluencer(req.params.id, {
+        displayName: parsed.displayName,
+        bio: parsed.bio,
+        followerCount: parsed.followerCount,
+        followingCount: parsed.followingCount,
+        postCount: parsed.postCount,
+        profilePictureUrl: parsed.profilePictureUrl,
+        isVerified: parsed.isVerified,
+        engagementRate: parsed.engagementRate,
+        location: parsed.location,
+        email: parsed.email,
+        rawData: JSON.stringify(enrichResult.data),
+        lastSyncAt: new Date(),
+        lastSyncError: null,
+      });
+      
+      // Store posts if available
+      if (parsed.posts && parsed.posts.length > 0) {
+        for (const post of parsed.posts.slice(0, 20)) {
+          const postId = post.id || post.post_id || `${Date.now()}-${Math.random()}`;
+          const exists = await storage.influencerPostExists(postId, influencer.id);
+          if (!exists) {
+            await storage.createInfluencerPost({
+              clientId,
+              influencerId: influencer.id,
+              platform: influencer.platform,
+              postId,
+              postUrl: post.post_url,
+              content: post.caption || post.content,
+              postType: post.media_type,
+              likes: post.likes,
+              comments: post.comments,
+              shares: post.shares,
+              views: post.views,
+              engagementRate: post.engagement_rate?.toString(),
+              hashtags: post.hashtags,
+              postedAt: post.posted_at ? new Date(post.posted_at) : null,
+              rawData: JSON.stringify(post),
+            });
+          }
+        }
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error syncing influencer:", error);
+      res.status(500).json({ message: "Failed to sync influencer" });
+    }
+  });
+
+  // Get influencer posts
+  app.get("/api/influencers/posts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const limit = parseInt(req.query.limit as string) || 100;
+      const posts = await storage.getInfluencerPosts(clientId, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching influencer posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  // Get posts for specific influencer
+  app.get("/api/influencers/:id/posts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const influencer = await storage.getTrackedInfluencer(req.params.id);
+      if (!influencer || influencer.clientId !== clientId) {
+        return res.status(404).json({ message: "Influencer not found" });
+      }
+      const limit = parseInt(req.query.limit as string) || 50;
+      const posts = await storage.getInfluencerPostsByInfluencer(req.params.id, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching influencer posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  // Mark post as read
+  app.patch("/api/influencer-posts/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const post = await storage.getInfluencerPost(req.params.id);
+      if (!post || post.clientId !== clientId) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      await storage.markInfluencerPostAsRead(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error marking post as read:", error);
+      res.status(500).json({ message: "Failed to mark as read" });
+    }
+  });
+
+  // Toggle post flag
+  app.patch("/api/influencer-posts/:id/flag", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const post = await storage.getInfluencerPost(req.params.id);
+      if (!post || post.clientId !== clientId) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      const updated = await storage.toggleInfluencerPostFlag(req.params.id);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling post flag:", error);
+      res.status(500).json({ message: "Failed to toggle flag" });
+    }
+  });
+
+  // Check API credits
+  app.get("/api/influencers/credits", isAuthenticated, async (req, res) => {
+    try {
+      const { checkCredits } = await import("./services/influencers-api");
+      const result = await checkCredits();
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking credits:", error);
+      res.status(500).json({ message: "Failed to check credits" });
+    }
+  });
+
   return httpServer;
 }
