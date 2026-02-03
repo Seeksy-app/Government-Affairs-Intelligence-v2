@@ -1,17 +1,18 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 import type { Contact, CareerHistory } from "@shared/schema";
 
 interface CongressMember {
@@ -69,6 +70,7 @@ interface ContactWithHistory extends Contact {
 }
 
 export default function NetworkPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   
   // Congress Member filters
@@ -77,6 +79,10 @@ export default function NetworkPage() {
   const [partyFilter, setPartyFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showMemberSearch, setShowMemberSearch] = useState(false);
+  
+  // Staffer lookup
+  const [stafferInfo, setStafferInfo] = useState<string | null>(null);
+  const [stafferLoading, setStafferLoading] = useState(false);
   
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
@@ -124,7 +130,68 @@ export default function NetworkPage() {
       return data;
     },
     enabled: showMemberSearch && (searchTrigger > 0 || hasFilters),
+    select: (data) => {
+      if (!memberSearch.trim()) return data;
+      const searchTerms = memberSearch.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+      
+      // Sort by match quality: exact full name > exact last name > partial matches
+      return [...data].sort((a, b) => {
+        const aFullName = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const bFullName = `${b.firstName} ${b.lastName}`.toLowerCase();
+        const aLastName = a.lastName.toLowerCase();
+        const bLastName = b.lastName.toLowerCase();
+        const searchLower = memberSearch.toLowerCase().trim();
+        
+        // Exact full name match gets highest priority
+        const aExactFull = aFullName === searchLower ? 3 : 0;
+        const bExactFull = bFullName === searchLower ? 3 : 0;
+        
+        // Exact last name match gets second priority
+        const aExactLast = aLastName === searchTerms[searchTerms.length - 1] ? 2 : 0;
+        const bExactLast = bLastName === searchTerms[searchTerms.length - 1] ? 2 : 0;
+        
+        // Leadership roles get bonus
+        const aHasLeadership = (a.leadership?.length ?? 0) > 0 ? 1 : 0;
+        const bHasLeadership = (b.leadership?.length ?? 0) > 0 ? 1 : 0;
+        
+        const aScore = aExactFull + aExactLast + aHasLeadership;
+        const bScore = bExactFull + bExactLast + bHasLeadership;
+        
+        return bScore - aScore;
+      });
+    },
   });
+  
+  // Staffer lookup mutation
+  const stafferMutation = useMutation({
+    mutationFn: async (member: CongressMember) => {
+      const prompt = `Find the current key staff members for ${member.firstName} ${member.lastName}, ${member.chamber === "House" ? "Representative" : "Senator"} from ${member.state}. Include their names, titles, and contact information if available. Focus on Chief of Staff, Legislative Director, Communications Director, and other senior staff.`;
+      const res = await apiRequest("POST", "/api/research/chat", {
+        message: prompt,
+        context: "",
+        history: []
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setStafferInfo(data.response);
+      setStafferLoading(false);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Failed to find staffers", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+      setStafferLoading(false);
+    },
+  });
+  
+  const handleFindStaffers = (member: CongressMember) => {
+    setStafferInfo(null);
+    setStafferLoading(true);
+    stafferMutation.mutate(member);
+  };
   
   const handleMemberSearch = () => {
     setSearchTrigger(t => t + 1);
@@ -140,6 +207,13 @@ export default function NetworkPage() {
 
   // Selected member for detail view
   const [selectedMember, setSelectedMember] = useState<CongressMember | null>(null);
+  
+  // Clear staffer info when member changes
+  const handleSelectMember = (member: CongressMember | null) => {
+    setSelectedMember(member);
+    setStafferInfo(null);
+    setStafferLoading(false);
+  };
   
   // Fetch member details when selected
   const { data: memberDetails, isLoading: detailsLoading } = useQuery<CongressMember>({
@@ -333,7 +407,7 @@ export default function NetworkPage() {
                       <div
                         key={member.bioguideId}
                         className="p-4 rounded-lg border hover-elevate cursor-pointer"
-                        onClick={() => setSelectedMember(member)}
+                        onClick={() => handleSelectMember(member)}
                         data-testid={`member-card-${member.bioguideId}`}
                       >
                         <div className="flex items-start gap-3">
@@ -677,7 +751,7 @@ export default function NetworkPage() {
       </Card>
 
       {/* Member Detail Sheet */}
-      <Sheet open={!!selectedMember} onOpenChange={(open) => !open && setSelectedMember(null)}>
+      <Sheet open={!!selectedMember} onOpenChange={(open) => !open && handleSelectMember(null)}>
         <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col">
           <SheetHeader className="pb-4">
             <SheetTitle className="flex items-center gap-3">
@@ -766,6 +840,66 @@ export default function NetworkPage() {
                     </div>
                   )}
                 </div>
+              </div>
+              
+              <Separator />
+              
+              {/* Staff Lookup */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <UserSearch className="h-4 w-4" />
+                    Staff Members
+                  </h4>
+                  {selectedMember && !stafferInfo && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFindStaffers(selectedMember)}
+                      disabled={stafferLoading}
+                      data-testid="button-find-staffers"
+                    >
+                      {stafferLoading ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-3 w-3 mr-2" />
+                          Find Staffers
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+                
+                {stafferLoading && (
+                  <div className="p-4 rounded-lg border bg-muted/30 flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Looking up staff information...</span>
+                  </div>
+                )}
+                
+                {stafferInfo && (
+                  <div className="p-4 rounded-lg border bg-muted/30">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{stafferInfo}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-3 text-xs"
+                      onClick={() => setStafferInfo(null)}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+                
+                {!stafferInfo && !stafferLoading && (
+                  <p className="text-sm text-muted-foreground">
+                    Click "Find Staffers" to look up key staff members using AI research.
+                  </p>
+                )}
               </div>
               
               <Separator />
