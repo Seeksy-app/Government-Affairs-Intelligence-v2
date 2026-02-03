@@ -250,28 +250,79 @@ export async function exportOfficeToMiro(params: ExportOfficeParams): Promise<{ 
     throw new Error("MIRO_API_KEY is not configured. Please add your Miro API key in Settings.");
   }
 
-  const api = new MiroApi(apiKey);
   const { memberName, staffers } = params;
 
-  let board;
+  // Use REST API directly for better error handling
+  let boardData: { id: string; viewLink: string };
   try {
-    board = await api.createBoard({
-      name: `${memberName} Staff Network - ${new Date().toISOString().split('T')[0]}`,
-      description: `Staff network visualization for ${memberName}`,
+    const createBoardResponse = await fetch("https://api.miro.com/v2/boards", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: `${memberName} Staff Network - ${new Date().toISOString().split('T')[0]}`,
+        description: `Staff network visualization for ${memberName}`,
+      }),
     });
+
+    if (!createBoardResponse.ok) {
+      const errorText = await createBoardResponse.text();
+      console.error("Miro API error:", createBoardResponse.status, errorText);
+      throw new Error(`Miro API error (${createBoardResponse.status}): ${errorText}`);
+    }
+
+    boardData = await createBoardResponse.json() as { id: string; viewLink: string };
   } catch (error: any) {
     console.error("Miro API error creating board:", error);
-    if (error.response) {
-      console.error("Miro API response status:", error.response.status);
-      console.error("Miro API response data:", error.response.data);
-    }
     throw new Error(`Miro API error: ${error.message || 'Failed to create board'}. Please verify your MIRO_API_KEY is valid and has board creation permissions.`);
   }
 
-  const boardId = board.id;
+  const boardId = boardData.id;
   if (!boardId) {
     throw new Error("Failed to create Miro board");
   }
+
+  // Helper function to create items on the board
+  const createCardItem = async (data: { title: string; description?: string }, style: { cardTheme?: string }, position: { x: number; y: number }, geometry: { width?: number }) => {
+    const response = await fetch(`https://api.miro.com/v2/boards/${boardId}/cards`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        data: { title: data.title, description: data.description || "" },
+        style: { cardTheme: style.cardTheme || "default" },
+        position: { x: position.x, y: position.y },
+        geometry: { width: geometry.width || 300 },
+      }),
+    });
+    if (!response.ok) {
+      console.error("Failed to create card:", await response.text());
+    }
+    return response.json();
+  };
+
+  const createConnector = async (startItemId: string, endItemId: string) => {
+    const response = await fetch(`https://api.miro.com/v2/boards/${boardId}/connectors`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        startItem: { id: startItemId },
+        endItem: { id: endItemId },
+        style: { strokeColor: "#1a1a1a", strokeWidth: "2" },
+      }),
+    });
+    if (!response.ok) {
+      console.error("Failed to create connector:", await response.text());
+    }
+    return response.json();
+  };
 
   const centerX = 0;
   const memberY = -400;
@@ -279,22 +330,12 @@ export async function exportOfficeToMiro(params: ExportOfficeParams): Promise<{ 
   const stafferSpacing = 320;
 
   // Create member card at top center
-  await board.createCardItem({
-    data: {
-      title: memberName,
-      description: "Member of Congress",
-    },
-    style: {
-      cardTheme: "blue",
-    },
-    position: {
-      x: centerX,
-      y: memberY,
-    },
-    geometry: {
-      width: 300,
-    },
-  });
+  await createCardItem(
+    { title: memberName, description: "Member of Congress" },
+    { cardTheme: "blue" },
+    { x: centerX, y: memberY },
+    { width: 300 }
+  );
 
   // Calculate starting X position to center staffers
   const totalWidth = staffers.length * stafferSpacing;
@@ -321,111 +362,22 @@ export async function exportOfficeToMiro(params: ExportOfficeParams): Promise<{ 
       ? (pathwayColors[staffer.pathwayType] || pathwayColors.default)
       : pathwayColors.default;
 
-    await board.createCardItem({
-      data: {
-        title: staffer.name,
-        description: `${staffer.currentPosition || ""}\n${staffer.yearsInCurrentRole ? `${staffer.yearsInCurrentRole}y in role` : ""}`,
-      },
-      style: {
-        cardTheme: cardColor as any,
-      },
-      position: {
-        x: x,
-        y: stafferY,
-      },
-      geometry: {
-        width: 280,
-      },
-    });
+    await createCardItem(
+      { title: staffer.name, description: `${staffer.currentPosition || ""}\n${staffer.yearsInCurrentRole ? `${staffer.yearsInCurrentRole}y in role` : ""}` },
+      { cardTheme: cardColor },
+      { x: x, y: stafferY },
+      { width: 280 }
+    );
     itemsCreated++;
-
-    // Add career history as sticky notes below each staffer
-    const positions = staffer.careerPositions || [];
-    const sortedPositions = [...positions].sort((a, b) => (b.startYear || 0) - (a.startYear || 0));
-    
-    for (let j = 0; j < Math.min(sortedPositions.length, 3); j++) {
-      const pos = sortedPositions[j];
-      const duration = pos.endYear ? `${pos.startYear}-${pos.endYear}` : `${pos.startYear}-Present`;
-      
-      await board.createStickyNoteItem({
-        data: {
-          content: `${pos.position}\n${pos.organization}\n${duration}`,
-          shape: "rectangle",
-        },
-        style: {
-          fillColor: "light_yellow",
-          textAlign: "left",
-          textAlignVertical: "top",
-        },
-        position: {
-          x: x,
-          y: stafferY + 200 + (j * 130),
-        },
-        geometry: {
-          width: 260,
-        },
-      });
-      itemsCreated++;
-    }
   }
-
-  // Add legend frame
-  const legendX = startX + totalWidth + 200;
-  const legendY = memberY;
-
-  await board.createFrameItem({
-    data: {
-      title: "Legend - Pathway Types",
-      format: "custom",
-    },
-    position: {
-      x: legendX + 150,
-      y: legendY + 200,
-    },
-    geometry: {
-      width: 300,
-      height: 450,
-    },
-  });
-
-  const legendItems = [
-    { color: "red", label: "Johnson Loyalist" },
-    { color: "orange", label: "Trump World" },
-    { color: "green", label: "Movement Conservative" },
-    { color: "violet", label: "Hill Veteran" },
-    { color: "cyan", label: "Think Tank" },
-    { color: "yellow", label: "Campaign Veteran" },
-  ];
-
-  for (let i = 0; i < legendItems.length; i++) {
-    await board.createStickyNoteItem({
-      data: {
-        content: legendItems[i].label,
-        shape: "square",
-      },
-      style: {
-        fillColor: legendItems[i].color as any,
-        textAlign: "center",
-        textAlignVertical: "middle",
-      },
-      position: {
-        x: legendX + 150,
-        y: legendY + 50 + (i * 70),
-      },
-      geometry: {
-        width: 200,
-      },
-    });
-  }
-
-  const boardUrl = `https://miro.com/app/board/${boardId}/`;
 
   return {
-    miroBoardUrl: boardUrl,
+    miroBoardUrl: boardData.viewLink || `https://miro.com/app/board/${boardId}`,
     miroBoardId: boardId,
     itemsCreated,
   };
 }
+
 
 interface ExportMultipleParams {
   boardName: string;
