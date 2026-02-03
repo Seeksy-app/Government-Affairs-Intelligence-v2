@@ -46,6 +46,17 @@ async function buildAll() {
   ];
   const externals = allDeps.filter((dep) => !allowlist.includes(dep));
 
+  // ESM-only packages that must be externalized to avoid CJS compatibility issues
+  const esmOnlyPackages = [
+    "openid-client",
+    "p-limit",
+    "p-retry",
+    "nanoid",
+  ];
+  
+  // Combine with other externals
+  const allExternals = [...new Set([...externals, ...esmOnlyPackages])];
+
   await esbuild({
     entryPoints: ["server/index.ts"],
     platform: "node",
@@ -56,7 +67,7 @@ async function buildAll() {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
-    external: externals,
+    external: allExternals,
     logLevel: "info",
   });
 }
