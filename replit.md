@@ -46,6 +46,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **News Aggregation**: Monitor political news with filtering
 - **Network Visualization**: View relationships and organizations
 - **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
+- **Congress Member Favorites**: Star and save frequently accessed Congress members with Matter assignment
+- **Customers Portal**: Track relationship contacts (Congress members, staffers, manual entries) with Matter assignment for organizing outreach
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
 - **AI Research Agent**: Context-aware Q&A from research documents using OpenAI
 
@@ -96,6 +98,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `social_auto_sync_config` - Auto-sync configuration per client
 - `tracked_influencers` - Influencers tracked via Influencers Club API
 - `influencer_posts` - Posts from tracked influencers
+- `customers` - Customer relationships (Congress members, staffers, manual contacts) with Matter assignment
+- `favorites` - Favorited Congress members for quick access
 
 ## API Routes
 
@@ -152,6 +156,22 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ### Congress API Routes
 - `GET /api/congress/members` - Search current Members of Congress (filters: search, chamber, party, state)
 - `GET /api/congress/members/:bioguideId` - Get detailed info for a specific member
+
+### Customers Routes
+- `GET /api/customers` - List customers for client
+- `GET /api/customers/:id` - Get single customer
+- `GET /api/customers/by-matter/:matterId` - Get customers for a specific matter
+- `GET /api/customers/check/:sourceType/:sourceId` - Check if a customer already exists
+- `POST /api/customers` - Create customer
+- `PATCH /api/customers/:id` - Update customer (including matter assignment)
+- `DELETE /api/customers/:id` - Delete customer
+
+### Favorites Routes
+- `GET /api/favorites` - List favorited Congress members
+- `POST /api/favorites` - Add Congress member to favorites
+- `PATCH /api/favorites/:id` - Update favorite (including matter assignment)
+- `DELETE /api/favorites/:id` - Remove from favorites
+- `GET /api/favorites/check/:bioguideId` - Check if member is favorited
 
 ### Influencer Tracking Routes
 - `GET /api/influencers` - List tracked influencers
