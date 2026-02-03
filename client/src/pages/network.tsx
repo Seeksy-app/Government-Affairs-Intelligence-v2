@@ -162,6 +162,7 @@ export default function NetworkPage() {
   const [stafferInfo, setStafferInfo] = useState<string | null>(null);
   const [stafferLoading, setStafferLoading] = useState(false);
   const [miroMapping, setMiroMapping] = useState(false);
+  const [embeddedMiroBoard, setEmbeddedMiroBoard] = useState<{ url: string; title: string } | null>(null);
   
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
@@ -446,10 +447,16 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       
       toast({ 
         title: "Office mapped to Miro!", 
-        description: "Opening board in new tab..." 
+        description: "Board created successfully" 
       });
       
-      window.open(data.miroBoardUrl, '_blank');
+      // Convert the board URL to embed URL and show in dialog
+      const boardId = data.miroBoardId;
+      const embedUrl = `https://miro.com/app/live-embed/${boardId}/?moveToViewport=-1000,-500,2000,1000&embedAutoplay=true`;
+      setEmbeddedMiroBoard({ 
+        url: embedUrl, 
+        title: `${selectedMember?.name || 'Office'} Staff Network` 
+      });
     } catch (error: any) {
       toast({ 
         title: "Failed to map to Miro", 
@@ -1550,6 +1557,49 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      {/* Embedded Miro Board Dialog */}
+      <Dialog open={!!embeddedMiroBoard} onOpenChange={(open) => !open && setEmbeddedMiroBoard(null)}>
+        <DialogContent className="max-w-6xl h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Map className="h-5 w-5" />
+              {embeddedMiroBoard?.title || "Network Map"}
+            </DialogTitle>
+            <DialogDescription>
+              Interactive network visualization powered by Miro
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 h-full min-h-[60vh]">
+            {embeddedMiroBoard && (
+              <iframe
+                src={embeddedMiroBoard.url}
+                className="w-full h-full border rounded-lg"
+                allow="fullscreen; clipboard-read; clipboard-write"
+                allowFullScreen
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (embeddedMiroBoard) {
+                  const boardUrl = embeddedMiroBoard.url.replace('/live-embed/', '/board/').split('?')[0];
+                  window.open(boardUrl, '_blank');
+                }
+              }}
+              data-testid="button-open-miro-external"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open in Miro
+            </Button>
+            <Button onClick={() => setEmbeddedMiroBoard(null)} data-testid="button-close-miro">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
