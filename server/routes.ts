@@ -3322,6 +3322,153 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ============ Social Engagement History Routes ============
+
+  // Get engagement history for an account
+  app.get("/api/social/accounts/:accountId/engagement", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const limit = parseInt(req.query.limit as string) || 30;
+      const history = await storage.getSocialEngagementHistory(req.params.accountId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching engagement history:", error);
+      res.status(500).json({ message: "Failed to fetch engagement history" });
+    }
+  });
+
+  // Get engagement history for a specific post
+  app.get("/api/social/posts/:postId/engagement", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const limit = parseInt(req.query.limit as string) || 30;
+      const history = await storage.getSocialPostEngagementHistory(req.params.postId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching post engagement history:", error);
+      res.status(500).json({ message: "Failed to fetch post engagement history" });
+    }
+  });
+
+  // ============ Social Keyword Alerts Routes ============
+
+  // Get keyword alerts for client
+  app.get("/api/social/alerts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const includeRead = req.query.includeRead === "true";
+      const alerts = await storage.getSocialKeywordAlerts(clientId, includeRead);
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      res.status(500).json({ message: "Failed to fetch alerts" });
+    }
+  });
+
+  // Get unread alert count
+  app.get("/api/social/alerts/count", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const count = await storage.getUnreadAlertCount(clientId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching alert count:", error);
+      res.status(500).json({ message: "Failed to fetch alert count" });
+    }
+  });
+
+  // Mark alert as read
+  app.patch("/api/social/alerts/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markAlertAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking alert as read:", error);
+      res.status(500).json({ message: "Failed to mark alert as read" });
+    }
+  });
+
+  // Dismiss alert
+  app.patch("/api/social/alerts/:id/dismiss", isAuthenticated, async (req, res) => {
+    try {
+      await storage.dismissAlert(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error dismissing alert:", error);
+      res.status(500).json({ message: "Failed to dismiss alert" });
+    }
+  });
+
+  // Mark all alerts as read
+  app.post("/api/social/alerts/mark-all-read", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      await storage.markAllAlertsAsRead(clientId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all alerts as read:", error);
+      res.status(500).json({ message: "Failed to mark all alerts as read" });
+    }
+  });
+
+  // ============ Social Auto-Sync Configuration Routes ============
+
+  // Get auto-sync configuration for client
+  app.get("/api/social/auto-sync", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const config = await storage.getSocialAutoSyncConfig(clientId);
+      res.json(config || { isEnabled: false, syncIntervalMinutes: 60 });
+    } catch (error) {
+      console.error("Error fetching auto-sync config:", error);
+      res.status(500).json({ message: "Failed to fetch auto-sync configuration" });
+    }
+  });
+
+  // Update auto-sync configuration
+  app.post("/api/social/auto-sync", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const { isEnabled, syncIntervalMinutes } = req.body;
+      
+      let nextScheduledSync: Date | undefined;
+      if (isEnabled && syncIntervalMinutes) {
+        nextScheduledSync = new Date(Date.now() + syncIntervalMinutes * 60 * 1000);
+      }
+      
+      const config = await storage.createOrUpdateAutoSyncConfig(clientId, {
+        isEnabled,
+        syncIntervalMinutes,
+        nextScheduledSync,
+      });
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating auto-sync config:", error);
+      res.status(500).json({ message: "Failed to update auto-sync configuration" });
+    }
+  });
+
   // ============ Influencer Tracking Routes (Influencers Club API) ============
 
   // Get all tracked influencers for client

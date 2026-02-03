@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, and, gte, or, ilike } from "drizzle-orm";
+import { eq, desc, and, gte, lte, or, ilike, isNull } from "drizzle-orm";
 import {
   clients,
   clientUsers,
@@ -27,6 +27,9 @@ import {
   trackedSocialAccounts,
   socialTrackingKeywords,
   trackedSocialPosts,
+  socialEngagementHistory,
+  socialKeywordAlerts,
+  socialAutoSyncConfig,
   trackedInfluencers,
   influencerPosts,
   staffers,
@@ -85,6 +88,12 @@ import {
   type InsertSocialTrackingKeyword,
   type TrackedSocialPost,
   type InsertTrackedSocialPost,
+  type SocialEngagementHistory,
+  type InsertSocialEngagementHistory,
+  type SocialKeywordAlert,
+  type InsertSocialKeywordAlert,
+  type SocialAutoSyncConfig,
+  type InsertSocialAutoSyncConfig,
   type TrackedInfluencer,
   type InsertTrackedInfluencer,
   type InfluencerPost,
@@ -1043,6 +1052,78 @@ export class DatabaseStorage implements IStorage {
   async socialPostExists(postId: string, accountId: string): Promise<boolean> {
     const [existing] = await db.select().from(trackedSocialPosts).where(and(eq(trackedSocialPosts.postId, postId), eq(trackedSocialPosts.accountId, accountId)));
     return !!existing;
+  }
+
+  // Social Engagement History
+  async getSocialEngagementHistory(accountId: string, limit: number = 30): Promise<SocialEngagementHistory[]> {
+    return db.select().from(socialEngagementHistory).where(eq(socialEngagementHistory.accountId, accountId)).orderBy(desc(socialEngagementHistory.recordedAt)).limit(limit);
+  }
+
+  async getSocialPostEngagementHistory(postId: string, limit: number = 30): Promise<SocialEngagementHistory[]> {
+    return db.select().from(socialEngagementHistory).where(eq(socialEngagementHistory.postId, postId)).orderBy(desc(socialEngagementHistory.recordedAt)).limit(limit);
+  }
+
+  async createSocialEngagementRecord(record: InsertSocialEngagementHistory): Promise<SocialEngagementHistory> {
+    const [newRecord] = await db.insert(socialEngagementHistory).values(record).returning();
+    return newRecord;
+  }
+
+  // Social Keyword Alerts
+  async getSocialKeywordAlerts(clientId: string, includeRead: boolean = false): Promise<SocialKeywordAlert[]> {
+    if (includeRead) {
+      return db.select().from(socialKeywordAlerts).where(and(eq(socialKeywordAlerts.clientId, clientId), eq(socialKeywordAlerts.isDismissed, false))).orderBy(desc(socialKeywordAlerts.createdAt));
+    }
+    return db.select().from(socialKeywordAlerts).where(and(eq(socialKeywordAlerts.clientId, clientId), eq(socialKeywordAlerts.isRead, false), eq(socialKeywordAlerts.isDismissed, false))).orderBy(desc(socialKeywordAlerts.createdAt));
+  }
+
+  async getUnreadAlertCount(clientId: string): Promise<number> {
+    const alerts = await db.select().from(socialKeywordAlerts).where(and(eq(socialKeywordAlerts.clientId, clientId), eq(socialKeywordAlerts.isRead, false), eq(socialKeywordAlerts.isDismissed, false)));
+    return alerts.length;
+  }
+
+  async createSocialKeywordAlert(alert: InsertSocialKeywordAlert): Promise<SocialKeywordAlert> {
+    const [newAlert] = await db.insert(socialKeywordAlerts).values(alert).returning();
+    return newAlert;
+  }
+
+  async markAlertAsRead(id: string): Promise<void> {
+    await db.update(socialKeywordAlerts).set({ isRead: true }).where(eq(socialKeywordAlerts.id, id));
+  }
+
+  async dismissAlert(id: string): Promise<void> {
+    await db.update(socialKeywordAlerts).set({ isDismissed: true }).where(eq(socialKeywordAlerts.id, id));
+  }
+
+  async markAllAlertsAsRead(clientId: string): Promise<void> {
+    await db.update(socialKeywordAlerts).set({ isRead: true }).where(eq(socialKeywordAlerts.clientId, clientId));
+  }
+
+  // Social Auto-Sync Configuration
+  async getSocialAutoSyncConfig(clientId: string): Promise<SocialAutoSyncConfig | undefined> {
+    const [config] = await db.select().from(socialAutoSyncConfig).where(eq(socialAutoSyncConfig.clientId, clientId));
+    return config;
+  }
+
+  async createOrUpdateAutoSyncConfig(clientId: string, config: Partial<InsertSocialAutoSyncConfig>): Promise<SocialAutoSyncConfig> {
+    const existing = await this.getSocialAutoSyncConfig(clientId);
+    if (existing) {
+      const [updated] = await db.update(socialAutoSyncConfig).set({ ...config, updatedAt: new Date() }).where(eq(socialAutoSyncConfig.clientId, clientId)).returning();
+      return updated;
+    }
+    const [newConfig] = await db.insert(socialAutoSyncConfig).values({ clientId, ...config }).returning();
+    return newConfig;
+  }
+
+  async getAutoSyncDueClients(): Promise<SocialAutoSyncConfig[]> {
+    return db.select().from(socialAutoSyncConfig).where(
+      and(
+        eq(socialAutoSyncConfig.isEnabled, true),
+        or(
+          lte(socialAutoSyncConfig.nextScheduledSync, new Date()),
+          isNull(socialAutoSyncConfig.nextScheduledSync)
+        )
+      )
+    );
   }
 
   // Tracked Influencers (Influencers Club API)

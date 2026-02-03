@@ -165,21 +165,19 @@ export async function fetchAccountPosts(
   }
 }
 
-export async function syncAccountPosts(accountId: string): Promise<{ added: number; error?: string }> {
+export async function syncAccountPosts(accountId: string): Promise<{ added: number; alerts: number; error?: string }> {
   try {
     const account = await storage.getTrackedSocialAccount(accountId);
     if (!account) {
-      return { added: 0, error: "Account not found" };
+      return { added: 0, alerts: 0, error: "Account not found" };
     }
 
     const keywords = await storage.getSocialTrackingKeywordsForAccount(accountId);
     const globalKeywords = (await storage.getSocialTrackingKeywords(account.clientId))
       .filter(k => !k.accountId);
     
-    const allKeywords = [
-      ...keywords.map(k => k.keyword),
-      ...globalKeywords.map(k => k.keyword),
-    ];
+    const allKeywordRecords = [...keywords, ...globalKeywords];
+    const allKeywords = allKeywordRecords.map(k => k.keyword);
 
     const result = await fetchAccountPosts(accountId, account.username, allKeywords);
 
@@ -187,14 +185,23 @@ export async function syncAccountPosts(accountId: string): Promise<{ added: numb
       await storage.updateTrackedSocialAccount(accountId, {
         lastSyncError: result.error || "Unknown error",
       });
-      return { added: 0, error: result.error };
+      return { added: 0, alerts: 0, error: result.error };
     }
 
     let added = 0;
+    let alertsCreated = 0;
+    let totalLikes = 0;
+    let totalReposts = 0;
+    let totalReplies = 0;
+
     for (const post of result.posts) {
+      totalLikes += post.likeCount || 0;
+      totalReposts += post.repostCount || 0;
+      totalReplies += post.replyCount || 0;
+
       const exists = await storage.socialPostExists(post.postId, accountId);
       if (!exists) {
-        await storage.createTrackedSocialPost({
+        const newPost = await storage.createTrackedSocialPost({
           clientId: account.clientId,
           accountId,
           postId: post.postId,
@@ -202,33 +209,68 @@ export async function syncAccountPosts(accountId: string): Promise<{ added: numb
           postUrl: post.postUrl,
           postedAt: post.postedAt,
           matchedKeywords: post.matchedKeywords,
+          likes: post.likeCount || 0,
+          reposts: post.repostCount || 0,
+          replies: post.replyCount || 0,
           isRead: false,
           isFlagged: false,
         });
         added++;
+
+        // Generate keyword alerts for new posts with matched keywords
+        if (post.matchedKeywords.length > 0) {
+          for (const matchedKw of post.matchedKeywords) {
+            const keywordRecord = allKeywordRecords.find(
+              k => k.keyword.toLowerCase() === matchedKw.toLowerCase()
+            );
+            if (keywordRecord) {
+              await storage.createSocialKeywordAlert({
+                clientId: account.clientId,
+                keywordId: keywordRecord.id,
+                postId: newPost.id,
+                matchedKeyword: matchedKw,
+                postContent: post.content.substring(0, 500),
+                authorUsername: post.authorUsername,
+                postUrl: post.postUrl,
+              });
+              alertsCreated++;
+            }
+          }
+        }
       }
     }
+
+    // Record engagement history for this sync
+    await storage.createSocialEngagementRecord({
+      clientId: account.clientId,
+      accountId,
+      likes: totalLikes,
+      reposts: totalReposts,
+      replies: totalReplies,
+    });
 
     await storage.updateTrackedSocialAccount(accountId, {
       lastSyncAt: new Date(),
       lastSyncError: null,
     });
 
-    return { added };
+    return { added, alerts: alertsCreated };
   } catch (error) {
     console.error(`Error syncing account ${accountId}:`, error);
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    return { added: 0, error: errorMsg };
+    return { added: 0, alerts: 0, error: errorMsg };
   }
 }
 
 export async function syncAllClientAccounts(clientId: string): Promise<{ 
   synced: number; 
   added: number;
+  alerts: number;
   errors: string[];
 }> {
   const accounts = await storage.getTrackedSocialAccounts(clientId);
   let totalAdded = 0;
+  let totalAlerts = 0;
   let synced = 0;
   const errors: string[] = [];
 
@@ -240,9 +282,32 @@ export async function syncAllClientAccounts(clientId: string): Promise<{
       errors.push(`@${account.username}: ${result.error}`);
     } else {
       totalAdded += result.added;
+      totalAlerts += result.alerts;
       synced++;
     }
   }
 
-  return { synced, added: totalAdded, errors };
+  return { synced, added: totalAdded, alerts: totalAlerts, errors };
+}
+
+// Auto-sync function to be called by scheduler
+export async function runAutoSync(): Promise<void> {
+  try {
+    const dueConfigs = await storage.getAutoSyncDueClients();
+    
+    for (const config of dueConfigs) {
+      console.log(`Running auto-sync for client ${config.clientId}`);
+      const result = await syncAllClientAccounts(config.clientId);
+      console.log(`Auto-sync complete: ${result.synced} accounts, ${result.added} posts, ${result.alerts} alerts`);
+      
+      // Update next scheduled sync
+      const nextSync = new Date(Date.now() + (config.syncIntervalMinutes || 60) * 60 * 1000);
+      await storage.createOrUpdateAutoSyncConfig(config.clientId, {
+        lastAutoSyncAt: new Date(),
+        nextScheduledSync: nextSync,
+      });
+    }
+  } catch (error) {
+    console.error("Error running auto-sync:", error);
+  }
 }

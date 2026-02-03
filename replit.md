@@ -60,6 +60,9 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ### Social Media Tracking
 - **X/Twitter Tracking**: Track X accounts and posts via Firecrawl scraping
 - **Keyword Matching**: Filter posts by keywords (global or per-account)
+- **Keyword Alerts**: Get notified when tracked accounts mention specific keywords
+- **Engagement Metrics**: Track likes, reposts, and replies over time with historical data
+- **Auto-Sync**: Scheduled automatic syncing of tracked accounts at configurable intervals
 - **Influencer Tracking** (Influencers Club API): Track influencers across multiple platforms
   - Platforms: Instagram, YouTube, TikTok, Twitter, Twitch, OnlyFans
   - Profile enrichment: followers, engagement rate, bio, recent posts
@@ -88,6 +91,9 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `tracked_social_accounts` - X/Twitter accounts to track
 - `social_tracking_keywords` - Keywords to filter posts
 - `tracked_social_posts` - Scraped posts from tracked accounts
+- `social_engagement_history` - Historical engagement metrics per sync
+- `social_keyword_alerts` - Notifications when keywords are matched
+- `social_auto_sync_config` - Auto-sync configuration per client
 - `tracked_influencers` - Influencers tracked via Influencers Club API
 - `influencer_posts` - Posts from tracked influencers
 

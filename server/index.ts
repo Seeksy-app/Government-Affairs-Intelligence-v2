@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
+import { runAutoSync } from "./services/social-tracker";
 
 const app = express();
 const httpServer = createServer(app);
@@ -106,6 +107,17 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      
+      // Start auto-sync scheduler - runs every 5 minutes to check for due syncs
+      setInterval(async () => {
+        try {
+          await runAutoSync();
+        } catch (error) {
+          console.error("Auto-sync scheduler error:", error);
+        }
+      }, 5 * 60 * 1000); // Check every 5 minutes
+      
+      log("Auto-sync scheduler started");
     },
   );
 })();

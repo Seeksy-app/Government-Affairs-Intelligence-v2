@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { SiX } from "react-icons/si";
-import { Search, Plus, RefreshCw, Trash2, ExternalLink, BookmarkPlus, Eye, Tag, User, AlertCircle, Flag, Check } from "lucide-react";
-import type { TrackedSocialAccount, SocialTrackingKeyword, TrackedSocialPost } from "@shared/schema";
+import { Plus, RefreshCw, Trash2, ExternalLink, Tag, User, AlertCircle, Flag, Check, Bell, Settings, X, Clock, TrendingUp, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import type { TrackedSocialAccount, SocialTrackingKeyword, TrackedSocialPost, SocialKeywordAlert, SocialAutoSyncConfig, SocialEngagementHistory } from "@shared/schema";
 
 export default function SocialTrackingPage() {
   const { toast } = useToast();
@@ -26,6 +26,7 @@ export default function SocialTrackingPage() {
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>("all");
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [syncInterval, setSyncInterval] = useState<string>("60");
 
   const { data: accounts, isLoading: accountsLoading } = useQuery<TrackedSocialAccount[]>({
     queryKey: ["/api/social/accounts"],
@@ -37,6 +38,18 @@ export default function SocialTrackingPage() {
 
   const { data: posts, isLoading: postsLoading } = useQuery<TrackedSocialPost[]>({
     queryKey: ["/api/social/posts"],
+  });
+
+  const { data: alerts, isLoading: alertsLoading } = useQuery<SocialKeywordAlert[]>({
+    queryKey: ["/api/social/alerts", { includeRead: true }],
+  });
+
+  const { data: alertCount } = useQuery<{ count: number }>({
+    queryKey: ["/api/social/alerts/count"],
+  });
+
+  const { data: autoSyncConfig } = useQuery<SocialAutoSyncConfig>({
+    queryKey: ["/api/social/auto-sync"],
   });
 
   const addAccountMutation = useMutation({
@@ -156,6 +169,51 @@ export default function SocialTrackingPage() {
     },
   });
 
+  const markAlertReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/social/alerts/${id}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts/count"] });
+    },
+  });
+
+  const dismissAlertMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/social/alerts/${id}/dismiss`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts/count"] });
+    },
+  });
+
+  const markAllAlertsReadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/social/alerts/mark-all-read");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/social/alerts/count"] });
+      toast({ title: "All alerts marked as read" });
+    },
+  });
+
+  const updateAutoSyncMutation = useMutation({
+    mutationFn: async (config: { isEnabled: boolean; syncIntervalMinutes: number }) => {
+      const res = await apiRequest("POST", "/api/social/auto-sync", config);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/social/auto-sync"] });
+      toast({ title: "Auto-sync settings saved" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save settings", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filteredPosts = posts?.filter(post => {
     if (selectedAccountFilter !== "all" && post.accountId !== selectedAccountFilter) {
       return false;
@@ -221,11 +279,21 @@ export default function SocialTrackingPage() {
               <Badge variant="secondary" className="ml-2">{posts.filter(p => !p.isRead).length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="alerts" data-testid="tab-alerts">
+            <Bell className="h-4 w-4 mr-1" />
+            Alerts {alertCount && alertCount.count > 0 && (
+              <Badge variant="destructive" className="ml-1">{alertCount.count}</Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="accounts" data-testid="tab-accounts">
             Accounts ({accounts?.length || 0})
           </TabsTrigger>
           <TabsTrigger value="keywords" data-testid="tab-keywords">
             Keywords ({keywords?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">
+            <Settings className="h-4 w-4 mr-1" />
+            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -619,6 +687,227 @@ export default function SocialTrackingPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              Keyword match alerts from monitored accounts
+            </p>
+            {alerts && alerts.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => markAllAlertsReadMutation.mutate()}
+                disabled={markAllAlertsReadMutation.isPending}
+                data-testid="button-mark-all-read"
+              >
+                <Check className="h-4 w-4 mr-1" />
+                Mark All Read
+              </Button>
+            )}
+          </div>
+
+          {alertsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+          ) : alerts && alerts.length > 0 ? (
+            <div className="space-y-3">
+              {alerts.map(alert => (
+                <Card 
+                  key={alert.id} 
+                  className={`${!alert.isRead ? "bg-primary/5 border-primary/20" : ""}`}
+                  data-testid={`card-alert-${alert.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Bell className={`h-4 w-4 ${!alert.isRead ? "text-primary" : "text-muted-foreground"}`} />
+                          <Badge variant="secondary">{alert.matchedKeyword}</Badge>
+                          <span className="text-sm text-muted-foreground">
+                            matched in post by @{alert.authorUsername}
+                          </span>
+                        </div>
+                        <p className="text-sm line-clamp-2">{alert.postContent}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{alert.createdAt ? new Date(alert.createdAt).toLocaleString() : "Unknown"}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!alert.isRead && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => markAlertReadMutation.mutate(alert.id)}
+                            title="Mark as read"
+                            data-testid={`button-alert-read-${alert.id}`}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => dismissAlertMutation.mutate(alert.id)}
+                          title="Dismiss alert"
+                          data-testid={`button-alert-dismiss-${alert.id}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                        {alert.postUrl && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <a href={alert.postUrl} target="_blank" rel="noopener noreferrer" data-testid={`button-alert-open-${alert.id}`}>
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No Alerts Yet</h3>
+                <p className="text-muted-foreground mt-1">
+                  When posts match your keywords, alerts will appear here.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Auto-Sync Settings
+              </CardTitle>
+              <CardDescription>
+                Automatically sync tracked accounts at regular intervals to get the latest posts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="auto-sync-toggle">Enable Auto-Sync</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically sync all tracked accounts on a schedule
+                  </p>
+                </div>
+                <Switch
+                  id="auto-sync-toggle"
+                  checked={autoSyncConfig?.isEnabled || false}
+                  onCheckedChange={(checked) => {
+                    updateAutoSyncMutation.mutate({
+                      isEnabled: checked,
+                      syncIntervalMinutes: parseInt(syncInterval) || 60,
+                    });
+                  }}
+                  data-testid="switch-auto-sync"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sync-interval">Sync Interval</Label>
+                <Select 
+                  value={String(autoSyncConfig?.syncIntervalMinutes || 60)} 
+                  onValueChange={(val) => {
+                    setSyncInterval(val);
+                    if (autoSyncConfig?.isEnabled) {
+                      updateAutoSyncMutation.mutate({
+                        isEnabled: true,
+                        syncIntervalMinutes: parseInt(val),
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]" data-testid="select-sync-interval">
+                    <SelectValue placeholder="Select interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">Every 15 minutes</SelectItem>
+                    <SelectItem value="30">Every 30 minutes</SelectItem>
+                    <SelectItem value="60">Every hour</SelectItem>
+                    <SelectItem value="120">Every 2 hours</SelectItem>
+                    <SelectItem value="360">Every 6 hours</SelectItem>
+                    <SelectItem value="720">Every 12 hours</SelectItem>
+                    <SelectItem value="1440">Once daily</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {autoSyncConfig?.isEnabled && (
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {autoSyncConfig.lastAutoSyncAt 
+                        ? `Last synced: ${new Date(autoSyncConfig.lastAutoSyncAt).toLocaleString()}`
+                        : "Not synced yet"
+                      }
+                    </span>
+                  </div>
+                  {autoSyncConfig.nextScheduledSync && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                      <span>Next sync: {new Date(autoSyncConfig.nextScheduledSync).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Engagement Tracking
+              </CardTitle>
+              <CardDescription>
+                Track engagement metrics over time for monitored accounts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="p-4 border rounded-lg text-center">
+                  <Heart className="h-6 w-6 mx-auto text-red-500 mb-2" />
+                  <p className="text-2xl font-bold">
+                    {posts?.reduce((sum, p) => sum + (p.likes || 0), 0).toLocaleString() || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Likes</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <Repeat2 className="h-6 w-6 mx-auto text-green-500 mb-2" />
+                  <p className="text-2xl font-bold">
+                    {posts?.reduce((sum, p) => sum + (p.reposts || 0), 0).toLocaleString() || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Reposts</p>
+                </div>
+                <div className="p-4 border rounded-lg text-center">
+                  <MessageCircle className="h-6 w-6 mx-auto text-blue-500 mb-2" />
+                  <p className="text-2xl font-bold">
+                    {posts?.reduce((sum, p) => sum + (p.replies || 0), 0).toLocaleString() || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Replies</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
