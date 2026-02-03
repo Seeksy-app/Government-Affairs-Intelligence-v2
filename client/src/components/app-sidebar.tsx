@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -10,9 +11,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -55,27 +64,56 @@ export function AppSidebar() {
     { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
   ];
 
-  const clientItems = [
+  const clientTopItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tourId: "dashboard" },
-    { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
-    { title: "Matters", url: "/matters", icon: FolderOpen, tourId: "matters" },
-    { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
-    { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
-    { title: "Social", url: "/social", icon: AtSign, tourId: "social" },
-    { title: "Influencers", url: "/influencers", icon: UserCircle, tourId: "influencers" },
-    { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
-    { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
-    { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
-    { title: "Network", url: "/network", icon: Network, tourId: "network" },
-    { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
-    { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
-    { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
-    { title: "Security", url: "/security", icon: Lock, tourId: "security" },
-    { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
   ];
 
-  // When impersonating, show client menu instead of admin menu
-  const menuItems = (isSuperAdmin && !isImpersonating) ? superAdminItems : clientItems;
+  const clientResearchGroup = {
+    label: "Research",
+    icon: Search,
+    items: [
+      { title: "Matters", url: "/matters", icon: FolderOpen, tourId: "matters" },
+      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
+      { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
+      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
+      { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
+    ],
+  };
+
+  const clientIntelGroup = {
+    label: "Intelligence",
+    icon: TrendingUp,
+    items: [
+      { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
+      { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
+      { title: "Network", url: "/network", icon: Network, tourId: "network" },
+      { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
+      { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
+    ],
+  };
+
+  const clientSocialGroup = {
+    label: "Social Media",
+    icon: Megaphone,
+    items: [
+      { title: "Social Tracking", url: "/social", icon: AtSign, tourId: "social" },
+      { title: "Influencers", url: "/influencers", icon: UserCircle, tourId: "influencers" },
+    ],
+  };
+
+  const clientManageGroup = {
+    label: "Manage",
+    icon: Settings,
+    items: [
+      { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
+      { title: "Security", url: "/security", icon: Lock, tourId: "security" },
+      { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
+    ],
+  };
+
+  const clientGroups = [clientResearchGroup, clientIntelGroup, clientSocialGroup, clientManageGroup];
+
+  const isClientView = !isSuperAdmin || isImpersonating;
   const groupLabel = (isSuperAdmin && !isImpersonating) 
     ? "Platform Admin" 
     : (isImpersonating ? userRole?.impersonatingClientName : userRole?.clientName) || "Dashboard";
@@ -117,25 +155,93 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url || location.startsWith(item.url + "/")}
-                  >
-                    <Link 
-                      href={item.url} 
-                      data-testid={`nav-${item.title.toLowerCase()}`}
-                      data-tour={item.tourId}
+            {isClientView ? (
+              <SidebarMenu>
+                {clientTopItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url || location.startsWith(item.url + "/")}
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+                      <Link 
+                        href={item.url} 
+                        data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                        data-tour={item.tourId}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                
+                {clientGroups.map((group) => {
+                  const isGroupActive = group.items.some(
+                    (item) => location === item.url || location.startsWith(item.url + "/")
+                  );
+                  return (
+                    <Collapsible 
+                      key={group.label} 
+                      defaultOpen={isGroupActive}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton 
+                            data-testid={`nav-group-${group.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
+                            <group.icon className="w-4 h-4" />
+                            <span>{group.label}</span>
+                            <ChevronRight className="ml-auto w-4 h-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {group.items.map((item) => (
+                              <SidebarMenuSubItem key={item.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={location === item.url || location.startsWith(item.url + "/")}
+                                >
+                                  <Link 
+                                    href={item.url}
+                                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                                    data-tour={item.tourId}
+                                  >
+                                    <item.icon className="w-4 h-4" />
+                                    <span>{item.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  );
+                })}
+              </SidebarMenu>
+            ) : (
+              <SidebarMenu>
+                {superAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url || location.startsWith(item.url + "/")}
+                    >
+                      <Link 
+                        href={item.url} 
+                        data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                        data-tour={item.tourId}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
