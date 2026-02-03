@@ -3601,5 +3601,485 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ================== STAFFERS API ==================
+  
+  // Search staffers
+  app.get("/api/staffers/search", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const { q, member, chamber, party, state, specialty, limit, offset } = req.query;
+      const result = await storage.searchStaffers(clientId, {
+        q: q as string,
+        member: member as string,
+        chamber: chamber as string,
+        party: party as string,
+        state: state as string,
+        specialty: specialty as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error searching staffers:", error);
+      res.status(500).json({ message: "Failed to search staffers" });
+    }
+  });
+
+  // Get staffers by member
+  app.get("/api/staffers/by-member/:memberName", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffersList = await storage.getStaffersByMember(clientId, req.params.memberName);
+      res.json(staffersList);
+    } catch (error) {
+      console.error("Error fetching staffers by member:", error);
+      res.status(500).json({ message: "Failed to fetch staffers" });
+    }
+  });
+
+  // Get staffers by organization
+  app.get("/api/staffers/by-organization/:orgName", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffersList = await storage.getStaffersByOrganization(clientId, req.params.orgName);
+      res.json(staffersList);
+    } catch (error) {
+      console.error("Error fetching staffers by organization:", error);
+      res.status(500).json({ message: "Failed to fetch staffers" });
+    }
+  });
+
+  // Get staffer stats
+  app.get("/api/staffers/stats", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const allStaffers = await storage.getStaffers(clientId);
+      const chambers: Record<string, number> = {};
+      const parties: Record<string, number> = {};
+      const organizations: Record<string, number> = {};
+      
+      allStaffers.forEach(s => {
+        if (s.chamber) chambers[s.chamber] = (chambers[s.chamber] || 0) + 1;
+        if (s.party) parties[s.party] = (parties[s.party] || 0) + 1;
+        if (s.currentOrganization) organizations[s.currentOrganization] = (organizations[s.currentOrganization] || 0) + 1;
+      });
+
+      res.json({
+        totalStaffers: allStaffers.length,
+        byChamber: chambers,
+        byParty: parties,
+        topOrganizations: Object.entries(organizations)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([name, count]) => ({ name, count })),
+      });
+    } catch (error) {
+      console.error("Error fetching staffer stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Get all staffers
+  app.get("/api/staffers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffersList = await storage.getStaffers(clientId);
+      res.json(staffersList);
+    } catch (error) {
+      console.error("Error fetching staffers:", error);
+      res.status(500).json({ message: "Failed to fetch staffers" });
+    }
+  });
+
+  // Get single staffer with career and connections
+  app.get("/api/staffers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const careerPositions = await storage.getStafferCareerPositions(req.params.id);
+      const connections = await storage.getStafferConnections(req.params.id);
+      res.json({ staffer, careerPositions, connections });
+    } catch (error) {
+      console.error("Error fetching staffer:", error);
+      res.status(500).json({ message: "Failed to fetch staffer" });
+    }
+  });
+
+  // Get staffer timeline
+  app.get("/api/staffers/:id/timeline", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const positions = await storage.getStafferCareerPositions(req.params.id);
+      
+      // Calculate stats
+      const currentYear = new Date().getFullYear();
+      const totalYears = positions.reduce((sum, p) => {
+        const end = p.endYear || currentYear;
+        return sum + (end - p.startYear);
+      }, 0);
+      const organizations = new Set(positions.map(p => p.organization)).size;
+      const longestPosition = positions.reduce((longest, p) => {
+        const duration = (p.endYear || currentYear) - p.startYear;
+        if (!longest || duration > longest.years) {
+          return { position: p.position, years: duration };
+        }
+        return longest;
+      }, null as { position: string; years: number } | null);
+
+      res.json({
+        staffer: { id: staffer.id, name: staffer.name },
+        timeline: positions.map(p => ({
+          ...p,
+          durationYears: (p.endYear || currentYear) - p.startYear,
+        })),
+        stats: {
+          totalYears,
+          totalPositions: positions.length,
+          organizations,
+          longestPosition,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching staffer timeline:", error);
+      res.status(500).json({ message: "Failed to fetch timeline" });
+    }
+  });
+
+  // Get staffer network
+  app.get("/api/staffers/:id/network", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const connections = await storage.getStafferConnections(req.params.id);
+      const positions = await storage.getStafferCareerPositions(req.params.id);
+
+      // Build network nodes and edges
+      const nodes: any[] = [
+        { id: `s${staffer.id}`, label: staffer.name, group: "person", level: 0 },
+      ];
+      const edges: any[] = [];
+      const orgSet = new Set<string>();
+
+      // Add organizations from career
+      positions.forEach(p => {
+        if (!orgSet.has(p.organization)) {
+          orgSet.add(p.organization);
+          nodes.push({
+            id: `o${p.organization}`,
+            label: p.organization,
+            group: "org",
+            level: 1,
+          });
+        }
+        edges.push({
+          from: `s${staffer.id}`,
+          to: `o${p.organization}`,
+          label: p.isCurrent ? "works at" : "worked at",
+        });
+      });
+
+      // Add connections
+      connections.forEach(c => {
+        nodes.push({
+          id: `c${c.id}`,
+          label: c.connectedToName,
+          group: "person",
+          level: 1,
+        });
+        edges.push({
+          from: `s${staffer.id}`,
+          to: `c${c.id}`,
+          label: c.connectionType || "connected",
+          years: c.yearsTogether,
+        });
+      });
+
+      res.json({ nodes, edges });
+    } catch (error) {
+      console.error("Error fetching staffer network:", error);
+      res.status(500).json({ message: "Failed to fetch network" });
+    }
+  });
+
+  // Create staffer
+  app.post("/api/staffers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.createStaffer({ ...req.body, clientId });
+      res.status(201).json(staffer);
+    } catch (error) {
+      console.error("Error creating staffer:", error);
+      res.status(500).json({ message: "Failed to create staffer" });
+    }
+  });
+
+  // Update staffer
+  app.put("/api/staffers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const updated = await storage.updateStaffer(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating staffer:", error);
+      res.status(500).json({ message: "Failed to update staffer" });
+    }
+  });
+
+  // Delete staffer
+  app.delete("/api/staffers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      await storage.deleteStaffer(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting staffer:", error);
+      res.status(500).json({ message: "Failed to delete staffer" });
+    }
+  });
+
+  // Add career position
+  app.post("/api/staffers/:id/positions", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const position = await storage.createStafferCareerPosition({
+        ...req.body,
+        stafferId: req.params.id,
+      });
+      res.status(201).json(position);
+    } catch (error) {
+      console.error("Error adding career position:", error);
+      res.status(500).json({ message: "Failed to add position" });
+    }
+  });
+
+  // Delete career position
+  app.delete("/api/staffers/:id/positions/:positionId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      await storage.deleteStafferCareerPosition(req.params.positionId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting career position:", error);
+      res.status(500).json({ message: "Failed to delete position" });
+    }
+  });
+
+  // Add connection
+  app.post("/api/staffers/:id/connections", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const connection = await storage.createStafferConnection({
+        ...req.body,
+        stafferId: req.params.id,
+      });
+      res.status(201).json(connection);
+    } catch (error) {
+      console.error("Error adding connection:", error);
+      res.status(500).json({ message: "Failed to add connection" });
+    }
+  });
+
+  // Delete connection
+  app.delete("/api/staffers/:id/connections/:connectionId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      await storage.deleteStafferConnection(req.params.connectionId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting connection:", error);
+      res.status(500).json({ message: "Failed to delete connection" });
+    }
+  });
+
+  // Export staffer data
+  app.get("/api/staffers/:id/export", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const careerPositions = await storage.getStafferCareerPositions(req.params.id);
+      const connections = await storage.getStafferConnections(req.params.id);
+
+      const format = req.query.format || "json";
+
+      if (format === "csv") {
+        // Generate CSV for career and connections
+        const careerCsv = ["position,organization,boss_name,start_year,end_year,org_type,chamber"];
+        careerPositions.forEach(p => {
+          careerCsv.push(`"${p.position}","${p.organization}","${p.bossName || ""}",${p.startYear},${p.endYear || ""},${p.orgType || ""},${p.chamber || ""}`);
+        });
+
+        const connectionsCsv = ["connected_to,connection_type,organization,years_together,strength"];
+        connections.forEach(c => {
+          connectionsCsv.push(`"${c.connectedToName}","${c.connectionType || ""}","${c.organization || ""}",${c.yearsTogether || ""},${c.strength || ""}`);
+        });
+
+        res.json({
+          career: careerCsv.join("\n"),
+          connections: connectionsCsv.join("\n"),
+        });
+      } else {
+        res.json({ staffer, careerPositions, connections });
+      }
+    } catch (error) {
+      console.error("Error exporting staffer:", error);
+      res.status(500).json({ message: "Failed to export staffer" });
+    }
+  });
+
+  // Export staffer to Miro
+  app.post("/api/staffers/:id/export-miro", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const staffer = await storage.getStaffer(req.params.id);
+      if (!staffer || staffer.clientId !== clientId) {
+        return res.status(404).json({ message: "Staffer not found" });
+      }
+      const careerPositions = await storage.getStafferCareerPositions(req.params.id);
+      const connections = await storage.getStafferConnections(req.params.id);
+
+      const { exportStafferToMiro } = await import("./services/miro-service");
+      const result = await exportStafferToMiro({ staffer, careerPositions, connections });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error exporting to Miro:", error);
+      res.status(500).json({ message: "Failed to export to Miro: " + (error instanceof Error ? error.message : "Unknown error") });
+    }
+  });
+
+  // Import staffers from CSV
+  app.post("/api/staffers/import", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      
+      const { staffers: staffersData, positions: positionsData } = req.body;
+      
+      if (!staffersData || !Array.isArray(staffersData)) {
+        return res.status(400).json({ message: "Invalid staffers data" });
+      }
+
+      const created: any[] = [];
+      for (const stafferData of staffersData) {
+        const staffer = await storage.createStaffer({ ...stafferData, clientId });
+        created.push(staffer);
+        
+        // If positions are provided for this staffer
+        if (positionsData) {
+          const stafferPositions = positionsData.filter((p: any) => p.stafferName === stafferData.name);
+          for (const pos of stafferPositions) {
+            await storage.createStafferCareerPosition({
+              stafferId: staffer.id,
+              position: pos.position,
+              organization: pos.organization,
+              bossName: pos.bossName,
+              startYear: pos.startYear,
+              endYear: pos.endYear,
+              isCurrent: pos.isCurrent,
+              orgType: pos.orgType,
+              chamber: pos.chamber,
+              state: pos.state,
+            });
+          }
+        }
+      }
+
+      res.status(201).json({ imported: created.length, staffers: created });
+    } catch (error) {
+      console.error("Error importing staffers:", error);
+      res.status(500).json({ message: "Failed to import staffers" });
+    }
+  });
+
   return httpServer;
 }

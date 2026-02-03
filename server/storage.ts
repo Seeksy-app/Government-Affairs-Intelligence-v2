@@ -29,6 +29,10 @@ import {
   trackedSocialPosts,
   trackedInfluencers,
   influencerPosts,
+  staffers,
+  stafferCareerPositions,
+  stafferConnections,
+  politicalOrganizations,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -85,6 +89,14 @@ import {
   type InsertTrackedInfluencer,
   type InfluencerPost,
   type InsertInfluencerPost,
+  type Staffer,
+  type InsertStaffer,
+  type StafferCareerPosition,
+  type InsertStafferCareerPosition,
+  type StafferConnection,
+  type InsertStafferConnection,
+  type PoliticalOrganization,
+  type InsertPoliticalOrganization,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -261,6 +273,44 @@ export interface IStorage {
     unreadNews: number;
     totalMatters: number;
   }>;
+
+  // Staffers
+  getStaffers(clientId: string): Promise<Staffer[]>;
+  searchStaffers(clientId: string, query: {
+    q?: string;
+    member?: string;
+    chamber?: string;
+    party?: string;
+    state?: string;
+    specialty?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ staffers: Staffer[]; total: number }>;
+  getStaffer(id: string): Promise<Staffer | undefined>;
+  getStaffersByMember(clientId: string, memberName: string): Promise<Staffer[]>;
+  getStaffersByOrganization(clientId: string, orgName: string): Promise<Staffer[]>;
+  createStaffer(staffer: InsertStaffer): Promise<Staffer>;
+  updateStaffer(id: string, staffer: Partial<InsertStaffer>): Promise<Staffer | undefined>;
+  deleteStaffer(id: string): Promise<void>;
+
+  // Staffer Career Positions
+  getStafferCareerPositions(stafferId: string): Promise<StafferCareerPosition[]>;
+  createStafferCareerPosition(position: InsertStafferCareerPosition): Promise<StafferCareerPosition>;
+  updateStafferCareerPosition(id: string, position: Partial<InsertStafferCareerPosition>): Promise<StafferCareerPosition | undefined>;
+  deleteStafferCareerPosition(id: string): Promise<void>;
+
+  // Staffer Connections
+  getStafferConnections(stafferId: string): Promise<StafferConnection[]>;
+  createStafferConnection(connection: InsertStafferConnection): Promise<StafferConnection>;
+  updateStafferConnection(id: string, connection: Partial<InsertStafferConnection>): Promise<StafferConnection | undefined>;
+  deleteStafferConnection(id: string): Promise<void>;
+
+  // Political Organizations
+  getPoliticalOrganizations(): Promise<PoliticalOrganization[]>;
+  getPoliticalOrganization(id: string): Promise<PoliticalOrganization | undefined>;
+  getPoliticalOrganizationByName(name: string): Promise<PoliticalOrganization | undefined>;
+  createPoliticalOrganization(org: InsertPoliticalOrganization): Promise<PoliticalOrganization>;
+  updatePoliticalOrganization(id: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1066,6 +1116,172 @@ export class DatabaseStorage implements IStorage {
       and(eq(influencerPosts.postId, postId), eq(influencerPosts.influencerId, influencerId))
     );
     return !!existing;
+  }
+
+  // Staffers
+  async getStaffers(clientId: string): Promise<Staffer[]> {
+    return db.select().from(staffers).where(eq(staffers.clientId, clientId)).orderBy(desc(staffers.createdAt));
+  }
+
+  async searchStaffers(clientId: string, query: {
+    q?: string;
+    member?: string;
+    chamber?: string;
+    party?: string;
+    state?: string;
+    specialty?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ staffers: Staffer[]; total: number }> {
+    const conditions = [eq(staffers.clientId, clientId)];
+    
+    if (query.q) {
+      conditions.push(ilike(staffers.name, `%${query.q}%`));
+    }
+    if (query.member) {
+      conditions.push(ilike(staffers.currentMember, `%${query.member}%`));
+    }
+    if (query.chamber) {
+      conditions.push(eq(staffers.chamber, query.chamber));
+    }
+    if (query.party) {
+      conditions.push(eq(staffers.party, query.party));
+    }
+    if (query.state) {
+      conditions.push(eq(staffers.state, query.state));
+    }
+    if (query.specialty) {
+      conditions.push(ilike(staffers.specialty, `%${query.specialty}%`));
+    }
+
+    const limit = query.limit || 50;
+    const offset = query.offset || 0;
+
+    const results = await db.select().from(staffers)
+      .where(and(...conditions))
+      .orderBy(desc(staffers.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db.select({ count: staffers.id }).from(staffers)
+      .where(and(...conditions));
+
+    return {
+      staffers: results,
+      total: results.length // simplified for now
+    };
+  }
+
+  async getStaffer(id: string): Promise<Staffer | undefined> {
+    const [staffer] = await db.select().from(staffers).where(eq(staffers.id, id));
+    return staffer;
+  }
+
+  async getStaffersByMember(clientId: string, memberName: string): Promise<Staffer[]> {
+    return db.select().from(staffers).where(
+      and(eq(staffers.clientId, clientId), ilike(staffers.currentMember, `%${memberName}%`))
+    );
+  }
+
+  async getStaffersByOrganization(clientId: string, orgName: string): Promise<Staffer[]> {
+    return db.select().from(staffers).where(
+      and(eq(staffers.clientId, clientId), ilike(staffers.currentOrganization, `%${orgName}%`))
+    );
+  }
+
+  async createStaffer(staffer: InsertStaffer): Promise<Staffer> {
+    const [newStaffer] = await db.insert(staffers).values(staffer).returning();
+    return newStaffer;
+  }
+
+  async updateStaffer(id: string, staffer: Partial<InsertStaffer>): Promise<Staffer | undefined> {
+    const [updated] = await db.update(staffers)
+      .set({ ...staffer, lastUpdated: new Date() })
+      .where(eq(staffers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStaffer(id: string): Promise<void> {
+    await db.delete(stafferCareerPositions).where(eq(stafferCareerPositions.stafferId, id));
+    await db.delete(stafferConnections).where(eq(stafferConnections.stafferId, id));
+    await db.delete(staffers).where(eq(staffers.id, id));
+  }
+
+  // Staffer Career Positions
+  async getStafferCareerPositions(stafferId: string): Promise<StafferCareerPosition[]> {
+    return db.select().from(stafferCareerPositions)
+      .where(eq(stafferCareerPositions.stafferId, stafferId))
+      .orderBy(desc(stafferCareerPositions.startYear));
+  }
+
+  async createStafferCareerPosition(position: InsertStafferCareerPosition): Promise<StafferCareerPosition> {
+    const [newPosition] = await db.insert(stafferCareerPositions).values(position).returning();
+    return newPosition;
+  }
+
+  async updateStafferCareerPosition(id: string, position: Partial<InsertStafferCareerPosition>): Promise<StafferCareerPosition | undefined> {
+    const [updated] = await db.update(stafferCareerPositions)
+      .set(position)
+      .where(eq(stafferCareerPositions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStafferCareerPosition(id: string): Promise<void> {
+    await db.delete(stafferCareerPositions).where(eq(stafferCareerPositions.id, id));
+  }
+
+  // Staffer Connections
+  async getStafferConnections(stafferId: string): Promise<StafferConnection[]> {
+    return db.select().from(stafferConnections)
+      .where(eq(stafferConnections.stafferId, stafferId))
+      .orderBy(desc(stafferConnections.strength));
+  }
+
+  async createStafferConnection(connection: InsertStafferConnection): Promise<StafferConnection> {
+    const [newConnection] = await db.insert(stafferConnections).values(connection).returning();
+    return newConnection;
+  }
+
+  async updateStafferConnection(id: string, connection: Partial<InsertStafferConnection>): Promise<StafferConnection | undefined> {
+    const [updated] = await db.update(stafferConnections)
+      .set(connection)
+      .where(eq(stafferConnections.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteStafferConnection(id: string): Promise<void> {
+    await db.delete(stafferConnections).where(eq(stafferConnections.id, id));
+  }
+
+  // Political Organizations
+  async getPoliticalOrganizations(): Promise<PoliticalOrganization[]> {
+    return db.select().from(politicalOrganizations).orderBy(politicalOrganizations.name);
+  }
+
+  async getPoliticalOrganization(id: string): Promise<PoliticalOrganization | undefined> {
+    const [org] = await db.select().from(politicalOrganizations).where(eq(politicalOrganizations.id, id));
+    return org;
+  }
+
+  async getPoliticalOrganizationByName(name: string): Promise<PoliticalOrganization | undefined> {
+    const [org] = await db.select().from(politicalOrganizations).where(ilike(politicalOrganizations.name, name));
+    return org;
+  }
+
+  async createPoliticalOrganization(org: InsertPoliticalOrganization): Promise<PoliticalOrganization> {
+    const [newOrg] = await db.insert(politicalOrganizations).values(org).returning();
+    return newOrg;
+  }
+
+  async updatePoliticalOrganization(id: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined> {
+    const [updated] = await db.update(politicalOrganizations)
+      .set(org)
+      .where(eq(politicalOrganizations.id, id))
+      .returning();
+    return updated;
   }
 }
 
