@@ -6,6 +6,9 @@ import {
   contacts,
   careerHistory,
   newsArticles,
+  staffers,
+  stafferCareerPositions,
+  stafferConnections,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -269,6 +272,252 @@ export async function seedDatabase() {
 
   await db.insert(newsArticles).values(sampleNews);
   console.log("Created sample news articles");
+
+  // Seed Mike Johnson's staffers
+  const johnsonStaffers = [
+    {
+      clientId: adamClient.id,
+      name: "Hayden Haynes",
+      currentPosition: "Chief of Staff",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Leadership Operations",
+      pathwayType: "Johnson Loyalist",
+      yearsInCurrentRole: 2,
+      education: ["Louisiana Tech (BA)", "Gonzaga (MA)"],
+      bio: "Long-time aide to Mike Johnson, serving since his first congressional campaign. Expert in legislative operations and congressional procedure.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Raj Shah",
+      currentPosition: "Deputy COS Communications",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Media Strategy",
+      pathwayType: "Trump World",
+      yearsInCurrentRole: 2,
+      education: ["Georgetown University"],
+      bio: "Former White House Deputy Press Secretary. Expert in strategic communications and crisis management.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Garrett Fultz",
+      currentPosition: "Deputy Chief of Staff",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Legislative Policy",
+      pathwayType: "Johnson Loyalist",
+      yearsInCurrentRole: 2,
+      education: ["Ole Miss", "Tulane Law"],
+      bio: "Policy expert with extensive background in constitutional law and legislative affairs.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Mark Epley",
+      currentPosition: "Floor Director",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Floor Operations",
+      pathwayType: "Hill Veteran",
+      yearsInCurrentRole: 2,
+      education: ["University of Virginia"],
+      bio: "Experienced floor strategist with deep knowledge of House procedures and vote counting.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Dan Ziegler",
+      currentPosition: "Policy Director",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Economic Policy",
+      pathwayType: "Think Tank",
+      yearsInCurrentRole: 1,
+      education: ["Harvard University", "Stanford MBA"],
+      bio: "Former Heritage Foundation fellow specializing in fiscal policy and budget matters.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Jessica Moore",
+      currentPosition: "Communications Director",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Communications",
+      pathwayType: "Campaign Veteran",
+      yearsInCurrentRole: 2,
+      education: ["LSU (BA)"],
+      bio: "Experienced communications professional with background in campaign messaging and media relations.",
+    },
+    {
+      clientId: adamClient.id,
+      name: "Tyler Becker",
+      currentPosition: "Scheduler",
+      currentOrganization: "Office of the Speaker",
+      currentMember: "Mike Johnson",
+      chamber: "House",
+      party: "Republican",
+      state: "LA",
+      specialty: "Scheduling",
+      pathwayType: "Johnson Loyalist",
+      yearsInCurrentRole: 3,
+      education: ["Louisiana Tech"],
+      bio: "Manages the Speaker's complex daily schedule and coordinates with leadership offices.",
+    },
+  ];
+
+  const insertedStaffers = await db.insert(staffers).values(johnsonStaffers).returning();
+  console.log("Created Johnson staffers");
+
+  // Add career positions for Hayden Haynes
+  const haydenId = insertedStaffers[0].id;
+  const haydenPositions = [
+    {
+      stafferId: haydenId,
+      position: "Chief of Staff",
+      organization: "Office of the Speaker",
+      bossName: "Mike Johnson",
+      startYear: 2023,
+      endYear: null,
+      isCurrent: true,
+      orgType: "Congressional Office",
+      chamber: "House",
+      state: "LA",
+    },
+    {
+      stafferId: haydenId,
+      position: "Chief of Staff",
+      organization: "Rep. Mike Johnson Office",
+      bossName: "Mike Johnson",
+      startYear: 2017,
+      endYear: 2023,
+      isCurrent: false,
+      orgType: "Congressional Office",
+      chamber: "House",
+      state: "LA",
+    },
+    {
+      stafferId: haydenId,
+      position: "Campaign Manager",
+      organization: "Mike Johnson for Congress",
+      bossName: "Mike Johnson",
+      startYear: 2016,
+      endYear: 2016,
+      isCurrent: false,
+      orgType: "Campaign",
+      chamber: "House",
+      state: "LA",
+    },
+    {
+      stafferId: haydenId,
+      position: "Regional Representative",
+      organization: "Sen. David Vitter Office",
+      bossName: "David Vitter",
+      startYear: 2013,
+      endYear: 2016,
+      isCurrent: false,
+      orgType: "Congressional Office",
+      chamber: "Senate",
+      state: "LA",
+    },
+  ];
+
+  await db.insert(stafferCareerPositions).values(haydenPositions);
+  console.log("Created career positions for Hayden Haynes");
+
+  // Add connections for Hayden Haynes
+  const haydenConnections = [
+    {
+      stafferId: haydenId,
+      connectedToName: "Mike Johnson",
+      connectionType: "reported_to",
+      organization: "Office of the Speaker",
+      yearsTogether: 9,
+      strength: "Strong",
+      notes: "Primary staffer since Johnson's first campaign",
+    },
+    {
+      stafferId: haydenId,
+      connectedToName: "David Vitter",
+      connectionType: "reported_to",
+      organization: "Sen. Vitter Office",
+      yearsTogether: 3,
+      strength: "Medium",
+      notes: "Worked as regional representative",
+    },
+    {
+      stafferId: haydenId,
+      connectedToName: "Garrett Fultz",
+      connectionType: "colleague",
+      organization: "Office of the Speaker",
+      yearsTogether: 7,
+      strength: "Strong",
+      notes: "Long-time colleague in Johnson's office",
+    },
+  ];
+
+  await db.insert(stafferConnections).values(haydenConnections);
+  console.log("Created connections for Hayden Haynes");
+
+  // Add career positions for Raj Shah
+  const rajId = insertedStaffers[1].id;
+  const rajPositions = [
+    {
+      stafferId: rajId,
+      position: "Deputy COS Communications",
+      organization: "Office of the Speaker",
+      bossName: "Mike Johnson",
+      startYear: 2023,
+      endYear: null,
+      isCurrent: true,
+      orgType: "Congressional Office",
+      chamber: "House",
+      state: "LA",
+    },
+    {
+      stafferId: rajId,
+      position: "Deputy Press Secretary",
+      organization: "White House",
+      bossName: "Sarah Sanders",
+      startYear: 2017,
+      endYear: 2019,
+      isCurrent: false,
+      orgType: "White House",
+      chamber: null,
+      state: null,
+    },
+    {
+      stafferId: rajId,
+      position: "Research Director",
+      organization: "Republican National Committee",
+      bossName: null,
+      startYear: 2015,
+      endYear: 2017,
+      isCurrent: false,
+      orgType: "Campaign",
+      chamber: null,
+      state: null,
+    },
+  ];
+
+  await db.insert(stafferCareerPositions).values(rajPositions);
+  console.log("Created career positions for Raj Shah");
 
   console.log("Database seeding complete!");
 }

@@ -43,6 +43,8 @@ import BillTrackingPage from "@/pages/bill-tracking";
 import PredictionsPage from "@/pages/predictions";
 import SocialTrackingPage from "@/pages/social-tracking";
 import InfluencerTrackingPage from "@/pages/influencer-tracking";
+import StaffersPage from "@/pages/staffers";
+import StafferDetailPage from "@/pages/staffer-detail";
 
 function AuthenticatedRouter() {
   return (
@@ -67,6 +69,8 @@ function AuthenticatedRouter() {
       <Route path="/predictions" component={PredictionsPage} />
       <Route path="/social" component={SocialTrackingPage} />
       <Route path="/influencers" component={InfluencerTrackingPage} />
+      <Route path="/staffers" component={StaffersPage} />
+      <Route path="/staffers/:id" component={StafferDetailPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
