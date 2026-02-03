@@ -246,6 +246,7 @@ interface ExportOfficeParams {
 
 export async function exportOfficeToMiro(params: ExportOfficeParams): Promise<{ miroBoardUrl: string; miroBoardId: string; itemsCreated: number }> {
   const apiKey = process.env.MIRO_API_KEY;
+  console.log("[Miro] API key check:", apiKey ? `Found (${apiKey.length} chars, starts with: ${apiKey.substring(0, 8)}...)` : "NOT FOUND");
   if (!apiKey) {
     throw new Error("MIRO_API_KEY is not configured. Please add your Miro API key in Settings.");
   }
