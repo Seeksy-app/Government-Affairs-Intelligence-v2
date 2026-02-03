@@ -1,5 +1,6 @@
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { storage } from "../storage";
+import crypto from "crypto";
 
 const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! });
 
@@ -9,7 +10,7 @@ export interface SocialPost {
   authorUsername: string;
   authorDisplayName?: string;
   postUrl: string;
-  postedAt: Date;
+  postedAt: Date | null;
   likeCount?: number;
   replyCount?: number;
   repostCount?: number;
@@ -22,64 +23,99 @@ export interface FetchResult {
   error?: string;
 }
 
+function generateContentHash(content: string, username: string): string {
+  const normalized = content.trim().toLowerCase().replace(/\s+/g, ' ').substring(0, 500);
+  return crypto.createHash('md5').update(`${username}:${normalized}`).digest('hex').substring(0, 16);
+}
+
 function extractTweetsFromMarkdown(markdown: string, username: string): SocialPost[] {
   const posts: SocialPost[] = [];
-  const lines = markdown.split('\n');
-  let currentPost: Partial<SocialPost> | null = null;
-  let contentLines: string[] = [];
-
-  for (const line of lines) {
-    const tweetMatch = line.match(/^##\s*(.+)$/);
-    if (tweetMatch || line.includes('Tweet:') || line.includes('Status:')) {
-      if (currentPost && contentLines.length > 0) {
-        currentPost.content = contentLines.join('\n').trim();
-        if (currentPost.content && currentPost.postId) {
-          posts.push(currentPost as SocialPost);
-        }
-      }
-      currentPost = {
+  
+  const statusUrlPattern = /https:\/\/(?:x|twitter)\.com\/(\w+)\/status\/(\d+)/gi;
+  const statusMatches = [...markdown.matchAll(statusUrlPattern)];
+  
+  for (const match of statusMatches) {
+    const statusId = match[2];
+    const urlIndex = match.index!;
+    
+    const existingPost = posts.find(p => p.postId === statusId);
+    if (existingPost) continue;
+    
+    let startIndex = Math.max(0, urlIndex - 1500);
+    let endIndex = Math.min(markdown.length, urlIndex + 100);
+    
+    const beforeUrl = markdown.substring(startIndex, urlIndex);
+    const paragraphs = beforeUrl.split(/\n\n+/);
+    const lastParagraph = paragraphs[paragraphs.length - 1] || "";
+    
+    let content = lastParagraph
+      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/\[.*?\]\(.*?\)/g, '')
+      .replace(/^#+\s*/gm, '')
+      .replace(/\*\*/g, '')
+      .replace(/\n+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    content = content.replace(/https:\/\/(?:x|twitter)\.com\/\w+\/status\/\d+/g, '').trim();
+    
+    if (content.length < 10) continue;
+    if (content.length > 500) {
+      content = content.substring(content.length - 500);
+    }
+    
+    posts.push({
+      postId: statusId,
+      content,
+      authorUsername: username,
+      postUrl: `https://x.com/${username}/status/${statusId}`,
+      postedAt: null,
+      matchedKeywords: [],
+    });
+  }
+  
+  if (posts.length === 0) {
+    const tweetBlocks = markdown.split(/(?=^##|\n##)/gm).filter(block => block.trim());
+    
+    for (const block of tweetBlocks) {
+      const content = block
+        .replace(/^#+\s*/gm, '')
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[.*?\]\(.*?\)/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/https?:\/\/[^\s]+/g, '')
+        .replace(/\d+\s*(likes?|retweets?|reposts?|replies)/gi, '')
+        .replace(/\d+[hms]\s*ago/gi, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (content.length < 20 || content.length > 600) continue;
+      
+      const contentHash = generateContentHash(content, username);
+      
+      posts.push({
+        postId: `hash-${contentHash}`,
+        content,
         authorUsername: username,
-        postId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         postUrl: `https://x.com/${username}`,
-        postedAt: new Date(),
+        postedAt: null,
         matchedKeywords: [],
-      };
-      contentLines = [];
-      continue;
-    }
-
-    if (currentPost) {
-      const timeMatch = line.match(/(\d+[hms]\s*ago|hours?\s*ago|minutes?\s*ago|yesterday|today)/i);
-      if (timeMatch) {
-        continue;
-      }
-
-      const urlMatch = line.match(/https:\/\/x\.com\/\w+\/status\/(\d+)/);
-      if (urlMatch) {
-        currentPost.postId = urlMatch[1];
-        currentPost.postUrl = urlMatch[0];
-        continue;
-      }
-
-      if (line.trim() && !line.startsWith('---') && !line.startsWith('![')) {
-        contentLines.push(line.trim());
-      }
+      });
     }
   }
-
-  if (currentPost && contentLines.length > 0) {
-    currentPost.content = contentLines.join('\n').trim();
-    if (currentPost.content && currentPost.postId) {
-      posts.push(currentPost as SocialPost);
-    }
-  }
-
-  return posts;
+  
+  return posts.slice(0, 20);
 }
 
 function matchKeywords(content: string, keywords: string[]): string[] {
+  if (keywords.length === 0) return [];
   const lowerContent = content.toLowerCase();
-  return keywords.filter(kw => lowerContent.includes(kw.toLowerCase()));
+  return keywords.filter(kw => {
+    const lowerKw = kw.toLowerCase();
+    const regex = new RegExp(`\\b${lowerKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return regex.test(lowerContent) || lowerContent.includes(lowerKw);
+  });
 }
 
 export async function fetchAccountPosts(
@@ -149,7 +185,7 @@ export async function syncAccountPosts(accountId: string): Promise<{ added: numb
 
     if (!result.success) {
       await storage.updateTrackedSocialAccount(accountId, {
-        lastSyncError: result.error,
+        lastSyncError: result.error || "Unknown error",
       });
       return { added: 0, error: result.error };
     }
