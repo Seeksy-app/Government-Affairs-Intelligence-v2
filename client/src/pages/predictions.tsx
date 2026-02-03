@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, RefreshCw, Clock, Plus, Activity, Info } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, RefreshCw, Clock, Plus, Activity, Info, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 
 interface KalshiMarket {
   ticker: string;
@@ -23,18 +24,47 @@ interface KalshiMarket {
   category?: string;
 }
 
-type FilterCategory = "all" | "us-elections" | "primaries" | "trump" | "foreign" | "international" | "congress" | "scotus" | "local";
+type MainCategory = "trending" | "new" | "all" | "politics" | "sports" | "culture" | "crypto" | "climate" | "economics" | "mentions" | "companies" | "financials" | "tech-science";
 
-const CATEGORY_TABS: { value: FilterCategory; label: string }[] = [
+type PoliticsSubFilter = "all" | "us-elections" | "primaries" | "trump" | "foreign" | "international" | "house" | "congress" | "scotus" | "local" | "recurring";
+
+type SortOption = "volume" | "newest" | "closing-soon" | "probability";
+
+const MAIN_CATEGORY_TABS: { value: MainCategory; label: string }[] = [
+  { value: "trending", label: "Trending" },
+  { value: "new", label: "New" },
+  { value: "all", label: "All" },
+  { value: "politics", label: "Politics" },
+  { value: "sports", label: "Sports" },
+  { value: "culture", label: "Culture" },
+  { value: "crypto", label: "Crypto" },
+  { value: "climate", label: "Climate" },
+  { value: "economics", label: "Economics" },
+  { value: "mentions", label: "Mentions" },
+  { value: "companies", label: "Companies" },
+  { value: "financials", label: "Financials" },
+  { value: "tech-science", label: "Tech & Science" },
+];
+
+const POLITICS_SUB_FILTERS: { value: PoliticsSubFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "us-elections", label: "US Elections" },
   { value: "primaries", label: "Primaries" },
   { value: "trump", label: "Trump" },
   { value: "foreign", label: "Foreign Elections" },
   { value: "international", label: "International" },
+  { value: "house", label: "House" },
   { value: "congress", label: "Congress" },
   { value: "scotus", label: "SCOTUS & courts" },
   { value: "local", label: "Local" },
+  { value: "recurring", label: "Recurring" },
+];
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "volume", label: "Volume (High to Low)" },
+  { value: "newest", label: "Newest First" },
+  { value: "closing-soon", label: "Closing Soon" },
+  { value: "probability", label: "Highest Probability" },
 ];
 
 const REFRESH_INTERVAL = 20 * 60 * 1000;
@@ -42,7 +72,9 @@ const INITIAL_DISPLAY_COUNT = 20;
 
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<FilterCategory>("all");
+  const [mainCategory, setMainCategory] = useState<MainCategory>("politics");
+  const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("volume");
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [selectedMarket, setSelectedMarket] = useState<KalshiMarket | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -94,8 +126,33 @@ export default function PredictionsPage() {
 
   const markets = marketsData?.markets || [];
 
-  const getCategoryKeywords = (category: FilterCategory): string[] => {
+  const getMainCategoryKeywords = (category: MainCategory): string[] => {
     switch (category) {
+      case "politics":
+        return ["president", "election", "congress", "senate", "house", "vote", "trump", "biden", "democrat", "republican", "governor", "mayor", "supreme", "court"];
+      case "sports":
+        return ["nfl", "nba", "mlb", "nhl", "soccer", "football", "basketball", "baseball", "hockey", "championship", "playoff", "super bowl", "world series"];
+      case "culture":
+        return ["movie", "film", "music", "oscar", "grammy", "celebrity", "entertainment", "tv", "show", "award"];
+      case "crypto":
+        return ["bitcoin", "btc", "ethereum", "eth", "crypto", "blockchain", "defi", "nft", "token", "coin"];
+      case "climate":
+        return ["climate", "weather", "temperature", "hurricane", "storm", "environment", "carbon", "renewable", "energy"];
+      case "economics":
+        return ["gdp", "inflation", "fed", "interest rate", "unemployment", "recession", "economy", "growth"];
+      case "companies":
+        return ["apple", "google", "meta", "amazon", "microsoft", "tesla", "nvidia", "stock", "earnings", "ipo", "merger"];
+      case "financials":
+        return ["stock", "market", "s&p", "dow", "nasdaq", "bond", "yield", "treasury", "index"];
+      case "tech-science":
+        return ["ai", "artificial intelligence", "space", "nasa", "spacex", "tech", "science", "research", "fda", "drug"];
+      default:
+        return [];
+    }
+  };
+
+  const getPoliticsSubFilterKeywords = (subFilter: PoliticsSubFilter): string[] => {
+    switch (subFilter) {
       case "us-elections":
         return ["president", "presidential", "election", "2024", "2028", "nominee", "democratic", "republican", "vote"];
       case "primaries":
@@ -106,32 +163,59 @@ export default function PredictionsPage() {
         return ["foreign", "uk", "france", "germany", "brazil", "mexico", "canada", "australia", "japan", "india", "china", "russia", "starmer", "macron", "trudeau"];
       case "international":
         return ["international", "world", "global", "khamenei", "iran", "israel", "ukraine", "war", "nato", "un", "leader"];
+      case "house":
+        return ["house", "representative", "speaker", "mccarthy", "jeffries"];
       case "congress":
         return ["congress", "senate", "house", "bill", "legislation", "speaker", "representative", "senator"];
       case "scotus":
         return ["supreme", "court", "scotus", "judge", "justice", "ruling", "decision"];
       case "local":
         return ["governor", "mayor", "state", "local", "city"];
+      case "recurring":
+        return ["weekly", "monthly", "daily", "recurring", "regular"];
       default:
         return [];
     }
   };
 
-  const filteredMarkets = markets
+  const sortMarkets = (marketsToSort: KalshiMarket[]): KalshiMarket[] => {
+    switch (sortOption) {
+      case "volume":
+        return [...marketsToSort].sort((a, b) => b.volume - a.volume);
+      case "newest":
+        return [...marketsToSort].sort((a, b) => new Date(b.close_time).getTime() - new Date(a.close_time).getTime());
+      case "closing-soon":
+        return [...marketsToSort].sort((a, b) => new Date(a.close_time).getTime() - new Date(b.close_time).getTime());
+      case "probability":
+        return [...marketsToSort].sort((a, b) => Math.max(b.yes_price, b.no_price) - Math.max(a.yes_price, a.no_price));
+      default:
+        return marketsToSort;
+    }
+  };
+
+  const filteredMarkets = sortMarkets(markets
     .filter((market) => {
       const matchesSearch = searchQuery === "" || 
         market.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         market.ticker.toLowerCase().includes(searchQuery.toLowerCase());
       
-      if (categoryFilter === "all") return matchesSearch;
-      
       const title = market.title.toLowerCase();
-      const keywords = getCategoryKeywords(categoryFilter);
-      const matchesCategory = keywords.some(keyword => title.includes(keyword));
       
-      return matchesSearch && matchesCategory;
-    })
-    .sort((a, b) => b.volume - a.volume);
+      if (mainCategory === "trending" || mainCategory === "new" || mainCategory === "all" || mainCategory === "mentions") {
+        return matchesSearch;
+      }
+      
+      const mainKeywords = getMainCategoryKeywords(mainCategory);
+      const matchesMainCategory = mainKeywords.some(keyword => title.includes(keyword));
+      
+      if (mainCategory === "politics" && politicsSubFilter !== "all") {
+        const subKeywords = getPoliticsSubFilterKeywords(politicsSubFilter);
+        const matchesSubFilter = subKeywords.some(keyword => title.includes(keyword));
+        return matchesSearch && matchesMainCategory && matchesSubFilter;
+      }
+      
+      return matchesSearch && matchesMainCategory;
+    }));
 
   const visibleMarkets = filteredMarkets.slice(0, displayCount);
   const hasMore = filteredMarkets.length > displayCount;
@@ -286,30 +370,83 @@ export default function PredictionsPage() {
       </div>
 
       <div 
-        className="flex gap-2 overflow-x-auto pb-2" 
+        className="flex gap-1 overflow-x-auto pb-2 border-b" 
         role="tablist" 
-        aria-label="Market categories"
+        aria-label="Main market categories"
       >
-        {CATEGORY_TABS.map((tab) => (
-          <Button
+        {MAIN_CATEGORY_TABS.map((tab) => (
+          <button
             key={tab.value}
-            variant={categoryFilter === tab.value ? "default" : "secondary"}
-            size="sm"
             onClick={() => {
-              setCategoryFilter(tab.value);
+              setMainCategory(tab.value);
+              setPoliticsSubFilter("all");
               setDisplayCount(INITIAL_DISPLAY_COUNT);
             }}
             role="tab"
-            aria-selected={categoryFilter === tab.value}
-            data-testid={`tab-${tab.value}`}
-            className="whitespace-nowrap"
+            aria-selected={mainCategory === tab.value}
+            data-testid={`main-tab-${tab.value}`}
+            className={`px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+              mainCategory === tab.value 
+                ? "text-foreground border-b-2 border-primary" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 
-      <h2 className="text-2xl font-bold">Politics</h2>
+      {mainCategory === "politics" && (
+        <div 
+          className="flex gap-2 overflow-x-auto pb-2 flex-wrap" 
+          role="tablist" 
+          aria-label="Politics sub-filters"
+        >
+          {POLITICS_SUB_FILTERS.map((filter) => (
+            <Button
+              key={filter.value}
+              variant={politicsSubFilter === filter.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setPoliticsSubFilter(filter.value);
+                setDisplayCount(INITIAL_DISPLAY_COUNT);
+              }}
+              role="tab"
+              aria-selected={politicsSubFilter === filter.value}
+              data-testid={`sub-tab-${filter.value}`}
+              className="whitespace-nowrap"
+            >
+              {filter.label}
+            </Button>
+          ))}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="whitespace-nowrap gap-1" data-testid="button-sort-filter">
+                <SlidersHorizontal className="w-3 h-3" />
+                Sort / Filter
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setSortOption(option.value)}
+                  className={sortOption === option.value ? "bg-muted" : ""}
+                  data-testid={`sort-option-${option.value}`}
+                >
+                  {sortOption === option.value && <ArrowUpDown className="w-3 h-3 mr-2" />}
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
+      <h2 className="text-2xl font-bold capitalize">
+        {mainCategory === "tech-science" ? "Tech & Science" : mainCategory}
+      </h2>
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -356,16 +493,17 @@ export default function PredictionsPage() {
             </div>
             <h3 className="font-medium mb-2">No Markets Found</h3>
             <p className="text-muted-foreground text-sm mb-4">
-              {searchQuery || categoryFilter !== "all" 
+              {searchQuery || mainCategory !== "all" || politicsSubFilter !== "all"
                 ? "Try adjusting your filters or search query."
                 : "No prediction markets are currently available."}
             </p>
-            {(searchQuery || categoryFilter !== "all") && (
+            {(searchQuery || mainCategory !== "all" || politicsSubFilter !== "all") && (
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setSearchQuery("");
-                  setCategoryFilter("all");
+                  setMainCategory("all");
+                  setPoliticsSubFilter("all");
                 }}
                 data-testid="button-clear-filters"
               >
