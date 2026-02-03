@@ -665,6 +665,29 @@ export const insertSocialAutoSyncConfigSchema = createInsertSchema(socialAutoSyn
 export type InsertSocialAutoSyncConfig = z.infer<typeof insertSocialAutoSyncConfigSchema>;
 export type SocialAutoSyncConfig = typeof socialAutoSyncConfig.$inferSelect;
 
+// Favorite Congress members (for quick access without searching)
+export const favoriteCongressMembers = pgTable("favorite_congress_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  bioguideId: varchar("bioguide_id").notNull(), // Congress.gov bioguide ID
+  name: text("name").notNull(),
+  party: text("party"),
+  state: text("state"),
+  chamber: text("chamber"), // House or Senate
+  imageUrl: text("image_url"),
+  matterId: varchar("matter_id"), // Optional: assigned to a specific matter
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFavoriteCongressMemberSchema = createInsertSchema(favoriteCongressMembers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFavoriteCongressMember = z.infer<typeof insertFavoriteCongressMemberSchema>;
+export type FavoriteCongressMember = typeof favoriteCongressMembers.$inferSelect;
+
 // Tracked influencers (via Influencers Club API)
 export const trackedInfluencers = pgTable("tracked_influencers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

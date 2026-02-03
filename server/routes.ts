@@ -2994,6 +2994,136 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== Favorite Congress Members ==========
+
+  // Get all favorites for client
+  app.get("/api/congress/favorites", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const favorites = await storage.getFavoriteCongressMembers(clientId);
+      res.json(favorites);
+    } catch (error) {
+      console.error("Error fetching favorite members:", error);
+      res.status(500).json({ message: "Failed to fetch favorites" });
+    }
+  });
+
+  // Check if a member is a favorite
+  app.get("/api/congress/favorites/:bioguideId/check", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const isFavorite = await storage.isFavoriteCongressMember(clientId, req.params.bioguideId);
+      const favorite = isFavorite ? await storage.getFavoriteByBioguideId(clientId, req.params.bioguideId) : null;
+      res.json({ isFavorite, favorite });
+    } catch (error) {
+      console.error("Error checking favorite status:", error);
+      res.status(500).json({ message: "Failed to check favorite status" });
+    }
+  });
+
+  // Add member to favorites
+  app.post("/api/congress/favorites", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const { bioguideId, name, party, state, chamber, imageUrl, matterId, notes } = req.body;
+      
+      // Check if already favorited
+      const existing = await storage.getFavoriteByBioguideId(clientId, bioguideId);
+      if (existing) {
+        return res.status(400).json({ message: "Member already in favorites" });
+      }
+      
+      const favorite = await storage.createFavoriteCongressMember({
+        clientId,
+        bioguideId,
+        name,
+        party,
+        state,
+        chamber,
+        imageUrl,
+        matterId: matterId || null,
+        notes: notes || null,
+      });
+      res.status(201).json(favorite);
+    } catch (error) {
+      console.error("Error adding favorite member:", error);
+      res.status(500).json({ message: "Failed to add favorite" });
+    }
+  });
+
+  // Update favorite (assign to matter, add notes)
+  app.patch("/api/congress/favorites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const favorite = await storage.getFavoriteCongressMember(req.params.id);
+      if (!favorite || favorite.clientId !== clientId) {
+        return res.status(404).json({ message: "Favorite not found" });
+      }
+      
+      const updated = await storage.updateFavoriteCongressMember(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating favorite:", error);
+      res.status(500).json({ message: "Failed to update favorite" });
+    }
+  });
+
+  // Remove from favorites
+  app.delete("/api/congress/favorites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const favorite = await storage.getFavoriteCongressMember(req.params.id);
+      if (!favorite || favorite.clientId !== clientId) {
+        return res.status(404).json({ message: "Favorite not found" });
+      }
+      
+      await storage.deleteFavoriteCongressMember(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: "Failed to remove favorite" });
+    }
+  });
+
+  // Remove favorite by bioguideId
+  app.delete("/api/congress/favorites/by-bioguide/:bioguideId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const favorite = await storage.getFavoriteByBioguideId(clientId, req.params.bioguideId);
+      if (!favorite) {
+        return res.status(404).json({ message: "Favorite not found" });
+      }
+      
+      await storage.deleteFavoriteCongressMember(favorite.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: "Failed to remove favorite" });
+    }
+  });
+
   // ========== Kalshi Prediction Markets ==========
 
   // Get top political prediction markets

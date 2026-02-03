@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { Contact, CareerHistory } from "@shared/schema";
+import type { Contact, CareerHistory, Matter, FavoriteCongressMember } from "@shared/schema";
 
 interface CongressMember {
   bioguideId: string;
@@ -78,40 +78,61 @@ interface ParsedStaffer {
 function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffer[] } {
   const lines = text.split('\n');
   const staffers: ParsedStaffer[] = [];
-  let intro = '';
+  let introLines: string[] = [];
   let currentStaffer: Partial<ParsedStaffer> = {};
+  let foundFirstStaffer = false;
   
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     
-    // Check for role line (bold text like **Chief of Staff:**)
-    const roleMatch = trimmed.match(/^\*\*(.+?):\*\*$/);
-    if (roleMatch) {
+    // Format 1: Numbered list like "1. Chief of Staff:" or "1. Chief of Staff"
+    const numberedRoleMatch = trimmed.match(/^\d+\.\s*(.+?)(?::|$)/);
+    if (numberedRoleMatch && !trimmed.startsWith('- ')) {
+      // Save previous staffer
       if (currentStaffer.role && currentStaffer.name) {
         staffers.push(currentStaffer as ParsedStaffer);
       }
-      currentStaffer = { role: roleMatch[1] };
+      foundFirstStaffer = true;
+      currentStaffer = { role: numberedRoleMatch[1].replace(/:$/, '').trim() };
       continue;
     }
     
-    // Check for name line (like - **Hayden Haynes**)
-    const nameMatch = trimmed.match(/^-\s*\*\*(.+?)\*\*$/);
+    // Format 2: Bold markdown like **Chief of Staff:**
+    const boldRoleMatch = trimmed.match(/^\*\*(.+?):\*\*$/);
+    if (boldRoleMatch) {
+      if (currentStaffer.role && currentStaffer.name) {
+        staffers.push(currentStaffer as ParsedStaffer);
+      }
+      foundFirstStaffer = true;
+      currentStaffer = { role: boldRoleMatch[1] };
+      continue;
+    }
+    
+    // Name line: "- Name: Chris Arndt" or "- **Chris Arndt**"
+    const nameMatch = trimmed.match(/^-\s*Name:\s*(.+)$/i) || trimmed.match(/^-\s*\*\*(.+?)\*\*$/);
     if (nameMatch) {
-      currentStaffer.name = nameMatch[1];
+      currentStaffer.name = nameMatch[1].trim();
       continue;
     }
     
-    // Check for email line (like - **Email:** email@domain.gov)
-    const emailMatch = trimmed.match(/^-\s*\*\*Email:\*\*\s*(.+)$/);
+    // Email line: "- Email: email@domain.gov" or "- **Email:** email@domain.gov"
+    const emailMatch = trimmed.match(/^-\s*(?:\*\*)?Email(?:\*\*)?:\s*(.+)$/i);
     if (emailMatch) {
-      currentStaffer.email = emailMatch[1];
+      currentStaffer.email = emailMatch[1].trim();
       continue;
     }
     
-    // If no current staffer being parsed, this is intro text
-    if (!currentStaffer.role) {
-      intro = trimmed.replace(/\*\*/g, '');
+    // Title line (skip if we already have role): "- Title: Chief of Staff"
+    const titleMatch = trimmed.match(/^-\s*Title:\s*(.+)$/i);
+    if (titleMatch) {
+      // Use title as role if role is generic
+      continue;
+    }
+    
+    // If we haven't found first staffer yet, this is intro text
+    if (!foundFirstStaffer) {
+      introLines.push(trimmed.replace(/\*\*/g, ''));
     }
   }
   
@@ -120,7 +141,7 @@ function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffe
     staffers.push(currentStaffer as ParsedStaffer);
   }
   
-  return { intro, staffers };
+  return { intro: introLines.join(' '), staffers };
 }
 
 export default function NetworkPage() {
@@ -142,6 +163,65 @@ export default function NetworkPage() {
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
   });
+
+  // Favorites
+  const { data: favorites, refetch: refetchFavorites } = useQuery<FavoriteCongressMember[]>({
+    queryKey: ["/api/congress/favorites"],
+  });
+
+  // Matters for assignment
+  const { data: matters } = useQuery<Matter[]>({
+    queryKey: ["/api/matters"],
+  });
+
+  const addFavoriteMutation = useMutation({
+    mutationFn: async (member: CongressMember) => {
+      return apiRequest("POST", "/api/congress/favorites", {
+        bioguideId: member.bioguideId,
+        name: member.name,
+        party: member.party,
+        state: member.state,
+        chamber: member.chamber,
+        imageUrl: member.imageUrl,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/congress/favorites"] });
+      toast({ title: "Added to favorites" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add favorite", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeFavoriteMutation = useMutation({
+    mutationFn: async (bioguideId: string) => {
+      return apiRequest("DELETE", `/api/congress/favorites/by-bioguide/${bioguideId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/congress/favorites"] });
+      toast({ title: "Removed from favorites" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove favorite", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const assignToMatterMutation = useMutation({
+    mutationFn: async ({ favoriteId, matterId }: { favoriteId: string; matterId: string | null }) => {
+      return apiRequest("PATCH", `/api/congress/favorites/${favoriteId}`, { matterId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/congress/favorites"] });
+      toast({ title: "Matter assignment updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to assign matter", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const isFavorite = (bioguideId: string) => favorites?.some(f => f.bioguideId === bioguideId) || false;
+  const getFavorite = (bioguideId: string) => favorites?.find(f => f.bioguideId === bioguideId);
   
   // Build query key with filter params - state to track when search should run
   const [searchTrigger, setSearchTrigger] = useState(0);
@@ -379,6 +459,103 @@ export default function NetworkPage() {
           )}
         </div>
       </div>
+
+      {/* Favorite Congress Members */}
+      {favorites && favorites.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+              Favorite Members ({favorites.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {favorites.map((fav) => (
+                <div 
+                  key={fav.id} 
+                  className="p-3 border rounded-lg hover-elevate cursor-pointer"
+                  onClick={() => {
+                    // Create a CongressMember-like object from the favorite
+                    const member: CongressMember = {
+                      bioguideId: fav.bioguideId,
+                      name: fav.name,
+                      firstName: fav.name.split(' ')[0],
+                      lastName: fav.name.split(' ').slice(1).join(' '),
+                      party: fav.party || '',
+                      state: fav.state || '',
+                      chamber: fav.chamber || '',
+                      imageUrl: fav.imageUrl || undefined,
+                    };
+                    handleSelectMember(member);
+                  }}
+                  data-testid={`card-favorite-${fav.bioguideId}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={fav.imageUrl || undefined} alt={fav.name} />
+                      <AvatarFallback>{fav.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{fav.name}</p>
+                      <div className="flex items-center gap-1">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${
+                            fav.party === "D" ? "border-blue-500 text-blue-600" : 
+                            fav.party === "R" ? "border-red-500 text-red-600" : ""
+                          }`}
+                        >
+                          {fav.party}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{fav.state}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {fav.matterId && matters && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Briefcase className="h-3 w-3" />
+                      <span className="truncate">{matters.find(m => m.id === fav.matterId)?.name || 'Assigned'}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex items-center gap-1">
+                    <Select 
+                      value={fav.matterId || "none"} 
+                      onValueChange={(val) => {
+                        assignToMatterMutation.mutate({ 
+                          favoriteId: fav.id, 
+                          matterId: val === "none" ? null : val 
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-7 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <SelectValue placeholder="Assign to Matter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Matter</SelectItem>
+                        {matters?.map((matter) => (
+                          <SelectItem key={matter.id} value={matter.id}>{matter.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFavoriteMutation.mutate(fav.bioguideId);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Members of Congress Search Section */}
       <Card>
@@ -855,9 +1032,29 @@ export default function NetworkPage() {
                   {selectedMember?.firstName?.[0]}{selectedMember?.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span>{selectedMember?.firstName} {selectedMember?.lastName}</span>
+                  {selectedMember && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isFavorite(selectedMember.bioguideId)) {
+                          removeFavoriteMutation.mutate(selectedMember.bioguideId);
+                        } else {
+                          addFavoriteMutation.mutate(selectedMember);
+                        }
+                      }}
+                      data-testid="button-toggle-favorite"
+                    >
+                      <Star 
+                        className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
+                      />
+                    </Button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge 

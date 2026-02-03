@@ -32,6 +32,7 @@ import {
   socialAutoSyncConfig,
   trackedInfluencers,
   influencerPosts,
+  favoriteCongressMembers,
   staffers,
   stafferCareerPositions,
   stafferConnections,
@@ -98,6 +99,8 @@ import {
   type InsertTrackedInfluencer,
   type InfluencerPost,
   type InsertInfluencerPost,
+  type FavoriteCongressMember,
+  type InsertFavoriteCongressMember,
   type Staffer,
   type InsertStaffer,
   type StafferCareerPosition,
@@ -1197,6 +1200,48 @@ export class DatabaseStorage implements IStorage {
       and(eq(influencerPosts.postId, postId), eq(influencerPosts.influencerId, influencerId))
     );
     return !!existing;
+  }
+
+  // Favorite Congress Members
+  async getFavoriteCongressMembers(clientId: string): Promise<FavoriteCongressMember[]> {
+    return db.select().from(favoriteCongressMembers).where(eq(favoriteCongressMembers.clientId, clientId)).orderBy(desc(favoriteCongressMembers.createdAt));
+  }
+
+  async getFavoriteCongressMembersByMatter(matterId: string): Promise<FavoriteCongressMember[]> {
+    return db.select().from(favoriteCongressMembers).where(eq(favoriteCongressMembers.matterId, matterId)).orderBy(desc(favoriteCongressMembers.createdAt));
+  }
+
+  async getFavoriteCongressMember(id: string): Promise<FavoriteCongressMember | undefined> {
+    const [favorite] = await db.select().from(favoriteCongressMembers).where(eq(favoriteCongressMembers.id, id));
+    return favorite;
+  }
+
+  async createFavoriteCongressMember(favorite: InsertFavoriteCongressMember): Promise<FavoriteCongressMember> {
+    const [newFavorite] = await db.insert(favoriteCongressMembers).values(favorite).returning();
+    return newFavorite;
+  }
+
+  async updateFavoriteCongressMember(id: string, data: Partial<InsertFavoriteCongressMember>): Promise<FavoriteCongressMember | undefined> {
+    const [updated] = await db.update(favoriteCongressMembers).set(data).where(eq(favoriteCongressMembers.id, id)).returning();
+    return updated;
+  }
+
+  async deleteFavoriteCongressMember(id: string): Promise<void> {
+    await db.delete(favoriteCongressMembers).where(eq(favoriteCongressMembers.id, id));
+  }
+
+  async isFavoriteCongressMember(clientId: string, bioguideId: string): Promise<boolean> {
+    const [existing] = await db.select().from(favoriteCongressMembers).where(
+      and(eq(favoriteCongressMembers.clientId, clientId), eq(favoriteCongressMembers.bioguideId, bioguideId))
+    );
+    return !!existing;
+  }
+
+  async getFavoriteByBioguideId(clientId: string, bioguideId: string): Promise<FavoriteCongressMember | undefined> {
+    const [favorite] = await db.select().from(favoriteCongressMembers).where(
+      and(eq(favoriteCongressMembers.clientId, clientId), eq(favoriteCongressMembers.bioguideId, bioguideId))
+    );
+    return favorite;
   }
 
   // Staffers
