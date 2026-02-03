@@ -3103,6 +3103,15 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete tracking keyword
   app.delete("/api/social/keywords/:id", isAuthenticated, async (req, res) => {
     try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const keywords = await storage.getSocialTrackingKeywords(clientId);
+      const keyword = keywords.find(k => k.id === req.params.id);
+      if (!keyword) {
+        return res.status(404).json({ message: "Keyword not found" });
+      }
       await storage.deleteSocialTrackingKeyword(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -3150,6 +3159,14 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Mark post as read
   app.patch("/api/social/posts/:id/read", isAuthenticated, async (req, res) => {
     try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const post = await storage.getTrackedSocialPost(req.params.id);
+      if (!post || post.clientId !== clientId) {
+        return res.status(404).json({ message: "Post not found" });
+      }
       await storage.markSocialPostAsRead(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -3161,6 +3178,14 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Toggle post flag
   app.patch("/api/social/posts/:id/flag", isAuthenticated, async (req, res) => {
     try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const post = await storage.getTrackedSocialPost(req.params.id);
+      if (!post || post.clientId !== clientId) {
+        return res.status(404).json({ message: "Post not found" });
+      }
       const updated = await storage.toggleSocialPostFlag(req.params.id);
       res.json(updated);
     } catch (error) {

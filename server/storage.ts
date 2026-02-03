@@ -958,6 +958,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(trackedSocialPosts).where(eq(trackedSocialPosts.accountId, accountId)).orderBy(desc(trackedSocialPosts.createdAt)).limit(limit);
   }
 
+  async getTrackedSocialPost(id: string): Promise<TrackedSocialPost | undefined> {
+    const [post] = await db.select().from(trackedSocialPosts).where(eq(trackedSocialPosts.id, id));
+    return post;
+  }
+
   async createTrackedSocialPost(post: InsertTrackedSocialPost): Promise<TrackedSocialPost> {
     const [newPost] = await db.insert(trackedSocialPosts).values(post).returning();
     return newPost;
