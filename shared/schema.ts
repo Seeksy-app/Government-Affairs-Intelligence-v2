@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -665,3 +665,105 @@ export const insertInfluencerPostSchema = createInsertSchema(influencerPosts).om
 
 export type InsertInfluencerPost = z.infer<typeof insertInfluencerPostSchema>;
 export type InfluencerPost = typeof influencerPosts.$inferSelect;
+
+// Political Staffers database
+export const staffers = pgTable("staffers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  name: text("name").notNull(),
+  currentPosition: text("current_position"),
+  currentOrganization: text("current_organization"),
+  currentMember: text("current_member"), // The member they work for
+  chamber: text("chamber"), // House, Senate, Both, Former
+  party: text("party"), // Republican, Democrat, Independent
+  state: varchar("state", { length: 2 }),
+  specialty: text("specialty"), // Communications, Policy, Legal, Operations, etc.
+  pathwayType: text("pathway_type"), // Career pathway classification
+  yearsInCurrentRole: integer("years_in_current_role"),
+  education: jsonb("education").$type<string[]>(), // Array of education entries
+  contactEmail: text("contact_email"),
+  linkedinUrl: text("linkedin_url"),
+  photoUrl: text("photo_url"),
+  bio: text("bio"),
+  trackUpdates: boolean("track_updates").default(true),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStafferSchema = createInsertSchema(staffers).omit({
+  id: true,
+  lastUpdated: true,
+  createdAt: true,
+});
+
+export type InsertStaffer = z.infer<typeof insertStafferSchema>;
+export type Staffer = typeof staffers.$inferSelect;
+
+// Career positions for staffers
+export const stafferCareerPositions = pgTable("staffer_career_positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stafferId: varchar("staffer_id").notNull(),
+  position: text("position").notNull(),
+  organization: text("organization").notNull(),
+  bossName: text("boss_name"),
+  startYear: integer("start_year").notNull(),
+  endYear: integer("end_year"), // null if current
+  isCurrent: boolean("is_current").default(false),
+  orgType: text("org_type"), // Congressional Office, Campaign, Think Tank, etc.
+  chamber: text("chamber"), // House, Senate
+  state: varchar("state", { length: 2 }),
+  concurrent: boolean("concurrent").default(false), // If held simultaneously with another position
+  description: text("description"),
+  sortOrder: integer("sort_order"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStafferCareerPositionSchema = createInsertSchema(stafferCareerPositions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStafferCareerPosition = z.infer<typeof insertStafferCareerPositionSchema>;
+export type StafferCareerPosition = typeof stafferCareerPositions.$inferSelect;
+
+// Connections between staffers
+export const stafferConnections = pgTable("staffer_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stafferId: varchar("staffer_id").notNull(),
+  connectedToName: text("connected_to_name").notNull(),
+  connectedToId: varchar("connected_to_id"), // References another staffer if in system
+  connectionType: text("connection_type"), // worked_with, reported_to, managed, etc.
+  organization: text("organization"), // Where they connected
+  yearsTogether: integer("years_together"),
+  strength: text("strength").default("Medium"), // Strong, Medium, Weak
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStafferConnectionSchema = createInsertSchema(stafferConnections).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStafferConnection = z.infer<typeof insertStafferConnectionSchema>;
+export type StafferConnection = typeof stafferConnections.$inferSelect;
+
+// Political organizations reference table
+export const politicalOrganizations = pgTable("political_organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  orgType: text("org_type"), // Congressional Office, Committee, Campaign, Think Tank, Lobbying Firm, etc.
+  chamber: text("chamber"),
+  party: text("party"),
+  state: varchar("state", { length: 2 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPoliticalOrganizationSchema = createInsertSchema(politicalOrganizations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPoliticalOrganization = z.infer<typeof insertPoliticalOrganizationSchema>;
+export type PoliticalOrganization = typeof politicalOrganizations.$inferSelect;
