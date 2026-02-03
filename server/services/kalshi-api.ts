@@ -131,15 +131,15 @@ class KalshiAPI {
 
     const queryString = params.toString();
     const path = `/markets${queryString ? `?${queryString}` : ""}`;
-    return this.request<{ markets: KalshiMarket[]; cursor?: string }>(path);
+    return this.request<{ markets: KalshiMarket[]; cursor?: string }>(path, "GET", true);
   }
 
   async getMarket(ticker: string): Promise<{ market: KalshiMarket } | null> {
-    return this.request<{ market: KalshiMarket }>(`/markets/${ticker}`);
+    return this.request<{ market: KalshiMarket }>(`/markets/${ticker}`, "GET", true);
   }
 
   async getEvent(eventTicker: string): Promise<{ event: KalshiEvent } | null> {
-    return this.request<{ event: KalshiEvent }>(`/events/${eventTicker}`);
+    return this.request<{ event: KalshiEvent }>(`/events/${eventTicker}`, "GET", true);
   }
 
   async getEvents(options: {
@@ -156,11 +156,11 @@ class KalshiAPI {
 
     const queryString = params.toString();
     const path = `/events${queryString ? `?${queryString}` : ""}`;
-    return this.request<{ events: KalshiEvent[]; cursor?: string }>(path);
+    return this.request<{ events: KalshiEvent[]; cursor?: string }>(path, "GET", true);
   }
 
   async getSeries(ticker: string): Promise<{ series: KalshiSeries } | null> {
-    return this.request<{ series: KalshiSeries }>(`/series/${ticker}`);
+    return this.request<{ series: KalshiSeries }>(`/series/${ticker}`, "GET", true);
   }
 
   async searchPoliticalMarkets(limit: number = 20): Promise<KalshiMarket[]> {

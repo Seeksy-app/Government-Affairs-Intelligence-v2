@@ -2586,13 +2586,13 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get tracked bills
   app.get("/api/tracked-bills", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      // Use getClientId to support admin impersonation
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
 
-      const clientUser = await storage.getClientUserByUserId(userId);
-      if (!clientUser) return res.status(403).json({ message: "Not assigned to a client" });
-
-      const bills = await storage.getTrackedBills(clientUser.clientId);
+      const bills = await storage.getTrackedBills(clientId);
       res.json(bills);
     } catch (error) {
       console.error("Error getting tracked bills:", error);
