@@ -612,10 +612,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                       ? portals?.find(p => p.id === existingCustomer.portalId)?.name 
                       : null;
                     return currentPortalName ? (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="mt-2 text-xs gap-1">
                         <Briefcase className="h-3 w-3" />
-                        <span className="truncate">{currentPortalName}</span>
-                      </div>
+                        {currentPortalName}
+                      </Badge>
                     ) : null;
                   })()}
                   <div className="mt-2 flex items-center gap-1">
