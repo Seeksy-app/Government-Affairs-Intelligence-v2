@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, Users, Newspaper, Network, Shield, TrendingUp, Bot, FileText, Target, Briefcase, Check } from "lucide-react";
+import { Link } from "wouter";
 import heroCapitolImage from "@/assets/images/hero-capitol.jpg";
 import meetingImage from "@/assets/images/meeting.jpg";
 import dcMonumentsImage from "@/assets/images/dc-monuments.jpg";
@@ -391,10 +392,22 @@ export function LandingPage() {
             <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
               <Building2 className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-sm text-muted-foreground">Political Intel Platform</span>
+            <span className="text-sm text-muted-foreground">governmentaffairs.co</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <Link href="/terms">
+              <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer" data-testid="link-terms">
+                Terms & Conditions
+              </span>
+            </Link>
+            <Link href="/privacy">
+              <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer" data-testid="link-privacy">
+                Privacy Policy
+              </span>
+            </Link>
           </div>
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Political Intelligence Platform. All rights reserved.
+            &copy; {new Date().getFullYear()} governmentaffairs.co. All rights reserved.
           </p>
         </div>
       </footer>
