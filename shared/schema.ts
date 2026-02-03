@@ -598,6 +598,73 @@ export const insertTrackedSocialPostSchema = createInsertSchema(trackedSocialPos
 export type InsertTrackedSocialPost = z.infer<typeof insertTrackedSocialPostSchema>;
 export type TrackedSocialPost = typeof trackedSocialPosts.$inferSelect;
 
+// Engagement history for tracking metrics over time
+export const socialEngagementHistory = pgTable("social_engagement_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  accountId: varchar("account_id").notNull(),
+  postId: varchar("post_id"), // if tracking a specific post, otherwise null for account-level
+  followers: integer("followers"),
+  likes: integer("likes").default(0),
+  reposts: integer("reposts").default(0),
+  replies: integer("replies").default(0),
+  impressions: integer("impressions"),
+  engagementRate: text("engagement_rate"),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+export const insertSocialEngagementHistorySchema = createInsertSchema(socialEngagementHistory).omit({
+  id: true,
+  recordedAt: true,
+});
+
+export type InsertSocialEngagementHistory = z.infer<typeof insertSocialEngagementHistorySchema>;
+export type SocialEngagementHistory = typeof socialEngagementHistory.$inferSelect;
+
+// Keyword alerts for notifications when keywords are matched
+export const socialKeywordAlerts = pgTable("social_keyword_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  keywordId: varchar("keyword_id").notNull(),
+  postId: varchar("post_id").notNull(),
+  matchedKeyword: text("matched_keyword").notNull(),
+  postContent: text("post_content"),
+  authorUsername: text("author_username"),
+  postUrl: text("post_url"),
+  isRead: boolean("is_read").default(false),
+  isDismissed: boolean("is_dismissed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSocialKeywordAlertSchema = createInsertSchema(socialKeywordAlerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSocialKeywordAlert = z.infer<typeof insertSocialKeywordAlertSchema>;
+export type SocialKeywordAlert = typeof socialKeywordAlerts.$inferSelect;
+
+// Auto-sync configuration for scheduled monitoring
+export const socialAutoSyncConfig = pgTable("social_auto_sync_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  isEnabled: boolean("is_enabled").default(false),
+  syncIntervalMinutes: integer("sync_interval_minutes").default(60), // default 1 hour
+  lastAutoSyncAt: timestamp("last_auto_sync_at"),
+  nextScheduledSync: timestamp("next_scheduled_sync"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSocialAutoSyncConfigSchema = createInsertSchema(socialAutoSyncConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSocialAutoSyncConfig = z.infer<typeof insertSocialAutoSyncConfigSchema>;
+export type SocialAutoSyncConfig = typeof socialAutoSyncConfig.$inferSelect;
+
 // Tracked influencers (via Influencers Club API)
 export const trackedInfluencers = pgTable("tracked_influencers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
