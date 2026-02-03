@@ -79,14 +79,19 @@ async function buildAll() {
     },
   });
   
-  // Create a CJS wrapper that dynamically imports the ESM module
+  // Create a proper CJS wrapper that dynamically imports the ESM module
   const { writeFile } = await import("fs/promises");
-  const cjsWrapper = `
-// CJS wrapper for ESM module
-import("./index.mjs").catch(err => {
-  console.error("Failed to load ESM module:", err);
-  process.exit(1);
-});
+  const cjsWrapper = `#!/usr/bin/env node
+"use strict";
+// CJS wrapper for ESM module - uses dynamic import which works in CJS
+(async () => {
+  try {
+    await import("./index.mjs");
+  } catch (err) {
+    console.error("Failed to load ESM module:", err);
+    process.exit(1);
+  }
+})();
 `;
   await writeFile("dist/index.cjs", cjsWrapper.trim());
 }
