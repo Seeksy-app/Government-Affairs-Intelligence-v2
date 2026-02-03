@@ -740,6 +740,7 @@ export const customers = pgTable("customers", {
   notes: text("notes"),
   tags: text("tags").array(), // for categorizing customers
   matterId: varchar("matter_id"), // optional: link to a matter
+  portalId: varchar("portal_id"), // optional: link to a client portal for assignment
   isActive: boolean("is_active").default(true),
   lastContactedAt: timestamp("last_contacted_at"),
   createdAt: timestamp("created_at").defaultNow(),

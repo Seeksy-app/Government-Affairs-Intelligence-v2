@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer } from "@shared/schema";
+import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, ClientPortal } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -177,6 +177,11 @@ export default function NetworkPage() {
     queryKey: ["/api/matters"],
   });
 
+  // Client portals for "Assign to Client" dropdown
+  const { data: portals } = useQuery<ClientPortal[]>({
+    queryKey: ["/api/portals"],
+  });
+
   const addFavoriteMutation = useMutation({
     mutationFn: async (member: CongressMember) => {
       return apiRequest("POST", "/api/congress/favorites", {
@@ -227,9 +232,19 @@ export default function NetworkPage() {
   const getFavorite = (bioguideId: string) => favorites?.find(f => f.bioguideId === bioguideId);
 
   // Customers Portal
-    const { data: customersList, isLoading: customersLoading } = useQuery<Customer[]>({
+  const { data: customersList, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
+
+  // Helper functions for customer/portal assignment
+  const getCustomerBySource = (sourceType: string, sourceId: string) => 
+    customersList?.find(c => c.sourceType === sourceType && c.sourceId === sourceId);
+  
+  const getCustomerPortalName = (sourceType: string, sourceId: string) => {
+    const customer = getCustomerBySource(sourceType, sourceId);
+    if (!customer?.portalId) return null;
+    return portals?.find(p => p.id === customer.portalId)?.name;
+  };
 
   const addCustomerMutation = useMutation({
     mutationFn: async (data: {
@@ -245,18 +260,19 @@ export default function NetworkPage() {
       imageUrl?: string;
       notes?: string;
       matterId?: string;
+      portalId?: string;
     }) => {
       return apiRequest("POST", "/api/customers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      toast({ title: "Added to customers" });
+      toast({ title: "Assigned to client" });
     },
     onError: (error: Error) => {
       if (error.message.includes("already")) {
-        toast({ title: "Already in customers", description: "This person is already in your customers list" });
+        toast({ title: "Already assigned", description: "This person is already assigned to a client" });
       } else {
-        toast({ title: "Failed to add customer", description: error.message, variant: "destructive" });
+        toast({ title: "Failed to assign", description: error.message, variant: "destructive" });
       }
     },
   });
@@ -1133,30 +1149,61 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                           className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
                         />
                       </Button>
-                      <Button
-                        variant={isCustomer('congress_member', selectedMember.bioguideId) ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isCustomer('congress_member', selectedMember.bioguideId)) {
-                            addCustomerMutation.mutate({
-                              name: `${selectedMember.firstName} ${selectedMember.lastName}`,
-                              title: selectedMember.chamber === "House" ? "Representative" : "Senator",
-                              organization: `U.S. ${selectedMember.chamber}`,
-                              party: selectedMember.party,
-                              state: selectedMember.state,
-                              sourceType: 'congress_member',
-                              sourceId: selectedMember.bioguideId,
-                              imageUrl: selectedMember.imageUrl,
-                            });
-                          }
-                        }}
-                        disabled={isCustomer('congress_member', selectedMember.bioguideId) || addCustomerMutation.isPending}
-                        data-testid="button-add-to-resources"
-                      >
-                        {isCustomer('congress_member', selectedMember.bioguideId) ? "In Resources" : 
-                         addCustomerMutation.isPending ? "Adding..." : "Add to Resources"}
-                      </Button>
+                      {portals && portals.length > 0 ? (() => {
+                          const existingCustomer = getCustomerBySource('congress_member', selectedMember.bioguideId);
+                          const currentPortalName = existingCustomer?.portalId 
+                            ? portals.find(p => p.id === existingCustomer.portalId)?.name 
+                            : null;
+                          
+                          return (
+                            <Select
+                              value={existingCustomer?.portalId || ""}
+                              onValueChange={(portalId) => {
+                                if (existingCustomer) {
+                                  updateCustomerMutation.mutate({
+                                    id: existingCustomer.id,
+                                    data: { portalId }
+                                  });
+                                } else {
+                                  addCustomerMutation.mutate({
+                                    name: `${selectedMember.firstName} ${selectedMember.lastName}`,
+                                    title: selectedMember.chamber === "House" ? "Representative" : "Senator",
+                                    organization: `U.S. ${selectedMember.chamber}`,
+                                    party: selectedMember.party,
+                                    state: selectedMember.state,
+                                    sourceType: 'congress_member',
+                                    sourceId: selectedMember.bioguideId,
+                                    imageUrl: selectedMember.imageUrl,
+                                    portalId,
+                                  });
+                                }
+                              }}
+                              disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
+                            >
+                              <SelectTrigger className="w-[160px]" data-testid="select-assign-to-client">
+                                <SelectValue placeholder="Assign to Client">
+                                  {currentPortalName || "Assign to Client"}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {portals.map((portal) => (
+                                  <SelectItem key={portal.id} value={portal.id} data-testid={`select-portal-${portal.id}`}>
+                                    {portal.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        })() : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          data-testid="button-no-clients"
+                        >
+                          No Clients
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1286,64 +1333,100 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                       {staffers.length > 0 ? (
                         <div className="space-y-2">
                           {staffers.map((staffer, idx) => (
-                            <div key={idx} className="p-3 rounded-lg border bg-card flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-medium text-sm">{staffer.name}</span>
-                                  <Badge variant="secondary" className="text-xs">{staffer.role}</Badge>
+                            <div key={idx} className="p-3 rounded-lg border bg-card">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-sm">{staffer.name}</span>
+                                    <Badge variant="secondary" className="text-xs">{staffer.role}</Badge>
+                                  </div>
+                                  {staffer.email && (
+                                    <a 
+                                      href={`mailto:${staffer.email}`}
+                                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
+                                    >
+                                      <Mail className="h-3 w-3" />
+                                      {staffer.email}
+                                    </a>
+                                  )}
                                 </div>
-                                {staffer.email && (
-                                  <a 
-                                    href={`mailto:${staffer.email}`}
-                                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
+                                <div className="flex gap-1 shrink-0">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => selectedMember && handleMapToMiro(selectedMember, [staffer])}
+                                    disabled={miroMapping}
+                                    data-testid={`button-map-staffer-${idx}`}
                                   >
-                                    <Mail className="h-3 w-3" />
-                                    {staffer.email}
-                                  </a>
-                                )}
+                                    <Map className="h-4 w-4 mr-1" />
+                                    Map
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const nameParts = staffer.name.split(' ');
+                                      const firstName = nameParts[0] || '';
+                                      const lastName = nameParts.slice(1).join(' ') || '';
+                                      window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.role)}&organization=${encodeURIComponent(selectedMember ? `Office of ${selectedMember.name}` : '')}`;
+                                    }}
+                                    data-testid={`button-add-staffer-contact-${idx}`}
+                                  >
+                                    <UserPlus className="h-4 w-4 mr-1" />
+                                    Contact
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="shrink-0"
-                                  onClick={() => {
-                                    const stafferId = `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`;
-                                    if (!isCustomer('staffer', stafferId)) {
-                                      addCustomerMutation.mutate({
-                                        name: staffer.name,
-                                        title: staffer.role,
-                                        organization: selectedMember ? `Office of ${selectedMember.name}` : undefined,
-                                        email: staffer.email,
-                                        party: selectedMember?.party,
-                                        state: selectedMember?.state,
-                                        sourceType: 'staffer',
-                                        sourceId: stafferId,
-                                      });
-                                    }
-                                  }}
-                                  disabled={isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`)}
-                                  data-testid={`button-add-staffer-resource-${idx}`}
-                                >
-                                  <Users className="h-4 w-4 mr-1" />
-                                  {isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`) ? "Added" : "Resource"}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="shrink-0"
-                                  onClick={() => {
-                                    const nameParts = staffer.name.split(' ');
-                                    const firstName = nameParts[0] || '';
-                                    const lastName = nameParts.slice(1).join(' ') || '';
-                                    window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.role)}&organization=${encodeURIComponent(selectedMember ? `Office of ${selectedMember.name}` : '')}`;
-                                  }}
-                                  data-testid={`button-add-staffer-${idx}`}
-                                >
-                                  <UserPlus className="h-4 w-4 mr-1" />
-                                  Contact
-                                </Button>
-                              </div>
+                              {portals && portals.length > 0 && (() => {
+                                  const stafferId = `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`;
+                                  const existingCustomer = getCustomerBySource('staffer', stafferId);
+                                  const currentPortalName = existingCustomer?.portalId 
+                                    ? portals.find(p => p.id === existingCustomer.portalId)?.name 
+                                    : null;
+                                  
+                                  return (
+                                    <div className="mt-2 pt-2 border-t flex items-center gap-2">
+                                      <span className="text-xs text-muted-foreground">Assign to Client:</span>
+                                      <Select
+                                        value={existingCustomer?.portalId || ""}
+                                        onValueChange={(portalId) => {
+                                          if (existingCustomer) {
+                                            updateCustomerMutation.mutate({
+                                              id: existingCustomer.id,
+                                              data: { portalId }
+                                            });
+                                          } else {
+                                            addCustomerMutation.mutate({
+                                              name: staffer.name,
+                                              title: staffer.role,
+                                              organization: selectedMember ? `Office of ${selectedMember.name}` : undefined,
+                                              email: staffer.email,
+                                              party: selectedMember?.party,
+                                              state: selectedMember?.state,
+                                              sourceType: 'staffer',
+                                              sourceId: stafferId,
+                                              portalId,
+                                            });
+                                          }
+                                        }}
+                                        disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
+                                      >
+                                        <SelectTrigger className="w-[140px] text-xs" data-testid={`select-staffer-client-${idx}`}>
+                                          <SelectValue placeholder="Select client...">
+                                            {currentPortalName || "Select client..."}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {portals.map((portal) => (
+                                            <SelectItem key={portal.id} value={portal.id} data-testid={`select-staffer-portal-${idx}-${portal.id}`}>
+                                              {portal.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  );
+                                })()}
                             </div>
                           ))}
                         </div>
