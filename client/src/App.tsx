@@ -40,6 +40,7 @@ import ResetPasswordPage from "@/pages/reset-password";
 import AdminApplications from "@/pages/admin-applications";
 import BillTrackingPage from "@/pages/bill-tracking";
 import PredictionsPage from "@/pages/predictions";
+import SocialTrackingPage from "@/pages/social-tracking";
 
 function AuthenticatedRouter() {
   return (
@@ -62,6 +63,7 @@ function AuthenticatedRouter() {
       <Route path="/matters/:id" component={MatterDetailPage} />
       <Route path="/bills" component={BillTrackingPage} />
       <Route path="/predictions" component={PredictionsPage} />
+      <Route path="/social" component={SocialTrackingPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />
