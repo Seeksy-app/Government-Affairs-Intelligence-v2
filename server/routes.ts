@@ -2364,48 +2364,142 @@ export async function registerRoutes(
 
   app.post("/api/research/chat", isAuthenticated, async (req, res) => {
     try {
-      const { message, context, history } = req.body;
+      const { message, context, history, provider } = req.body;
       if (!message) {
         return res.status(400).json({ message: "Message is required" });
       }
 
-      const openaiApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-      const openaiBaseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-      
-      if (!openaiApiKey) {
-        return res.status(500).json({ message: "OpenAI not configured" });
+      const systemPrompt = `You are a political intelligence research assistant. You help analyze political news, track career movements of government officials and staffers, and provide insights on lobbying activities and policy developments.
+
+IMPORTANT INSTRUCTIONS:
+1. Always provide sources when citing facts, legislation, or specific information
+2. Format sources as [Source: description] at the end of your response
+3. Be concise but thorough
+4. When you don't have specific sources, indicate that the information is based on general knowledge
+
+${context ? `Context from recent research:\n${context}` : "No research context available yet."}`;
+
+      let reply = "";
+      let usedProvider = "unknown";
+
+      // Try providers in order of preference: specified provider, then fallbacks
+      const providers = provider ? [provider, "openai", "gemini", "anthropic"] : ["openai", "gemini", "anthropic"];
+      const uniqueProviders = [...new Set(providers)];
+
+      for (const currentProvider of uniqueProviders) {
+        try {
+          if (currentProvider === "openai") {
+            const openaiApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+            const openaiBaseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+            
+            if (!openaiApiKey) continue;
+
+            const messages = [
+              { role: "system" as const, content: systemPrompt },
+              ...(history || []).map((h: any) => ({
+                role: h.role as "user" | "assistant",
+                content: h.content,
+              })),
+              { role: "user" as const, content: message }
+            ];
+
+            const OpenAI = (await import("openai")).default;
+            const openai = new OpenAI({
+              apiKey: openaiApiKey,
+              baseURL: openaiBaseUrl,
+            });
+
+            const completion = await openai.chat.completions.create({
+              model: "gpt-4.1",
+              messages,
+              max_completion_tokens: 1500,
+            });
+
+            reply = completion.choices?.[0]?.message?.content || "";
+            if (reply) {
+              usedProvider = "OpenAI GPT-4.1";
+              break;
+            }
+          } else if (currentProvider === "gemini") {
+            const geminiApiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+            const geminiBaseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+            
+            if (!geminiApiKey) continue;
+
+            const { GoogleGenAI } = await import("@google/genai");
+            const ai = new GoogleGenAI({
+              apiKey: geminiApiKey,
+              httpOptions: {
+                apiVersion: "",
+                baseUrl: geminiBaseUrl,
+              },
+            });
+
+            const chatHistory = (history || []).map((h: any) => ({
+              role: h.role === "assistant" ? "model" : "user",
+              parts: [{ text: h.content }],
+            }));
+
+            const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: [
+                { role: "user", parts: [{ text: systemPrompt }] },
+                ...chatHistory,
+                { role: "user", parts: [{ text: message }] },
+              ],
+            });
+
+            reply = response.text || "";
+            if (reply) {
+              usedProvider = "Google Gemini 2.5 Flash";
+              break;
+            }
+          } else if (currentProvider === "anthropic") {
+            const anthropicApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+            const anthropicBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+            
+            if (!anthropicApiKey) continue;
+
+            const Anthropic = (await import("@anthropic-ai/sdk")).default;
+            const anthropic = new Anthropic({
+              apiKey: anthropicApiKey,
+              baseURL: anthropicBaseUrl,
+            });
+
+            const anthropicMessages = (history || []).map((h: any) => ({
+              role: h.role as "user" | "assistant",
+              content: h.content,
+            }));
+            anthropicMessages.push({ role: "user", content: message });
+
+            const response = await anthropic.messages.create({
+              model: "claude-sonnet-4-5",
+              max_tokens: 1500,
+              system: systemPrompt,
+              messages: anthropicMessages,
+            });
+
+            const textBlock = response.content.find((block: any) => block.type === "text");
+            reply = textBlock ? (textBlock as any).text : "";
+            if (reply) {
+              usedProvider = "Anthropic Claude Sonnet 4.5";
+              break;
+            }
+          }
+        } catch (providerError) {
+          console.error(`Error with ${currentProvider}:`, providerError);
+          continue;
+        }
       }
 
-      const messages = [
-        {
-          role: "system",
-          content: `You are a political intelligence research assistant. You help analyze political news, track career movements of government officials and staffers, and provide insights on lobbying activities and policy developments. Be concise but thorough.
-
-${context ? `Context from recent research:\n${context}` : "No research context available yet."}`
-        },
-        ...(history || []).map((h: any) => ({
-          role: h.role,
-          content: h.content,
-        })),
-        { role: "user", content: message }
-      ];
-
-      // Use the OpenAI SDK approach for better compatibility
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: openaiApiKey,
-        baseURL: openaiBaseUrl,
-      });
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-5.1",
-        messages,
-        max_completion_tokens: 1000,
-      });
-
-      const reply = completion.choices?.[0]?.message?.content || "I couldn't generate a response.";
+      if (!reply) {
+        return res.status(500).json({ message: "I couldn't generate a response. Please try again." });
+      }
       
-      res.json({ response: reply });
+      // Add source attribution
+      const responseWithSource = `${reply}\n\n---\n*Powered by ${usedProvider}*`;
+      
+      res.json({ response: responseWithSource, provider: usedProvider });
     } catch (error) {
       console.error("Error in chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
