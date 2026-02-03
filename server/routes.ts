@@ -4002,7 +4002,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Update influencer
   app.patch("/api/influencers/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4021,7 +4021,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete influencer
   app.delete("/api/influencers/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4040,7 +4040,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Sync/refresh influencer data
   app.post("/api/influencers/:id/sync", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
