@@ -73,7 +73,7 @@ const INITIAL_DISPLAY_COUNT = 20;
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mainCategory, setMainCategory] = useState<MainCategory>("politics");
-  const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("all");
+  const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("us-elections");
   const [sortOption, setSortOption] = useState<SortOption>("volume");
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [selectedMarket, setSelectedMarket] = useState<KalshiMarket | null>(null);
