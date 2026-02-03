@@ -525,3 +525,77 @@ export const insertBillTrackingAlertSchema = createInsertSchema(billTrackingAler
 
 export type InsertBillTrackingAlert = z.infer<typeof insertBillTrackingAlertSchema>;
 export type BillTrackingAlert = typeof billTrackingAlerts.$inferSelect;
+
+// Social media accounts to track (X/Twitter)
+export const trackedSocialAccounts = pgTable("tracked_social_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  platform: text("platform").notNull().default("x"), // x, twitter
+  username: text("username").notNull(), // @handle without the @
+  displayName: text("display_name"),
+  profileUrl: text("profile_url"),
+  isActive: boolean("is_active").default(true),
+  lastCheckedAt: timestamp("last_checked_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTrackedSocialAccountSchema = createInsertSchema(trackedSocialAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastCheckedAt: true,
+});
+
+export type InsertTrackedSocialAccount = z.infer<typeof insertTrackedSocialAccountSchema>;
+export type TrackedSocialAccount = typeof trackedSocialAccounts.$inferSelect;
+
+// Keywords to track for each social account
+export const socialTrackingKeywords = pgTable("social_tracking_keywords", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  accountId: varchar("account_id"), // optional - if null, applies to all accounts for this client
+  keyword: text("keyword").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSocialTrackingKeywordSchema = createInsertSchema(socialTrackingKeywords).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSocialTrackingKeyword = z.infer<typeof insertSocialTrackingKeywordSchema>;
+export type SocialTrackingKeyword = typeof socialTrackingKeywords.$inferSelect;
+
+// Tracked posts/comments from social media
+export const trackedSocialPosts = pgTable("tracked_social_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  accountId: varchar("account_id").notNull(),
+  platform: text("platform").notNull().default("x"),
+  postId: text("post_id").notNull(), // original post ID from platform
+  postUrl: text("post_url"),
+  content: text("content"),
+  authorUsername: text("author_username"),
+  authorDisplayName: text("author_display_name"),
+  postType: text("post_type").notNull().default("post"), // post, reply, repost, quote
+  matchedKeywords: text("matched_keywords").array(), // which keywords matched this post
+  likes: integer("likes").default(0),
+  reposts: integer("reposts").default(0),
+  replies: integer("replies").default(0),
+  postedAt: timestamp("posted_at"),
+  isRead: boolean("is_read").default(false),
+  isFlagged: boolean("is_flagged").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTrackedSocialPostSchema = createInsertSchema(trackedSocialPosts).omit({
+  id: true,
+  createdAt: true,
+  isRead: true,
+  isFlagged: true,
+});
+
+export type InsertTrackedSocialPost = z.infer<typeof insertTrackedSocialPostSchema>;
+export type TrackedSocialPost = typeof trackedSocialPosts.$inferSelect;
