@@ -541,11 +541,12 @@ export default function NetworkPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeFavoriteMutation.mutate(fav.bioguideId);
                       }}
+                      data-testid="button-remove-favorite"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -1039,7 +1040,6 @@ export default function NetworkPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isFavorite(selectedMember.bioguideId)) {
