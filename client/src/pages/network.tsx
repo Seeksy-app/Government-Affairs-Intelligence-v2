@@ -13,7 +13,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { Contact, CareerHistory, Matter, FavoriteCongressMember } from "@shared/schema";
+import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer } from "@shared/schema";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CongressMember {
   bioguideId: string;
@@ -222,6 +225,71 @@ export default function NetworkPage() {
 
   const isFavorite = (bioguideId: string) => favorites?.some(f => f.bioguideId === bioguideId) || false;
   const getFavorite = (bioguideId: string) => favorites?.find(f => f.bioguideId === bioguideId);
+
+  // Customers Portal
+  const [showCustomersPortal, setShowCustomersPortal] = useState(false);
+  const { data: customersList, isLoading: customersLoading } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  const addCustomerMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      title?: string;
+      organization?: string;
+      email?: string;
+      phone?: string;
+      party?: string;
+      state?: string;
+      sourceType: string;
+      sourceId?: string;
+      imageUrl?: string;
+      notes?: string;
+      matterId?: string;
+    }) => {
+      return apiRequest("POST", "/api/customers", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Added to customers" });
+    },
+    onError: (error: Error) => {
+      if (error.message.includes("already")) {
+        toast({ title: "Already in customers", description: "This person is already in your customers list" });
+      } else {
+        toast({ title: "Failed to add customer", description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/customers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Removed from customers" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove customer", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Customer> }) => {
+      return apiRequest("PATCH", `/api/customers/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: "Customer updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update customer", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const isCustomer = (sourceType: string, sourceId: string) => 
+    customersList?.some(c => c.sourceType === sourceType && c.sourceId === sourceId) || false;
   
   // Build query key with filter params - state to track when search should run
   const [searchTrigger, setSearchTrigger] = useState(0);
@@ -557,6 +625,140 @@ export default function NetworkPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Customers Portal Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Customers Portal ({customersList?.length || 0})
+            </CardTitle>
+            <Button
+              variant={showCustomersPortal ? "default" : "outline"}
+              onClick={() => setShowCustomersPortal(!showCustomersPortal)}
+              data-testid="button-toggle-customers"
+            >
+              {showCustomersPortal ? "Hide Customers" : "View Customers"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showCustomersPortal && (
+          <CardContent>
+            {customersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : customersList && customersList.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {customersList.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="p-4 border rounded-lg hover-elevate"
+                    data-testid={`card-customer-${customer.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={customer.imageUrl || undefined} alt={customer.name} />
+                        <AvatarFallback>
+                          {customer.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm truncate">{customer.name}</h4>
+                        {customer.title && (
+                          <p className="text-xs text-muted-foreground truncate">{customer.title}</p>
+                        )}
+                        {customer.organization && (
+                          <p className="text-xs text-muted-foreground truncate">{customer.organization}</p>
+                        )}
+                        <div className="flex items-center gap-1 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {customer.sourceType === 'congress_member' ? 'Member' : 
+                             customer.sourceType === 'staffer' ? 'Staffer' : 'Manual'}
+                          </Badge>
+                          {customer.party && (
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                customer.party === "D" ? "border-blue-500 text-blue-600" : 
+                                customer.party === "R" ? "border-red-500 text-red-600" : ""
+                              }`}
+                            >
+                              {customer.party}
+                            </Badge>
+                          )}
+                          {customer.state && (
+                            <span className="text-xs text-muted-foreground">{customer.state}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {(customer.email || customer.phone) && (
+                      <div className="mt-2 space-y-1">
+                        {customer.email && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{customer.email}</span>
+                          </div>
+                        )}
+                        {customer.phone && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{customer.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {customer.matterId && matters && (
+                      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Briefcase className="h-3 w-3" />
+                        <span className="truncate">{matters.find(m => m.id === customer.matterId)?.name || 'Assigned'}</span>
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center gap-2">
+                      <Select
+                        value={customer.matterId || "none"}
+                        onValueChange={(val) => {
+                          updateCustomerMutation.mutate({
+                            id: customer.id,
+                            data: { matterId: val === "none" ? null : val }
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="h-7 text-xs flex-1">
+                          <SelectValue placeholder="Assign to Matter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Matter</SelectItem>
+                          {matters?.map((matter) => (
+                            <SelectItem key={matter.id} value={matter.id}>{matter.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => deleteCustomerMutation.mutate(customer.id)}
+                        data-testid="button-remove-customer"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No customers yet</p>
+                <p className="text-sm">Add Congress members or staffers as customers from their detail panels</p>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
 
       {/* Members of Congress Search Section */}
       <Card>
@@ -1054,6 +1256,30 @@ export default function NetworkPage() {
                         className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
                       />
                     </Button>
+                    <Button
+                      variant={isCustomer('congress_member', selectedMember.bioguideId) ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isCustomer('congress_member', selectedMember.bioguideId)) {
+                          addCustomerMutation.mutate({
+                            name: `${selectedMember.firstName} ${selectedMember.lastName}`,
+                            title: selectedMember.chamber === "House" ? "Representative" : "Senator",
+                            organization: `U.S. ${selectedMember.chamber}`,
+                            party: selectedMember.party,
+                            state: selectedMember.state,
+                            sourceType: 'congress_member',
+                            sourceId: selectedMember.bioguideId,
+                            imageUrl: selectedMember.imageUrl,
+                          });
+                        }
+                      }}
+                      disabled={isCustomer('congress_member', selectedMember.bioguideId) || addCustomerMutation.isPending}
+                      data-testid="button-add-to-customers"
+                    >
+                      {isCustomer('congress_member', selectedMember.bioguideId) ? "In Customers" : 
+                       addCustomerMutation.isPending ? "Adding..." : "Add to Customers"}
+                    </Button>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
@@ -1198,21 +1424,48 @@ export default function NetworkPage() {
                                   </a>
                                 )}
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="shrink-0"
-                                onClick={() => {
-                                  const nameParts = staffer.name.split(' ');
-                                  const firstName = nameParts[0] || '';
-                                  const lastName = nameParts.slice(1).join(' ') || '';
-                                  window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.role)}&organization=${encodeURIComponent(selectedMember ? `Office of ${selectedMember.name}` : '')}`;
-                                }}
-                                data-testid={`button-add-staffer-${idx}`}
-                              >
-                                <UserPlus className="h-4 w-4 mr-1" />
-                                Add
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="shrink-0"
+                                  onClick={() => {
+                                    const stafferId = `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`;
+                                    if (!isCustomer('staffer', stafferId)) {
+                                      addCustomerMutation.mutate({
+                                        name: staffer.name,
+                                        title: staffer.role,
+                                        organization: selectedMember ? `Office of ${selectedMember.name}` : undefined,
+                                        email: staffer.email,
+                                        party: selectedMember?.party,
+                                        state: selectedMember?.state,
+                                        sourceType: 'staffer',
+                                        sourceId: stafferId,
+                                      });
+                                    }
+                                  }}
+                                  disabled={isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`)}
+                                  data-testid={`button-add-staffer-customer-${idx}`}
+                                >
+                                  <Users className="h-4 w-4 mr-1" />
+                                  {isCustomer('staffer', `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`) ? "Added" : "Customer"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="shrink-0"
+                                  onClick={() => {
+                                    const nameParts = staffer.name.split(' ');
+                                    const firstName = nameParts[0] || '';
+                                    const lastName = nameParts.slice(1).join(' ') || '';
+                                    window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.role)}&organization=${encodeURIComponent(selectedMember ? `Office of ${selectedMember.name}` : '')}`;
+                                  }}
+                                  data-testid={`button-add-staffer-${idx}`}
+                                >
+                                  <UserPlus className="h-4 w-4 mr-1" />
+                                  Contact
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
