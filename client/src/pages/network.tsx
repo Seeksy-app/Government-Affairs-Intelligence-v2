@@ -606,32 +606,64 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                       </div>
                     </div>
                   </div>
-                  {fav.matterId && matters && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                      <Briefcase className="h-3 w-3" />
-                      <span className="truncate">{matters.find(m => m.id === fav.matterId)?.name || 'Assigned'}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const existingCustomer = getCustomerBySource('congress_member', fav.bioguideId);
+                    const currentPortalName = existingCustomer?.portalId 
+                      ? portals?.find(p => p.id === existingCustomer.portalId)?.name 
+                      : null;
+                    return currentPortalName ? (
+                      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Briefcase className="h-3 w-3" />
+                        <span className="truncate">{currentPortalName}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="mt-2 flex items-center gap-1">
-                    <Select 
-                      value={fav.matterId || "none"} 
-                      onValueChange={(val) => {
-                        assignToMatterMutation.mutate({ 
-                          favoriteId: fav.id, 
-                          matterId: val === "none" ? null : val 
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="h-7 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <SelectValue placeholder="Assign to Matter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Matter</SelectItem>
-                        {matters?.map((matter) => (
-                          <SelectItem key={matter.id} value={matter.id}>{matter.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {(() => {
+                      const existingCustomer = getCustomerBySource('congress_member', fav.bioguideId);
+                      const currentPortalId = existingCustomer?.portalId || "";
+                      const currentPortalName = existingCustomer?.portalId 
+                        ? portals?.find(p => p.id === existingCustomer.portalId)?.name 
+                        : null;
+                      
+                      return portals && portals.length > 0 ? (
+                        <Select 
+                          value={currentPortalId} 
+                          onValueChange={(portalId) => {
+                            if (existingCustomer) {
+                              updateCustomerMutation.mutate({
+                                id: existingCustomer.id,
+                                data: { portalId }
+                              });
+                            } else {
+                              addCustomerMutation.mutate({
+                                name: fav.name,
+                                title: fav.chamber === "House" ? "Representative" : "Senator",
+                                organization: `U.S. ${fav.chamber}`,
+                                party: fav.party || undefined,
+                                state: fav.state || undefined,
+                                sourceType: 'congress_member',
+                                sourceId: fav.bioguideId,
+                                imageUrl: fav.imageUrl || undefined,
+                                portalId,
+                              });
+                            }
+                          }}
+                          disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
+                        >
+                          <SelectTrigger className="text-xs" onClick={(e) => e.stopPropagation()}>
+                            <SelectValue placeholder={currentPortalName || "Assign to Client"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {portals.map((portal) => (
+                              <SelectItem key={portal.id} value={portal.id}>{portal.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No clients</span>
+                      );
+                    })()}
                     <Button
                       variant="ghost"
                       size="icon"
