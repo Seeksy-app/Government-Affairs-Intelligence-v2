@@ -24,6 +24,9 @@ import {
   billChangeHistory,
   billTrackingAlerts,
   clientApplications,
+  trackedSocialAccounts,
+  socialTrackingKeywords,
+  trackedSocialPosts,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -70,6 +73,12 @@ import {
   type InsertBillTrackingAlert,
   type ClientApplication,
   type InsertClientApplication,
+  type TrackedSocialAccount,
+  type InsertTrackedSocialAccount,
+  type SocialTrackingKeyword,
+  type InsertSocialTrackingKeyword,
+  type TrackedSocialPost,
+  type InsertTrackedSocialPost,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -896,6 +905,83 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBillTrackingAlert(trackedBillId: string): Promise<void> {
     await db.delete(billTrackingAlerts).where(eq(billTrackingAlerts.trackedBillId, trackedBillId));
+  }
+
+  // Social Tracking - Accounts
+  async getTrackedSocialAccounts(clientId: string): Promise<TrackedSocialAccount[]> {
+    return db.select().from(trackedSocialAccounts).where(eq(trackedSocialAccounts.clientId, clientId)).orderBy(desc(trackedSocialAccounts.createdAt));
+  }
+
+  async getTrackedSocialAccount(id: string): Promise<TrackedSocialAccount | undefined> {
+    const [account] = await db.select().from(trackedSocialAccounts).where(eq(trackedSocialAccounts.id, id));
+    return account;
+  }
+
+  async createTrackedSocialAccount(account: InsertTrackedSocialAccount): Promise<TrackedSocialAccount> {
+    const [newAccount] = await db.insert(trackedSocialAccounts).values(account).returning();
+    return newAccount;
+  }
+
+  async updateTrackedSocialAccount(id: string, account: Partial<InsertTrackedSocialAccount>): Promise<TrackedSocialAccount | undefined> {
+    const [updated] = await db.update(trackedSocialAccounts).set({ ...account, updatedAt: new Date() }).where(eq(trackedSocialAccounts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTrackedSocialAccount(id: string): Promise<void> {
+    await db.delete(trackedSocialAccounts).where(eq(trackedSocialAccounts.id, id));
+  }
+
+  // Social Tracking - Keywords
+  async getSocialTrackingKeywords(clientId: string): Promise<SocialTrackingKeyword[]> {
+    return db.select().from(socialTrackingKeywords).where(eq(socialTrackingKeywords.clientId, clientId)).orderBy(desc(socialTrackingKeywords.createdAt));
+  }
+
+  async getSocialTrackingKeywordsForAccount(accountId: string): Promise<SocialTrackingKeyword[]> {
+    return db.select().from(socialTrackingKeywords).where(eq(socialTrackingKeywords.accountId, accountId));
+  }
+
+  async createSocialTrackingKeyword(keyword: InsertSocialTrackingKeyword): Promise<SocialTrackingKeyword> {
+    const [newKeyword] = await db.insert(socialTrackingKeywords).values(keyword).returning();
+    return newKeyword;
+  }
+
+  async deleteSocialTrackingKeyword(id: string): Promise<void> {
+    await db.delete(socialTrackingKeywords).where(eq(socialTrackingKeywords.id, id));
+  }
+
+  // Social Tracking - Posts
+  async getTrackedSocialPosts(clientId: string, limit: number = 100): Promise<TrackedSocialPost[]> {
+    return db.select().from(trackedSocialPosts).where(eq(trackedSocialPosts.clientId, clientId)).orderBy(desc(trackedSocialPosts.createdAt)).limit(limit);
+  }
+
+  async getTrackedSocialPostsByAccount(accountId: string, limit: number = 100): Promise<TrackedSocialPost[]> {
+    return db.select().from(trackedSocialPosts).where(eq(trackedSocialPosts.accountId, accountId)).orderBy(desc(trackedSocialPosts.createdAt)).limit(limit);
+  }
+
+  async createTrackedSocialPost(post: InsertTrackedSocialPost): Promise<TrackedSocialPost> {
+    const [newPost] = await db.insert(trackedSocialPosts).values(post).returning();
+    return newPost;
+  }
+
+  async updateTrackedSocialPost(id: string, post: Partial<InsertTrackedSocialPost>): Promise<TrackedSocialPost | undefined> {
+    const [updated] = await db.update(trackedSocialPosts).set(post).where(eq(trackedSocialPosts.id, id)).returning();
+    return updated;
+  }
+
+  async markSocialPostAsRead(id: string): Promise<void> {
+    await db.update(trackedSocialPosts).set({ isRead: true }).where(eq(trackedSocialPosts.id, id));
+  }
+
+  async toggleSocialPostFlag(id: string): Promise<TrackedSocialPost | undefined> {
+    const [post] = await db.select().from(trackedSocialPosts).where(eq(trackedSocialPosts.id, id));
+    if (!post) return undefined;
+    const [updated] = await db.update(trackedSocialPosts).set({ isFlagged: !post.isFlagged }).where(eq(trackedSocialPosts.id, id)).returning();
+    return updated;
+  }
+
+  async socialPostExists(postId: string, accountId: string): Promise<boolean> {
+    const [existing] = await db.select().from(trackedSocialPosts).where(and(eq(trackedSocialPosts.postId, postId), eq(trackedSocialPosts.accountId, accountId)));
+    return !!existing;
   }
 }
 

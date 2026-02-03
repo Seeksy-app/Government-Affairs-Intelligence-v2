@@ -2978,5 +2978,195 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ============= SOCIAL TRACKING ROUTES =============
+
+  // Get all tracked social accounts for client
+  app.get("/api/social/accounts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const accounts = await storage.getTrackedSocialAccounts(clientId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching tracked social accounts:", error);
+      res.status(500).json({ message: "Failed to fetch accounts" });
+    }
+  });
+
+  // Create tracked social account
+  app.post("/api/social/accounts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const { username, displayName, platform } = req.body;
+      if (!username) {
+        return res.status(400).json({ message: "Username is required" });
+      }
+      const cleanUsername = username.replace(/^@/, "").trim();
+      const account = await storage.createTrackedSocialAccount({
+        clientId,
+        username: cleanUsername,
+        displayName: displayName || cleanUsername,
+        platform: platform || "x",
+        profileUrl: `https://x.com/${cleanUsername}`,
+        isActive: true,
+      });
+      res.status(201).json(account);
+    } catch (error) {
+      console.error("Error creating tracked social account:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  // Update tracked social account
+  app.patch("/api/social/accounts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const account = await storage.getTrackedSocialAccount(req.params.id);
+      if (!account || account.clientId !== clientId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      const updated = await storage.updateTrackedSocialAccount(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating tracked social account:", error);
+      res.status(500).json({ message: "Failed to update account" });
+    }
+  });
+
+  // Delete tracked social account
+  app.delete("/api/social/accounts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const account = await storage.getTrackedSocialAccount(req.params.id);
+      if (!account || account.clientId !== clientId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      await storage.deleteTrackedSocialAccount(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tracked social account:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  // Get all tracking keywords for client
+  app.get("/api/social/keywords", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const keywords = await storage.getSocialTrackingKeywords(clientId);
+      res.json(keywords);
+    } catch (error) {
+      console.error("Error fetching tracking keywords:", error);
+      res.status(500).json({ message: "Failed to fetch keywords" });
+    }
+  });
+
+  // Create tracking keyword
+  app.post("/api/social/keywords", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const { keyword, accountId } = req.body;
+      if (!keyword || !keyword.trim()) {
+        return res.status(400).json({ message: "Keyword is required" });
+      }
+      const newKeyword = await storage.createSocialTrackingKeyword({
+        clientId,
+        keyword: keyword.trim().toLowerCase(),
+        accountId: accountId || null,
+        isActive: true,
+      });
+      res.status(201).json(newKeyword);
+    } catch (error) {
+      console.error("Error creating tracking keyword:", error);
+      res.status(500).json({ message: "Failed to create keyword" });
+    }
+  });
+
+  // Delete tracking keyword
+  app.delete("/api/social/keywords/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteSocialTrackingKeyword(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tracking keyword:", error);
+      res.status(500).json({ message: "Failed to delete keyword" });
+    }
+  });
+
+  // Get tracked posts for client
+  app.get("/api/social/posts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const limit = parseInt(req.query.limit as string) || 100;
+      const posts = await storage.getTrackedSocialPosts(clientId, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching tracked posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  // Get posts for specific account
+  app.get("/api/social/accounts/:accountId/posts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not associated with a client" });
+      }
+      const account = await storage.getTrackedSocialAccount(req.params.accountId);
+      if (!account || account.clientId !== clientId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      const limit = parseInt(req.query.limit as string) || 100;
+      const posts = await storage.getTrackedSocialPostsByAccount(req.params.accountId, limit);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching account posts:", error);
+      res.status(500).json({ message: "Failed to fetch posts" });
+    }
+  });
+
+  // Mark post as read
+  app.patch("/api/social/posts/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markSocialPostAsRead(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error marking post as read:", error);
+      res.status(500).json({ message: "Failed to mark as read" });
+    }
+  });
+
+  // Toggle post flag
+  app.patch("/api/social/posts/:id/flag", isAuthenticated, async (req, res) => {
+    try {
+      const updated = await storage.toggleSocialPostFlag(req.params.id);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling post flag:", error);
+      res.status(500).json({ message: "Failed to toggle flag" });
+    }
+  });
+
   return httpServer;
 }
