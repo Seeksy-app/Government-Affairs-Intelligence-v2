@@ -291,114 +291,137 @@ export default function AIAgentPage() {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  Research Assistant
-                </SheetTitle>
-              </SheetHeader>
+            <SheetContent className="w-[400px] sm:w-[480px] flex flex-col p-0">
+              <div className="p-6 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-lg">Research Assistant</h2>
+                    <p className="text-xs text-muted-foreground">AI-powered political intelligence</p>
+                  </div>
+                </div>
+              </div>
               
-              <div className="flex-1 flex flex-col mt-4 min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 px-6">
                 {chatMessages.length === 0 ? (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground">
-                      Ask questions about your research or get help with political intelligence.
-                    </div>
-                    
-                    {recentSearches.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <History className="w-4 h-4" />
-                          Recent Searches
+                  <ScrollArea className="flex-1">
+                    <div className="space-y-6 pb-4">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Ask questions about your research or get help with political intelligence analysis.
+                      </p>
+                      
+                      {recentSearches.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <History className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Recent Searches</span>
+                          </div>
+                          <div className="space-y-1">
+                            {recentSearches.map((search, i) => (
+                              <button
+                                key={i}
+                                className="w-full text-left px-3 py-2.5 rounded-lg border border-transparent hover:border-border hover:bg-muted/50 transition-colors group flex items-center gap-2"
+                                onClick={() => handlePromptClick(search)}
+                                data-testid={`recent-search-${i}`}
+                              >
+                                <Search className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+                                <span className="text-sm truncate">{search}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Suggested Prompts</span>
                         </div>
                         <div className="space-y-1">
-                          {recentSearches.map((search, i) => (
-                            <Button
+                          {SUGGESTED_PROMPTS.map((prompt, i) => (
+                            <button
                               key={i}
-                              variant="ghost"
-                              className="w-full justify-start text-left h-auto py-2 px-3"
-                              onClick={() => handlePromptClick(search)}
-                              data-testid={`recent-search-${i}`}
+                              className="w-full text-left px-3 py-2.5 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors group flex items-start gap-2"
+                              onClick={() => handlePromptClick(prompt)}
+                              data-testid={`suggested-prompt-${i}`}
                             >
-                              <Search className="w-3 h-3 mr-2 flex-shrink-0" />
-                              <span className="truncate text-sm">{search}</span>
-                            </Button>
+                              <ArrowRight className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
+                              <span className="text-sm leading-relaxed">{prompt}</span>
+                            </button>
                           ))}
                         </div>
                       </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Sparkles className="w-4 h-4" />
-                        Suggested Prompts
-                      </div>
-                      <div className="space-y-1">
-                        {SUGGESTED_PROMPTS.map((prompt, i) => (
-                          <Button
-                            key={i}
-                            variant="ghost"
-                            className="w-full justify-start text-left h-auto py-2 px-3"
-                            onClick={() => handlePromptClick(prompt)}
-                            data-testid={`suggested-prompt-${i}`}
-                          >
-                            <ArrowRight className="w-3 h-3 mr-2 flex-shrink-0" />
-                            <span className="text-sm">{prompt}</span>
-                          </Button>
-                        ))}
-                      </div>
                     </div>
-                  </div>
+                  </ScrollArea>
                 ) : (
-                  <ScrollArea className="flex-1 pr-4">
-                    <div className="space-y-4">
+                  <ScrollArea className="flex-1">
+                    <div className="space-y-4 pb-4">
                       {chatMessages.map((msg, i) => (
                         <div
                           key={i}
                           className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                            className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                               msg.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
+                                ? "bg-primary text-primary-foreground rounded-br-md"
+                                : "bg-muted rounded-bl-md"
                             }`}
                             data-testid={`chat-message-${i}`}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                           </div>
                         </div>
                       ))}
                       {chatMutation.isPending && (
                         <div className="flex justify-start">
-                          <div className="bg-muted rounded-lg px-4 py-2">
+                          <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
                             <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm text-muted-foreground">Thinking...</span>
                           </div>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
                 )}
+              </div>
 
-                <div className="flex gap-2 pt-4 border-t mt-4">
-                  <Input
-                    placeholder="Ask a question..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleChatSubmit()}
-                    disabled={chatMutation.isPending}
-                    data-testid="input-chat"
-                  />
+              <div className="p-4 border-t bg-muted/30">
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Ask a question..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleChatSubmit()}
+                      disabled={chatMutation.isPending}
+                      className="pr-10 bg-background"
+                      data-testid="input-chat"
+                    />
+                  </div>
                   <Button
                     size="icon"
                     onClick={handleChatSubmit}
                     disabled={!chatInput.trim() || chatMutation.isPending}
+                    className="shrink-0"
                     data-testid="button-send-chat"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
+                {chatMessages.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-xs text-muted-foreground"
+                    onClick={() => setChatMessages([])}
+                    data-testid="button-clear-chat"
+                  >
+                    Clear conversation
+                  </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
