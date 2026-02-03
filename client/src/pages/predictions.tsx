@@ -39,7 +39,16 @@ export default function PredictionsPage() {
   const [timeUntilRefresh, setTimeUntilRefresh] = useState<string>("20 min");
 
   const { data: marketsData, isLoading, refetch, isFetching } = useQuery<{ markets: KalshiMarket[]; cursor?: string }>({
-    queryKey: ["/api/kalshi/markets", { status: "open", limit: 200 }],
+    queryKey: ["/api/kalshi/markets"],
+    queryFn: async () => {
+      const res = await fetch("/api/kalshi/markets?status=open&limit=200", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch markets: ${res.status}`);
+      }
+      return res.json();
+    },
     refetchInterval: REFRESH_INTERVAL,
     staleTime: REFRESH_INTERVAL - 60000, // Consider stale 1 minute before next refresh
   });
