@@ -3124,6 +3124,149 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== Customers Portal ==========
+
+  // Get all customers for client
+  app.get("/api/customers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const query = req.query.q as string;
+      let customerList;
+      if (query) {
+        customerList = await storage.searchCustomers(clientId, query);
+      } else {
+        customerList = await storage.getCustomers(clientId);
+      }
+      res.json(customerList);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  // Get customers by matter
+  app.get("/api/customers/by-matter/:matterId", isAuthenticated, async (req, res) => {
+    try {
+      const customerList = await storage.getCustomersByMatter(req.params.matterId);
+      res.json(customerList);
+    } catch (error) {
+      console.error("Error fetching customers by matter:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  // Get single customer
+  app.get("/api/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      res.status(500).json({ message: "Failed to fetch customer" });
+    }
+  });
+
+  // Create customer
+  app.post("/api/customers", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const { name, title, organization, email, phone, party, state, sourceType, sourceId, imageUrl, notes, tags, matterId } = req.body;
+      
+      if (!name || !sourceType) {
+        return res.status(400).json({ message: "Name and sourceType are required" });
+      }
+
+      // Check if already exists (for congress_member or staffer with sourceId)
+      if (sourceId && sourceType !== 'manual') {
+        const existing = await storage.getCustomerBySourceId(clientId, sourceType, sourceId);
+        if (existing) {
+          return res.status(409).json({ message: "This person is already in your customers list", existing });
+        }
+      }
+
+      const customer = await storage.createCustomer({
+        clientId,
+        name,
+        title,
+        organization,
+        email,
+        phone,
+        party,
+        state,
+        sourceType,
+        sourceId,
+        imageUrl,
+        notes,
+        tags,
+        matterId,
+      });
+      
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      res.status(500).json({ message: "Failed to create customer" });
+    }
+  });
+
+  // Update customer
+  app.patch("/api/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      const updated = await storage.updateCustomer(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      res.status(500).json({ message: "Failed to update customer" });
+    }
+  });
+
+  // Delete customer
+  app.delete("/api/customers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      await storage.deleteCustomer(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // Check if person is already a customer (by sourceType and sourceId)
+  app.get("/api/customers/check/:sourceType/:sourceId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const existing = await storage.getCustomerBySourceId(clientId, req.params.sourceType, req.params.sourceId);
+      res.json({ isCustomer: !!existing, customer: existing });
+    } catch (error) {
+      console.error("Error checking customer status:", error);
+      res.status(500).json({ message: "Failed to check customer status" });
+    }
+  });
+
   // ========== Kalshi Prediction Markets ==========
 
   // Get top political prediction markets
