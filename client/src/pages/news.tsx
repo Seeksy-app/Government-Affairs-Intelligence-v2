@@ -280,7 +280,7 @@ export default function News() {
               {filteredArticles.map((article) => (
                 <Card 
                   key={article.id} 
-                  className={`hover-elevate transition-colors ${!article.isRead ? "border-l-4 border-l-primary" : ""}`}
+                  className={`hover-elevate transition-colors ${!article.isRead ? "bg-primary/5" : ""}`}
                   data-testid={`news-card-${article.id}`}
                 >
                   <CardContent className="p-4">

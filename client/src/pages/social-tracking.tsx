@@ -280,7 +280,7 @@ export default function SocialTrackingPage() {
               {filteredPosts.map(post => {
                 const account = getAccountByPost(post.accountId);
                 return (
-                  <Card key={post.id} className={`${!post.isRead ? "border-l-4 border-l-primary" : ""}`} data-testid={`card-post-${post.id}`}>
+                  <Card key={post.id} className={`${!post.isRead ? "bg-primary/5" : ""}`} data-testid={`card-post-${post.id}`}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-2">
