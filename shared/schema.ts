@@ -181,24 +181,56 @@ export type ContactConnection = typeof contactConnections.$inferSelect;
 export const newsArticles = pgTable("news_articles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull(),
+  externalId: varchar("external_id"), // Source's article ID for deduplication
   title: text("title").notNull(),
   summary: text("summary"),
+  content: text("content"), // Full article content
   source: text("source"),
+  author: text("author"),
   url: text("url"),
-  category: text("category"), // legislation, executive, judiciary, policy, etc.
+  category: text("category"), // legislation, executive, campaign, policy
+  imageUrl: text("image_url"),
+  relevanceScore: integer("relevance_score").default(0), // 0-100 score
+  matchedTopics: jsonb("matched_topics"), // Array of matched topics
   isRead: boolean("is_read").default(false),
   isFlagged: boolean("is_flagged").default(false),
+  isBookmarked: boolean("is_bookmarked").default(false),
   publishedAt: timestamp("published_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertNewsArticleSchema = createInsertSchema(newsArticles).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertNewsArticle = z.infer<typeof insertNewsArticleSchema>;
 export type NewsArticle = typeof newsArticles.$inferSelect;
+
+// News preferences per client
+export const newsPreferences = pgTable("news_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  preferredSources: jsonb("preferred_sources"), // Array of source names
+  excludedSources: jsonb("excluded_sources"), // Sources to exclude
+  trackedTopics: jsonb("tracked_topics"), // Topics to track for relevance
+  alertThreshold: integer("alert_threshold").default(70), // Minimum score for alerts
+  emailAlerts: boolean("email_alerts").default(true),
+  alertFrequency: text("alert_frequency").default("daily"), // real_time, daily, weekly
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNewsPreferencesSchema = createInsertSchema(newsPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertNewsPreferences = z.infer<typeof insertNewsPreferencesSchema>;
+export type NewsPreferences = typeof newsPreferences.$inferSelect;
 
 // Matters (sub-clients - Adam's own clients for research)
 export const matters = pgTable("matters", {
