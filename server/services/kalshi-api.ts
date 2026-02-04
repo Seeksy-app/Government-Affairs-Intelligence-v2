@@ -256,22 +256,75 @@ class KalshiAPI {
 
   async searchPoliticalMarkets(limit: number = 200): Promise<KalshiMarket[]> {
     const allMarkets: KalshiMarket[] = [];
-    let cursor: string | undefined;
+    const seenTickers = new Set<string>();
+    const politicalEventTickers: string[] = [];
     
-    // Fetch multiple pages to find political markets
-    for (let i = 0; i < 5 && allMarkets.length < limit; i++) {
-      const result = await this.getMarkets({ status: "open", limit: 200, cursor });
-      if (!result?.markets?.length) break;
+    console.log(`[Kalshi] Starting search for political markets (limit: ${limit})`);
+    
+    // Step 1: Get political events by fetching events and filtering by category
+    let eventCursor: string | undefined;
+    for (let page = 0; page < 5; page++) {
+      const eventsResult = await this.getEvents({ status: "open", limit: 100, cursor: eventCursor });
       
-      const politicalMarkets = result.markets.filter(m => 
-        this.isPoliticalMarket(m.title, m.ticker)
-      );
-      allMarkets.push(...politicalMarkets);
+      if (!eventsResult?.events?.length) break;
       
-      cursor = result.cursor;
-      if (!cursor) break;
+      for (const event of eventsResult.events) {
+        // Filter for Politics and Elections categories
+        if (event.category === "Politics" || event.category === "Elections") {
+          politicalEventTickers.push(event.event_ticker);
+        }
+      }
+      
+      eventCursor = eventsResult.cursor;
+      if (!eventCursor) break;
     }
-
+    
+    console.log(`[Kalshi] Found ${politicalEventTickers.length} political event tickers`);
+    
+    // Step 2: Fetch markets for each political event
+    for (const eventTicker of politicalEventTickers) {
+      if (allMarkets.length >= limit) break;
+      
+      const marketsResult = await this.getMarkets({ 
+        eventTicker, 
+        status: "open", 
+        limit: 50 
+      });
+      
+      if (marketsResult?.markets) {
+        for (const market of marketsResult.markets) {
+          if (!seenTickers.has(market.ticker)) {
+            seenTickers.add(market.ticker);
+            allMarkets.push(market);
+          }
+        }
+      }
+    }
+    
+    console.log(`[Kalshi] Found ${allMarkets.length} markets from political events`);
+    
+    // Step 3: If we need more, supplement with keyword-based search
+    if (allMarkets.length < limit) {
+      let cursor: string | undefined;
+      
+      for (let page = 0; page < 10 && allMarkets.length < limit; page++) {
+        const result = await this.getMarkets({ status: "open", limit: 200, cursor });
+        
+        if (!result?.markets?.length) break;
+        
+        for (const market of result.markets) {
+          if (!seenTickers.has(market.ticker) && this.isPoliticalMarket(market.title, market.ticker)) {
+            seenTickers.add(market.ticker);
+            allMarkets.push(market);
+          }
+        }
+        
+        cursor = result.cursor;
+        if (!cursor) break;
+      }
+    }
+    
+    console.log(`[Kalshi] Total political markets found: ${allMarkets.length}`);
     return allMarkets.slice(0, limit);
   }
 
