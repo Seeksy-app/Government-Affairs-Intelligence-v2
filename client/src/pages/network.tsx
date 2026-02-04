@@ -502,7 +502,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       return;
     }
     
-    // Determine pathway type based on role
+    // Determine pathway type based on role (categorization only, not fabricated data)
     const getPathwayType = (role: string) => {
       if (role.toLowerCase().includes('chief') || role.toLowerCase().includes('director')) return 'executive';
       if (role.toLowerCase().includes('counsel') || role.toLowerCase().includes('legal')) return 'legal';
@@ -511,16 +511,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       return 'administrative';
     };
     
-    // Generate sample policy areas based on role
-    const getPolicyAreas = (role: string) => {
-      if (role.toLowerCase().includes('defense') || role.toLowerCase().includes('military')) return ['Defense', 'Foreign Affairs', 'Veterans Affairs'];
-      if (role.toLowerCase().includes('health')) return ['Healthcare', 'Medicare', 'Public Health'];
-      if (role.toLowerCase().includes('education')) return ['Education', 'Workforce Development'];
-      if (role.toLowerCase().includes('energy') || role.toLowerCase().includes('environment')) return ['Energy', 'Environment', 'Climate'];
-      if (role.toLowerCase().includes('economic') || role.toLowerCase().includes('budget')) return ['Economy', 'Budget', 'Taxation'];
-      return ['General Policy', 'Constituent Services'];
-    };
-    
+    // Map parsed staffers - only use data that was actually provided
     setNetworkDialogData({
       memberName: `${member.firstName} ${member.lastName}`,
       memberTitle: member.chamber === "house" ? "Representative" : "Senator",
@@ -532,18 +523,6 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         title: s.role,
         email: s.email || undefined,
         pathwayType: getPathwayType(s.role),
-        yearsInCurrentRole: Math.floor(Math.random() * 5) + 1,
-        policyAreas: getPolicyAreas(s.role),
-        previousMembers: s.role.toLowerCase().includes('chief') ? [`Former ${member.chamber === 'house' ? 'Rep.' : 'Sen.'} from ${member.state}`] : undefined,
-        careerHistory: [
-          {
-            title: s.role,
-            organization: `Office of ${member.firstName} ${member.lastName}`,
-            organizationType: 'congressional' as const,
-            startYear: 2022 - idx,
-            memberServed: `${member.firstName} ${member.lastName}`
-          }
-        ]
       }))
     });
     setShowNetworkDialog(true);
