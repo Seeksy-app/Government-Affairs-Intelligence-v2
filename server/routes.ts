@@ -3589,7 +3589,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get all tracked social accounts for client
   app.get("/api/social/accounts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3604,7 +3604,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Create tracked social account
   app.post("/api/social/accounts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3631,7 +3631,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Update tracked social account
   app.patch("/api/social/accounts/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3650,7 +3650,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete tracked social account
   app.delete("/api/social/accounts/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3669,7 +3669,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get all tracking keywords for client
   app.get("/api/social/keywords", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3684,7 +3684,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Create tracking keyword
   app.post("/api/social/keywords", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3708,7 +3708,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete tracking keyword
   app.delete("/api/social/keywords/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3728,7 +3728,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get tracked posts for client
   app.get("/api/social/posts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3744,7 +3744,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get posts for specific account
   app.get("/api/social/accounts/:accountId/posts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3764,7 +3764,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Mark post as read
   app.patch("/api/social/posts/:id/read", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3783,7 +3783,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Toggle post flag
   app.patch("/api/social/posts/:id/flag", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3802,7 +3802,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Sync specific account
   app.post("/api/social/accounts/:id/sync", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3821,7 +3821,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Sync all accounts for client
   app.post("/api/social/sync", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3838,7 +3838,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get engagement history for an account
   app.get("/api/social/accounts/:accountId/engagement", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3854,7 +3854,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get engagement history for a specific post
   app.get("/api/social/posts/:postId/engagement", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3872,7 +3872,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get keyword alerts for client
   app.get("/api/social/alerts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3888,7 +3888,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get unread alert count
   app.get("/api/social/alerts/count", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3925,7 +3925,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Mark all alerts as read
   app.post("/api/social/alerts/mark-all-read", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3942,7 +3942,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get auto-sync configuration for client
   app.get("/api/social/auto-sync", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3957,7 +3957,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Update auto-sync configuration
   app.post("/api/social/auto-sync", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -3985,7 +3985,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get all tracked influencers for client
   app.get("/api/influencers", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4000,7 +4000,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Add new influencer to track
   app.post("/api/influencers", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4176,7 +4176,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get influencer posts
   app.get("/api/influencers/posts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4192,7 +4192,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get posts for specific influencer
   app.get("/api/influencers/:id/posts", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4212,7 +4212,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Mark post as read
   app.patch("/api/influencer-posts/:id/read", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4231,7 +4231,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Toggle post flag
   app.patch("/api/influencer-posts/:id/flag", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4264,7 +4264,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Search staffers
   app.get("/api/staffers/search", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4289,7 +4289,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get staffers by member
   app.get("/api/staffers/by-member/:memberName", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4304,7 +4304,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get staffers by organization
   app.get("/api/staffers/by-organization/:orgName", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4319,7 +4319,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get staffer stats
   app.get("/api/staffers/stats", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4352,7 +4352,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get all staffers
   app.get("/api/staffers", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4367,7 +4367,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get single staffer with career and connections
   app.get("/api/staffers/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4387,7 +4387,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get staffer timeline
   app.get("/api/staffers/:id/timeline", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4434,7 +4434,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Get staffer network
   app.get("/api/staffers/:id/network", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4496,7 +4496,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Create staffer
   app.post("/api/staffers", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4511,7 +4511,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Update staffer
   app.put("/api/staffers/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4530,7 +4530,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete staffer
   app.delete("/api/staffers/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4549,7 +4549,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Add career position
   app.post("/api/staffers/:id/positions", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4571,7 +4571,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete career position
   app.delete("/api/staffers/:id/positions/:positionId", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4590,7 +4590,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Add connection
   app.post("/api/staffers/:id/connections", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4612,7 +4612,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Delete connection
   app.delete("/api/staffers/:id/connections/:connectionId", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4631,7 +4631,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Export staffer data
   app.get("/api/staffers/:id/export", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4672,7 +4672,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Export staffer to Miro
   app.post("/api/staffers/:id/export-miro", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4696,7 +4696,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Export office staffers to Miro (using staffers passed from frontend)
   app.post("/api/miro/map-office", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4741,7 +4741,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Export multiple selected staffers to Miro
   app.post("/api/miro/map-multiple", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }
@@ -4783,7 +4783,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   // Import staffers from CSV
   app.post("/api/staffers/import", isAuthenticated, async (req, res) => {
     try {
-      const clientId = getClientId(req);
+      const clientId = await getClientId(req);
       if (!clientId) {
         return res.status(403).json({ message: "Not associated with a client" });
       }

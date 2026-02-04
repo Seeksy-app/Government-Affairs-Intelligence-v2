@@ -196,10 +196,7 @@ export default function StaffersPage() {
 
   const createStafferMutation = useMutation({
     mutationFn: async (data: typeof newStaffer) => {
-      return apiRequest("/api/staffers", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/staffers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/staffers"] });
@@ -244,15 +241,13 @@ export default function StaffersPage() {
     if (selectedStaffers.length === 0) return;
     setExportingMiro(true);
     try {
-      const res = await apiRequest("/api/miro/map-multiple", {
-        method: "POST",
-        body: JSON.stringify({
-          stafferIds: selectedStaffers,
-          boardName: `Selected Staffers (${selectedStaffers.length})`,
-        }),
+      const res = await apiRequest("POST", "/api/miro/map-multiple", {
+        stafferIds: selectedStaffers,
+        boardName: `Selected Staffers (${selectedStaffers.length})`,
       });
-      toast({ title: "Miro board created", description: `Created board with ${res.itemsCreated} items` });
-      window.open(res.miroBoardUrl, "_blank");
+      const data = await res.json();
+      toast({ title: "Miro board created", description: `Created board with ${data.itemsCreated} items` });
+      window.open(data.miroBoardUrl, "_blank");
       setSelectedStaffers([]);
       setSelectMode(false);
     } catch (error) {
@@ -270,12 +265,10 @@ export default function StaffersPage() {
     if (!memberFilter) return;
     setExportingMiro(true);
     try {
-      const res = await apiRequest("/api/miro/map-office", {
-        method: "POST",
-        body: JSON.stringify({ memberName: memberFilter }),
-      });
-      toast({ title: "Miro board created", description: `Created board with ${res.itemsCreated} items for ${memberFilter}` });
-      window.open(res.miroBoardUrl, "_blank");
+      const res = await apiRequest("POST", "/api/miro/map-office", { memberName: memberFilter });
+      const data = await res.json();
+      toast({ title: "Miro board created", description: `Created board with ${data.itemsCreated} items for ${memberFilter}` });
+      window.open(data.miroBoardUrl, "_blank");
     } catch (error) {
       toast({
         title: "Failed to create Miro board",

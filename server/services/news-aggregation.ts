@@ -70,17 +70,18 @@ export async function fetchRSSFeeds(hoursBack: number = 24): Promise<AggregatedA
         const pubDate = new Date(item.pubDate || item.isoDate || new Date());
         
         if (pubDate >= cutoffDate) {
+          const itemAny = item as any;
           articles.push({
             externalId: `rss_${sourceName}_${item.guid || item.link}`,
             title: item.title || "Untitled",
             summary: item.contentSnippet || item.content?.substring(0, 500) || "",
-            content: item.content || item["content:encoded"] || "",
+            content: item.content || itemAny["content:encoded"] || "",
             url: item.link || "",
             source: sourceName,
-            author: item.creator || item.author,
+            author: item.creator || itemAny.author,
             publishedAt: pubDate,
             category: categorizeArticle(item.title || "", item.contentSnippet),
-            imageUrl: (item as any).media?.["$"]?.url || (item as any).thumbnail?.["$"]?.url,
+            imageUrl: itemAny.media?.["$"]?.url || itemAny.thumbnail?.["$"]?.url,
           });
         }
       }
