@@ -756,6 +756,23 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Customer = typeof customers.$inferSelect;
 
+// Customer Portal Assignments - Many-to-many relationship between customers and portals
+export const customerPortalAssignments = pgTable("customer_portal_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull(),
+  portalId: varchar("portal_id").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by"), // userId who assigned
+});
+
+export const insertCustomerPortalAssignmentSchema = createInsertSchema(customerPortalAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertCustomerPortalAssignment = z.infer<typeof insertCustomerPortalAssignmentSchema>;
+export type CustomerPortalAssignment = typeof customerPortalAssignments.$inferSelect;
+
 // Tracked influencers (via Influencers Club API)
 export const trackedInfluencers = pgTable("tracked_influencers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

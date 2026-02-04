@@ -3442,6 +3442,69 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== Customer Portal Assignments (many-to-many) ==========
+
+  // Get all portal assignments for a customer
+  app.get("/api/customer-portal-assignments/:customerId", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getCustomerPortalAssignments(req.params.customerId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching customer portal assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Get all customer assignments for a portal
+  app.get("/api/portal-customer-assignments/:portalId", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getPortalCustomerAssignments(req.params.portalId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching portal customer assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  // Add a customer to a portal (many-to-many assignment)
+  app.post("/api/customer-portal-assignments", isAuthenticated, async (req, res) => {
+    try {
+      const { customerId, portalId } = req.body;
+      if (!customerId || !portalId) {
+        return res.status(400).json({ message: "customerId and portalId are required" });
+      }
+      
+      // Check if assignment already exists
+      const existing = await storage.getCustomerPortalAssignments(customerId);
+      const alreadyAssigned = existing.some(a => a.portalId === portalId);
+      if (alreadyAssigned) {
+        return res.status(400).json({ message: "Customer is already assigned to this portal" });
+      }
+
+      const userId = (req.user as Express.User).id;
+      const assignment = await storage.createCustomerPortalAssignment({
+        customerId,
+        portalId,
+        assignedBy: userId,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating customer portal assignment:", error);
+      res.status(500).json({ message: "Failed to create assignment" });
+    }
+  });
+
+  // Remove a customer from a portal
+  app.delete("/api/customer-portal-assignments/:customerId/:portalId", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteCustomerPortalAssignmentByIds(req.params.customerId, req.params.portalId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting customer portal assignment:", error);
+      res.status(500).json({ message: "Failed to delete assignment" });
+    }
+  });
+
   // ========== Kalshi Prediction Markets ==========
 
   // Get top political prediction markets

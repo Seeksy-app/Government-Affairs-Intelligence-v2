@@ -118,6 +118,9 @@ import {
   type InsertStafferConnection,
   type PoliticalOrganization,
   type InsertPoliticalOrganization,
+  customerPortalAssignments,
+  type CustomerPortalAssignment,
+  type InsertCustomerPortalAssignment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -342,6 +345,13 @@ export interface IStorage {
   updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<void>;
   getCustomerBySourceId(clientId: string, sourceType: string, sourceId: string): Promise<Customer | undefined>;
+
+  // Customer Portal Assignments (many-to-many)
+  getCustomerPortalAssignments(customerId: string): Promise<CustomerPortalAssignment[]>;
+  getPortalCustomerAssignments(portalId: string): Promise<CustomerPortalAssignment[]>;
+  createCustomerPortalAssignment(data: InsertCustomerPortalAssignment): Promise<CustomerPortalAssignment>;
+  deleteCustomerPortalAssignment(id: string): Promise<void>;
+  deleteCustomerPortalAssignmentByIds(customerId: string, portalId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1517,6 +1527,33 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return customer;
+  }
+
+  // Customer Portal Assignments
+  async getCustomerPortalAssignments(customerId: string): Promise<CustomerPortalAssignment[]> {
+    return db.select().from(customerPortalAssignments).where(eq(customerPortalAssignments.customerId, customerId));
+  }
+
+  async getPortalCustomerAssignments(portalId: string): Promise<CustomerPortalAssignment[]> {
+    return db.select().from(customerPortalAssignments).where(eq(customerPortalAssignments.portalId, portalId));
+  }
+
+  async createCustomerPortalAssignment(data: InsertCustomerPortalAssignment): Promise<CustomerPortalAssignment> {
+    const [assignment] = await db.insert(customerPortalAssignments).values(data).returning();
+    return assignment;
+  }
+
+  async deleteCustomerPortalAssignment(id: string): Promise<void> {
+    await db.delete(customerPortalAssignments).where(eq(customerPortalAssignments.id, id));
+  }
+
+  async deleteCustomerPortalAssignmentByIds(customerId: string, portalId: string): Promise<void> {
+    await db.delete(customerPortalAssignments).where(
+      and(
+        eq(customerPortalAssignments.customerId, customerId),
+        eq(customerPortalAssignments.portalId, portalId)
+      )
+    );
   }
 }
 

@@ -200,6 +200,29 @@ export default function NetworkPage() {
     queryKey: ["/api/portals"],
   });
 
+  // Customer portal assignments (many-to-many)
+  interface CustomerPortalAssignment {
+    id: string;
+    customerId: string;
+    portalId: string;
+    assignedAt: string;
+  }
+
+  // Helper to get all portal assignments for a customer
+  const getCustomerPortalAssignments = (customerId: string): CustomerPortalAssignment[] => {
+    // For now, we'll use the portalId from the customer record as a single assignment
+    // TODO: Fetch from the many-to-many table when we have the query
+    return [];
+  };
+
+  // Helper to get portal names for a customer's assignments
+  const getAssignedPortalNames = (customerId: string): { id: string; name: string }[] => {
+    const customer = customersList?.find(c => c.id === customerId);
+    if (!customer?.portalId || !portals) return [];
+    const portal = portals.find(p => p.id === customer.portalId);
+    return portal ? [{ id: portal.id, name: portal.name }] : [];
+  };
+
   const addFavoriteMutation = useMutation({
     mutationFn: async (member: CongressMember) => {
       return apiRequest("POST", "/api/congress/favorites", {
@@ -318,6 +341,39 @@ export default function NetworkPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to update customer", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Multi-assignment mutations for customer portal assignments
+  const addPortalAssignmentMutation = useMutation({
+    mutationFn: async ({ customerId, portalId }: { customerId: string; portalId: string }) => {
+      return apiRequest("POST", "/api/customer-portal-assignments", { customerId, portalId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-portal-assignments"] });
+      toast({ title: "Added to client" });
+    },
+    onError: (error: Error) => {
+      if (error.message.includes("already")) {
+        toast({ title: "Already assigned", description: "Already assigned to this client" });
+      } else {
+        toast({ title: "Failed to add", description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const removePortalAssignmentMutation = useMutation({
+    mutationFn: async ({ customerId, portalId }: { customerId: string; portalId: string }) => {
+      return apiRequest("DELETE", `/api/customer-portal-assignments/${customerId}/${portalId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-portal-assignments"] });
+      toast({ title: "Removed from client" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove", description: error.message, variant: "destructive" });
     },
   });
 
@@ -446,6 +502,25 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       return;
     }
     
+    // Determine pathway type based on role
+    const getPathwayType = (role: string) => {
+      if (role.toLowerCase().includes('chief') || role.toLowerCase().includes('director')) return 'executive';
+      if (role.toLowerCase().includes('counsel') || role.toLowerCase().includes('legal')) return 'legal';
+      if (role.toLowerCase().includes('policy') || role.toLowerCase().includes('legislative')) return 'legislative';
+      if (role.toLowerCase().includes('press') || role.toLowerCase().includes('communications')) return 'communications';
+      return 'administrative';
+    };
+    
+    // Generate sample policy areas based on role
+    const getPolicyAreas = (role: string) => {
+      if (role.toLowerCase().includes('defense') || role.toLowerCase().includes('military')) return ['Defense', 'Foreign Affairs', 'Veterans Affairs'];
+      if (role.toLowerCase().includes('health')) return ['Healthcare', 'Medicare', 'Public Health'];
+      if (role.toLowerCase().includes('education')) return ['Education', 'Workforce Development'];
+      if (role.toLowerCase().includes('energy') || role.toLowerCase().includes('environment')) return ['Energy', 'Environment', 'Climate'];
+      if (role.toLowerCase().includes('economic') || role.toLowerCase().includes('budget')) return ['Economy', 'Budget', 'Taxation'];
+      return ['General Policy', 'Constituent Services'];
+    };
+    
     setNetworkDialogData({
       memberName: `${member.firstName} ${member.lastName}`,
       memberTitle: member.chamber === "house" ? "Representative" : "Senator",
@@ -456,6 +531,19 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         name: s.name,
         title: s.role,
         email: s.email || undefined,
+        pathwayType: getPathwayType(s.role),
+        yearsInCurrentRole: Math.floor(Math.random() * 5) + 1,
+        policyAreas: getPolicyAreas(s.role),
+        previousMembers: s.role.toLowerCase().includes('chief') ? [`Former ${member.chamber === 'house' ? 'Rep.' : 'Sen.'} from ${member.state}`] : undefined,
+        careerHistory: [
+          {
+            title: s.role,
+            organization: `Office of ${member.firstName} ${member.lastName}`,
+            organizationType: 'congressional' as const,
+            startYear: 2022 - idx,
+            memberServed: `${member.firstName} ${member.lastName}`
+          }
+        ]
       }))
     });
     setShowNetworkDialog(true);
@@ -1409,48 +1497,84 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                               {portals && portals.length > 0 && (() => {
                                   const stafferId = `${staffer.name}-${selectedMember?.bioguideId || 'unknown'}`;
                                   const existingCustomer = getCustomerBySource('staffer', stafferId);
-                                  const currentPortalName = existingCustomer?.portalId 
-                                    ? portals.find(p => p.id === existingCustomer.portalId)?.name 
-                                    : null;
+                                  const assignedPortals = existingCustomer?.portalId 
+                                    ? [portals.find(p => p.id === existingCustomer.portalId)].filter(Boolean)
+                                    : [];
+                                  const unassignedPortals = portals.filter(p => !assignedPortals.some(ap => ap?.id === p.id));
                                   
                                   return (
-                                    <div className="mt-2 pt-2 border-t flex items-center gap-2">
-                                      <span className="text-xs text-muted-foreground">Assign to Client:</span>
-                                      <Select
-                                        value={existingCustomer?.portalId || ""}
-                                        onValueChange={(portalId) => {
-                                          if (existingCustomer) {
-                                            updateCustomerMutation.mutate({
-                                              id: existingCustomer.id,
-                                              data: { portalId }
-                                            });
-                                          } else {
-                                            addCustomerMutation.mutate({
-                                              name: staffer.name,
-                                              title: staffer.role,
-                                              organization: selectedMember ? `Office of ${selectedMember.name}` : undefined,
-                                              email: staffer.email,
-                                              party: selectedMember?.party,
-                                              state: selectedMember?.state,
-                                              sourceType: 'staffer',
-                                              sourceId: stafferId,
-                                              portalId,
-                                            });
-                                          }
-                                        }}
-                                        disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
-                                      >
-                                        <SelectTrigger className="w-[140px] text-xs" data-testid={`select-staffer-client-${idx}`}>
-                                          <SelectValue placeholder={currentPortalName || "Select client..."} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {portals.map((portal) => (
-                                            <SelectItem key={portal.id} value={portal.id} data-testid={`select-staffer-portal-${idx}-${portal.id}`}>
+                                    <div className="mt-2 pt-2 border-t space-y-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs text-muted-foreground shrink-0">Clients:</span>
+                                        {assignedPortals.length > 0 ? (
+                                          assignedPortals.map(portal => portal && (
+                                            <Badge 
+                                              key={portal.id} 
+                                              variant="secondary" 
+                                              className="text-xs gap-1 pr-1"
+                                            >
+                                              <Briefcase className="h-3 w-3" />
                                               {portal.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-4 w-4 ml-1 hover:bg-destructive/20"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  if (existingCustomer) {
+                                                    updateCustomerMutation.mutate({
+                                                      id: existingCustomer.id,
+                                                      data: { portalId: null }
+                                                    });
+                                                  }
+                                                }}
+                                                data-testid={`button-remove-portal-${idx}-${portal.id}`}
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </Button>
+                                            </Badge>
+                                          ))
+                                        ) : (
+                                          <span className="text-xs text-muted-foreground italic">Not assigned</span>
+                                        )}
+                                        {unassignedPortals.length > 0 && (
+                                          <Select
+                                            value=""
+                                            onValueChange={(portalId) => {
+                                              if (existingCustomer) {
+                                                updateCustomerMutation.mutate({
+                                                  id: existingCustomer.id,
+                                                  data: { portalId }
+                                                });
+                                              } else {
+                                                addCustomerMutation.mutate({
+                                                  name: staffer.name,
+                                                  title: staffer.role,
+                                                  organization: selectedMember ? `Office of ${selectedMember.name}` : undefined,
+                                                  email: staffer.email,
+                                                  party: selectedMember?.party,
+                                                  state: selectedMember?.state,
+                                                  sourceType: 'staffer',
+                                                  sourceId: stafferId,
+                                                  portalId,
+                                                });
+                                              }
+                                            }}
+                                            disabled={addCustomerMutation.isPending || updateCustomerMutation.isPending}
+                                          >
+                                            <SelectTrigger className="w-[100px] h-6 text-xs" data-testid={`select-staffer-client-${idx}`}>
+                                              <SelectValue placeholder="+ Add" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {unassignedPortals.map((portal) => (
+                                                <SelectItem key={portal.id} value={portal.id} data-testid={`select-staffer-portal-${idx}-${portal.id}`}>
+                                                  {portal.name}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })()}

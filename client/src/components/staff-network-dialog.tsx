@@ -2,8 +2,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, X, ChevronRight, Building2, Calendar, Briefcase, Users } from "lucide-react";
+import { Download, X, ChevronRight, Building2, Calendar, Briefcase, Users, FileText, Link2, Search, Loader2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   ReactFlow,
   Background,
@@ -26,6 +29,20 @@ interface CareerPosition {
   memberServed?: string;
 }
 
+interface BillWorkedOn {
+  billNumber: string;
+  billTitle: string;
+  congress?: number;
+  role?: string; // "drafted", "advised", "managed"
+}
+
+interface StafferConnection {
+  name: string;
+  relationship: string; // "worked_with", "reported_to", "managed"
+  organization?: string;
+  yearsTogether?: number;
+}
+
 interface Staffer {
   id: number;
   name: string;
@@ -36,6 +53,8 @@ interface Staffer {
   careerHistory?: CareerPosition[];
   previousMembers?: string[];
   policyAreas?: string[];
+  billsWorkedOn?: BillWorkedOn[];
+  connections?: StafferConnection[];
 }
 
 interface StaffNetworkDialogProps {
@@ -409,8 +428,60 @@ export function StaffNetworkDialog({
                     </div>
                   )}
 
+                  {/* Bills Worked On */}
+                  {selectedStaffer.billsWorkedOn && selectedStaffer.billsWorkedOn.length > 0 && (
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+                        <FileText className="h-3 w-3" />
+                        Bills Worked On
+                      </div>
+                      <div className="space-y-2">
+                        {selectedStaffer.billsWorkedOn.map((bill, idx) => (
+                          <div key={idx} className="border-l-2 border-primary/30 pl-3 py-1">
+                            <div className="font-medium text-sm flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{bill.billNumber}</Badge>
+                              {bill.role && (
+                                <span className="text-xs text-muted-foreground capitalize">({bill.role})</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground line-clamp-2">{bill.billTitle}</div>
+                            {bill.congress && (
+                              <div className="text-xs text-muted-foreground">{bill.congress}th Congress</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Connections / Collaborators */}
+                  {selectedStaffer.connections && selectedStaffer.connections.length > 0 && (
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+                        <Link2 className="h-3 w-3" />
+                        Professional Connections
+                      </div>
+                      <div className="space-y-2">
+                        {selectedStaffer.connections.map((connection, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                            <div>
+                              <div className="font-medium text-sm">{connection.name}</div>
+                              <div className="text-xs text-muted-foreground capitalize">
+                                {connection.relationship.replace(/_/g, ' ')}
+                                {connection.organization && ` at ${connection.organization}`}
+                              </div>
+                            </div>
+                            {connection.yearsTogether && (
+                              <Badge variant="outline" className="text-xs">{connection.yearsTogether}y</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* No additional data message */}
-                  {!selectedStaffer.careerHistory?.length && !selectedStaffer.previousMembers?.length && !selectedStaffer.policyAreas?.length && (
+                  {!selectedStaffer.careerHistory?.length && !selectedStaffer.previousMembers?.length && !selectedStaffer.policyAreas?.length && !selectedStaffer.billsWorkedOn?.length && !selectedStaffer.connections?.length && (
                     <div className="text-sm text-muted-foreground text-center py-4">
                       No additional career data available for this staffer.
                       <br />
