@@ -8,6 +8,8 @@ import {
   careerHistory,
   contactConnections,
   newsArticles,
+  newsPreferences,
+  rssFeeds,
   matters,
   researchDocuments,
   researchConversations,
@@ -53,6 +55,10 @@ import {
   type InsertContactConnection,
   type NewsArticle,
   type InsertNewsArticle,
+  type NewsPreferences,
+  type InsertNewsPreferences,
+  type RssFeed,
+  type InsertRssFeed,
   type Matter,
   type InsertMatter,
   type ResearchDocument,
@@ -1554,6 +1560,61 @@ export class DatabaseStorage implements IStorage {
         eq(customerPortalAssignments.portalId, portalId)
       )
     );
+  }
+
+  // ==================== RSS FEEDS ====================
+
+  async getRssFeeds(): Promise<RssFeed[]> {
+    return db.select().from(rssFeeds).orderBy(rssFeeds.tier, rssFeeds.name);
+  }
+
+  async getActiveRssFeeds(): Promise<RssFeed[]> {
+    return db.select().from(rssFeeds)
+      .where(eq(rssFeeds.isActive, true))
+      .orderBy(rssFeeds.tier, rssFeeds.name);
+  }
+
+  async getRssFeed(id: string): Promise<RssFeed | undefined> {
+    const [feed] = await db.select().from(rssFeeds).where(eq(rssFeeds.id, id));
+    return feed;
+  }
+
+  async createRssFeed(feed: InsertRssFeed): Promise<RssFeed> {
+    const [newFeed] = await db.insert(rssFeeds).values(feed).returning();
+    return newFeed;
+  }
+
+  async updateRssFeed(id: string, data: Partial<InsertRssFeed>): Promise<RssFeed | undefined> {
+    const [updated] = await db.update(rssFeeds)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(rssFeeds.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteRssFeed(id: string): Promise<void> {
+    await db.delete(rssFeeds).where(eq(rssFeeds.id, id));
+  }
+
+  // ==================== NEWS PREFERENCES ====================
+
+  async getNewsPreferences(clientId: string): Promise<NewsPreferences | undefined> {
+    const [prefs] = await db.select().from(newsPreferences)
+      .where(eq(newsPreferences.clientId, clientId));
+    return prefs;
+  }
+
+  async createNewsPreferences(prefs: InsertNewsPreferences): Promise<NewsPreferences> {
+    const [newPrefs] = await db.insert(newsPreferences).values(prefs).returning();
+    return newPrefs;
+  }
+
+  async updateNewsPreferences(id: string, data: Partial<InsertNewsPreferences>): Promise<NewsPreferences | undefined> {
+    const [updated] = await db.update(newsPreferences)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(newsPreferences.id, id))
+      .returning();
+    return updated;
   }
 }
 

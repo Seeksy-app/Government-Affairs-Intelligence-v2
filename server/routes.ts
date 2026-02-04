@@ -1053,6 +1053,204 @@ export async function registerRoutes(
     }
   });
 
+  // Bookmark/unbookmark article
+  app.patch("/api/news/:id/bookmark", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const article = await storage.getNewsArticle(req.params.id);
+      if (!article || article.clientId !== clientId) {
+        return res.status(404).json({ message: "Article not found" });
+      }
+      const updated = await storage.updateNewsArticle(req.params.id, { 
+        isBookmarked: !article.isBookmarked 
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error bookmarking article:", error);
+      res.status(500).json({ message: "Failed to bookmark article" });
+    }
+  });
+
+  // Trigger news aggregation (fetch from all sources)
+  app.post("/api/news/fetch", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const { hoursBack = 168 } = req.body; // Default to 7 days
+      
+      // Import and run aggregation
+      const { aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext } = await import("./services/news-aggregation");
+      
+      console.log(`Manual news fetch triggered by client ${clientId}`);
+      const articles = await aggregateAllNews(hoursBack);
+      
+      // Get relevance context from client's research
+      const context = await getClientRelevanceContext(clientId);
+      
+      // Save to database
+      const savedCount = await saveArticlesToDatabase(clientId, articles, context);
+      
+      res.json({ 
+        message: "News aggregation complete",
+        totalFetched: articles.length,
+        newArticlesSaved: savedCount
+      });
+    } catch (error) {
+      console.error("Error fetching news:", error);
+      res.status(500).json({ message: "Failed to fetch news" });
+    }
+  });
+
+  // ==================== RSS FEEDS MANAGEMENT ====================
+
+  // Get all RSS feeds
+  app.get("/api/rss-feeds", isAuthenticated, async (req, res) => {
+    try {
+      const feeds = await storage.getRssFeeds();
+      res.json(feeds);
+    } catch (error) {
+      console.error("Error getting RSS feeds:", error);
+      res.status(500).json({ message: "Failed to get RSS feeds" });
+    }
+  });
+
+  // Test an RSS feed URL
+  app.post("/api/rss-feeds/test", isAuthenticated, async (req, res) => {
+    try {
+      const { feedUrl } = req.body;
+      if (!feedUrl) {
+        return res.status(400).json({ message: "feedUrl is required" });
+      }
+      
+      const { testRssFeed } = await import("./services/news-aggregation");
+      const result = await testRssFeed(feedUrl);
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing RSS feed:", error);
+      res.status(500).json({ message: "Failed to test RSS feed" });
+    }
+  });
+
+  // Add a new RSS feed
+  app.post("/api/rss-feeds", isAuthenticated, async (req, res) => {
+    try {
+      const { name, feedUrl, websiteUrl, category, tier } = req.body;
+      if (!name || !feedUrl) {
+        return res.status(400).json({ message: "name and feedUrl are required" });
+      }
+      
+      // Test the feed first
+      const { testRssFeed } = await import("./services/news-aggregation");
+      const testResult = await testRssFeed(feedUrl);
+      
+      if (!testResult.success) {
+        return res.status(400).json({ message: `Invalid RSS feed: ${testResult.error}` });
+      }
+      
+      const feed = await storage.createRssFeed({
+        name,
+        feedUrl,
+        websiteUrl,
+        category: category || "politics",
+        tier: tier || 2,
+        isActive: true,
+      });
+      
+      res.status(201).json({ feed, testResult });
+    } catch (error) {
+      console.error("Error adding RSS feed:", error);
+      res.status(500).json({ message: "Failed to add RSS feed" });
+    }
+  });
+
+  // Update an RSS feed
+  app.patch("/api/rss-feeds/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const feed = await storage.updateRssFeed(id, req.body);
+      if (!feed) {
+        return res.status(404).json({ message: "RSS feed not found" });
+      }
+      res.json(feed);
+    } catch (error) {
+      console.error("Error updating RSS feed:", error);
+      res.status(500).json({ message: "Failed to update RSS feed" });
+    }
+  });
+
+  // Delete an RSS feed
+  app.delete("/api/rss-feeds/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteRssFeed(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting RSS feed:", error);
+      res.status(500).json({ message: "Failed to delete RSS feed" });
+    }
+  });
+
+  // ==================== NEWS PREFERENCES ====================
+
+  // Get news preferences for client
+  app.get("/api/news/preferences", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      let prefs = await storage.getNewsPreferences(clientId);
+      
+      // Create default preferences if none exist
+      if (!prefs) {
+        prefs = await storage.createNewsPreferences({
+          clientId,
+          alertThreshold: 70,
+          emailAlerts: true,
+          alertFrequency: "daily",
+        });
+      }
+      
+      res.json(prefs);
+    } catch (error) {
+      console.error("Error getting news preferences:", error);
+      res.status(500).json({ message: "Failed to get news preferences" });
+    }
+  });
+
+  // Update news preferences
+  app.put("/api/news/preferences", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      let prefs = await storage.getNewsPreferences(clientId);
+      
+      if (prefs) {
+        prefs = await storage.updateNewsPreferences(prefs.id, req.body);
+      } else {
+        prefs = await storage.createNewsPreferences({
+          clientId,
+          ...req.body,
+        });
+      }
+      
+      res.json(prefs);
+    } catch (error) {
+      console.error("Error updating news preferences:", error);
+      res.status(500).json({ message: "Failed to update news preferences" });
+    }
+  });
+
   // ==================== CAREER HISTORY ROUTES ====================
 
   // Add career history to contact
