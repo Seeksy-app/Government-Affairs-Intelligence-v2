@@ -101,6 +101,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `influencer_posts` - Posts from tracked influencers
 - `customers` - Customer relationships (Congress members, staffers, manual contacts) with Matter assignment
 - `favorites` - Favorited Congress members for quick access
+- `rss_feed_client_assignments` - Links RSS feeds to specific clients for client portal access
 
 ## API Routes
 
@@ -185,6 +186,20 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `PATCH /api/influencer-posts/:id/read` - Mark post as read
 - `PATCH /api/influencer-posts/:id/flag` - Toggle post flag
 - `GET /api/influencers/credits` - Check API credits
+
+### RSS Feed Client Assignment Routes
+- `GET /api/rss-feeds/:id/assignments` - Get client assignments for a feed
+- `POST /api/rss-feeds/:id/assignments` - Assign feed to a client
+- `DELETE /api/rss-feeds/:feedId/assignments/:clientId` - Remove feed from client
+- `GET /api/client/assigned-feeds` - Get feeds assigned to current client
+
+### Public Client Portal Routes
+- `GET /api/public/portal/:clientSlug/:portalSlug` - Get portal info
+- `GET /api/public/portal/:clientSlug/:portalSlug/matters` - Get portal matters
+- `GET /api/public/portal/:clientSlug/:portalSlug/news` - Get news from assigned feeds
+- `GET /api/public/portal/:clientSlug/:portalSlug/bills` - Get tracked bills for client
+- `GET /api/public/portal/:clientSlug/:portalSlug/stats` - Get portal statistics
+- `POST /api/public/portal/:clientSlug/:portalSlug/conversations/:convId/chat` - AI chat (SSE streaming)
 
 ## Development
 

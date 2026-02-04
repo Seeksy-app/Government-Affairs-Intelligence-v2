@@ -1245,6 +1245,76 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== RSS FEED CLIENT ASSIGNMENTS ====================
+
+  // Get client assignments for a specific feed
+  app.get("/api/rss-feeds/:id/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const assignments = await storage.getRssFeedClientAssignments(id);
+      
+      // Enrich with client names
+      const enrichedAssignments = await Promise.all(
+        assignments.map(async (a) => {
+          const client = await storage.getClient(a.clientId);
+          return { ...a, clientName: client?.name || "Unknown" };
+        })
+      );
+      
+      res.json(enrichedAssignments);
+    } catch (error) {
+      console.error("Error getting feed assignments:", error);
+      res.status(500).json({ message: "Failed to get feed assignments" });
+    }
+  });
+
+  // Assign a feed to a client
+  app.post("/api/rss-feeds/:id/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { clientId } = req.body;
+      const userId = getUserId(req);
+      
+      if (!clientId) {
+        return res.status(400).json({ message: "Client ID is required" });
+      }
+      
+      const assignment = await storage.assignRssFeedToClient(id, clientId, userId || "");
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning feed to client:", error);
+      res.status(500).json({ message: "Failed to assign feed to client" });
+    }
+  });
+
+  // Remove a feed assignment from a client
+  app.delete("/api/rss-feeds/:feedId/assignments/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const { feedId, clientId } = req.params;
+      await storage.unassignRssFeedFromClient(feedId, clientId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing feed assignment:", error);
+      res.status(500).json({ message: "Failed to remove feed assignment" });
+    }
+  });
+
+  // Get feeds assigned to the current client
+  app.get("/api/client/assigned-feeds", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      
+      const feeds = await storage.getClientRssFeeds(clientId);
+      res.json(feeds);
+    } catch (error) {
+      console.error("Error getting client feeds:", error);
+      res.status(500).json({ message: "Failed to get client feeds" });
+    }
+  });
+
   // ==================== NEWS PREFERENCES ====================
 
   // Get news preferences for client
@@ -2444,6 +2514,148 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting public portal documents:", error);
       res.status(500).json({ message: "Failed to get documents" });
+    }
+  });
+
+  // Portal Dashboard - Get client news from assigned feeds
+  app.get("/api/public/portal/:clientSlug/:portalSlug/news", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      // Get all recent news articles for this client
+      // First try to get articles from assigned feeds, fallback to all client articles
+      const clientFeeds = await storage.getClientRssFeeds(client.id);
+      const allArticles = await storage.getNewsArticles(client.id);
+      
+      let filteredArticles = allArticles;
+      
+      // If client has assigned feeds, filter by those feed sources
+      if (clientFeeds.length > 0) {
+        const feedNames = clientFeeds.map(f => f.name.toLowerCase());
+        filteredArticles = allArticles.filter(a => 
+          a.source && feedNames.some(name => 
+            a.source!.toLowerCase().includes(name) || name.includes(a.source!.toLowerCase())
+          )
+        );
+        
+        // If filtering produced no results, show all articles
+        if (filteredArticles.length === 0) {
+          filteredArticles = allArticles;
+        }
+      }
+      
+      // Get most recent 20 articles
+      const recentArticles = filteredArticles
+        .sort((a, b) => {
+          const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+          const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+          return dateB - dateA;
+        })
+        .slice(0, 20);
+      
+      res.json(recentArticles.map(a => ({
+        id: a.id,
+        title: a.title,
+        summary: a.summary,
+        source: a.source,
+        url: a.url,
+        relevanceScore: a.relevanceScore,
+        publishedAt: a.publishedAt,
+        isRead: a.isRead,
+      })));
+    } catch (error) {
+      console.error("Error getting portal news:", error);
+      res.status(500).json({ message: "Failed to get news" });
+    }
+  });
+
+  // Portal Dashboard - Get tracked bills for client
+  app.get("/api/public/portal/:clientSlug/:portalSlug/bills", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      // Get tracked bills for this client
+      const bills = await storage.getTrackedBills(client.id);
+      
+      res.json(bills.slice(0, 10).map(b => ({
+        id: b.id,
+        billId: b.billId,
+        title: b.title,
+        status: b.status,
+        sponsor: b.sponsor,
+        chamber: b.chamber,
+        congress: b.congress,
+        priority: b.priority,
+        lastActionDate: b.lastActionDate,
+      })));
+    } catch (error) {
+      console.error("Error getting portal bills:", error);
+      res.status(500).json({ message: "Failed to get bills" });
+    }
+  });
+
+  // Portal Dashboard - Get stats summary
+  app.get("/api/public/portal/:clientSlug/:portalSlug/stats", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      // Get matter count
+      const portalMatters = await storage.getPortalMatterAccess(portal.id);
+      
+      // Get assigned feeds
+      const clientFeeds = await storage.getClientRssFeeds(client.id);
+      
+      // Get tracked bills
+      const bills = await storage.getTrackedBills(client.id);
+      
+      // Get recent articles count
+      const articles = await storage.getNewsArticles(client.id);
+      const recentArticles = articles.filter(a => {
+        const pubDate = a.publishedAt ? new Date(a.publishedAt) : null;
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        return pubDate && pubDate > dayAgo;
+      });
+
+      res.json({
+        totalMatters: portalMatters.length,
+        totalFeeds: clientFeeds.length,
+        totalBills: bills.length,
+        recentArticles: recentArticles.length,
+        highPriorityBills: bills.filter(b => b.priority === "high").length,
+      });
+    } catch (error) {
+      console.error("Error getting portal stats:", error);
+      res.status(500).json({ message: "Failed to get stats" });
     }
   });
 

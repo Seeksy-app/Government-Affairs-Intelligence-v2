@@ -32,10 +32,16 @@ import {
 import { 
   Newspaper, Plus, Search, ExternalLink, Flag, Check, Clock, 
   RefreshCw, Bookmark, TrendingUp, Rss, Settings, Sparkles,
-  AlertCircle, Filter, Star
+  AlertCircle, Filter, Star, Users, Trash2, Building2, X
 } from "lucide-react";
-import type { NewsArticle, InsertNewsArticle, RssFeed } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { NewsArticle, InsertNewsArticle, RssFeed, Client, RssFeedClientAssignment } from "@shared/schema";
 import { format, formatDistanceToNow } from "date-fns";
+
+interface AssignmentWithClient extends RssFeedClientAssignment {
+  clientName: string;
+}
 
 export default function News() {
   const { toast } = useToast();
@@ -45,6 +51,8 @@ export default function News() {
   const [filterRead, setFilterRead] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRssDialogOpen, setIsRssDialogOpen] = useState(false);
+  const [isFeedDetailsOpen, setIsFeedDetailsOpen] = useState(false);
+  const [selectedFeed, setSelectedFeed] = useState<RssFeed | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [formData, setFormData] = useState<Partial<InsertNewsArticle>>({
     title: "",
@@ -63,6 +71,72 @@ export default function News() {
 
   const { data: rssFeeds } = useQuery<RssFeed[]>({
     queryKey: ["/api/rss-feeds"],
+  });
+
+  // Check if user is super admin
+  const { data: userRole } = useQuery<{ isSuperAdmin: boolean }>({
+    queryKey: ["/api/user/role"],
+  });
+
+  const isSuperAdmin = userRole?.isSuperAdmin;
+
+  // Get all clients for assignment (only for super admins)
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["/api/admin/clients"],
+    enabled: isSuperAdmin,
+  });
+
+  // Get assignments for selected feed
+  const { data: feedAssignments, refetch: refetchAssignments } = useQuery<AssignmentWithClient[]>({
+    queryKey: ["/api/rss-feeds", selectedFeed?.id, "assignments"],
+    queryFn: async () => {
+      if (!selectedFeed) return [];
+      const res = await fetch(`/api/rss-feeds/${selectedFeed.id}/assignments`);
+      if (!res.ok) throw new Error("Failed to get assignments");
+      return res.json();
+    },
+    enabled: !!selectedFeed,
+  });
+
+  const assignFeedMutation = useMutation({
+    mutationFn: async ({ feedId, clientId }: { feedId: string; clientId: string }) => {
+      return apiRequest("POST", `/api/rss-feeds/${feedId}/assignments`, { clientId });
+    },
+    onSuccess: () => {
+      refetchAssignments();
+      toast({ title: "Feed assigned to client" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error assigning feed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const unassignFeedMutation = useMutation({
+    mutationFn: async ({ feedId, clientId }: { feedId: string; clientId: string }) => {
+      return apiRequest("DELETE", `/api/rss-feeds/${feedId}/assignments/${clientId}`);
+    },
+    onSuccess: () => {
+      refetchAssignments();
+      toast({ title: "Feed unassigned from client" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error unassigning feed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteFeedMutation = useMutation({
+    mutationFn: async (feedId: string) => {
+      return apiRequest("DELETE", `/api/rss-feeds/${feedId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rss-feeds"] });
+      setIsFeedDetailsOpen(false);
+      setSelectedFeed(null);
+      toast({ title: "Feed deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error deleting feed", description: error.message, variant: "destructive" });
+    },
   });
 
   const fetchNewsMutation = useMutation({
@@ -313,13 +387,28 @@ export default function News() {
                   <h4 className="font-medium mb-3">Active Feeds ({rssFeeds?.filter(f => f.isActive).length || 0})</h4>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {rssFeeds?.map((feed) => (
-                      <div key={feed.id} className="flex items-center justify-between p-2 rounded bg-muted/50">
+                      <div 
+                        key={feed.id} 
+                        className="flex items-center justify-between p-2 rounded bg-muted/50 hover-elevate cursor-pointer"
+                        onClick={() => {
+                          setSelectedFeed(feed);
+                          setIsFeedDetailsOpen(true);
+                        }}
+                        data-testid={`feed-item-${feed.id}`}
+                      >
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${feed.isActive ? "bg-green-500" : "bg-gray-400"}`} />
                           <span className="font-medium text-sm">{feed.name}</span>
                           <Badge variant="outline" className="text-xs">{feed.category}</Badge>
                           {feed.lastFetchStatus === "error" && (
-                            <AlertCircle className="h-4 w-4 text-red-500" />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Feed fetch error: {feed.lastFetchError || "Unknown error"}</p>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -333,6 +422,151 @@ export default function News() {
                   </div>
                 </div>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Feed Details Dialog */}
+          <Dialog open={isFeedDetailsOpen} onOpenChange={setIsFeedDetailsOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Rss className="h-5 w-5" />
+                  {selectedFeed?.name}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {selectedFeed && (
+                <div className="space-y-4">
+                  {/* Feed Info */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Category:</span>
+                      <Badge variant="outline">{selectedFeed.category}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge variant={selectedFeed.isActive ? "default" : "secondary"}>
+                        {selectedFeed.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Last Sync:</span>
+                      <span>{selectedFeed.lastFetchedAt 
+                        ? formatDistanceToNow(new Date(selectedFeed.lastFetchedAt), { addSuffix: true })
+                        : "Never"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Articles:</span>
+                      <span>{selectedFeed.articleCount || 0}</span>
+                    </div>
+                    {selectedFeed.lastFetchStatus === "error" && selectedFeed.lastFetchError && (
+                      <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-red-600 text-xs">
+                        <AlertCircle className="h-3 w-3 inline mr-1" />
+                        {selectedFeed.lastFetchError}
+                      </div>
+                    )}
+                    <div className="pt-2">
+                      <Label className="text-muted-foreground text-xs">Feed URL</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input 
+                          value={selectedFeed.feedUrl} 
+                          readOnly 
+                          className="text-xs h-8"
+                        />
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="h-8 w-8"
+                          onClick={() => window.open(selectedFeed.feedUrl, "_blank")}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Client Assignments - Only for Super Admins */}
+                  {isSuperAdmin && (
+                    <div className="border-t pt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Users className="h-4 w-4" />
+                        <h4 className="font-medium">Assign to Clients</h4>
+                      </div>
+                      
+                      {clients && clients.length > 0 ? (
+                        <ScrollArea className="h-[200px]">
+                          <div className="space-y-2">
+                            {clients.map((client) => {
+                              const isAssigned = feedAssignments?.some(a => a.clientId === client.id);
+                              return (
+                                <div 
+                                  key={client.id}
+                                  className="flex items-center justify-between p-2 rounded border hover-elevate"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox 
+                                      checked={isAssigned}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          assignFeedMutation.mutate({ 
+                                            feedId: selectedFeed.id, 
+                                            clientId: client.id 
+                                          });
+                                        } else {
+                                          unassignFeedMutation.mutate({ 
+                                            feedId: selectedFeed.id, 
+                                            clientId: client.id 
+                                          });
+                                        }
+                                      }}
+                                      disabled={assignFeedMutation.isPending || unassignFeedMutation.isPending}
+                                      data-testid={`checkbox-assign-${client.id}`}
+                                    />
+                                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">{client.name}</span>
+                                  </div>
+                                  {isAssigned && (
+                                    <Badge variant="secondary" className="text-xs">Assigned</Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <div className="text-sm text-muted-foreground text-center py-4">
+                          No clients available to assign
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this feed?")) {
+                          deleteFeedMutation.mutate(selectedFeed.id);
+                        }
+                      }}
+                      disabled={deleteFeedMutation.isPending}
+                      data-testid="button-delete-feed"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Feed
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsFeedDetailsOpen(false)}
+                      data-testid="button-close-feed-details"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
 
@@ -610,14 +844,14 @@ export default function News() {
                         {article.matchedTopics && Array.isArray(article.matchedTopics) && article.matchedTopics.length > 0 && (
                           <div className="flex items-center gap-1 mt-2 flex-wrap">
                             <span className="text-xs text-muted-foreground">Matches:</span>
-                            {(article.matchedTopics as unknown as string[]).slice(0, 3).map((topic: string, i: number) => (
+                            {(article.matchedTopics as string[]).slice(0, 3).map((topic, i) => (
                               <Badge key={i} variant="secondary" className="text-xs">
-                                {topic}
+                                {String(topic)}
                               </Badge>
                             ))}
-                            {(article.matchedTopics as unknown as string[]).length > 3 && (
+                            {(article.matchedTopics as string[]).length > 3 && (
                               <span className="text-xs text-muted-foreground">
-                                +{(article.matchedTopics as unknown as string[]).length - 3} more
+                                +{(article.matchedTopics as string[]).length - 3} more
                               </span>
                             )}
                           </div>

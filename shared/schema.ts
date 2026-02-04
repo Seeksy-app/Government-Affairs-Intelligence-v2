@@ -259,6 +259,23 @@ export const insertRssFeedSchema = createInsertSchema(rssFeeds).omit({
 export type InsertRssFeed = z.infer<typeof insertRssFeedSchema>;
 export type RssFeed = typeof rssFeeds.$inferSelect;
 
+// RSS Feed Client Assignments - which clients can see which feeds
+export const rssFeedClientAssignments = pgTable("rss_feed_client_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  feedId: varchar("feed_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by"), // userId who assigned
+});
+
+export const insertRssFeedClientAssignmentSchema = createInsertSchema(rssFeedClientAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertRssFeedClientAssignment = z.infer<typeof insertRssFeedClientAssignmentSchema>;
+export type RssFeedClientAssignment = typeof rssFeedClientAssignments.$inferSelect;
+
 // News alerts sent (track which alerts have been sent)
 export const newsAlertsSent = pgTable("news_alerts_sent", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

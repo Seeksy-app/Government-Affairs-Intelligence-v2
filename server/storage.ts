@@ -10,6 +10,7 @@ import {
   newsArticles,
   newsPreferences,
   rssFeeds,
+  rssFeedClientAssignments,
   matters,
   researchDocuments,
   researchConversations,
@@ -59,6 +60,8 @@ import {
   type InsertNewsPreferences,
   type RssFeed,
   type InsertRssFeed,
+  type RssFeedClientAssignment,
+  type InsertRssFeedClientAssignment,
   type Matter,
   type InsertMatter,
   type ResearchDocument,
@@ -1615,6 +1618,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(newsPreferences.id, id))
       .returning();
     return updated;
+  }
+
+  // ==================== RSS FEED CLIENT ASSIGNMENTS ====================
+
+  async getRssFeedClientAssignments(feedId: string): Promise<RssFeedClientAssignment[]> {
+    return db.select().from(rssFeedClientAssignments)
+      .where(eq(rssFeedClientAssignments.feedId, feedId))
+      .orderBy(desc(rssFeedClientAssignments.assignedAt));
+  }
+
+  async getClientRssFeeds(clientId: string): Promise<RssFeed[]> {
+    const assignments = await db.select({ feedId: rssFeedClientAssignments.feedId })
+      .from(rssFeedClientAssignments)
+      .where(eq(rssFeedClientAssignments.clientId, clientId));
+    
+    if (assignments.length === 0) return [];
+    
+    const feedIds = assignments.map(a => a.feedId);
+    return db.select().from(rssFeeds)
+      .where(or(...feedIds.map(id => eq(rssFeeds.id, id))));
+  }
+
+  async assignRssFeedToClient(feedId: string, clientId: string, assignedBy: string): Promise<RssFeedClientAssignment> {
+    const [assignment] = await db.insert(rssFeedClientAssignments)
+      .values({ feedId, clientId, assignedBy })
+      .returning();
+    return assignment;
+  }
+
+  async unassignRssFeedFromClient(feedId: string, clientId: string): Promise<void> {
+    await db.delete(rssFeedClientAssignments)
+      .where(and(
+        eq(rssFeedClientAssignments.feedId, feedId),
+        eq(rssFeedClientAssignments.clientId, clientId)
+      ));
+  }
+
+  async getAllRssFeedAssignments(): Promise<(RssFeedClientAssignment & { feedName?: string; clientName?: string })[]> {
+    const assignments = await db.select().from(rssFeedClientAssignments);
+    return assignments;
   }
 }
 
