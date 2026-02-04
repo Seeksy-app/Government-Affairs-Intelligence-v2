@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { MessageSquare, Send, Sparkles, ArrowRight, History, Search, Loader2, Sa
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { AIMessageRenderer } from "@/components/ai-message-renderer";
 import type { ClientPortal } from "@shared/schema";
 
 interface ChatMessage {
@@ -229,17 +230,30 @@ export function GlobalAIChat() {
                       key={i}
                       className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      <div className="flex flex-col gap-1 max-w-[85%]">
-                        <div
-                          className={`rounded-2xl px-4 py-3 ${
-                            msg.role === "user"
-                              ? "bg-primary text-primary-foreground rounded-br-md"
-                              : "bg-muted rounded-bl-md"
-                          }`}
-                          data-testid={`global-chat-message-${i}`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                        </div>
+                      <div className="flex flex-col gap-1 max-w-[95%]">
+                        {msg.role === "user" ? (
+                          <div
+                            className="rounded-2xl px-4 py-3 bg-primary text-primary-foreground rounded-br-md"
+                            data-testid={`global-chat-message-${i}`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          </div>
+                        ) : (
+                          <div
+                            className="rounded-2xl px-4 py-3 bg-muted rounded-bl-md"
+                            data-testid={`global-chat-message-${i}`}
+                          >
+                            <AIMessageRenderer 
+                              content={msg.content} 
+                              onFollowUp={(query) => {
+                                setChatInput(query);
+                                saveRecentSearch(query);
+                                setChatMessages(prev => [...prev, { role: "user", content: query }]);
+                                chatMutation.mutate(query);
+                              }}
+                            />
+                          </div>
+                        )}
                         {msg.role === "assistant" && portals.length > 0 && (
                           <div className="flex gap-1 px-1">
                             <Button
