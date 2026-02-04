@@ -192,64 +192,145 @@ export default function PredictionsPage() {
     setSelectedMarket(market);
   };
 
-  // Get an icon component based on market title
-  const getMarketIcon = (title: string) => {
+  const getPartyIcon = (title: string) => {
     const t = title.toLowerCase();
-    if (t.includes("shutdown") || t.includes("government") || t.includes("funding") || t.includes("senate") || t.includes("congress")) {
-      return <Landmark className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("democrat") || t.includes("d-house") || t.includes("d-senate") || t.includes("d-president")) {
+      return (
+        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-2-8c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+          </svg>
+        </div>
+      );
     }
-    if (t.includes("fed") || t.includes("chair") || t.includes("treasury")) {
-      return <DollarSign className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("republican") || t.includes("r-house") || t.includes("r-senate") || t.includes("r-president")) {
+      return (
+        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-red-600 dark:text-red-400" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+          </svg>
+        </div>
+      );
     }
-    if (t.includes("president") || t.includes("trump") || t.includes("cabinet") || t.includes("nominee")) {
-      return <User className="w-5 h-5 text-muted-foreground" />;
+    return null;
+  };
+
+  const getMarketImage = (title: string) => {
+    const t = title.toLowerCase();
+    if (t.includes("shutdown") || t.includes("government") || t.includes("funding")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+          <Landmark className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+        </div>
+      );
     }
-    if (t.includes("democratic") || t.includes("democrat") || t.includes("republican") || t.includes("election")) {
-      return <Vote className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("house") || t.includes("senate") || t.includes("congress")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
+          <Landmark className="w-6 h-6 text-primary" />
+        </div>
+      );
+    }
+    if (t.includes("fed") || t.includes("chair") || t.includes("treasury") || t.includes("kevin warsh")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+          <DollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+        </div>
+      );
+    }
+    if (t.includes("president") || t.includes("trump") || t.includes("cabinet") || t.includes("nominee") || t.includes("state of the union")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+          <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        </div>
+      );
+    }
+    if (t.includes("democratic") || t.includes("democrat")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+          <Vote className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        </div>
+      );
+    }
+    if (t.includes("republican")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+          <Vote className="w-6 h-6 text-red-600 dark:text-red-400" />
+        </div>
+      );
+    }
+    if (t.includes("election") || t.includes("vote")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+          <Vote className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+        </div>
+      );
     }
     if (t.includes("khamenei") || t.includes("iran") || t.includes("leader") || t.includes("world") || t.includes("international")) {
-      return <Globe className="w-5 h-5 text-muted-foreground" />;
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900/30 flex items-center justify-center shrink-0">
+          <Globe className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+        </div>
+      );
     }
-    if (t.includes("governor") || t.includes("florida") || t.includes("texas") || t.includes("local")) {
-      return <MapPin className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("governor") || t.includes("florida") || t.includes("texas") || t.includes("california") || t.includes("local")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0">
+          <MapPin className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+        </div>
+      );
     }
-    if (t.includes("court") || t.includes("scotus") || t.includes("justice")) {
-      return <Scale className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("court") || t.includes("scotus") || t.includes("justice") || t.includes("contempt")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+          <Scale className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+        </div>
+      );
     }
-    return <BarChart3 className="w-5 h-5 text-muted-foreground" />;
+    if (t.includes("bill") || t.includes("act") || t.includes("legislation") || t.includes("save act") || t.includes("aca") || t.includes("dhs")) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center shrink-0">
+          <Landmark className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+        </div>
+      );
+    }
+    return (
+      <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+        <BarChart3 className="w-6 h-6 text-muted-foreground" />
+      </div>
+    );
   };
 
   const MarketCard = ({ market }: { market: KalshiMarket }) => {
+    const partyIcon = getPartyIcon(market.title);
+    
     return (
       <Card 
         className="bg-card border-border hover-elevate cursor-pointer h-full flex flex-col"
         onClick={() => handleMarketClick(market)}
         data-testid={`card-market-${market.ticker}`}
       >
-        <CardContent className="p-4 flex-1 flex flex-col">
-          {/* Header with icon and title */}
-          <div className="flex gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
-              {getMarketIcon(market.title)}
-            </div>
-            <h3 className="font-medium text-sm leading-tight line-clamp-2 flex-1">
+        <CardContent className="p-4 flex-1 flex flex-col min-h-0">
+          <div className="flex items-start gap-3 mb-3">
+            {getMarketImage(market.title)}
+            <h3 className="font-medium text-sm leading-snug flex-1 min-w-0 pr-1" style={{ wordBreak: 'break-word' }}>
               {market.title}
             </h3>
+            {partyIcon}
           </div>
           
-          {/* Primary option row */}
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground text-sm truncate flex-1">
+          <div className="flex-1 space-y-2 min-h-0">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground text-sm flex-1 truncate">
                 {market.subtitle?.split(" ").slice(0, 3).join(" ") || (market.yes_price >= 50 ? "Yes" : "No")}
               </span>
-              <span className="font-bold text-sm min-w-[40px] text-right">
+              <span className="font-semibold text-sm shrink-0">
                 {market.yes_price}%
               </span>
-              <div className="flex gap-1">
+              <div className="flex gap-1 shrink-0">
                 <Badge 
                   variant="outline"
-                  className="cursor-pointer bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  className="cursor-pointer text-xs px-2 py-0.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
                   onClick={(e) => e.stopPropagation()}
                   data-testid={`badge-yes-${market.ticker}`}
                 >
@@ -257,7 +338,7 @@ export default function PredictionsPage() {
                 </Badge>
                 <Badge 
                   variant="outline"
-                  className="cursor-pointer bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+                  className="cursor-pointer text-xs px-2 py-0.5 bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
                   onClick={(e) => e.stopPropagation()}
                   data-testid={`badge-no-${market.ticker}`}
                 >
@@ -266,19 +347,18 @@ export default function PredictionsPage() {
               </div>
             </div>
             
-            {/* Secondary option if subtitle exists */}
             {market.subtitle && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground text-sm truncate flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm flex-1 truncate">
                   {market.subtitle.split(" ").slice(3, 6).join(" ") || "Other"}
                 </span>
-                <span className="font-bold text-sm min-w-[40px] text-right">
+                <span className="font-semibold text-sm shrink-0">
                   {market.no_price}%
                 </span>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   <Badge 
                     variant="outline"
-                    className="cursor-pointer bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                    className="cursor-pointer text-xs px-2 py-0.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
                     onClick={(e) => e.stopPropagation()}
                     data-testid={`badge-yes-alt-${market.ticker}`}
                   >
@@ -286,7 +366,7 @@ export default function PredictionsPage() {
                   </Badge>
                   <Badge 
                     variant="outline"
-                    className="cursor-pointer bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+                    className="cursor-pointer text-xs px-2 py-0.5 bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
                     onClick={(e) => e.stopPropagation()}
                     data-testid={`badge-no-alt-${market.ticker}`}
                   >
@@ -297,14 +377,14 @@ export default function PredictionsPage() {
             )}
           </div>
           
-          {/* Footer with volume and expand */}
-          <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
-            <span className="text-muted-foreground text-sm">
+          <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/50">
+            <span className="text-muted-foreground text-xs">
               {formatVolumeCompact(market.volume)}
             </span>
             <Button
               size="icon"
               variant="ghost"
+              className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
                 handleMarketClick(market);
@@ -487,9 +567,7 @@ export default function PredictionsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg shrink-0">
-                {selectedMarket && getMarketIcon(selectedMarket.title)}
-              </div>
+              {selectedMarket && getMarketImage(selectedMarket.title)}
               <div className="flex-1">
                 <Badge variant="outline" className="mb-2">{selectedMarket?.ticker}</Badge>
                 <h2 className="text-xl font-bold">{selectedMarket?.title}</h2>
