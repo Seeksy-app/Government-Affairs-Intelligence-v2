@@ -17,6 +17,7 @@ import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StaffNetworkDialog } from "@/components/staff-network-dialog";
 
 interface CongressMember {
   bioguideId: string;
@@ -161,8 +162,14 @@ export default function NetworkPage() {
   // Staffer lookup
   const [stafferInfo, setStafferInfo] = useState<string | null>(null);
   const [stafferLoading, setStafferLoading] = useState(false);
-  const [miroMapping, setMiroMapping] = useState(false);
-  const [embeddedMiroBoard, setEmbeddedMiroBoard] = useState<{ url: string; title: string } | null>(null);
+  const [showNetworkDialog, setShowNetworkDialog] = useState(false);
+  const [networkDialogData, setNetworkDialogData] = useState<{
+    memberName: string;
+    memberTitle?: string;
+    memberParty?: string;
+    memberState?: string;
+    staffers: { id: number; name: string; title: string; email?: string; pathwayType?: string; yearsInCurrentRole?: number }[];
+  } | null>(null);
   
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
     queryKey: ["/api/contacts/with-history"],
@@ -423,49 +430,25 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
     stafferMutation.mutate(member);
   };
 
-  const handleMapToMiro = async (member: CongressMember, staffers: ParsedStaffer[]) => {
+  const handleShowNetworkMap = (member: CongressMember, staffers: ParsedStaffer[]) => {
     if (staffers.length === 0) {
-      toast({ title: "No staffers to map", description: "Find staffers first before mapping to Miro", variant: "destructive" });
+      toast({ title: "No staffers to map", description: "Find staffers first before viewing network", variant: "destructive" });
       return;
     }
     
-    setMiroMapping(true);
-    try {
-      const response = await apiRequest("POST", "/api/miro/map-office", {
-        memberName: `${member.firstName} ${member.lastName}`,
-        chamber: member.chamber,
-        party: member.party,
-        state: member.state,
-        district: member.district,
-        staffers: staffers.map(s => ({
-          name: s.name,
-          title: s.role,
-          email: s.email || null
-        }))
-      });
-      const data = await response.json();
-      
-      toast({ 
-        title: "Office mapped to Miro!", 
-        description: "Board created successfully" 
-      });
-      
-      // Convert the board URL to embed URL and show in dialog
-      const boardId = data.miroBoardId;
-      const embedUrl = `https://miro.com/app/live-embed/${boardId}/?moveToViewport=-1000,-500,2000,1000&embedAutoplay=true`;
-      setEmbeddedMiroBoard({ 
-        url: embedUrl, 
-        title: `${selectedMember?.name || 'Office'} Staff Network` 
-      });
-    } catch (error: any) {
-      toast({ 
-        title: "Failed to map to Miro", 
-        description: error.message, 
-        variant: "destructive" 
-      });
-    } finally {
-      setMiroMapping(false);
-    }
+    setNetworkDialogData({
+      memberName: `${member.firstName} ${member.lastName}`,
+      memberTitle: member.chamber === "house" ? "Representative" : "Senator",
+      memberParty: member.party,
+      memberState: member.state,
+      staffers: staffers.map((s, idx) => ({
+        id: idx + 1,
+        name: s.name,
+        title: s.role,
+        email: s.email || undefined,
+      }))
+    });
+    setShowNetworkDialog(true);
   };
   
   const handleMemberSearch = () => {
@@ -1391,8 +1374,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => selectedMember && handleMapToMiro(selectedMember, [staffer])}
-                                    disabled={miroMapping}
+                                    onClick={() => selectedMember && handleShowNetworkMap(selectedMember, [staffer])}
                                     data-testid={`button-map-staffer-${idx}`}
                                   >
                                     <Map className="h-4 w-4 mr-1" />
@@ -1473,21 +1455,11 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => handleMapToMiro(selectedMember, staffers)}
-                            disabled={miroMapping}
-                            data-testid="button-map-to-miro"
+                            onClick={() => handleShowNetworkMap(selectedMember, staffers)}
+                            data-testid="button-map-office"
                           >
-                            {miroMapping ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                Mapping...
-                              </>
-                            ) : (
-                              <>
-                                <Map className="h-4 w-4 mr-1" />
-                                Map Office to Miro
-                              </>
-                            )}
+                            <Map className="h-4 w-4 mr-1" />
+                            View Network Map
                           </Button>
                         )}
                         <Button
@@ -1558,48 +1530,18 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         </SheetContent>
       </Sheet>
 
-      {/* Embedded Miro Board Dialog */}
-      <Dialog open={!!embeddedMiroBoard} onOpenChange={(open) => !open && setEmbeddedMiroBoard(null)}>
-        <DialogContent className="max-w-6xl h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Map className="h-5 w-5" />
-              {embeddedMiroBoard?.title || "Network Map"}
-            </DialogTitle>
-            <DialogDescription>
-              Interactive network visualization powered by Miro
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 h-full min-h-[60vh]">
-            {embeddedMiroBoard && (
-              <iframe
-                src={embeddedMiroBoard.url}
-                className="w-full h-full border rounded-lg"
-                allow="fullscreen; clipboard-read; clipboard-write"
-                allowFullScreen
-              />
-            )}
-          </div>
-          <div className="flex justify-end gap-2 mt-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (embeddedMiroBoard) {
-                  const boardUrl = embeddedMiroBoard.url.replace('/live-embed/', '/board/').split('?')[0];
-                  window.open(boardUrl, '_blank');
-                }
-              }}
-              data-testid="button-open-miro-external"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open in Miro
-            </Button>
-            <Button onClick={() => setEmbeddedMiroBoard(null)} data-testid="button-close-miro">
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Staff Network Dialog */}
+      {networkDialogData && (
+        <StaffNetworkDialog
+          open={showNetworkDialog}
+          onOpenChange={setShowNetworkDialog}
+          memberName={networkDialogData.memberName}
+          memberTitle={networkDialogData.memberTitle}
+          memberParty={networkDialogData.memberParty}
+          memberState={networkDialogData.memberState}
+          staffers={networkDialogData.staffers}
+        />
+      )}
     </div>
   );
 }
