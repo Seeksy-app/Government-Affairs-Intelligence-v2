@@ -54,7 +54,7 @@ const INITIAL_DISPLAY_COUNT = 20;
 
 export default function PredictionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("congress");
+  const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>("volume");
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [selectedMarket, setSelectedMarket] = useState<KalshiMarket | null>(null);
