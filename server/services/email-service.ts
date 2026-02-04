@@ -222,3 +222,75 @@ export async function sendResearchUpdate(options: {
     html,
   });
 }
+
+// Send news alert for high-relevance articles
+export async function sendNewsAlert(options: {
+  to: string;
+  clientName: string;
+  articles: Array<{
+    title: string;
+    source: string;
+    summary: string;
+    url: string;
+    relevanceScore: number;
+    matchedTopics: string[];
+  }>;
+}) {
+  const articlesList = options.articles.map(article => `
+    <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid ${article.relevanceScore >= 70 ? '#22c55e' : '#eab308'};">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="background: ${article.relevanceScore >= 70 ? '#dcfce7' : '#fef9c3'}; color: ${article.relevanceScore >= 70 ? '#166534' : '#854d0e'}; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+          ${article.relevanceScore}% relevance
+        </span>
+        <span style="color: #6b7280; font-size: 12px;">${article.source}</span>
+      </div>
+      <h3 style="margin: 0 0 8px 0; font-size: 16px;"><a href="${article.url}" style="color: #1a1a2e; text-decoration: none;">${article.title}</a></h3>
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 8px 0;">${article.summary?.substring(0, 200) || ''}${article.summary && article.summary.length > 200 ? '...' : ''}</p>
+      ${article.matchedTopics.length > 0 ? `
+        <div style="font-size: 12px; color: #6b7280;">
+          Matches: ${article.matchedTopics.slice(0, 3).map(t => `<span style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">${t}</span>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; background: #f3f4f6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 25px; border-radius: 12px 12px 0 0; }
+        .content { background: #f8f9fa; padding: 20px; border: 1px solid #e9ecef; }
+        .footer { background: #1a1a2e; color: #888; padding: 15px; text-align: center; font-size: 12px; border-radius: 0 0 12px 12px; }
+        h1 { margin: 0; font-size: 22px; }
+        .subtitle { color: #94a3b8; margin-top: 5px; font-size: 14px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>High-Relevance News Alert</h1>
+          <p class="subtitle">${options.articles.length} article${options.articles.length > 1 ? 's' : ''} matching your research</p>
+        </div>
+        <div class="content">
+          <p>Hello ${options.clientName},</p>
+          <p>We found news articles highly relevant to your tracked research:</p>
+          ${articlesList}
+        </div>
+        <div class="footer">
+          <p>Political Intelligence Platform - News Intelligence System</p>
+          <p style="color: #6b7280; font-size: 11px;">You're receiving this because you have email alerts enabled.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: options.to,
+    subject: `News Alert: ${options.articles.length} High-Relevance Article${options.articles.length > 1 ? 's' : ''}`,
+    html,
+  });
+}

@@ -529,20 +529,30 @@ export async function getClientRelevanceContext(clientId: string): Promise<{
     
     // Get tracked contacts (staffers)
     const contacts = await db.execute(
-      sql`SELECT name FROM contacts WHERE client_id = ${clientId} LIMIT 50`
+      sql`SELECT first_name, last_name FROM contacts WHERE client_id = ${clientId} LIMIT 50`
     );
     
     for (const contact of contacts.rows as any[]) {
-      if (contact.name) context.trackedStaffers.push(contact.name);
+      const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+      if (fullName) context.trackedStaffers.push(fullName);
     }
     
     // Get favorited Congress members
     const favorites = await db.execute(
-      sql`SELECT member_name FROM favorites WHERE client_id = ${clientId}`
+      sql`SELECT member_name FROM favorite_congress_members WHERE client_id = ${clientId}`
     );
     
     for (const fav of favorites.rows as any[]) {
       if (fav.member_name) context.trackedStaffers.push(fav.member_name);
+    }
+    
+    // Get tracked bills
+    const bills = await db.execute(
+      sql`SELECT bill_id FROM tracked_bills WHERE client_id = ${clientId}`
+    );
+    
+    for (const bill of bills.rows as any[]) {
+      if (bill.bill_id) context.trackedBillNumbers.push(bill.bill_id);
     }
     
   } catch (error: any) {

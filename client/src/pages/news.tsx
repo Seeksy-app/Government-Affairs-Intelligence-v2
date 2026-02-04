@@ -166,7 +166,7 @@ export default function News() {
     createMutation.mutate(formData as InsertNewsArticle);
   };
 
-  const uniqueSources = [...new Set(articles?.map(a => a.source).filter(Boolean))].sort();
+  const uniqueSources = Array.from(new Set(articles?.map(a => a.source).filter(Boolean) || [])).sort();
 
   const filteredArticles = articles?.filter((article) => {
     const matchesSearch = 
@@ -594,12 +594,12 @@ export default function News() {
                             <span className="text-xs text-muted-foreground">Matches:</span>
                             {(article.matchedTopics as string[]).slice(0, 3).map((topic, i) => (
                               <Badge key={i} variant="secondary" className="text-xs">
-                                {topic}
+                                {String(topic)}
                               </Badge>
                             ))}
                             {(article.matchedTopics as string[]).length > 3 && (
                               <span className="text-xs text-muted-foreground">
-                                +{(article.matchedTopics as string[]).length - 3} more
+                                +{String((article.matchedTopics as string[]).length - 3)} more
                               </span>
                             )}
                           </div>
