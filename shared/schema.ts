@@ -232,6 +232,43 @@ export const insertNewsPreferencesSchema = createInsertSchema(newsPreferences).o
 export type InsertNewsPreferences = z.infer<typeof insertNewsPreferencesSchema>;
 export type NewsPreferences = typeof newsPreferences.$inferSelect;
 
+// RSS Feeds for news aggregation
+export const rssFeeds = pgTable("rss_feeds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  feedUrl: text("feed_url").notNull(),
+  websiteUrl: text("website_url"),
+  category: text("category").default("politics"), // politics, defense, policy, legislative
+  tier: integer("tier").default(2), // 1 = essential, 2 = recommended, 3 = specialized
+  isActive: boolean("is_active").default(true),
+  fetchFrequency: integer("fetch_frequency").default(60), // Minutes between fetches
+  lastFetchedAt: timestamp("last_fetched_at"),
+  lastFetchStatus: text("last_fetch_status"), // success, error
+  lastFetchError: text("last_fetch_error"),
+  articleCount: integer("article_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertRssFeedSchema = createInsertSchema(rssFeeds).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRssFeed = z.infer<typeof insertRssFeedSchema>;
+export type RssFeed = typeof rssFeeds.$inferSelect;
+
+// News alerts sent (track which alerts have been sent)
+export const newsAlertsSent = pgTable("news_alerts_sent", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  articleId: varchar("article_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  sentAt: timestamp("sent_at").defaultNow(),
+});
+
+export type NewsAlertSent = typeof newsAlertsSent.$inferSelect;
+
 // Matters (sub-clients - Adam's own clients for research)
 export const matters = pgTable("matters", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
