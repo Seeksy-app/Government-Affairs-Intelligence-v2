@@ -142,7 +142,7 @@ export function GlobalAIChat() {
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent className="w-[400px] sm:w-[480px] flex flex-col p-0">
+        <SheetContent className="w-[480px] sm:w-[540px] lg:w-[600px] flex flex-col p-0">
           <div className="p-6 pb-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
