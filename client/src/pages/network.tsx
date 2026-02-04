@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -159,8 +159,19 @@ export default function NetworkPage() {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showMemberSearch, setShowMemberSearch] = useState(false);
   
-  // Staffer lookup
-  const [stafferInfo, setStafferInfo] = useState<string | null>(null);
+  // Staffer lookup - initialize from localStorage based on saved member
+  const [stafferInfo, setStafferInfo] = useState<string | null>(() => {
+    try {
+      const savedMember = localStorage.getItem('network_selectedMember');
+      if (savedMember) {
+        const member = JSON.parse(savedMember);
+        return localStorage.getItem(`network_stafferInfo_${member.bioguideId}`) || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [stafferLoading, setStafferLoading] = useState(false);
   const [showNetworkDialog, setShowNetworkDialog] = useState(false);
   const [networkDialogData, setNetworkDialogData] = useState<{
@@ -561,13 +572,57 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
     }
   };
 
-  // Selected member for detail view
-  const [selectedMember, setSelectedMember] = useState<CongressMember | null>(null);
+  // Selected member for detail view - initialize from localStorage
+  const [selectedMember, setSelectedMember] = useState<CongressMember | null>(() => {
+    try {
+      const saved = localStorage.getItem('network_selectedMember');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  
+  // Persist selectedMember to localStorage
+  useEffect(() => {
+    if (selectedMember) {
+      localStorage.setItem('network_selectedMember', JSON.stringify(selectedMember));
+    } else {
+      localStorage.removeItem('network_selectedMember');
+    }
+  }, [selectedMember]);
+  
+  // Persist stafferInfo to localStorage  
+  useEffect(() => {
+    if (stafferInfo && selectedMember) {
+      localStorage.setItem(`network_stafferInfo_${selectedMember.bioguideId}`, stafferInfo);
+    }
+  }, [stafferInfo, selectedMember]);
+  
+  // Restore stafferInfo from localStorage when member is loaded
+  useEffect(() => {
+    if (selectedMember) {
+      const savedStafferInfo = localStorage.getItem(`network_stafferInfo_${selectedMember.bioguideId}`);
+      if (savedStafferInfo && !stafferInfo) {
+        setStafferInfo(savedStafferInfo);
+      }
+    }
+  }, [selectedMember?.bioguideId]);
   
   // Clear staffer info when member changes
   const handleSelectMember = (member: CongressMember | null) => {
     setSelectedMember(member);
-    setStafferInfo(null);
+    if (!member) {
+      setStafferInfo(null);
+      localStorage.removeItem('network_selectedMember');
+    } else {
+      // Check if we have cached staffer info for this member
+      const cachedStafferInfo = localStorage.getItem(`network_stafferInfo_${member.bioguideId}`);
+      if (cachedStafferInfo) {
+        setStafferInfo(cachedStafferInfo);
+      } else {
+        setStafferInfo(null);
+      }
+    }
     setStafferLoading(false);
   };
   

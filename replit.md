@@ -46,6 +46,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **News Aggregation**: Monitor political news with filtering
 - **Network Visualization**: View relationships and organizations
 - **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
+- **Staff Persistence**: Selected Congress member and staff data persist in localStorage across page navigations
 - **Congress Member Favorites**: Star and save frequently accessed Congress members with Matter assignment
 - **Customers Portal**: Track relationship contacts (Congress members, staffers, manual entries) with Matter assignment for organizing outreach
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
