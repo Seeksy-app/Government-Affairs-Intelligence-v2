@@ -496,7 +496,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
     stafferMutation.mutate(member);
   };
 
-  const handleShowNetworkMap = (member: CongressMember, staffers: ParsedStaffer[]) => {
+  const handleShowNetworkMap = async (member: CongressMember, staffers: ParsedStaffer[]) => {
     if (staffers.length === 0) {
       toast({ title: "No staffers to map", description: "Find staffers first before viewing network", variant: "destructive" });
       return;
@@ -511,19 +511,40 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       return 'administrative';
     };
     
-    // Map parsed staffers - only use data that was actually provided
+    // Look up career history for staffers from contacts database
+    let careerDataByName: Record<string, { careerHistory: any[]; policyAreas: string[] }> = {};
+    try {
+      const response = await fetch('/api/contacts/lookup-career', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ names: staffers.map(s => s.name) }),
+      });
+      if (response.ok) {
+        careerDataByName = await response.json();
+      }
+    } catch (error) {
+      console.log('Could not look up career data:', error);
+    }
+    
+    // Map parsed staffers - enrich with career history if available
     setNetworkDialogData({
       memberName: `${member.firstName} ${member.lastName}`,
       memberTitle: member.chamber === "house" ? "Representative" : "Senator",
       memberParty: member.party,
       memberState: member.state,
-      staffers: staffers.map((s, idx) => ({
-        id: idx + 1,
-        name: s.name,
-        title: s.role,
-        email: s.email || undefined,
-        pathwayType: getPathwayType(s.role),
-      }))
+      staffers: staffers.map((s, idx) => {
+        const careerData = careerDataByName[s.name];
+        return {
+          id: idx + 1,
+          name: s.name,
+          title: s.role,
+          email: s.email || undefined,
+          pathwayType: getPathwayType(s.role),
+          careerHistory: careerData?.careerHistory,
+          policyAreas: careerData?.policyAreas,
+        };
+      })
     });
     setShowNetworkDialog(true);
   };

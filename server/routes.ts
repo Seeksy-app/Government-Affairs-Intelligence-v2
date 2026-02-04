@@ -907,6 +907,55 @@ export async function registerRoutes(
     }
   });
 
+  // Look up contacts by names to get career history for network map
+  app.post("/api/contacts/lookup-career", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const { names } = req.body;
+      if (!names || !Array.isArray(names)) {
+        return res.status(400).json({ message: "names array required" });
+      }
+      
+      const contactsWithHistory = await storage.getContactsWithHistory(clientId);
+      const matches: Record<string, any> = {};
+      
+      for (const name of names) {
+        const normalizedName = name.toLowerCase().trim();
+        const matchingContact = contactsWithHistory.find(c => {
+          const contactName = `${c.firstName} ${c.lastName}`.toLowerCase();
+          return contactName === normalizedName || 
+                 contactName.includes(normalizedName) || 
+                 normalizedName.includes(contactName);
+        });
+        
+        if (matchingContact && matchingContact.careerHistory && matchingContact.careerHistory.length > 0) {
+          matches[name] = {
+            contactId: matchingContact.id,
+            name: `${matchingContact.firstName} ${matchingContact.lastName}`,
+            careerHistory: matchingContact.careerHistory.map(ch => ({
+              title: ch.title,
+              organization: ch.organization,
+              startYear: ch.startYear,
+              endYear: ch.endYear || undefined,
+              organizationType: ch.organizationType,
+              policyAreas: ch.policyAreas,
+              supervisor: ch.supervisor,
+            })),
+            policyAreas: [...new Set(matchingContact.careerHistory.flatMap(ch => ch.policyAreas || []))],
+          };
+        }
+      }
+      
+      res.json(matches);
+    } catch (error) {
+      console.error("Error looking up career data:", error);
+      res.status(500).json({ message: "Failed to look up career data" });
+    }
+  });
+
   // Create contact
   app.post("/api/contacts", isAuthenticated, async (req, res) => {
     try {
@@ -3554,7 +3603,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         return res.status(403).json({ message: "Not assigned to a client" });
       }
 
-      const { name, title, organization, email, phone, party, state, sourceType, sourceId, imageUrl, notes, tags, matterId } = req.body;
+      const { name, title, organization, email, phone, party, state, sourceType, sourceId, imageUrl, notes, tags, matterId, portalId } = req.body;
       
       if (!name || !sourceType) {
         return res.status(400).json({ message: "Name and sourceType are required" });
@@ -3583,6 +3632,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         notes,
         tags,
         matterId,
+        portalId,
       });
       
       res.status(201).json(customer);
