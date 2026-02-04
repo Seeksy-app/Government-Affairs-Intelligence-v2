@@ -24,6 +24,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Newspaper, Plus, Search, ExternalLink, Flag, Check, Clock, 
   RefreshCw, Bookmark, TrendingUp, Rss, Settings, Sparkles,
@@ -583,7 +588,20 @@ export default function News() {
                             <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                           )}
                         </div>
-                        <h3 className="font-medium line-clamp-2">{article.title}</h3>
+                        {article.url ? (
+                          <a 
+                            href={article.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-medium line-clamp-2 hover:text-primary hover:underline cursor-pointer transition-colors"
+                            onClick={() => markReadMutation.mutate({ id: article.id, isRead: true })}
+                            data-testid={`link-article-${article.id}`}
+                          >
+                            {article.title}
+                          </a>
+                        ) : (
+                          <h3 className="font-medium line-clamp-2">{article.title}</h3>
+                        )}
                         {article.summary && (
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {article.summary}
@@ -592,14 +610,14 @@ export default function News() {
                         {article.matchedTopics && Array.isArray(article.matchedTopics) && article.matchedTopics.length > 0 && (
                           <div className="flex items-center gap-1 mt-2 flex-wrap">
                             <span className="text-xs text-muted-foreground">Matches:</span>
-                            {(article.matchedTopics as string[]).slice(0, 3).map((topic, i) => (
+                            {(article.matchedTopics as unknown as string[]).slice(0, 3).map((topic: string, i: number) => (
                               <Badge key={i} variant="secondary" className="text-xs">
-                                {String(topic)}
+                                {topic}
                               </Badge>
                             ))}
-                            {(article.matchedTopics as string[]).length > 3 && (
+                            {(article.matchedTopics as unknown as string[]).length > 3 && (
                               <span className="text-xs text-muted-foreground">
-                                +{String((article.matchedTopics as string[]).length - 3)} more
+                                +{(article.matchedTopics as unknown as string[]).length - 3} more
                               </span>
                             )}
                           </div>
@@ -624,40 +642,68 @@ export default function News() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => bookmarkMutation.mutate(article.id)}
-                          data-testid={`button-bookmark-${article.id}`}
-                        >
-                          <Bookmark className={`h-4 w-4 ${article.isBookmarked ? "text-yellow-500 fill-yellow-500" : ""}`} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleFlagMutation.mutate({ id: article.id, isFlagged: !article.isFlagged })}
-                          data-testid={`button-flag-${article.id}`}
-                        >
-                          <Flag className={`h-4 w-4 ${article.isFlagged ? "text-orange-500 fill-orange-500" : ""}`} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => markReadMutation.mutate({ id: article.id, isRead: !article.isRead })}
-                          data-testid={`button-read-${article.id}`}
-                        >
-                          <Check className={`h-4 w-4 ${article.isRead ? "text-green-500" : ""}`} />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => bookmarkMutation.mutate(article.id)}
+                              data-testid={`button-bookmark-${article.id}`}
+                            >
+                              <Bookmark className={`h-4 w-4 ${article.isBookmarked ? "text-yellow-500 fill-yellow-500" : ""}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{article.isBookmarked ? "Remove bookmark" : "Bookmark article"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleFlagMutation.mutate({ id: article.id, isFlagged: !article.isFlagged })}
+                              data-testid={`button-flag-${article.id}`}
+                            >
+                              <Flag className={`h-4 w-4 ${article.isFlagged ? "text-orange-500 fill-orange-500" : ""}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{article.isFlagged ? "Remove flag" : "Flag for follow-up"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => markReadMutation.mutate({ id: article.id, isRead: !article.isRead })}
+                              data-testid={`button-read-${article.id}`}
+                            >
+                              <Check className={`h-4 w-4 ${article.isRead ? "text-green-500" : ""}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{article.isRead ? "Mark as unread" : "Mark as read"}</p>
+                          </TooltipContent>
+                        </Tooltip>
                         {article.url && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                          >
-                            <a href={article.url} target="_blank" rel="noopener noreferrer" data-testid={`button-link-${article.id}`}>
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                asChild
+                              >
+                                <a href={article.url} target="_blank" rel="noopener noreferrer" data-testid={`button-link-${article.id}`}>
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Open article in new tab</p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </div>

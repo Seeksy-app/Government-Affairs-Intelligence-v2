@@ -22,7 +22,7 @@ interface AggregatedArticle {
 // Default RSS feeds - comprehensive list for political intelligence
 const defaultRssFeeds = [
   // TIER 1: Essential Political News
-  { name: "Politico", feedUrl: "https://www.politico.com/rss/politics08.xml", category: "politics", tier: 1 },
+  { name: "Politico", feedUrl: "https://rss.politico.com/congress.xml", category: "politics", tier: 1 },
   { name: "The Hill", feedUrl: "https://thehill.com/feed/", category: "politics", tier: 1 },
   { name: "Roll Call", feedUrl: "https://www.rollcall.com/feed/", category: "legislative", tier: 1 },
   
@@ -32,19 +32,19 @@ const defaultRssFeeds = [
   { name: "Defense News", feedUrl: "https://www.defensenews.com/arc/outboundfeeds/rss/", category: "defense", tier: 2 },
   
   // TIER 3: Think Tanks & Policy
-  { name: "Brookings Institution", feedUrl: "https://www.brookings.edu/feed/", category: "policy", tier: 3 },
-  { name: "CSIS", feedUrl: "https://www.csis.org/rss", category: "policy", tier: 3 },
-  { name: "Heritage Foundation", feedUrl: "https://www.heritage.org/rss.xml", category: "policy", tier: 3 },
-  { name: "Center for American Progress", feedUrl: "https://www.americanprogress.org/feed/", category: "policy", tier: 3 },
+  { name: "Brookings Institution", feedUrl: "https://www.brookings.edu/topic/politics-government/feed/", category: "policy", tier: 3 },
+  { name: "CSIS", feedUrl: "https://www.csis.org/analysis/feed", category: "policy", tier: 3 },
+  { name: "Heritage Foundation", feedUrl: "https://www.heritage.org/rss/all-research.xml", category: "policy", tier: 3 },
   
   // TIER 4: Federal Agencies
-  { name: "White House", feedUrl: "https://www.whitehouse.gov/feed/", category: "politics", tier: 4 },
+  { name: "White House", feedUrl: "https://www.whitehouse.gov/news/feed/", category: "politics", tier: 4 },
   { name: "Federal News Network", feedUrl: "https://federalnewsnetwork.com/feed/", category: "politics", tier: 4 },
-  { name: "VA News", feedUrl: "https://www.va.gov/rss/rss.xml", category: "defense", tier: 4 },
+  { name: "VA News", feedUrl: "https://news.va.gov/feed/", category: "defense", tier: 4 },
   
   // TIER 5: Specialized
   { name: "Task & Purpose", feedUrl: "https://taskandpurpose.com/feed/", category: "defense", tier: 5 },
-  { name: "Congressional Research Service", feedUrl: "https://crsreports.congress.gov/RSS/LatestReports.xml", category: "legislative", tier: 5 },
+  { name: "AP Politics", feedUrl: "https://rss.app/feeds/p6tKgOOzqpQnkKlW.xml", category: "politics", tier: 5 },
+  { name: "Reuters Politics", feedUrl: "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best", category: "politics", tier: 5 },
 ];
 
 const parser = new Parser({
