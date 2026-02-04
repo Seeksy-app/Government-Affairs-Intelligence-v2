@@ -17,7 +17,7 @@ import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { StaffNetworkDialog } from "@/components/staff-network-dialog";
+import { StafferProfileDialog } from "@/components/staffer-profile-dialog";
 
 interface CongressMember {
   bioguideId: string;
@@ -1473,10 +1473,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                     variant="outline"
                                     size="sm"
                                     onClick={() => selectedMember && handleShowNetworkMap(selectedMember, [staffer])}
-                                    data-testid={`button-map-staffer-${idx}`}
+                                    data-testid={`button-view-staffer-${idx}`}
                                   >
-                                    <Map className="h-4 w-4 mr-1" />
-                                    Map
+                                    <Users className="h-4 w-4 mr-1" />
+                                    Profile
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -1592,8 +1592,8 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                             onClick={() => handleShowNetworkMap(selectedMember, staffers)}
                             data-testid="button-map-office"
                           >
-                            <Map className="h-4 w-4 mr-1" />
-                            View Network Map
+                            <Users className="h-4 w-4 mr-1" />
+                            View Staff Profiles
                           </Button>
                         )}
                         <Button
@@ -1664,9 +1664,9 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         </SheetContent>
       </Sheet>
 
-      {/* Staff Network Dialog */}
+      {/* Staffer Profile Dialog */}
       {networkDialogData && (
-        <StaffNetworkDialog
+        <StafferProfileDialog
           open={showNetworkDialog}
           onOpenChange={setShowNetworkDialog}
           memberName={networkDialogData.memberName}
