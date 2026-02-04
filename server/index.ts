@@ -4,6 +4,9 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
 import { runAutoSync } from "./services/social-tracker";
+import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext } from "./services/news-aggregation";
+import { db } from "./db";
+import { clients } from "@shared/schema";
 
 const app = express();
 const httpServer = createServer(app);
@@ -118,6 +121,49 @@ app.use((req, res, next) => {
       }, 5 * 60 * 1000); // Check every 5 minutes
       
       log("Auto-sync scheduler started");
+      
+      // Initialize RSS feeds and run initial news aggregation
+      setTimeout(async () => {
+        try {
+          log("Initializing News Intelligence System...");
+          await initializeRssFeeds();
+          
+          // Fetch news for all clients
+          const allClients = await db.select().from(clients);
+          if (allClients.length > 0) {
+            const articles = await aggregateAllNews(168); // Last 7 days
+            
+            for (const client of allClients) {
+              const context = await getClientRelevanceContext(client.id);
+              const saved = await saveArticlesToDatabase(client.id, articles, context);
+              log(`News aggregation: ${saved} articles saved for client ${client.name}`);
+            }
+          }
+          
+          log("News Intelligence System initialized");
+        } catch (error) {
+          console.error("News initialization error:", error);
+        }
+      }, 10000); // Wait 10 seconds after startup
+      
+      // Schedule hourly news aggregation
+      setInterval(async () => {
+        try {
+          log("Running scheduled news aggregation...");
+          const allClients = await db.select().from(clients);
+          if (allClients.length > 0) {
+            const articles = await aggregateAllNews(24); // Last 24 hours
+            
+            for (const client of allClients) {
+              const context = await getClientRelevanceContext(client.id);
+              await saveArticlesToDatabase(client.id, articles, context);
+            }
+          }
+          log("Scheduled news aggregation complete");
+        } catch (error) {
+          console.error("Scheduled news aggregation error:", error);
+        }
+      }, 60 * 60 * 1000); // Every hour
     },
   );
 })();
