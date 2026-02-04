@@ -66,30 +66,27 @@ export function AppSidebar() {
 
   const clientTopItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tourId: "dashboard" },
+    { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
   ];
-
-  const clientResearchGroup = {
-    label: "Research",
-    icon: Search,
-    items: [
-      { title: "Matters", url: "/matters", icon: FolderOpen, tourId: "matters" },
-      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
-      { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
-      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
-      { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
-    ],
-  };
 
   const clientIntelGroup = {
     label: "Intelligence",
     icon: TrendingUp,
     items: [
-      { title: "Resources", url: "/resources", icon: Users, tourId: "resources" },
+      { title: "Network", url: "/network", icon: Network, tourId: "network" },
+      { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
+      { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
+      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
+      { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
+    ],
+  };
+
+  const clientPeopleGroup = {
+    label: "People",
+    icon: Users,
+    items: [
       { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
       { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
-      { title: "Network", url: "/network", icon: Network, tourId: "network" },
-      { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
-      { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
     ],
   };
 
@@ -106,13 +103,15 @@ export function AppSidebar() {
     label: "Manage",
     icon: Settings,
     items: [
-      { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
+      { title: "Research Projects", url: "/matters", icon: FolderOpen, tourId: "matters" },
+      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
+      { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
       { title: "Security", url: "/security", icon: Lock, tourId: "security" },
       { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
     ],
   };
 
-  const clientGroups = [clientResearchGroup, clientIntelGroup, clientSocialGroup, clientManageGroup];
+  const clientGroups = [clientIntelGroup, clientPeopleGroup, clientSocialGroup, clientManageGroup];
 
   const isClientView = !isSuperAdmin || isImpersonating;
   const groupLabel = (isSuperAdmin && !isImpersonating) 

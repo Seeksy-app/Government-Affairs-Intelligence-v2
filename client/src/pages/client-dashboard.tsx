@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Network, Newspaper, TrendingUp, Activity, Star, BarChart3 } from "lucide-react";
+import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,14 +60,67 @@ export default function ClientDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-serif" data-testid="text-dashboard-title">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Your political intelligence at a glance
-        </p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-serif" data-testid="text-dashboard-title">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Your political intelligence at a glance
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+        </div>
       </div>
+
+      {/* Daily Brief Card */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Daily Brief</CardTitle>
+              <CardDescription>AI-curated summary of today's political developments</CardDescription>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            <TrendingUp className="h-3 w-3 mr-1" />
+            Live Updates
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-sm font-medium mb-1">
+                <FileText className="h-4 w-4 text-blue-500" />
+                Bills to Watch
+              </div>
+              <p className="text-2xl font-bold">3</p>
+              <p className="text-xs text-muted-foreground">Moving today</p>
+            </div>
+            <div className="p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-sm font-medium mb-1">
+                <AlertCircle className="h-4 w-4 text-orange-500" />
+                Breaking News
+              </div>
+              <p className="text-2xl font-bold">{stats?.unreadNews || 0}</p>
+              <p className="text-xs text-muted-foreground">Unread articles</p>
+            </div>
+            <div className="p-3 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-sm font-medium mb-1">
+                <BarChart3 className="h-4 w-4 text-green-500" />
+                Market Moves
+              </div>
+              <p className="text-2xl font-bold">{predictionMarkets?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">Active predictions</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

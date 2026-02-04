@@ -134,12 +134,14 @@ class KalshiAPI {
     try {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
+        "Accept": "application/json",
       };
 
       if (requiresAuth) {
         Object.assign(headers, this.signRequest(method, path));
       }
 
+      console.log(`[Kalshi] Making request to: ${this.baseUrl}${path}`);
       const response = await fetch(`${this.baseUrl}${path}`, {
         method,
         headers,
@@ -147,16 +149,17 @@ class KalshiAPI {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`Kalshi API error: ${response.status} ${response.statusText}`);
-        console.error(`Kalshi API error body: ${errorBody}`);
-        console.error(`Kalshi request path: ${path}`);
-        console.error(`Kalshi auth enabled: ${requiresAuth}, has key: ${!!this.apiKeyId}`);
+        console.error(`[Kalshi] API error: ${response.status} ${response.statusText}`);
+        console.error(`[Kalshi] Error body: ${errorBody}`);
+        console.error(`[Kalshi] Request path: ${path}`);
         return null;
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log(`[Kalshi] Successfully fetched ${path}, got ${(data as any)?.markets?.length || 0} markets`);
+      return data;
     } catch (error) {
-      console.error("Kalshi API request failed:", error);
+      console.error("[Kalshi] API request failed:", error);
       return null;
     }
   }

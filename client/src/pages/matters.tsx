@@ -70,19 +70,19 @@ export default function MattersPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Matters</h1>
-          <p className="text-muted-foreground">Manage your client matters and research</p>
+          <h1 className="text-2xl font-bold">Research Projects</h1>
+          <p className="text-muted-foreground">Manage your research projects and documents</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-matter">
               <Plus className="mr-2 h-4 w-4" />
-              New Matter
+              New Project
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Matter</DialogTitle>
+              <DialogTitle>Create Research Project</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
