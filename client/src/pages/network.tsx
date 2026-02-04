@@ -168,7 +168,17 @@ export default function NetworkPage() {
     memberTitle?: string;
     memberParty?: string;
     memberState?: string;
-    staffers: { id: number; name: string; title: string; email?: string; pathwayType?: string; yearsInCurrentRole?: number }[];
+    staffers: { 
+      id: number; 
+      name: string; 
+      title: string; 
+      email?: string; 
+      pathwayType?: string; 
+      yearsInCurrentRole?: number;
+      careerHistory?: { title: string; organization: string; startYear?: number; endYear?: number; memberServed?: string }[];
+      previousMembers?: string[];
+      policyAreas?: string[];
+    }[];
   } | null>(null);
   
   const { data: contacts, isLoading } = useQuery<ContactWithHistory[]>({
