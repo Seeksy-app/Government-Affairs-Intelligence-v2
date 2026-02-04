@@ -491,31 +491,49 @@ export default function PredictionsPage() {
 
       {/* Markets grid */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <div className="flex gap-3 mb-4">
-                  <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
+        <div className="space-y-6">
+          {/* Loading header */}
+          <div className="flex items-center justify-center gap-3 py-4">
+            <div className="relative w-8 h-8">
+              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+            </div>
+            <span className="text-muted-foreground animate-pulse">Loading prediction markets...</span>
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex gap-3 mb-4">
+                    <Skeleton className="w-10 h-10 rounded-lg animate-pulse" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />
+                      <Skeleton className="h-4 w-3/4 animate-pulse" style={{ animationDelay: `${i * 75}ms` }} />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-full" />
-                  <Skeleton className="h-6 w-full" />
-                </div>
-                <div className="flex justify-between mt-4 pt-3 border-t">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-5 w-5 rounded-full" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-full animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
+                    <Skeleton className="h-6 w-full animate-pulse" style={{ animationDelay: `${i * 125}ms` }} />
+                  </div>
+                  <div className="flex justify-between mt-4 pt-3 border-t border-border">
+                    <Skeleton className="h-4 w-20 animate-pulse" />
+                    <Skeleton className="h-5 w-5 rounded-full animate-pulse" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : visibleMarkets.length > 0 ? (
         <>
+          {/* Refresh indicator */}
+          {isFetching && (
+            <div className="flex items-center justify-center gap-2 py-2 bg-muted/50 rounded-lg mb-4 animate-pulse">
+              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Updating markets...</span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visibleMarkets.map((market) => (
               <MarketCard key={market.ticker} market={market} />
