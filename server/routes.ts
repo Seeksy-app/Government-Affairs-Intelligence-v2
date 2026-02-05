@@ -1978,11 +1978,11 @@ Format your response as a structured summary with clear sections.`;
         return res.status(400).json({ message: "First and last name are required" });
       }
 
-      console.log("[LinkedIn Research] API key present:", !!process.env.PROXYCURL_API_KEY);
+      console.log("[LinkedIn Research] API key present:", !!process.env.PDL_API_KEY);
       
-      if (!process.env.PROXYCURL_API_KEY) {
+      if (!process.env.PDL_API_KEY) {
         return res.status(400).json({ 
-          message: "LinkedIn research requires a Proxycurl API key. Please add PROXYCURL_API_KEY to your secrets." 
+          message: "LinkedIn research requires a People Data Labs API key. Please add PDL_API_KEY to your secrets." 
         });
       }
 

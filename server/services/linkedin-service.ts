@@ -1,5 +1,5 @@
 /**
- * LinkedIn Profile Service using Proxycurl API
+ * LinkedIn Profile Service using People Data Labs API
  * Provides career mapping and profile enrichment for political staffers
  */
 
@@ -49,6 +49,7 @@ export interface LinkedInProfile {
   skills?: string[];
   connections?: number;
   follower_count?: number;
+  linkedin_url?: string;
 }
 
 export interface PersonLookupResult {
@@ -57,146 +58,149 @@ export interface PersonLookupResult {
   last_updated?: string;
 }
 
-const PROXYCURL_BASE_URL = "https://nubela.co/proxycurl";
+const PDL_BASE_URL = "https://api.peopledatalabs.com/v5";
 
-/**
- * Look up a LinkedIn profile URL by person's name and company
- * Cost: 2 credits per successful request
- */
-export async function lookupLinkedInProfile(
-  firstName: string,
-  lastName: string,
-  companyDomain?: string,
-  currentCompany?: string
-): Promise<PersonLookupResult | null> {
-  if (!process.env.PROXYCURL_API_KEY) {
-    throw new Error("Proxycurl API key not configured");
-  }
+interface PDLExperience {
+  company?: { name?: string; linkedin_url?: string };
+  title?: { name?: string };
+  start_date?: string;
+  end_date?: string;
+  location_names?: string[];
+  is_primary?: boolean;
+}
 
-  const params = new URLSearchParams();
-  params.append("first_name", firstName);
-  params.append("last_name", lastName);
-  
-  if (companyDomain) {
-    params.append("company_domain", companyDomain);
-  }
-  if (currentCompany) {
-    params.append("enrich_profile", "skip");
-    params.append("current_company", currentCompany);
-  }
+interface PDLEducation {
+  school?: { name?: string; linkedin_url?: string };
+  degrees?: string[];
+  majors?: string[];
+  start_date?: string;
+  end_date?: string;
+}
 
-  try {
-    const response = await fetch(
-      `${PROXYCURL_BASE_URL}/api/linkedin/profile/resolve?${params.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${process.env.PROXYCURL_API_KEY}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.log(`LinkedIn profile not found for ${firstName} ${lastName}`);
-        return null;
-      }
-      const error = await response.text();
-      console.error("Proxycurl lookup error:", error);
-      throw new Error(`LinkedIn lookup failed: ${error}`);
-    }
-
-    const result = await response.json();
-    return {
-      linkedin_profile_url: result.url || result.linkedin_profile_url,
-      similarity_score: result.similarity_score,
-      last_updated: result.last_updated,
-    };
-  } catch (error) {
-    console.error("LinkedIn lookup error:", error);
-    throw error;
-  }
+interface PDLResponse {
+  status: number;
+  likelihood: number;
+  data?: {
+    id?: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    linkedin_url?: string;
+    linkedin_username?: string;
+    job_title?: string;
+    job_company_name?: string;
+    job_title_role?: string;
+    summary?: string;
+    location_name?: string;
+    location_locality?: string;
+    location_region?: string;
+    location_country?: string;
+    experience?: PDLExperience[];
+    education?: PDLEducation[];
+    skills?: string[];
+    interests?: string[];
+    industry?: string;
+  };
 }
 
 /**
- * Enrich a LinkedIn profile with full career data
- * Cost: 1 credit per successful request
+ * Parse PDL date string (YYYY-MM or YYYY) into our date object format
+ */
+function parsePDLDate(dateStr?: string): { day?: number; month?: number; year?: number } | undefined {
+  if (!dateStr) return undefined;
+  
+  const parts = dateStr.split("-");
+  const year = parts[0] ? parseInt(parts[0]) : undefined;
+  const month = parts[1] ? parseInt(parts[1]) : undefined;
+  const day = parts[2] ? parseInt(parts[2]) : undefined;
+  
+  if (!year || isNaN(year)) return undefined;
+  
+  return { year, month, day };
+}
+
+/**
+ * Enrich a person's profile using People Data Labs API
+ * Cost: ~$0.01 per successful match
  */
 export async function enrichLinkedInProfile(
   linkedinUrl: string
 ): Promise<LinkedInProfile | null> {
-  if (!process.env.PROXYCURL_API_KEY) {
-    throw new Error("Proxycurl API key not configured");
+  if (!process.env.PDL_API_KEY) {
+    throw new Error("People Data Labs API key not configured");
   }
 
   const params = new URLSearchParams();
-  params.append("url", linkedinUrl);
-  params.append("fallback_to_cache", "on-error");
-  params.append("use_cache", "if-recent");
-  params.append("skills", "include");
-  params.append("inferred_salary", "skip");
-  params.append("personal_email", "skip");
-  params.append("personal_contact_number", "skip");
-  params.append("twitter_profile_id", "skip");
-  params.append("facebook_profile_id", "skip");
-  params.append("github_profile_id", "skip");
-  params.append("extra", "skip");
+  params.append("api_key", process.env.PDL_API_KEY);
+  params.append("profile", linkedinUrl);
 
   try {
     const response = await fetch(
-      `${PROXYCURL_BASE_URL}/api/v2/linkedin?${params.toString()}`,
-      {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${process.env.PROXYCURL_API_KEY}`,
-        },
-      }
+      `${PDL_BASE_URL}/person/enrich?${params.toString()}`,
+      { method: "GET" }
     );
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.log(`LinkedIn profile not found at ${linkedinUrl}`);
+        console.log(`Profile not found at ${linkedinUrl}`);
         return null;
       }
       const error = await response.text();
-      console.error("Proxycurl enrichment error:", error);
-      throw new Error(`LinkedIn enrichment failed: ${error}`);
+      console.error("PDL enrichment error:", error);
+      throw new Error(`Profile enrichment failed: ${error}`);
     }
 
-    const result = await response.json();
+    const result: PDLResponse = await response.json();
+    
+    if (!result.data) {
+      return null;
+    }
+
+    const data = result.data;
+    
+    // Transform PDL experiences to our format
+    const experiences: LinkedInExperience[] = (data.experience || []).map((exp) => ({
+      title: exp.title?.name || "Unknown Title",
+      company: exp.company?.name || "Unknown Company",
+      company_linkedin_profile_url: exp.company?.linkedin_url,
+      starts_at: parsePDLDate(exp.start_date),
+      ends_at: exp.end_date ? parsePDLDate(exp.end_date) : null,
+      location: exp.location_names?.join(", "),
+    }));
+
+    // Transform PDL education to our format
+    const education: LinkedInEducation[] = (data.education || []).map((edu) => ({
+      school: edu.school?.name || "Unknown School",
+      school_linkedin_profile_url: edu.school?.linkedin_url,
+      degree_name: edu.degrees?.join(", "),
+      field_of_study: edu.majors?.join(", "),
+      starts_at: parsePDLDate(edu.start_date),
+      ends_at: parsePDLDate(edu.end_date),
+    }));
+
     return {
-      public_identifier: result.public_identifier,
-      profile_pic_url: result.profile_pic_url,
-      first_name: result.first_name,
-      last_name: result.last_name,
-      full_name: result.full_name,
-      occupation: result.occupation,
-      headline: result.headline,
-      summary: result.summary,
-      country: result.country_full_name,
-      city: result.city,
-      state: result.state,
-      experiences: result.experiences || [],
-      education: result.education || [],
-      languages: result.languages || [],
-      accomplishment_courses: result.accomplishment_courses || [],
-      accomplishment_honors_awards: result.accomplishment_honors_awards || [],
-      accomplishment_publications: result.accomplishment_publications || [],
-      certifications: result.certifications || [],
-      volunteer_work: result.volunteer_work || [],
-      skills: result.skills || [],
-      connections: result.connections,
-      follower_count: result.follower_count,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      full_name: data.full_name,
+      headline: data.job_title ? `${data.job_title} at ${data.job_company_name}` : undefined,
+      summary: data.summary,
+      country: data.location_country,
+      city: data.location_locality,
+      state: data.location_region,
+      experiences,
+      education,
+      skills: data.skills || [],
+      linkedin_url: data.linkedin_url,
     };
   } catch (error) {
-    console.error("LinkedIn enrichment error:", error);
+    console.error("PDL enrichment error:", error);
     throw error;
   }
 }
 
 /**
- * Full LinkedIn research - lookup by name then enrich
- * Cost: 3 credits (2 for lookup + 1 for enrichment)
+ * Look up and enrich a person by name and organization
+ * Cost: ~$0.01 per successful match
  */
 export async function researchLinkedInProfile(
   firstName: string,
@@ -207,65 +211,105 @@ export async function researchLinkedInProfile(
   profile: LinkedInProfile | null;
   error?: string;
 }> {
+  if (!process.env.PDL_API_KEY) {
+    throw new Error("People Data Labs API key not configured");
+  }
+
   try {
-    // Step 1: Look up the LinkedIn profile URL
-    const companyDomain = getCompanyDomain(organization);
-    const lookup = await lookupLinkedInProfile(firstName, lastName, companyDomain, organization);
+    const params = new URLSearchParams();
+    params.append("api_key", process.env.PDL_API_KEY);
+    params.append("first_name", firstName);
+    params.append("last_name", lastName);
     
-    if (!lookup?.linkedin_profile_url) {
+    // Add organization context for better matching
+    if (organization) {
+      // Clean up organization name for PDL
+      let company = organization;
+      if (company.toLowerCase().includes("office of")) {
+        company = "US Congress";
+      }
+      params.append("company", company);
+    }
+    
+    // Require LinkedIn profile in results
+    params.append("required", "linkedin_url");
+    
+    const response = await fetch(
+      `${PDL_BASE_URL}/person/enrich?${params.toString()}`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          profileUrl: null,
+          profile: null,
+          error: `Could not find profile for ${firstName} ${lastName}`,
+        };
+      }
+      const error = await response.text();
+      console.error("PDL lookup error:", error);
+      throw new Error(`Profile lookup failed: ${error}`);
+    }
+
+    const result: PDLResponse = await response.json();
+    
+    if (!result.data) {
       return {
         profileUrl: null,
         profile: null,
-        error: `Could not find LinkedIn profile for ${firstName} ${lastName}`,
+        error: `No profile data found for ${firstName} ${lastName}`,
       };
     }
 
-    // Step 2: Enrich the profile with full career data
-    const profile = await enrichLinkedInProfile(lookup.linkedin_profile_url);
+    const data = result.data;
     
+    // Transform to our format
+    const experiences: LinkedInExperience[] = (data.experience || []).map((exp) => ({
+      title: exp.title?.name || "Unknown Title",
+      company: exp.company?.name || "Unknown Company",
+      company_linkedin_profile_url: exp.company?.linkedin_url,
+      starts_at: parsePDLDate(exp.start_date),
+      ends_at: exp.end_date ? parsePDLDate(exp.end_date) : null,
+      location: exp.location_names?.join(", "),
+    }));
+
+    const education: LinkedInEducation[] = (data.education || []).map((edu) => ({
+      school: edu.school?.name || "Unknown School",
+      school_linkedin_profile_url: edu.school?.linkedin_url,
+      degree_name: edu.degrees?.join(", "),
+      field_of_study: edu.majors?.join(", "),
+      starts_at: parsePDLDate(edu.start_date),
+      ends_at: parsePDLDate(edu.end_date),
+    }));
+
+    const profile: LinkedInProfile = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      full_name: data.full_name,
+      headline: data.job_title ? `${data.job_title} at ${data.job_company_name}` : undefined,
+      summary: data.summary,
+      country: data.location_country,
+      city: data.location_locality,
+      state: data.location_region,
+      experiences,
+      education,
+      skills: data.skills || [],
+      linkedin_url: data.linkedin_url,
+    };
+
     return {
-      profileUrl: lookup.linkedin_profile_url,
+      profileUrl: data.linkedin_url || null,
       profile,
     };
   } catch (error: any) {
-    console.error("LinkedIn research error:", error);
+    console.error("PDL research error:", error);
     return {
       profileUrl: null,
       profile: null,
-      error: error.message || "LinkedIn research failed",
+      error: error.message || "Profile research failed",
     };
   }
-}
-
-/**
- * Helper to convert organization names to company domains for better lookup
- */
-function getCompanyDomain(organization?: string): string | undefined {
-  if (!organization) return undefined;
-  
-  const lowerOrg = organization.toLowerCase();
-  
-  // Government domain mappings
-  if (lowerOrg.includes("house") || lowerOrg.includes("representative")) {
-    return "house.gov";
-  }
-  if (lowerOrg.includes("senate") || lowerOrg.includes("senator")) {
-    return "senate.gov";
-  }
-  if (lowerOrg.includes("white house") || lowerOrg.includes("executive office")) {
-    return "whitehouse.gov";
-  }
-  
-  // Congressional offices
-  if (lowerOrg.includes("office of")) {
-    // Try to identify if it's House or Senate
-    if (lowerOrg.includes("speaker") || lowerOrg.includes("minority leader")) {
-      return "house.gov";
-    }
-    return undefined; // Let Proxycurl figure it out
-  }
-  
-  return undefined;
 }
 
 /**
@@ -348,10 +392,10 @@ export function analyzeCareerPatterns(profile: LinkedInProfile): {
   let lobbyingExperience = false;
   let thinkTankExperience = false;
   
-  const governmentKeywords = ["congress", "senate", "house", "government", "federal", "state", "agency", "department", ".gov"];
-  const campaignKeywords = ["campaign", "election", "political", "dnc", "rnc", "democrat", "republican"];
+  const governmentKeywords = ["congress", "senate", "house", "government", "federal", "state", "agency", "department", "capitol"];
+  const campaignKeywords = ["campaign", "election", "political", "dnc", "rnc", "democrat", "republican", "pac"];
   const lobbyingKeywords = ["lobby", "government affairs", "public affairs", "advocacy", "government relations"];
-  const thinkTankKeywords = ["institute", "foundation", "policy", "research", "center for", "council on"];
+  const thinkTankKeywords = ["institute", "foundation", "policy", "research", "center for", "council on", "brookings", "heritage"];
   
   for (const exp of experiences) {
     const companyLower = exp.company.toLowerCase();
@@ -423,7 +467,7 @@ export function analyzeCareerPatterns(profile: LinkedInProfile): {
 function getSector(company: string, title: string): string | null {
   const combined = `${company} ${title}`.toLowerCase();
   
-  if (combined.includes("congress") || combined.includes("senate") || combined.includes("house") || combined.includes(".gov")) {
+  if (combined.includes("congress") || combined.includes("senate") || combined.includes("house") || combined.includes("capitol")) {
     return "Government";
   }
   if (combined.includes("campaign") || combined.includes("election")) {
