@@ -1436,6 +1436,19 @@ export async function registerRoutes(
 
   // ==================== ARTICLE PORTAL ASSIGNMENT ROUTES ====================
 
+  // Get all article assignments for current client
+  app.get("/api/news/assignments/all", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const assignments = await storage.getClientArticleAssignments(clientId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error getting client article assignments:", error);
+      res.status(500).json({ message: "Failed to get assignments" });
+    }
+  });
+
   // Get article portal assignments
   app.get("/api/news/:articleId/assignments", isAuthenticated, async (req, res) => {
     try {

@@ -1720,6 +1720,12 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
+  async getClientArticleAssignments(clientId: string): Promise<NewsArticlePortalAssignment[]> {
+    return db.select().from(newsArticlePortalAssignments)
+      .where(eq(newsArticlePortalAssignments.clientId, clientId))
+      .orderBy(desc(newsArticlePortalAssignments.assignedAt));
+  }
+
   async getPortalArticles(portalId: string): Promise<NewsArticle[]> {
     const assignments = await db.select()
       .from(newsArticlePortalAssignments)
