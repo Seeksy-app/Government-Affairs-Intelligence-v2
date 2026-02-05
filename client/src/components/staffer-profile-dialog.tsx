@@ -261,8 +261,16 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
     } catch (error: any) {
       console.error("LinkedIn research error:", error);
       let errorMessage = "Could not complete LinkedIn research.";
-      if (error?.message?.includes("PROXYCURL_API_KEY")) {
-        errorMessage = "LinkedIn research requires a Proxycurl API key.";
+      // Extract error message from the response if available
+      try {
+        if (error?.message) {
+          const parsed = JSON.parse(error.message.match(/\{.*\}/)?.[0] || "{}");
+          if (parsed.message) {
+            errorMessage = parsed.message;
+          }
+        }
+      } catch {
+        // Use default message
       }
       toast({
         title: "LinkedIn Research Error",

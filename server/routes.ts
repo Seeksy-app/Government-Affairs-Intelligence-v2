@@ -2033,7 +2033,7 @@ Format your response as a structured summary with clear sections.`;
       res.json({
         success: true,
         data: {
-          profileUrl,
+          profileUrl: profileUrl || profile.linkedin_url,
           fullName: profile.full_name,
           headline: profile.headline,
           summary: profile.summary,
