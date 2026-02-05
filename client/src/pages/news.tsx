@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { NewsArticle, InsertNewsArticle, RssFeed, Client, RssFeedClientAssignment, HighIntentKeyword, Portal } from "@shared/schema";
+import type { NewsArticle, InsertNewsArticle, RssFeed, Client, RssFeedClientAssignment, HighIntentKeyword, ClientPortal, NewsArticlePortalAssignment } from "@shared/schema";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -158,8 +158,12 @@ export default function News() {
     queryKey: ["/api/high-intent-keywords"],
   });
 
-  const { data: portals } = useQuery<Portal[]>({
+  const { data: portals } = useQuery<ClientPortal[]>({
     queryKey: ["/api/portals"],
+  });
+
+  const { data: articleAssignments } = useQuery<NewsArticlePortalAssignment[]>({
+    queryKey: ["/api/news/assignments/all"],
   });
 
   const createKeywordMutation = useMutation({
@@ -191,6 +195,7 @@ export default function News() {
       return apiRequest("POST", `/api/news/${articleId}/assign-portal`, { portalId });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news/assignments/all"] });
       toast({ title: "Article assigned to portal" });
     },
     onError: (error: Error) => {
@@ -357,11 +362,16 @@ export default function News() {
       (filterRead === "flagged" && article.isFlagged) ||
       (filterRead === "bookmarked" && article.isBookmarked);
     
+    const assignedArticleIds = new Set(articleAssignments?.map(a => a.articleId) || []);
+    const isAssigned = assignedArticleIds.has(article.id);
+    
     const matchesTab = 
       activeTab === "all" ||
       (activeTab === "high-relevance" && (article.relevanceScore || 0) >= 50) ||
       (activeTab === "bookmarked" && article.isBookmarked) ||
-      (activeTab === "flagged" && article.isFlagged);
+      (activeTab === "flagged" && article.isFlagged) ||
+      (activeTab === "assigned" && isAssigned) ||
+      (activeTab === "unread" && !article.isRead);
     
     return matchesSearch && matchesCategory && matchesSource && matchesRead && matchesTab;
   })?.sort((a, b) => {
@@ -393,6 +403,15 @@ export default function News() {
   const highRelevanceCount = articles?.filter(a => (a.relevanceScore || 0) >= 50).length || 0;
   const bookmarkedCount = articles?.filter(a => a.isBookmarked).length || 0;
   const unreadCount = articles?.filter(a => !a.isRead).length || 0;
+  const assignedArticleIds = new Set(articleAssignments?.map(a => a.articleId) || []);
+  const assignedCount = articles?.filter(a => assignedArticleIds.has(a.id)).length || 0;
+  
+  const getPortalNameForArticle = (articleId: string): string | null => {
+    const assignment = articleAssignments?.find(a => a.articleId === articleId);
+    if (!assignment) return null;
+    const portal = portals?.find(p => p.id === assignment.portalId);
+    return portal?.name || null;
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -769,8 +788,12 @@ export default function News() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        <Card className="hover-elevate">
+      <div className="grid grid-cols-5 gap-4">
+        <Card 
+          className={`hover-elevate cursor-pointer transition-all ${activeTab === "all" ? "ring-2 ring-primary" : ""}`}
+          onClick={() => setActiveTab("all")}
+          data-testid="card-total-articles"
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -781,7 +804,11 @@ export default function News() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover-elevate">
+        <Card 
+          className={`hover-elevate cursor-pointer transition-all ${activeTab === "high-relevance" ? "ring-2 ring-green-500" : ""}`}
+          onClick={() => setActiveTab("high-relevance")}
+          data-testid="card-high-relevance"
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -792,7 +819,11 @@ export default function News() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover-elevate">
+        <Card 
+          className={`hover-elevate cursor-pointer transition-all ${activeTab === "unread" ? "ring-2 ring-blue-500" : ""}`}
+          onClick={() => setActiveTab("unread")}
+          data-testid="card-unread"
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -803,7 +834,11 @@ export default function News() {
             </div>
           </CardContent>
         </Card>
-        <Card className="hover-elevate">
+        <Card 
+          className={`hover-elevate cursor-pointer transition-all ${activeTab === "bookmarked" ? "ring-2 ring-yellow-500" : ""}`}
+          onClick={() => setActiveTab("bookmarked")}
+          data-testid="card-bookmarked"
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -811,6 +846,21 @@ export default function News() {
                 <p className="text-2xl font-bold text-yellow-600">{bookmarkedCount}</p>
               </div>
               <Bookmark className="h-8 w-8 text-yellow-500/50" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`hover-elevate cursor-pointer transition-all ${activeTab === "assigned" ? "ring-2 ring-purple-500" : ""}`}
+          onClick={() => setActiveTab("assigned")}
+          data-testid="card-assigned"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Assigned</p>
+                <p className="text-2xl font-bold text-purple-600">{assignedCount}</p>
+              </div>
+              <Share2 className="h-8 w-8 text-purple-500/50" />
             </div>
           </CardContent>
         </Card>
@@ -825,9 +875,17 @@ export default function News() {
             <TrendingUp className="h-4 w-4 mr-1" />
             High Relevance ({highRelevanceCount})
           </TabsTrigger>
+          <TabsTrigger value="unread" data-testid="tab-unread">
+            <AlertCircle className="h-4 w-4 mr-1" />
+            Unread ({unreadCount})
+          </TabsTrigger>
           <TabsTrigger value="bookmarked" data-testid="tab-bookmarked">
             <Bookmark className="h-4 w-4 mr-1" />
             Bookmarked ({bookmarkedCount})
+          </TabsTrigger>
+          <TabsTrigger value="assigned" data-testid="tab-assigned">
+            <Share2 className="h-4 w-4 mr-1" />
+            Assigned ({assignedCount})
           </TabsTrigger>
           <TabsTrigger value="flagged" data-testid="tab-flagged">
             <Flag className="h-4 w-4 mr-1" />
@@ -973,6 +1031,15 @@ export default function News() {
                                 {keyword}
                               </Badge>
                             ))}
+                          </div>
+                        )}
+                        {getPortalNameForArticle(article.id) && (
+                          <div className="flex items-center gap-1 mt-2 flex-wrap">
+                            <Share2 className="h-3 w-3 text-purple-500" />
+                            <span className="text-xs text-purple-600 font-medium">Assigned to:</span>
+                            <Badge className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                              {getPortalNameForArticle(article.id)}
+                            </Badge>
                           </div>
                         )}
                         <div className="flex items-center gap-3 mt-3 flex-wrap">
