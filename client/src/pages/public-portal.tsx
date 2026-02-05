@@ -277,7 +277,8 @@ export default function PublicPortal() {
     );
   }
 
-  const ChatSlideout = () => (
+  // Chat slideout content - defined as JSX to be inlined
+  const chatSlideoutContent = (
     <SheetContent className="w-[400px] sm:w-[480px] flex flex-col p-0">
       <div className="p-6 pb-4 border-b">
         <div className="flex items-center gap-3">
@@ -465,7 +466,7 @@ export default function PublicPortal() {
           </div>
         </div>
 
-        <ChatSlideout />
+        {chatSlideoutContent}
         </div>
       </Sheet>
     );
@@ -899,7 +900,7 @@ export default function PublicPortal() {
         </div>
       </footer>
 
-      <ChatSlideout />
+      {chatSlideoutContent}
       </div>
     </Sheet>
   );
