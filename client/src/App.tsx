@@ -46,6 +46,7 @@ import SocialTrackingPage from "@/pages/social-tracking";
 import InfluencerTrackingPage from "@/pages/influencer-tracking";
 import StaffersPage from "@/pages/staffers";
 import StafferDetailPage from "@/pages/staffer-detail";
+import CongressionalSchedulesPage from "@/pages/congressional-schedules";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
@@ -74,6 +75,7 @@ function AuthenticatedRouter() {
       <Route path="/influencers" component={InfluencerTrackingPage} />
       <Route path="/staffers" component={StaffersPage} />
       <Route path="/staffers/:id" component={StafferDetailPage} />
+      <Route path="/schedules" component={CongressionalSchedulesPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />

@@ -3927,6 +3927,74 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== Congressional Schedules ==========
+
+  // Get committee meetings (House or Senate)
+  app.get("/api/congress/schedule/committee-meetings", isAuthenticated, async (req, res) => {
+    try {
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ message: "Congress API key not configured" });
+      }
+
+      const chamber = req.query.chamber as string || "house";
+      const congress = req.query.congress as string || "119";
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const response = await fetch(
+        `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}?api_key=${apiKey}&limit=${limit}&format=json`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Congress API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      res.json(data.committeeMeetings || []);
+    } catch (error) {
+      console.error("Error fetching committee meetings:", error);
+      res.status(500).json({ message: "Failed to fetch committee meetings" });
+    }
+  });
+
+  // Get leadership schedule from RSS feeds
+  app.get("/api/congress/schedule/leadership", isAuthenticated, async (req, res) => {
+    try {
+      const Parser = (await import("rss-parser")).default;
+      const parser = new Parser();
+
+      const feeds = [
+        { name: "House Floor Today", url: "https://www.congress.gov/rss/house-floor-today.xml" },
+        { name: "Senate Floor Today", url: "https://www.congress.gov/rss/senate-floor-today.xml" },
+      ];
+
+      const results: any[] = [];
+
+      for (const feed of feeds) {
+        try {
+          const parsed = await parser.parseURL(feed.url);
+          results.push({
+            source: feed.name,
+            items: (parsed.items || []).slice(0, 10).map(item => ({
+              title: item.title,
+              link: item.link,
+              pubDate: item.pubDate,
+              content: item.contentSnippet || item.content,
+            })),
+          });
+        } catch (feedError) {
+          console.error(`Error fetching ${feed.name}:`, feedError);
+          results.push({ source: feed.name, items: [], error: "Failed to fetch" });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error fetching leadership schedule:", error);
+      res.status(500).json({ message: "Failed to fetch leadership schedule" });
+    }
+  });
+
   // ========== Favorite Congress Members ==========
 
   // Get all favorites for client
