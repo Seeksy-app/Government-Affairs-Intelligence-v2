@@ -369,13 +369,22 @@ export default function PublicPortal() {
           placeholder="Ask a question..."
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
           disabled={isStreaming}
           data-testid="input-chat-message"
         />
         <Button
+          type="button"
           size="icon"
-          onClick={sendMessage}
+          onClick={(e) => {
+            e.preventDefault();
+            sendMessage();
+          }}
           disabled={!chatInput.trim() || isStreaming}
           data-testid="button-send-chat"
         >
