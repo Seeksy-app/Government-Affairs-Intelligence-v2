@@ -9,6 +9,7 @@ import {
   staffers,
   stafferCareerPositions,
   stafferConnections,
+  clientPortals,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -67,6 +68,17 @@ export async function seedDatabase() {
     .returning();
 
   console.log("Created sample clients");
+
+  // Create default portal for Adam's client
+  await db.insert(clientPortals).values({
+    clientId: adamClient.id,
+    slug: "client-portal",
+    name: "Client Portal",
+    description: "Access your matters, research, news, and tracked legislation",
+    isActive: true,
+  });
+
+  console.log("Created client portal");
 
   // Create sample contacts for Adam's client
   const sampleContacts = [

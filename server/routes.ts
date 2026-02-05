@@ -2811,7 +2811,7 @@ export async function registerRoutes(
       }
 
       // Get tracked bills for this client
-      const clientBills = await storage.getTrackedBillsByClientId(client.id);
+      const clientBills = await storage.getTrackedBills(client.id);
 
       // Get previous messages for context
       const existingMessages = await storage.getPortalMessages(convId);
