@@ -1902,6 +1902,7 @@ export async function registerRoutes(
       }
 
       console.log("[Staffer Research] Researching staffer:", name);
+      console.log("[Staffer Research] PERPLEXITY_API_KEY present:", !!process.env.PERPLEXITY_API_KEY, "length:", process.env.PERPLEXITY_API_KEY?.length || 0);
       const { researchWithPerplexity } = await import("./services/research-agent");
       
       // Build a detailed prompt to research the staffer using Perplexity
