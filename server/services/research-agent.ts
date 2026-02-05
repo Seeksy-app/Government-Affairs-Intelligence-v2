@@ -434,7 +434,7 @@ async function fetchBillContext(parsedBills: ParsedBill[]): Promise<string> {
 }
 
 async function fetchWebResearch(question: string): Promise<string> {
-  if (!process.env.FIRECRAWL_API_KEY) return "";
+  if (!process.env.PERPLEXITY_API_KEY) return "";
   
   const politicalKeywords = ['bill', 'legislation', 'congress', 'senator', 'representative', 'policy', 'vote', 'committee', 'hearing'];
   const hasPoliticalContext = politicalKeywords.some(kw => question.toLowerCase().includes(kw));
@@ -446,7 +446,7 @@ async function fetchWebResearch(question: string): Promise<string> {
     const result = await runAgentQuery(researchPrompt);
     if (result.success && result.data) {
       const sources = result.sources?.join(', ') || 'Web research';
-      return `\n\n=== WEB RESEARCH (from Firecrawl) ===\nSources: ${sources}\n\n${JSON.stringify(result.data, null, 2).slice(0, 3000)}`;
+      return `\n\n=== WEB RESEARCH (from Perplexity AI) ===\nSources: ${sources}\n\n${JSON.stringify(result.data, null, 2).slice(0, 3000)}`;
     }
   } catch (error) {
     console.error("Web research error:", error);
