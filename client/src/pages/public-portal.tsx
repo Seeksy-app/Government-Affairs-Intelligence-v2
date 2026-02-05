@@ -318,10 +318,27 @@ export default function PublicPortal() {
                   className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      : "bg-muted prose prose-sm dark:prose-invert max-w-none"
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === "user" ? msg.content : (
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {children}
+                          </a>
+                        ),
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
                 {msg.role === "user" && (
                   <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -345,8 +362,23 @@ export default function PublicPortal() {
                 <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
                   <Bot className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted">
-                  {streamingMessage}
+                <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          {children}
+                        </a>
+                      ),
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    }}
+                  >
+                    {streamingMessage}
+                  </ReactMarkdown>
                 </div>
               </div>
             )}

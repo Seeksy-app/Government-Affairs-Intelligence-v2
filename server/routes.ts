@@ -1734,6 +1734,104 @@ export async function registerRoutes(
     }
   });
 
+  // Research a staffer using Firecrawl agent (no matter required)
+  app.post("/api/research/staffer", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const { name, title, organization, memberName } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "Staffer name is required" });
+      }
+
+      const { runAgentQuery, generateSummary } = await import("./services/research-agent");
+      
+      // Build a detailed prompt to research the staffer
+      const researchPrompt = `Research the following Congressional or political staffer to find their career history, education, and professional connections:
+
+Name: ${name}
+Current Title: ${title || 'Unknown'}
+Current Organization: ${organization || 'Unknown'}
+${memberName ? `Currently serving under: ${memberName}` : ''}
+
+Please find:
+1. Their complete career history including previous positions on the Hill, in campaigns, or in government
+2. Their educational background (universities, degrees)
+3. Key professional connections and colleagues they've worked with
+4. Any policy areas or expertise they're known for
+5. LinkedIn profile URL if available
+
+Focus on finding factual information from reliable sources like LinkedIn, government databases, and news articles.`;
+
+      const schema = {
+        type: "object",
+        properties: {
+          bio: { type: "string", description: "A brief biographical summary" },
+          education: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                degree: { type: "string" },
+                institution: { type: "string" },
+                year: { type: "number" }
+              }
+            }
+          },
+          careerHistory: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                organization: { type: "string" },
+                startYear: { type: "number" },
+                endYear: { type: "number" },
+                memberServed: { type: "string" },
+                organizationType: { type: "string" }
+              }
+            }
+          },
+          policyAreas: {
+            type: "array",
+            items: { type: "string" }
+          },
+          previousMembers: {
+            type: "array",
+            items: { type: "string" },
+            description: "Names of Members of Congress they have previously worked for"
+          },
+          linkedinUrl: { type: "string" },
+          connections: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                relationship: { type: "string" },
+                organization: { type: "string" }
+              }
+            }
+          }
+        }
+      };
+
+      const result = await runAgentQuery(researchPrompt, schema);
+      
+      res.json({
+        success: true,
+        data: result.data,
+        sources: result.sources || []
+      });
+    } catch (error: any) {
+      console.error("Error researching staffer:", error);
+      res.status(500).json({ message: error?.message || "Failed to research staffer" });
+    }
+  });
+
   // ==================== AI AGENT RESEARCH ROUTES ====================
 
   // Research a political entity using Firecrawl agent

@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 import { 
   X, 
   ChevronRight, 
@@ -19,10 +20,14 @@ import {
   Linkedin,
   UserPlus,
   ChevronLeft,
-  Award
+  Award,
+  Search,
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 interface CareerPosition {
   title: string;
@@ -104,8 +109,10 @@ function StafferCard({ staffer, isSelected, onClick }: { staffer: Staffer; isSel
   );
 }
 
-function StafferProfile({ staffer, memberName, onBack, onNavigate }: { staffer: Staffer; memberName: string; onBack: () => void; onNavigate: (path: string) => void }) {
+function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData }: { staffer: Staffer; memberName: string; onBack: () => void; onNavigate: (path: string) => void; onEnrichData: (data: Partial<Staffer>) => void }) {
   const pathway = pathwayLabels[staffer.pathwayType || ''] || pathwayLabels.administrative;
+  const [isResearching, setIsResearching] = useState(false);
+  const { toast } = useToast();
   
   const handleAddToContacts = () => {
     const nameParts = staffer.name.split(' ');
@@ -113,6 +120,42 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate }: { staffer: 
     const lastName = nameParts.slice(1).join(' ') || '';
     const path = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(staffer.email || '')}&title=${encodeURIComponent(staffer.title)}&organization=${encodeURIComponent(`Office of ${memberName}`)}`;
     onNavigate(path);
+  };
+
+  const handleResearch = async () => {
+    setIsResearching(true);
+    try {
+      const response = await apiRequest("POST", "/api/research/staffer", {
+        name: staffer.name,
+        title: staffer.title,
+        organization: `Office of ${memberName}`,
+        memberName: memberName
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        onEnrichData(result.data);
+        toast({
+          title: "Research Complete",
+          description: `Found career data for ${staffer.name}`,
+        });
+      } else {
+        toast({
+          title: "Research Complete",
+          description: "Limited information found. Try LinkedIn for more details.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Research Error",
+        description: "Could not complete research. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResearching(false);
+    }
   };
   
   return (
@@ -125,7 +168,26 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate }: { staffer: 
           <h3 className="font-semibold" data-testid="text-staffer-name">{staffer.name}</h3>
           <p className="text-sm text-muted-foreground" data-testid="text-staffer-title">{staffer.title}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleResearch}
+            disabled={isResearching}
+            data-testid="button-research-staffer"
+          >
+            {isResearching ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Researching...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-1" />
+                Research
+              </>
+            )}
+          </Button>
           <Button 
             variant="outline" 
             size="sm"
@@ -343,6 +405,7 @@ export function StafferProfileDialog({
   staffers,
 }: StafferProfileDialogProps) {
   const [selectedStaffer, setSelectedStaffer] = useState<Staffer | null>(null);
+  const [enrichedData, setEnrichedData] = useState<Record<number, Partial<Staffer>>>({});
   const [, setLocation] = useLocation();
   
   const handleOpenChange = (isOpen: boolean) => {
@@ -356,6 +419,16 @@ export function StafferProfileDialog({
     onOpenChange(false);
     setSelectedStaffer(null);
     setLocation(path);
+  };
+
+  const handleEnrichData = (data: Partial<Staffer>) => {
+    if (selectedStaffer) {
+      setEnrichedData(prev => ({
+        ...prev,
+        [selectedStaffer.id]: data
+      }));
+      setSelectedStaffer(prev => prev ? { ...prev, ...data } : null);
+    }
   };
   
   return (
@@ -406,6 +479,7 @@ export function StafferProfileDialog({
             memberName={memberName}
             onBack={() => setSelectedStaffer(null)}
             onNavigate={handleNavigate}
+            onEnrichData={handleEnrichData}
           />
         )}
       </DialogContent>
