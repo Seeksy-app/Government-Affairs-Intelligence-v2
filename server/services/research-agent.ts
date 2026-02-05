@@ -526,24 +526,26 @@ Respond in JSON format: { "summary": "...", "patterns": ["..."], "policyFocus": 
   };
 }
 
-// Portal-specific AI chat - only accesses documents shared in the portal
+// Portal-specific AI chat - only accesses documents, news, and bills assigned to the client
 export async function* chatWithPortalContext(
   question: string,
   documentContext: string,
   conversationHistory: { role: "user" | "assistant"; content: string }[],
   portalName: string
 ): AsyncGenerator<string> {
-  const systemPrompt = `You are a helpful AI research assistant for the "${portalName}" portal. You help answer questions about the research documents and materials that have been shared with you.
+  const systemPrompt = `You are a helpful AI research assistant for the "${portalName}" client portal. You help answer questions about the research documents, news articles, and legislation that have been shared with you by your consulting firm.
 
-You have access to the following research documents:
-${documentContext || "No documents have been shared yet."}
+You have access to the following information that has been assigned to you:
+${documentContext || "No information has been shared yet."}
 
 Guidelines:
-- Only answer questions based on the documents and information shared above
-- If asked about something not covered in the documents, politely explain that you can only help with the shared research materials
+- ONLY answer questions based on the documents, news, and legislation shared above
+- If asked about something not covered in the shared information, politely explain that you can only help with materials your consulting firm has shared with you
 - Be helpful, accurate, and professional
-- Cite specific documents when referencing information
-- If no documents are available, let the user know they can ask their research team to share relevant materials`;
+- Cite specific documents, news articles, or bills when referencing information
+- For news-related questions, reference the specific articles and their sources
+- For legislation questions, provide bill numbers and current status information
+- If no information is available in a category, acknowledge that and suggest contacting your consulting firm for updates`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },

@@ -2778,6 +2778,41 @@ export async function registerRoutes(
         allDocuments = allDocuments.concat(docs);
       }
 
+      // Get news articles ONLY from assigned RSS feeds for this client
+      // Strict scoping: if no feeds assigned or no matching articles, provide no news context
+      const clientFeeds = await storage.getClientRssFeeds(client.id);
+      const allArticles = await storage.getNewsArticles(client.id);
+      
+      let clientNews: any[] = [];
+      if (clientFeeds.length > 0) {
+        // Get feed IDs that are assigned to this client
+        const assignedFeedIds = clientFeeds.map(f => f.id);
+        const feedNames = clientFeeds.map(f => f.name.toLowerCase());
+        
+        // Filter articles by assigned feed sources only
+        clientNews = allArticles.filter(a => 
+          a.source && feedNames.some(name => 
+            a.source!.toLowerCase().includes(name) || name.includes(a.source!.toLowerCase())
+          )
+        );
+        // NO fallback - if no matches, client sees no news (strict scoping to assigned feeds only)
+      }
+      // If no feeds assigned, clientNews stays empty (strict scoping)
+      
+      // Limit to most recent 20 articles for context
+      if (clientNews.length > 0) {
+        clientNews = clientNews
+          .sort((a, b) => {
+            const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+            const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+            return dateB - dateA;
+          })
+          .slice(0, 20);
+      }
+
+      // Get tracked bills for this client
+      const clientBills = await storage.getTrackedBillsByClientId(client.id);
+
       // Get previous messages for context
       const existingMessages = await storage.getPortalMessages(convId);
       const conversationHistory = existingMessages.map(m => ({
@@ -2790,6 +2825,27 @@ export async function registerRoutes(
         .map((doc, i) => `[Document ${i + 1}: ${doc.title}]\n${doc.content?.slice(0, 5000) || doc.summary || ''}`)
         .join("\n\n---\n\n");
 
+      // Build news context
+      const newsContext = clientNews.length > 0 
+        ? clientNews.map((article, i) => 
+            `[News ${i + 1}: ${article.title}]\nSource: ${article.source || 'Unknown'}\nDate: ${article.publishedAt || 'Unknown'}\n${article.summary || ''}`
+          ).join("\n\n")
+        : "";
+
+      // Build bills context
+      const billsContext = clientBills.length > 0
+        ? clientBills.map((bill, i) => 
+            `[Bill ${i + 1}: ${bill.billId}]\nTitle: ${bill.title}\nStatus: ${bill.status || 'Unknown'}\nSponsor: ${bill.sponsor || 'Unknown'}\nChamber: ${bill.chamber || 'Unknown'}\nPriority: ${bill.priority || 'Normal'}\nLast Action: ${bill.lastActionDate || 'Unknown'}`
+          ).join("\n\n")
+        : "";
+
+      // Combine all context
+      const fullContext = [
+        documentContext ? `## Research Documents\n${documentContext}` : "",
+        newsContext ? `## Recent News\n${newsContext}` : "",
+        billsContext ? `## Tracked Legislation\n${billsContext}` : ""
+      ].filter(Boolean).join("\n\n---\n\n");
+
       // Set up SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -2800,7 +2856,7 @@ export async function registerRoutes(
       let fullResponse = "";
       for await (const chunk of chatWithPortalContext(
         message,
-        documentContext,
+        fullContext,
         conversationHistory,
         portal.name
       )) {
