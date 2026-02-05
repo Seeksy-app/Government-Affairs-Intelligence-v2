@@ -3939,13 +3939,24 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const chamber = req.query.chamber as string || "house";
       const congress = req.query.congress as string || "119";
-      const limit = Math.min(parseInt(req.query.limit as string) || 15, 15);
+      const limit = Math.min(parseInt(req.query.limit as string) || 30, 50);
       const search = req.query.search as string || "";
+      const startDate = req.query.startDate as string || "";
+      const endDate = req.query.endDate as string || "";
 
-      // First get the list of meetings (fetch slightly more to allow for filtering)
-      const listResponse = await fetch(
-        `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}?api_key=${apiKey}&limit=${limit}&format=json`
-      );
+      // Build API URL with optional date filtering
+      let apiUrl = `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}?api_key=${apiKey}&limit=${limit}&format=json`;
+      
+      // Congress API supports fromDateTime and toDateTime params
+      if (startDate) {
+        apiUrl += `&fromDateTime=${startDate}T00:00:00Z`;
+      }
+      if (endDate) {
+        apiUrl += `&toDateTime=${endDate}T23:59:59Z`;
+      }
+
+      // First get the list of meetings
+      const listResponse = await fetch(apiUrl);
 
       if (!listResponse.ok) {
         throw new Error(`Congress API error: ${listResponse.status}`);

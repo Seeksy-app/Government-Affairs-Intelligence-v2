@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +30,8 @@ import {
   Plane,
   Building,
   Info,
+  CalendarRange,
+  X,
 } from "lucide-react";
 import { format, parseISO, isWithinInterval, addDays } from "date-fns";
 
@@ -92,20 +95,28 @@ export default function CongressionalSchedules() {
   const [chamber, setChamber] = useState<string>("house");
   const [activeTab, setActiveTab] = useState("calendar");
   const [searchText, setSearchText] = useState("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   const { data: calendarData, isLoading: calendarLoading, refetch: refetchCalendar } = useQuery<CongressionalCalendar>({
     queryKey: ["/api/congress/schedule/calendar"],
   });
 
   const { data: committeeMeetings, isLoading: meetingsLoading, error: meetingsError, refetch: refetchMeetings } = useQuery<CommitteeMeeting[]>({
-    queryKey: ["/api/congress/schedule/committee-meetings", chamber, searchText],
+    queryKey: ["/api/congress/schedule/committee-meetings", chamber, searchText, startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams({
         chamber,
-        limit: "15",
+        limit: "30",
       });
       if (searchText) {
         params.set("search", searchText);
+      }
+      if (startDate) {
+        params.set("startDate", startDate);
+      }
+      if (endDate) {
+        params.set("endDate", endDate);
       }
       const res = await fetch(`/api/congress/schedule/committee-meetings?${params}`);
       if (!res.ok) throw new Error("Failed to fetch committee meetings");
@@ -116,6 +127,11 @@ export default function CongressionalSchedules() {
   const { data: floorActivity, isLoading: floorLoading, error: floorError, refetch: refetchFloor } = useQuery<FloorActivity[]>({
     queryKey: ["/api/congress/schedule/leadership"],
   });
+  
+  const clearDateRange = () => {
+    setStartDate("");
+    setEndDate("");
+  };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -399,24 +415,72 @@ export default function CongressionalSchedules() {
         <TabsContent value="committee" className="mt-4">
           <Card>
             <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
                   {chamber === "house" ? "House" : "Senate"} Committee Meetings
                 </CardTitle>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by title, committee, witness..."
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    className="pl-9 w-[300px]"
-                    data-testid="input-meeting-search"
-                  />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by title, committee, witness..."
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      className="pl-9 w-[250px]"
+                      data-testid="input-meeting-search"
+                    />
+                  </div>
                 </div>
               </div>
+              
+              <div className="flex flex-wrap items-end gap-3 mt-3 pt-3 border-t">
+                <div className="flex items-center gap-2">
+                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Date Range:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <Label htmlFor="start-date" className="sr-only">Start Date</Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-[150px]"
+                      data-testid="input-start-date"
+                    />
+                  </div>
+                  <span className="text-muted-foreground">to</span>
+                  <div>
+                    <Label htmlFor="end-date" className="sr-only">End Date</Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-[150px]"
+                      data-testid="input-end-date"
+                    />
+                  </div>
+                  {(startDate || endDate) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={clearDateRange}
+                      data-testid="button-clear-dates"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
               <p className="text-sm text-muted-foreground mt-2">
-                Showing up to 15 most recent meetings with full details
+                {startDate || endDate 
+                  ? `Showing meetings ${startDate ? `from ${format(parseISO(startDate), "MMM d, yyyy")}` : ""} ${endDate ? `to ${format(parseISO(endDate), "MMM d, yyyy")}` : ""}`
+                  : "Showing up to 30 most recent meetings with full details"
+                }
               </p>
             </CardHeader>
             <CardContent>
@@ -552,6 +616,26 @@ export default function CongressionalSchedules() {
         </TabsContent>
 
         <TabsContent value="floor" className="mt-4">
+          {/* Session Status Context */}
+          {calendarData?.currentPeriod && calendarData.currentPeriod.type === "recess" && (
+            <Card className="mb-4 border-blue-500 bg-blue-50 dark:bg-blue-950/30">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      Congress is currently in recess
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Floor activity is typically paused during {calendarData.currentPeriod.description}. 
+                      Members return on {calendarData.nextPeriod ? format(parseISO(calendarData.nextPeriod.start), "MMMM d, yyyy") : "their next scheduled session"}.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <div className="grid gap-6 md:grid-cols-2">
             {floorLoading ? (
               <>
@@ -579,10 +663,16 @@ export default function CongressionalSchedules() {
                       <Gavel className="h-5 w-5" />
                       {feed.source}
                     </CardTitle>
+                    <CardDescription>
+                      Real-time updates from congressional RSS feeds
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {feed.error ? (
-                      <p className="text-muted-foreground text-sm">Failed to load</p>
+                      <div className="text-center py-6">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50 text-destructive" />
+                        <p className="text-muted-foreground text-sm">Failed to load feed</p>
+                      </div>
                     ) : feed.items && feed.items.length > 0 ? (
                       <ScrollArea className="h-[400px]">
                         <div className="space-y-3 pr-4">
@@ -616,9 +706,15 @@ export default function CongressionalSchedules() {
                         </div>
                       </ScrollArea>
                     ) : (
-                      <p className="text-muted-foreground text-sm text-center py-6">
-                        No recent floor activity
-                      </p>
+                      <div className="text-center py-6">
+                        <Gavel className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-muted-foreground text-sm">No recent floor activity</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {calendarData?.currentPeriod?.type === "recess" 
+                            ? "Activity resumes when Congress returns to session" 
+                            : "Check back for updates during session"}
+                        </p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
