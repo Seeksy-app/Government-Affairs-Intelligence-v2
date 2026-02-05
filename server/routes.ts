@@ -1899,84 +1899,58 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Staffer name is required" });
       }
 
-      const { runAgentQuery, generateSummary } = await import("./services/research-agent");
+      const { researchWithPerplexity } = await import("./services/research-agent");
       
-      // Build a detailed prompt to research the staffer
-      const researchPrompt = `Research the following Congressional or political staffer to find their career history, education, and professional connections:
+      // Build a detailed prompt to research the staffer using Perplexity
+      const researchPrompt = `Research the Congressional or political staffer named "${name}".
 
-Name: ${name}
-Current Title: ${title || 'Unknown'}
-Current Organization: ${organization || 'Unknown'}
+Current Position: ${title || 'Unknown'} at ${organization || 'Unknown'}
 ${memberName ? `Currently serving under: ${memberName}` : ''}
 
-Please find:
-1. Their complete career history including previous positions on the Hill, in campaigns, or in government
-2. Their educational background (universities, degrees)
-3. Key professional connections and colleagues they've worked with
-4. Any policy areas or expertise they're known for
-5. LinkedIn profile URL if available
+Please provide:
+1. A brief biographical summary
+2. Their educational background (universities, degrees, years if known)
+3. Complete career history including previous positions on Capitol Hill, in campaigns, lobbying firms, or government agencies
+4. Key policy areas or expertise they're known for
+5. Any notable professional connections or colleagues
+6. LinkedIn profile URL if available
 
-Focus on finding factual information from reliable sources like LinkedIn, government databases, and news articles.`;
+Format your response as a structured summary with clear sections.`;
 
-      const schema = {
-        type: "object",
-        properties: {
-          bio: { type: "string", description: "A brief biographical summary" },
-          education: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                degree: { type: "string" },
-                institution: { type: "string" },
-                year: { type: "number" }
-              }
-            }
-          },
-          careerHistory: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                organization: { type: "string" },
-                startYear: { type: "number" },
-                endYear: { type: "number" },
-                memberServed: { type: "string" },
-                organizationType: { type: "string" }
-              }
-            }
-          },
-          policyAreas: {
-            type: "array",
-            items: { type: "string" }
-          },
-          previousMembers: {
-            type: "array",
-            items: { type: "string" },
-            description: "Names of Members of Congress they have previously worked for"
-          },
-          linkedinUrl: { type: "string" },
-          connections: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                relationship: { type: "string" },
-                organization: { type: "string" }
-              }
-            }
+      const result = await researchWithPerplexity(researchPrompt);
+      
+      // Parse the Perplexity response into structured data for the frontend
+      const parseCareerData = (content: string) => {
+        const data: Record<string, unknown> = {
+          bio: "",
+          education: [],
+          careerHistory: [],
+          policyAreas: [],
+          linkedinUrl: "",
+          rawContent: content
+        };
+        
+        // Extract bio (first paragraph or summary section)
+        const bioMatch = content.match(/(?:Summary|Biography|Background)[:\s]*([^#\n]+(?:\n(?![A-Z#])[^\n]+)*)/i);
+        if (bioMatch) {
+          data.bio = bioMatch[1].trim();
+        } else {
+          // Take first substantial paragraph as bio
+          const firstPara = content.split('\n\n')[0];
+          if (firstPara && firstPara.length > 50) {
+            data.bio = firstPara.trim();
           }
         }
+        
+        return data;
       };
-
-      const result = await runAgentQuery(researchPrompt, schema);
+      
+      const parsedData = parseCareerData(result.content);
       
       res.json({
         success: true,
-        data: result.data,
-        sources: result.sources || []
+        data: parsedData,
+        sources: result.citations || []
       });
     } catch (error: any) {
       console.error("Error researching staffer:", error);

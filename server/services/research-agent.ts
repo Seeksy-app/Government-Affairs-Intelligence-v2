@@ -14,6 +14,53 @@ const congressApi = process.env.CONGRESS_API_KEY
   ? new CongressAPI(process.env.CONGRESS_API_KEY)
   : null;
 
+// Perplexity API for research
+export async function researchWithPerplexity(prompt: string): Promise<{
+  content: string;
+  citations: string[];
+}> {
+  if (!process.env.PERPLEXITY_API_KEY) {
+    throw new Error("Perplexity API key not configured");
+  }
+
+  const response = await fetch("https://api.perplexity.ai/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-sonar-small-128k-online",
+      messages: [
+        {
+          role: "system",
+          content: "You are a research assistant specializing in political staffers, government officials, and congressional careers. Provide factual, well-sourced information about the person being researched. Focus on their career history, education, policy expertise, and professional connections."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.2,
+      return_images: false,
+      return_related_questions: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error("Perplexity API error:", error);
+    throw new Error(`Perplexity request failed: ${error}`);
+  }
+
+  const result = await response.json();
+  
+  return {
+    content: result.choices?.[0]?.message?.content || "",
+    citations: result.citations || [],
+  };
+}
+
 export type ContentType = "url" | "youtube" | "pdf" | "docx" | "article" | "extract" | "agent";
 
 export interface AgentQueryResult {

@@ -57,7 +57,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
 - **AI Research Agent**: Context-aware Q&A from research documents using OpenAI
 
-### AI Research Capabilities (Firecrawl Integration)
+### AI Research Capabilities
+- **Staffer Research (Perplexity)**: Research Congressional staffers with source citations using Perplexity AI
 - **URL Content Extraction**: Scrape web pages and extract content via Firecrawl
 - **YouTube Transcript Extraction**: Get transcripts from YouTube videos
 - **Entity Research**: AI agent researches people, organizations, or companies
