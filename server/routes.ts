@@ -3929,7 +3929,7 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   // ========== Congressional Schedules ==========
 
-  // Get committee meetings (House or Senate)
+  // Get committee meetings (House or Senate) with full details
   app.get("/api/congress/schedule/committee-meetings", isAuthenticated, async (req, res) => {
     try {
       const apiKey = process.env.CONGRESS_API_KEY;
@@ -3939,18 +3939,51 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const chamber = req.query.chamber as string || "house";
       const congress = req.query.congress as string || "119";
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = req.query.search as string || "";
 
-      const response = await fetch(
+      // First get the list of meetings
+      const listResponse = await fetch(
         `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}?api_key=${apiKey}&limit=${limit}&format=json`
       );
 
-      if (!response.ok) {
-        throw new Error(`Congress API error: ${response.status}`);
+      if (!listResponse.ok) {
+        throw new Error(`Congress API error: ${listResponse.status}`);
       }
 
-      const data = await response.json();
-      res.json(data.committeeMeetings || []);
+      const listData = await listResponse.json();
+      const meetings = listData.committeeMeetings || [];
+
+      // Fetch full details for each meeting (limit to first 15 for performance)
+      const detailedMeetings = await Promise.all(
+        meetings.slice(0, 15).map(async (meeting: any) => {
+          try {
+            const detailResponse = await fetch(
+              `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}/${meeting.eventId}?api_key=${apiKey}&format=json`
+            );
+            if (detailResponse.ok) {
+              const detailData = await detailResponse.json();
+              return detailData.committeeMeeting;
+            }
+            return meeting;
+          } catch {
+            return meeting;
+          }
+        })
+      );
+
+      // Filter by search if provided
+      let filtered = detailedMeetings;
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filtered = detailedMeetings.filter((m: any) => 
+          m.title?.toLowerCase().includes(searchLower) ||
+          m.committees?.some((c: any) => c.name?.toLowerCase().includes(searchLower)) ||
+          m.witnesses?.some((w: any) => w.name?.toLowerCase().includes(searchLower) || w.organization?.toLowerCase().includes(searchLower))
+        );
+      }
+
+      res.json(filtered);
     } catch (error) {
       console.error("Error fetching committee meetings:", error);
       res.status(500).json({ message: "Failed to fetch committee meetings" });
