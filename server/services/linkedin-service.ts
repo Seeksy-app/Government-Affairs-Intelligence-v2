@@ -482,3 +482,345 @@ function getSector(company: string, title: string): string | null {
   
   return null;
 }
+
+// ==================== COMPANY ENRICHMENT ====================
+
+export interface CompanyProfile {
+  id?: string;
+  name: string;
+  displayName?: string;
+  website?: string;
+  linkedinUrl?: string;
+  industry?: string;
+  size?: string;
+  founded?: number;
+  type?: string;
+  description?: string;
+  headquarters?: {
+    city?: string;
+    state?: string;
+    country?: string;
+    address?: string;
+  };
+  employeeCount?: number;
+  employeeCountRange?: string;
+  tags?: string[];
+  naicsCode?: string;
+  sicCode?: string;
+  ticker?: string;
+  specialties?: string[];
+  politicalClassification?: {
+    isLobbyingFirm: boolean;
+    isPAC: boolean;
+    isThinkTank: boolean;
+    isGovernmentAgency: boolean;
+    isPoliticalOrg: boolean;
+    isCampaign: boolean;
+  };
+}
+
+interface PDLCompanyResponse {
+  status: number;
+  name?: string;
+  display_name?: string;
+  website?: string;
+  linkedin_url?: string;
+  industry?: string;
+  size?: string;
+  founded?: number;
+  type?: string;
+  summary?: string;
+  location?: {
+    name?: string;
+    locality?: string;
+    region?: string;
+    country?: string;
+    street_address?: string;
+  };
+  employee_count?: number;
+  tags?: string[];
+  naics?: Array<{ naics_code?: string }>;
+  sic?: Array<{ sic_code?: string }>;
+  ticker?: string;
+}
+
+/**
+ * Enrich a company profile using People Data Labs Company API
+ * Cost: ~$0.01 per successful match
+ */
+export async function enrichCompany(
+  companyIdentifier: string,
+  identifierType: "name" | "website" | "linkedin" = "name"
+): Promise<CompanyProfile | null> {
+  if (!process.env.PDL_API_KEY) {
+    throw new Error("People Data Labs API key not configured");
+  }
+
+  const params = new URLSearchParams();
+  params.append("api_key", process.env.PDL_API_KEY);
+  
+  if (identifierType === "name") {
+    params.append("name", companyIdentifier);
+  } else if (identifierType === "website") {
+    params.append("website", companyIdentifier);
+  } else if (identifierType === "linkedin") {
+    params.append("profile", companyIdentifier);
+  }
+
+  try {
+    const response = await fetch(
+      `${PDL_BASE_URL}/company/enrich?${params.toString()}`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`Company not found: ${companyIdentifier}`);
+        return null;
+      }
+      const error = await response.text();
+      console.error("PDL company enrichment error:", error);
+      throw new Error(`Company enrichment failed: ${error}`);
+    }
+
+    const result: PDLCompanyResponse = await response.json();
+    
+    // Classify the organization type for political intelligence
+    const politicalClassification = classifyPoliticalOrganization(
+      result.name || companyIdentifier,
+      result.industry,
+      result.tags,
+      result.summary
+    );
+
+    return {
+      id: undefined,
+      name: result.name || companyIdentifier,
+      displayName: result.display_name,
+      website: result.website,
+      linkedinUrl: result.linkedin_url,
+      industry: result.industry,
+      size: result.size,
+      founded: result.founded,
+      type: result.type,
+      description: result.summary,
+      headquarters: result.location ? {
+        city: result.location.locality,
+        state: result.location.region,
+        country: result.location.country,
+        address: result.location.street_address,
+      } : undefined,
+      employeeCount: result.employee_count,
+      employeeCountRange: result.size,
+      tags: result.tags,
+      naicsCode: result.naics?.[0]?.naics_code,
+      sicCode: result.sic?.[0]?.sic_code,
+      ticker: result.ticker,
+      politicalClassification,
+    };
+  } catch (error) {
+    console.error("PDL company enrichment error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Classify if an organization is politically relevant
+ */
+function classifyPoliticalOrganization(
+  name: string,
+  industry?: string,
+  tags?: string[],
+  description?: string
+): CompanyProfile["politicalClassification"] {
+  const combined = [
+    name,
+    industry || "",
+    (tags || []).join(" "),
+    description || ""
+  ].join(" ").toLowerCase();
+
+  const lobbyingKeywords = ["lobbying", "government affairs", "public affairs", "government relations", "advocacy firm"];
+  const pacKeywords = ["pac", "political action committee", "super pac", "political fund"];
+  const thinkTankKeywords = ["institute", "foundation", "think tank", "policy research", "brookings", "heritage", "cato", "aei", "cfr"];
+  const govKeywords = ["department", "agency", "federal", "government", "congress", "senate", "house of representatives"];
+  const politicalKeywords = ["democratic", "republican", "political party", "dnc", "rnc", "political organization"];
+  const campaignKeywords = ["campaign", "for president", "for congress", "for senate", "election committee"];
+
+  return {
+    isLobbyingFirm: lobbyingKeywords.some(kw => combined.includes(kw)),
+    isPAC: pacKeywords.some(kw => combined.includes(kw)),
+    isThinkTank: thinkTankKeywords.some(kw => combined.includes(kw)),
+    isGovernmentAgency: govKeywords.some(kw => combined.includes(kw)),
+    isPoliticalOrg: politicalKeywords.some(kw => combined.includes(kw)),
+    isCampaign: campaignKeywords.some(kw => combined.includes(kw)),
+  };
+}
+
+// ==================== PERSON SEARCH ====================
+
+export interface PersonSearchResult {
+  id?: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  linkedinUrl?: string;
+  jobTitle?: string;
+  jobCompany?: string;
+  location?: string;
+  industry?: string;
+  skills?: string[];
+  matchScore?: number;
+}
+
+export interface PersonSearchParams {
+  company?: string;
+  jobTitle?: string;
+  location?: string;
+  industry?: string;
+  school?: string;
+  skills?: string[];
+  limit?: number;
+}
+
+/**
+ * Search for people who match criteria (e.g., worked at a specific company)
+ * Cost: ~$0.01 per successful result
+ */
+export async function searchPeople(
+  params: PersonSearchParams
+): Promise<PersonSearchResult[]> {
+  if (!process.env.PDL_API_KEY) {
+    throw new Error("People Data Labs API key not configured");
+  }
+
+  // Build SQL-like query for PDL
+  const conditions: string[] = [];
+  
+  if (params.company) {
+    // Match current or past company
+    conditions.push(`job_company_name='${params.company.replace(/'/g, "''")}'`);
+  }
+  
+  if (params.jobTitle) {
+    conditions.push(`job_title LIKE '%${params.jobTitle.replace(/'/g, "''")}%'`);
+  }
+  
+  if (params.location) {
+    conditions.push(`location_name LIKE '%${params.location.replace(/'/g, "''")}%'`);
+  }
+  
+  if (params.industry) {
+    conditions.push(`industry='${params.industry.replace(/'/g, "''")}'`);
+  }
+  
+  if (params.school) {
+    conditions.push(`education.school.name='${params.school.replace(/'/g, "''")}'`);
+  }
+  
+  if (params.skills && params.skills.length > 0) {
+    const skillConditions = params.skills.map(s => `skills LIKE '%${s.replace(/'/g, "''")}%'`);
+    conditions.push(`(${skillConditions.join(" OR ")})`);
+  }
+
+  if (conditions.length === 0) {
+    throw new Error("At least one search parameter is required");
+  }
+
+  const query = conditions.join(" AND ");
+  const limit = Math.min(params.limit || 10, 100);
+
+  try {
+    const response = await fetch(`${PDL_BASE_URL}/person/search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": process.env.PDL_API_KEY,
+      },
+      body: JSON.stringify({
+        sql: `SELECT * FROM person WHERE ${query}`,
+        size: limit,
+        dataset: "all",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("PDL person search error:", error);
+      throw new Error(`Person search failed: ${error}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.data || !Array.isArray(result.data)) {
+      return [];
+    }
+
+    return result.data.map((person: any) => ({
+      id: person.id,
+      fullName: person.full_name || `${person.first_name || ""} ${person.last_name || ""}`.trim(),
+      firstName: person.first_name,
+      lastName: person.last_name,
+      linkedinUrl: person.linkedin_url,
+      jobTitle: person.job_title,
+      jobCompany: person.job_company_name,
+      location: person.location_name,
+      industry: person.industry,
+      skills: person.skills || [],
+      matchScore: person.match_score,
+    }));
+  } catch (error) {
+    console.error("PDL person search error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Find former colleagues who worked at the same organization
+ * Cost: ~$0.01 per result found
+ */
+export async function findFormerColleagues(
+  companyName: string,
+  limit: number = 20
+): Promise<PersonSearchResult[]> {
+  return searchPeople({
+    company: companyName,
+    limit,
+  });
+}
+
+/**
+ * Search for people with specific political experience
+ */
+export async function searchPoliticalProfessionals(
+  params: {
+    type: "lobbyist" | "government" | "campaign" | "think_tank";
+    location?: string;
+    limit?: number;
+  }
+): Promise<PersonSearchResult[]> {
+  const typeQueries: Record<string, PersonSearchParams> = {
+    lobbyist: {
+      jobTitle: "government affairs",
+      limit: params.limit,
+      location: params.location,
+    },
+    government: {
+      company: "US Congress",
+      limit: params.limit,
+      location: params.location,
+    },
+    campaign: {
+      jobTitle: "campaign",
+      limit: params.limit,
+      location: params.location,
+    },
+    think_tank: {
+      industry: "think tanks",
+      limit: params.limit,
+      location: params.location,
+    },
+  };
+
+  return searchPeople(typeQueries[params.type] || { limit: params.limit });
+}
