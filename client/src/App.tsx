@@ -40,6 +40,7 @@ import LoginPage from "@/pages/login";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import AdminApplications from "@/pages/admin-applications";
+import AdminBusinessDev from "@/pages/admin-business-dev";
 import BillTrackingPage from "@/pages/bill-tracking";
 import PredictionsPage from "@/pages/predictions";
 import SocialTrackingPage from "@/pages/social-tracking";
@@ -60,6 +61,7 @@ function AuthenticatedRouter() {
       <Route path="/admin/users" component={AdminDashboard} />
       <Route path="/admin/kb" component={AdminKnowledgeBase} />
       <Route path="/admin/security" component={AdminSecurity} />
+      <Route path="/admin/business-dev" component={AdminBusinessDev} />
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}
