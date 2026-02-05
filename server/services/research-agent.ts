@@ -30,7 +30,7 @@ export async function researchWithPerplexity(prompt: string): Promise<{
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.1-sonar-small-128k-online",
+      model: "sonar",
       messages: [
         {
           role: "system",
@@ -42,8 +42,6 @@ export async function researchWithPerplexity(prompt: string): Promise<{
         }
       ],
       temperature: 0.2,
-      return_images: false,
-      return_related_questions: false,
     }),
   });
 

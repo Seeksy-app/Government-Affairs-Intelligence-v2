@@ -241,7 +241,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Session encryption key
 - `ISSUER_URL` - OIDC issuer (Replit)
-- `FIRECRAWL_API_KEY` - Firecrawl API key for web scraping and agent queries
+- `PERPLEXITY_API_KEY` - Perplexity AI API key for staffer research and agent queries (uses `sonar` model)
+- `FIRECRAWL_API_KEY` - Firecrawl API key for web scraping
 - `INFLUENCERS_API_KEY` - Influencers Club API key for influencer tracking
 - `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (via Replit AI Integrations)
 - `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL (via Replit AI Integrations)
