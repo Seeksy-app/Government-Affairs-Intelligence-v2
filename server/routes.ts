@@ -2851,6 +2851,31 @@ Focus on finding factual information from reliable sources like LinkedIn, govern
     }
   });
 
+  // Portal Dashboard - Get assigned committee meetings
+  app.get("/api/public/portal/:clientSlug/:portalSlug/meetings", async (req, res) => {
+    try {
+      const { clientSlug, portalSlug } = req.params;
+      
+      const client = await storage.getClientBySlug(clientSlug);
+      if (!client || !client.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      const portal = await storage.getClientPortalBySlug(client.id, portalSlug);
+      if (!portal || !portal.isActive) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+
+      // Get committee meetings assigned to this portal
+      const meetings = await storage.getPortalMeetings(portal.id);
+      
+      res.json(meetings);
+    } catch (error) {
+      console.error("Error getting portal meetings:", error);
+      res.status(500).json({ message: "Failed to get meetings" });
+    }
+  });
+
   // Portal Dashboard - Get stats summary
   app.get("/api/public/portal/:clientSlug/:portalSlug/stats", async (req, res) => {
     try {
@@ -4093,6 +4118,80 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error fetching leadership schedule:", error);
       res.status(500).json({ message: "Failed to fetch leadership schedule" });
+    }
+  });
+
+  // ========== Committee Meeting Portal Assignments ==========
+
+  // Get assignments for a specific meeting
+  app.get("/api/congress/meetings/:eventId/:chamber/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const chamber = req.params.chamber.toLowerCase();
+      const assignments = await storage.getMeetingPortalAssignments(eventId, chamber);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching meeting assignments:", error);
+      res.status(500).json({ message: "Failed to fetch meeting assignments" });
+    }
+  });
+
+  // Assign meeting to portal
+  app.post("/api/congress/meetings/:eventId/:chamber/assign-portal", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const userId = (req as any).userId;
+      const eventId = parseInt(req.params.eventId);
+      const chamber = req.params.chamber.toLowerCase();
+      const { portalId, congress, title, meetingDate, committees, location } = req.body;
+      
+      if (!portalId) {
+        return res.status(400).json({ message: "Portal ID is required" });
+      }
+      
+      const assignment = await storage.assignMeetingToPortal({
+        eventId,
+        chamber,
+        congress: congress || 119,
+        title: title || "",
+        meetingDate: meetingDate || "",
+        committees: committees || "",
+        location: location || "",
+        portalId,
+        clientId,
+        assignedBy: userId,
+      });
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning meeting to portal:", error);
+      res.status(500).json({ message: "Failed to assign meeting" });
+    }
+  });
+
+  // Unassign meeting from portal
+  app.delete("/api/congress/meetings/:eventId/:chamber/assign-portal/:portalId", isAuthenticated, async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const chamber = req.params.chamber.toLowerCase();
+      await storage.unassignMeetingFromPortal(eventId, chamber, req.params.portalId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error unassigning meeting from portal:", error);
+      res.status(500).json({ message: "Failed to unassign meeting" });
+    }
+  });
+
+  // Get all meeting assignments for current client
+  app.get("/api/congress/meetings/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const assignments = await storage.getClientMeetingAssignments(clientId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching client meeting assignments:", error);
+      res.status(500).json({ message: "Failed to fetch meeting assignments" });
     }
   });
 

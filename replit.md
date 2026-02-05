@@ -50,7 +50,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
 - **Staff Persistence**: Selected Congress member and staff data persist in localStorage across page navigations
 - **Congress Member Favorites**: Star and save frequently accessed Congress members with Matter assignment
-- **Congressional Schedules**: Track 2026 session calendar, committee meetings, and floor activity
+- **Congressional Schedules**: Track 2026 session calendar, committee meetings with date range filtering, and floor activity
+- **Committee Meeting Portal Assignment**: Assign committee meetings to client portals for client visibility
 - **AI Meeting Suggestions**: Research Agent uses congressional schedule to suggest optimal meeting windows
 - **Customers Portal**: Track relationship contacts (Congress members, staffers, manual entries) with Matter assignment for organizing outreach
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
@@ -108,6 +109,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `rss_feed_client_assignments` - Links RSS feeds to specific clients for client portal access
 - `high_intent_keywords` - Keywords for highlighting high-priority news articles
 - `news_article_portal_assignments` - Links news articles to client portals
+- `committee_meeting_portal_assignments` - Links committee meetings to client portals
 
 ## API Routes
 
@@ -176,8 +178,14 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `GET /api/congress/members` - Search current Members of Congress (filters: search, chamber, party, state)
 - `GET /api/congress/members/:bioguideId` - Get detailed info for a specific member
 - `GET /api/congress/schedule/calendar` - Get 2026 congressional session calendar (session vs. recess periods)
-- `GET /api/congress/schedule/committee-meetings` - Get committee meetings (filters: chamber, congress, limit, search)
+- `GET /api/congress/schedule/committee-meetings` - Get committee meetings (filters: chamber, congress, limit, search, startDate, endDate)
 - `GET /api/congress/schedule/leadership` - Get floor activity from RSS feeds
+
+### Committee Meeting Portal Assignment Routes
+- `GET /api/congress/meetings/assignments` - Get all meeting assignments for current client
+- `GET /api/congress/meetings/:eventId/:chamber/assignments` - Get assignments for a specific meeting
+- `POST /api/congress/meetings/:eventId/:chamber/assign-portal` - Assign meeting to portal
+- `DELETE /api/congress/meetings/:eventId/:chamber/assign-portal/:portalId` - Unassign meeting from portal
 
 ### Customers Routes
 - `GET /api/customers` - List customers for client
@@ -218,6 +226,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `GET /api/public/portal/:clientSlug/:portalSlug/matters` - Get portal matters
 - `GET /api/public/portal/:clientSlug/:portalSlug/news` - Get news from assigned feeds
 - `GET /api/public/portal/:clientSlug/:portalSlug/bills` - Get tracked bills for client
+- `GET /api/public/portal/:clientSlug/:portalSlug/meetings` - Get assigned committee meetings
 - `GET /api/public/portal/:clientSlug/:portalSlug/stats` - Get portal statistics
 - `POST /api/public/portal/:clientSlug/:portalSlug/conversations/:convId/chat` - AI chat (SSE streaming)
 

@@ -74,6 +74,18 @@ interface PortalStats {
   highPriorityBills: number;
 }
 
+interface PortalMeeting {
+  id: string;
+  eventId: number;
+  chamber: string;
+  congress: number;
+  title: string;
+  meetingDate: string;
+  committees: string;
+  location: string;
+  assignedAt: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -143,6 +155,16 @@ export default function PublicPortal() {
     queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug, "bills"],
     queryFn: async () => {
       const res = await fetch(`${baseUrl}/bills`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!portal,
+  });
+
+  const { data: meetings = [], isLoading: meetingsLoading } = useQuery<PortalMeeting[]>({
+    queryKey: ["/api/public/portal", params.clientSlug, params.portalSlug, "meetings"],
+    queryFn: async () => {
+      const res = await fetch(`${baseUrl}/meetings`);
       if (!res.ok) return [];
       return res.json();
     },
@@ -578,7 +600,7 @@ export default function PublicPortal() {
       {/* Tabs Navigation */}
       <div className="container mx-auto py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" data-testid="tab-overview">
               <BarChart3 className="w-4 h-4 mr-2" />
               Overview
@@ -590,6 +612,10 @@ export default function PublicPortal() {
             <TabsTrigger value="bills" data-testid="tab-bills">
               <Gavel className="w-4 h-4 mr-2" />
               Bills
+            </TabsTrigger>
+            <TabsTrigger value="meetings" data-testid="tab-meetings">
+              <Calendar className="w-4 h-4 mr-2" />
+              Meetings
             </TabsTrigger>
             <TabsTrigger value="research" data-testid="tab-research">
               <Folder className="w-4 h-4 mr-2" />
@@ -725,6 +751,44 @@ export default function PublicPortal() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Upcoming Meetings Section */}
+            {meetings.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Upcoming Committee Meetings
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setActiveTab("meetings")}>
+                    View All
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {meetings.slice(0, 3).map((meeting) => (
+                      <div key={meeting.id} className="border-b last:border-0 pb-3 last:pb-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-sm">{meeting.committees || "Committee Meeting"}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{meeting.title}</p>
+                            {meeting.meetingDate && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(meeting.meetingDate), "MMM d, yyyy h:mm a")}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {meeting.chamber === "house" ? "House" : "Senate"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Portal Description */}
             {portal.description && (
@@ -866,6 +930,83 @@ export default function PublicPortal() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Meetings Tab */}
+          <TabsContent value="meetings" className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-lg font-semibold">Committee Meetings</h2>
+              <Badge variant="outline">{meetings.length} meetings</Badge>
+            </div>
+            
+            {meetingsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="py-4 space-y-3">
+                      <Skeleton className="h-5 w-1/2" />
+                      <Skeleton className="h-4 w-full" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-5 w-24" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : meetings.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-lg font-medium">No committee meetings assigned</p>
+                  <p className="text-muted-foreground text-sm mt-1">Relevant committee meetings will appear here when assigned.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {meetings.map((meeting) => (
+                  <Card key={meeting.id} className="hover-elevate" data-testid={`meeting-${meeting.id}`}>
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-bold">{meeting.committees || "Committee Meeting"}</span>
+                            <Badge variant="outline" className="text-xs">{meeting.chamber === "house" ? "House" : "Senate"}</Badge>
+                          </div>
+                          {meeting.title && (
+                            <p className="text-sm mt-1">{meeting.title}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
+                            {meeting.meetingDate && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(meeting.meetingDate), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                              </span>
+                            )}
+                            {meeting.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {meeting.location}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={`https://www.congress.gov/event/${meeting.congress}th-congress/${meeting.chamber}-event/${meeting.eventId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            View
+                          </a>
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>

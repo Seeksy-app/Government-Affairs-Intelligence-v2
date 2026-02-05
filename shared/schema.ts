@@ -325,6 +325,30 @@ export const insertNewsArticlePortalAssignmentSchema = createInsertSchema(newsAr
 export type InsertNewsArticlePortalAssignment = z.infer<typeof insertNewsArticlePortalAssignmentSchema>;
 export type NewsArticlePortalAssignment = typeof newsArticlePortalAssignments.$inferSelect;
 
+// Committee Meeting Portal Assignments - assign committee meetings to client portals
+export const committeeMeetingPortalAssignments = pgTable("committee_meeting_portal_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: integer("event_id").notNull(),
+  chamber: text("chamber").notNull(),
+  congress: integer("congress").notNull(),
+  title: text("title"),
+  meetingDate: text("meeting_date"),
+  committees: text("committees"),
+  location: text("location"),
+  portalId: varchar("portal_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by"),
+});
+
+export const insertCommitteeMeetingPortalAssignmentSchema = createInsertSchema(committeeMeetingPortalAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertCommitteeMeetingPortalAssignment = z.infer<typeof insertCommitteeMeetingPortalAssignmentSchema>;
+export type CommitteeMeetingPortalAssignment = typeof committeeMeetingPortalAssignments.$inferSelect;
+
 // Matters (sub-clients - Adam's own clients for research)
 export const matters = pgTable("matters", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

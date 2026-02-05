@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Calendar,
   Building2,
@@ -32,8 +40,14 @@ import {
   Info,
   CalendarRange,
   X,
+  Share2,
+  MoreVertical,
+  Check,
 } from "lucide-react";
 import { format, parseISO, isWithinInterval, addDays } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { ClientPortal } from "@shared/schema";
 
 interface CommitteeMeeting {
   eventId: number;
@@ -127,6 +141,50 @@ export default function CongressionalSchedules() {
   const { data: floorActivity, isLoading: floorLoading, error: floorError, refetch: refetchFloor } = useQuery<FloorActivity[]>({
     queryKey: ["/api/congress/schedule/leadership"],
   });
+
+  const { data: portals } = useQuery<ClientPortal[]>({
+    queryKey: ["/api/client/portals"],
+  });
+
+  const { data: meetingAssignments, refetch: refetchAssignments } = useQuery<any[]>({
+    queryKey: ["/api/congress/meetings/assignments"],
+  });
+
+  const { toast } = useToast();
+
+  const assignToPortalMutation = useMutation({
+    mutationFn: async ({ meeting, portalId }: { meeting: CommitteeMeeting; portalId: string }) => {
+      const committees = meeting.committees?.map(c => c.name).join(", ") || "";
+      const location = meeting.location ? 
+        `${meeting.location.room || ""} ${meeting.location.building || ""}`.trim() : "";
+      const meetingChamber = (meeting.chamber || chamber).toLowerCase();
+      
+      return apiRequest("POST", `/api/congress/meetings/${meeting.eventId}/${meetingChamber}/assign-portal`, {
+        portalId,
+        congress: meeting.congress || 119,
+        title: meeting.title || "",
+        meetingDate: meeting.date || "",
+        committees,
+        location,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Meeting assigned to portal" });
+      refetchAssignments();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error assigning meeting", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const isMeetingAssigned = (eventId: number, portalId: string, meetingChamber?: string) => {
+    const chamberToCheck = (meetingChamber || chamber).toLowerCase();
+    return meetingAssignments?.some(a => 
+      a.eventId === eventId && 
+      a.portalId === portalId && 
+      a.chamber?.toLowerCase() === chamberToCheck
+    );
+  };
   
   const clearDateRange = () => {
     setStartDate("");
@@ -188,17 +246,17 @@ export default function CongressionalSchedules() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
+            <Calendar className="h-6 w-6 flex-shrink-0" />
             Congressional Schedules
           </h1>
           <p className="text-muted-foreground mt-1">
             Track session calendar, committee meetings, and floor activity
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Select value={chamber} onValueChange={(val) => {
             setChamber(val);
             setSearchText("");
@@ -576,16 +634,58 @@ export default function CongressionalSchedules() {
                                 </div>
                               )}
                             </div>
-                            <Button variant="ghost" size="icon" asChild>
-                              <a
-                                href={getMeetingUrl(meeting)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                data-testid={`link-meeting-${meeting.eventId}`}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            </Button>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Button variant="ghost" size="icon" asChild>
+                                <a
+                                  href={getMeetingUrl(meeting)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  data-testid={`link-meeting-${meeting.eventId}`}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    data-testid={`button-meeting-actions-${meeting.eventId}`}
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {portals && portals.length > 0 && (
+                                    <>
+                                      <DropdownMenuLabel className="flex items-center gap-2">
+                                        <Share2 className="h-4 w-4" />
+                                        Assign to Portal
+                                      </DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      {portals.map((portal) => (
+                                        <DropdownMenuItem
+                                          key={portal.id}
+                                          onClick={() => assignToPortalMutation.mutate({ meeting, portalId: portal.id })}
+                                          data-testid={`menu-assign-meeting-portal-${portal.id}`}
+                                          className="flex items-center justify-between"
+                                        >
+                                          <span>{portal.name}</span>
+                                          {isMeetingAssigned(meeting.eventId, portal.id, meeting.chamber) && (
+                                            <Check className="h-4 w-4 text-green-500" />
+                                          )}
+                                        </DropdownMenuItem>
+                                      ))}
+                                    </>
+                                  )}
+                                  {(!portals || portals.length === 0) && (
+                                    <DropdownMenuItem disabled>
+                                      No portals available
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

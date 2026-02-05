@@ -13,6 +13,7 @@ import {
   rssFeedClientAssignments,
   highIntentKeywords,
   newsArticlePortalAssignments,
+  committeeMeetingPortalAssignments,
   matters,
   researchDocuments,
   researchConversations,
@@ -68,6 +69,8 @@ import {
   type InsertHighIntentKeyword,
   type NewsArticlePortalAssignment,
   type InsertNewsArticlePortalAssignment,
+  type CommitteeMeetingPortalAssignment,
+  type InsertCommitteeMeetingPortalAssignment,
   type Matter,
   type InsertMatter,
   type ResearchDocument,
@@ -1731,6 +1734,43 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(newsArticles.publishedAt));
     
     return articles;
+  }
+
+  // Committee Meeting Portal Assignments
+  async getMeetingPortalAssignments(eventId: number, chamber: string): Promise<CommitteeMeetingPortalAssignment[]> {
+    return db.select().from(committeeMeetingPortalAssignments)
+      .where(and(
+        eq(committeeMeetingPortalAssignments.eventId, eventId),
+        eq(committeeMeetingPortalAssignments.chamber, chamber)
+      ));
+  }
+
+  async getClientMeetingAssignments(clientId: string): Promise<CommitteeMeetingPortalAssignment[]> {
+    return db.select().from(committeeMeetingPortalAssignments)
+      .where(eq(committeeMeetingPortalAssignments.clientId, clientId))
+      .orderBy(desc(committeeMeetingPortalAssignments.meetingDate));
+  }
+
+  async assignMeetingToPortal(data: InsertCommitteeMeetingPortalAssignment): Promise<CommitteeMeetingPortalAssignment> {
+    const [assignment] = await db.insert(committeeMeetingPortalAssignments)
+      .values(data)
+      .returning();
+    return assignment;
+  }
+
+  async unassignMeetingFromPortal(eventId: number, chamber: string, portalId: string): Promise<void> {
+    await db.delete(committeeMeetingPortalAssignments)
+      .where(and(
+        eq(committeeMeetingPortalAssignments.eventId, eventId),
+        eq(committeeMeetingPortalAssignments.chamber, chamber),
+        eq(committeeMeetingPortalAssignments.portalId, portalId)
+      ));
+  }
+
+  async getPortalMeetings(portalId: string): Promise<CommitteeMeetingPortalAssignment[]> {
+    return db.select().from(committeeMeetingPortalAssignments)
+      .where(eq(committeeMeetingPortalAssignments.portalId, portalId))
+      .orderBy(desc(committeeMeetingPortalAssignments.meetingDate));
   }
 }
 
