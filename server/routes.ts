@@ -1963,6 +1963,97 @@ Format your response as a structured summary with clear sections.`;
     }
   });
 
+  // Research a staffer using LinkedIn via Proxycurl API
+  app.post("/api/research/linkedin", isAuthenticated, async (req, res) => {
+    console.log("[LinkedIn Research] Request received:", JSON.stringify(req.body));
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const { firstName, lastName, organization, linkedinUrl } = req.body;
+      
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First and last name are required" });
+      }
+
+      console.log("[LinkedIn Research] API key present:", !!process.env.PROXYCURL_API_KEY);
+      
+      if (!process.env.PROXYCURL_API_KEY) {
+        return res.status(400).json({ 
+          message: "LinkedIn research requires a Proxycurl API key. Please add PROXYCURL_API_KEY to your secrets." 
+        });
+      }
+
+      const { 
+        researchLinkedInProfile, 
+        enrichLinkedInProfile,
+        formatCareerTimeline,
+        formatEducation,
+        analyzeCareerPatterns 
+      } = await import("./services/linkedin-service");
+
+      let profile;
+      let profileUrl = linkedinUrl || null;
+
+      // If we already have a LinkedIn URL, just enrich it
+      if (linkedinUrl) {
+        console.log("[LinkedIn Research] Enriching existing URL:", linkedinUrl);
+        profile = await enrichLinkedInProfile(linkedinUrl);
+      } else {
+        // Otherwise, look up by name and then enrich
+        console.log("[LinkedIn Research] Looking up profile for:", firstName, lastName);
+        const result = await researchLinkedInProfile(firstName, lastName, organization);
+        profile = result.profile;
+        profileUrl = result.profileUrl;
+        
+        if (result.error) {
+          return res.json({
+            success: false,
+            error: result.error,
+            message: result.error
+          });
+        }
+      }
+
+      if (!profile) {
+        return res.json({
+          success: false,
+          error: "Profile not found",
+          message: `Could not find LinkedIn profile for ${firstName} ${lastName}`
+        });
+      }
+
+      // Format and analyze the career data
+      const careerTimeline = formatCareerTimeline(profile.experiences);
+      const educationFormatted = formatEducation(profile.education);
+      const careerAnalysis = analyzeCareerPatterns(profile);
+
+      res.json({
+        success: true,
+        data: {
+          profileUrl,
+          fullName: profile.full_name,
+          headline: profile.headline,
+          summary: profile.summary,
+          location: [profile.city, profile.state, profile.country].filter(Boolean).join(", "),
+          profilePicUrl: profile.profile_pic_url,
+          experiences: profile.experiences,
+          education: profile.education,
+          skills: profile.skills,
+          careerTimeline,
+          educationFormatted,
+          careerAnalysis,
+          connections: profile.connections,
+        }
+      });
+    } catch (error: any) {
+      console.error("[LinkedIn Research] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to research LinkedIn profile" });
+    }
+  });
+
   // ==================== AI AGENT RESEARCH ROUTES ====================
 
   // Research a political entity using Firecrawl agent

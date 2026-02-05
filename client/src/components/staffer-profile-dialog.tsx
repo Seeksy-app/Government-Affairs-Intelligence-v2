@@ -109,9 +109,49 @@ function StafferCard({ staffer, isSelected, onClick }: { staffer: Staffer; isSel
   );
 }
 
+interface LinkedInExperience {
+  starts_at?: { day?: number; month?: number; year?: number };
+  ends_at?: { day?: number; month?: number; year?: number } | null;
+  company: string;
+  title: string;
+  description?: string;
+}
+
+interface LinkedInEducation {
+  starts_at?: { day?: number; month?: number; year?: number };
+  ends_at?: { day?: number; month?: number; year?: number };
+  field_of_study?: string;
+  degree_name?: string;
+  school: string;
+}
+
+interface LinkedInData {
+  profileUrl: string | null;
+  fullName?: string;
+  headline?: string;
+  summary?: string;
+  location?: string;
+  profilePicUrl?: string;
+  experiences: LinkedInExperience[];
+  education: LinkedInEducation[];
+  skills?: string[];
+  careerAnalysis?: {
+    totalYearsExperience: number;
+    sectors: string[];
+    careerTrajectory: string;
+    keyTransitions: string[];
+    governmentExperience: boolean;
+    campaignExperience: boolean;
+    lobbyingExperience: boolean;
+    thinkTankExperience: boolean;
+  };
+}
+
 function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData }: { staffer: Staffer; memberName: string; onBack: () => void; onNavigate: (path: string) => void; onEnrichData: (data: Partial<Staffer>) => void }) {
   const pathway = pathwayLabels[staffer.pathwayType || ''] || pathwayLabels.administrative;
   const [isResearching, setIsResearching] = useState(false);
+  const [isLinkedInResearching, setIsLinkedInResearching] = useState(false);
+  const [linkedInData, setLinkedInData] = useState<LinkedInData | null>(null);
   const { toast } = useToast();
   
   const handleAddToContacts = () => {
@@ -168,6 +208,71 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
       setIsResearching(false);
     }
   };
+
+  const handleLinkedInResearch = async () => {
+    setIsLinkedInResearching(true);
+    try {
+      const nameParts = staffer.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const response = await apiRequest("POST", "/api/research/linkedin", {
+        firstName,
+        lastName,
+        organization: `Office of ${memberName}`
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setLinkedInData(result.data);
+        
+        // Also update the staffer data with LinkedIn info
+        const careerHistory = result.data.experiences?.map((exp: LinkedInExperience) => ({
+          title: exp.title,
+          organization: exp.company,
+          startYear: exp.starts_at?.year,
+          endYear: exp.ends_at?.year
+        })) || [];
+        
+        const education = result.data.education?.map((edu: LinkedInEducation) => ({
+          degree: edu.degree_name || 'Degree',
+          institution: edu.school,
+          year: edu.ends_at?.year
+        })) || [];
+        
+        onEnrichData({
+          careerHistory,
+          education,
+          bio: result.data.summary || staffer.bio
+        });
+        
+        toast({
+          title: "LinkedIn Research Complete",
+          description: `Found ${result.data.experiences?.length || 0} positions and ${result.data.education?.length || 0} education entries`,
+        });
+      } else {
+        toast({
+          title: "Profile Not Found",
+          description: result.message || "Could not find LinkedIn profile. Try the search button instead.",
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error("LinkedIn research error:", error);
+      let errorMessage = "Could not complete LinkedIn research.";
+      if (error?.message?.includes("PROXYCURL_API_KEY")) {
+        errorMessage = "LinkedIn research requires a Proxycurl API key.";
+      }
+      toast({
+        title: "LinkedIn Research Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLinkedInResearching(false);
+    }
+  };
   
   return (
     <div className="flex flex-col h-full">
@@ -202,11 +307,21 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => window.open(`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(staffer.name)}`, '_blank')}
-            data-testid="button-linkedin-search"
+            onClick={handleLinkedInResearch}
+            disabled={isLinkedInResearching}
+            data-testid="button-linkedin-research"
           >
-            <Linkedin className="h-4 w-4 mr-1" />
-            LinkedIn
+            {isLinkedInResearching ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Linkedin className="h-4 w-4 mr-1" />
+                LinkedIn
+              </>
+            )}
           </Button>
           <Button 
             variant="default" 
@@ -278,6 +393,100 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
                 {staffer.policyAreas.map((area, idx) => (
                   <Badge key={idx} variant="outline" className="text-xs">{area}</Badge>
                 ))}
+              </div>
+            </div>
+          )}
+          
+          {linkedInData?.careerAnalysis && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1">
+                  <Linkedin className="h-3 w-3" />
+                  Career Analysis
+                  {linkedInData.profileUrl && (
+                    <a 
+                      href={linkedInData.profileUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline ml-auto text-xs font-normal flex items-center gap-1"
+                    >
+                      View Profile <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                      {linkedInData.careerAnalysis.totalYearsExperience}+ years experience
+                    </Badge>
+                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                      {linkedInData.careerAnalysis.careerTrajectory}
+                    </Badge>
+                  </div>
+                  
+                  {linkedInData.careerAnalysis.sectors.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Sectors:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {linkedInData.careerAnalysis.sectors.map((sector, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">{sector}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {linkedInData.careerAnalysis.governmentExperience && (
+                      <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                        Government Experience
+                      </Badge>
+                    )}
+                    {linkedInData.careerAnalysis.campaignExperience && (
+                      <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800">
+                        Campaign Experience
+                      </Badge>
+                    )}
+                    {linkedInData.careerAnalysis.lobbyingExperience && (
+                      <Badge variant="outline" className="text-xs bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800">
+                        Lobbying Experience
+                      </Badge>
+                    )}
+                    {linkedInData.careerAnalysis.thinkTankExperience && (
+                      <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
+                        Think Tank Experience
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {linkedInData.careerAnalysis.keyTransitions.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Key Career Transitions:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {linkedInData.careerAnalysis.keyTransitions.map((transition, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">{transition}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          
+          {linkedInData?.skills && linkedInData.skills.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">
+                Skills
+              </h3>
+              <div className="flex flex-wrap gap-1">
+                {linkedInData.skills.slice(0, 15).map((skill, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">{skill}</Badge>
+                ))}
+                {linkedInData.skills.length > 15 && (
+                  <Badge variant="outline" className="text-xs">+{linkedInData.skills.length - 15} more</Badge>
+                )}
               </div>
             </div>
           )}
