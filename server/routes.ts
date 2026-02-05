@@ -1886,10 +1886,12 @@ export async function registerRoutes(
     }
   });
 
-  // Research a staffer using Firecrawl agent (no matter required)
+  // Research a staffer using Perplexity API
   app.post("/api/research/staffer", isAuthenticated, async (req, res) => {
+    console.log("[Staffer Research] Request received:", JSON.stringify(req.body));
     try {
       const clientId = await getClientId(req);
+      console.log("[Staffer Research] Client ID:", clientId);
       if (!clientId) {
         return res.status(403).json({ message: "Not assigned to a client" });
       }
@@ -1899,6 +1901,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Staffer name is required" });
       }
 
+      console.log("[Staffer Research] Researching staffer:", name);
       const { researchWithPerplexity } = await import("./services/research-agent");
       
       // Build a detailed prompt to research the staffer using Perplexity
@@ -1953,7 +1956,8 @@ Format your response as a structured summary with clear sections.`;
         sources: result.citations || []
       });
     } catch (error: any) {
-      console.error("Error researching staffer:", error);
+      console.error("[Staffer Research] ERROR:", error?.message || error);
+      console.error("[Staffer Research] Stack:", error?.stack);
       res.status(500).json({ message: error?.message || "Failed to research staffer" });
     }
   });
