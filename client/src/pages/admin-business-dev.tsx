@@ -25,8 +25,8 @@ export default function AdminBusinessDev() {
   const [activeTab, setActiveTab] = useState("business-plan");
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
+    <div className="p-6 space-y-8">
+      <div className="border-b pb-4">
         <h1 className="text-3xl font-bold font-serif" data-testid="text-busdev-title">
           Business Development
         </h1>
@@ -36,7 +36,7 @@ export default function AdminBusinessDev() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-3">
+        <TabsList className="grid w-full max-w-xl grid-cols-3 bg-muted/50">
           <TabsTrigger value="business-plan" className="flex items-center gap-2" data-testid="tab-business-plan">
             <FileText className="h-4 w-4" />
             Business Plan
@@ -55,10 +55,12 @@ export default function AdminBusinessDev() {
         <TabsContent value="business-plan" className="space-y-6 mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Executive Summary */}
-            <Card data-testid="card-executive-summary">
-              <CardHeader>
+            <Card data-testid="card-executive-summary" className="border-l-4 border-l-primary overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Target className="h-5 w-5 text-primary" />
+                  </div>
                   Executive Summary
                 </CardTitle>
               </CardHeader>
@@ -94,10 +96,12 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Target Market */}
-            <Card data-testid="card-target-market">
-              <CardHeader>
+            <Card data-testid="card-target-market" className="border-l-4 border-l-blue-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Target Market
                 </CardTitle>
               </CardHeader>
@@ -131,10 +135,12 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Revenue Model */}
-            <Card data-testid="card-revenue-model">
-              <CardHeader>
+            <Card data-testid="card-revenue-model" className="border-l-4 border-l-emerald-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                   Revenue Model
                 </CardTitle>
               </CardHeader>
@@ -171,10 +177,12 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Competitive Advantage */}
-            <Card data-testid="card-competitive-advantage">
-              <CardHeader>
+            <Card data-testid="card-competitive-advantage" className="border-l-4 border-l-purple-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Award className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
                   Competitive Advantage
                 </CardTitle>
               </CardHeader>
@@ -222,18 +230,23 @@ export default function AdminBusinessDev() {
 
         {/* 3-Year Projections Tab */}
         <TabsContent value="projections" className="space-y-6 mt-6">
-          <Card data-testid="card-projections">
-            <CardHeader>
-              <CardTitle>Three-Year Financial Projections</CardTitle>
-              <p className="text-sm text-muted-foreground">
+          <Card data-testid="card-projections" className="border-t-4 border-t-primary overflow-visible">
+            <CardHeader className="bg-muted/30 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                Three-Year Financial Projections
+              </CardTitle>
+              <p className="text-sm text-muted-foreground ml-11">
                 Based on government affairs industry growth rates and SaaS benchmarks
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b">
+                    <tr className="border-b bg-muted/30">
                       <th className="text-left py-3 px-4 font-medium">Metric</th>
                       <th className="text-right py-3 px-4 font-medium">Year 1</th>
                       <th className="text-right py-3 px-4 font-medium">Year 2</th>
@@ -315,8 +328,8 @@ export default function AdminBusinessDev() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Industry Tailwinds */}
-            <Card data-testid="card-tailwinds">
-              <CardHeader>
+            <Card data-testid="card-tailwinds" className="border-l-4 border-l-emerald-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="text-lg">Industry Tailwinds</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -340,8 +353,8 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Key Assumptions */}
-            <Card data-testid="card-assumptions">
-              <CardHeader>
+            <Card data-testid="card-assumptions" className="border-l-4 border-l-blue-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="text-lg">Key Assumptions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -365,8 +378,8 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Investment Needs */}
-            <Card data-testid="card-investment">
-              <CardHeader>
+            <Card data-testid="card-investment" className="border-l-4 border-l-orange-500 overflow-visible">
+              <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="text-lg">Investment Needs</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -395,13 +408,15 @@ export default function AdminBusinessDev() {
         <TabsContent value="go-to-market" className="space-y-6 mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Phase 1 */}
-            <Card data-testid="card-phase1">
-              <CardHeader>
+            <Card data-testid="card-phase1" className="border-t-4 border-t-blue-500 overflow-visible">
+              <CardHeader className="bg-blue-500/5 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
                   Phase 1: Foundation (Months 1-6)
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Build credibility and early adopters</p>
+                <p className="text-sm text-muted-foreground ml-11">Build credibility and early adopters</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="font-semibold">Target: 8-12 pilot customers</p>
@@ -430,13 +445,15 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 2 */}
-            <Card data-testid="card-phase2">
-              <CardHeader>
+            <Card data-testid="card-phase2" className="border-t-4 border-t-emerald-500 overflow-visible">
+              <CardHeader className="bg-emerald-500/5 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
                   Phase 2: Scale (Months 7-12)
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Accelerate with proven playbook</p>
+                <p className="text-sm text-muted-foreground ml-11">Accelerate with proven playbook</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="font-semibold">Target: 20+ paying customers</p>
@@ -465,13 +482,15 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 3 */}
-            <Card data-testid="card-phase3">
-              <CardHeader>
+            <Card data-testid="card-phase3" className="border-t-4 border-t-purple-500 overflow-visible">
+              <CardHeader className="bg-purple-500/5 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
                   Phase 3: Expand (Year 2)
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Multi-channel growth engine</p>
+                <p className="text-sm text-muted-foreground ml-11">Multi-channel growth engine</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="font-semibold">Target: 75+ customers, $1M ARR</p>
@@ -500,13 +519,15 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 4 */}
-            <Card data-testid="card-phase4">
-              <CardHeader>
+            <Card data-testid="card-phase4" className="border-t-4 border-t-orange-500 overflow-visible">
+              <CardHeader className="bg-orange-500/5 border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <Handshake className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-orange-500/10">
+                    <Handshake className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  </div>
                   Phase 4: Dominate (Year 3)
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">Category leadership</p>
+                <p className="text-sm text-muted-foreground ml-11">Category leadership</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="font-semibold">Target: 225+ customers, $4M ARR</p>
@@ -536,29 +557,34 @@ export default function AdminBusinessDev() {
           </div>
 
           {/* Channel Mix Strategy */}
-          <Card data-testid="card-channel-mix">
-            <CardHeader>
-              <CardTitle>Channel Mix Strategy</CardTitle>
+          <Card data-testid="card-channel-mix" className="border-t-4 border-t-primary overflow-visible">
+            <CardHeader className="bg-muted/30 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Rocket className="h-5 w-5 text-primary" />
+                </div>
+                Channel Mix Strategy
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-3xl font-bold text-primary">45%</p>
+                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">45%</p>
                   <p className="font-semibold mt-1">Direct Sales</p>
                   <p className="text-xs text-muted-foreground">Outbound + conferences</p>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-3xl font-bold text-primary">25%</p>
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">25%</p>
                   <p className="font-semibold mt-1">Inbound Marketing</p>
                   <p className="text-xs text-muted-foreground">SEO, content, ads</p>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-3xl font-bold text-primary">15%</p>
+                <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">15%</p>
                   <p className="font-semibold mt-1">Partners</p>
                   <p className="text-xs text-muted-foreground">Law firms, consultants</p>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg text-center">
-                  <p className="text-3xl font-bold text-primary">15%</p>
+                <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg text-center">
+                  <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">15%</p>
                   <p className="font-semibold mt-1">Referrals</p>
                   <p className="text-xs text-muted-foreground">Customer advocacy</p>
                 </div>
