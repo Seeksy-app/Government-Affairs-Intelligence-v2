@@ -179,6 +179,8 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
   const [linkedInData, setLinkedInData] = useState<LinkedInData | null>(null);
   const [isCompanyResearching, setIsCompanyResearching] = useState<string | null>(null);
   const [companyData, setCompanyData] = useState<Record<string, CompanyData>>({});
+  const [showLinkedInInput, setShowLinkedInInput] = useState(false);
+  const [linkedInUrl, setLinkedInUrl] = useState("");
   const { toast } = useToast();
 
   const handleCompanyResearch = async (companyName: string) => {
@@ -272,9 +274,52 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
     }
   };
 
-  const handleLinkedInResearch = async () => {
+  const handleLinkedInResearch = async (customUrl?: string) => {
     setIsLinkedInResearching(true);
     try {
+      const urlToUse = customUrl || linkedInUrl;
+      
+      // If user provided a LinkedIn URL, use it directly
+      if (urlToUse && urlToUse.includes("linkedin.com")) {
+        const response = await apiRequest("POST", "/api/research/linkedin", {
+          linkedinUrl: urlToUse
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setLinkedInData(result.data);
+          setShowLinkedInInput(false);
+          setLinkedInUrl("");
+          
+          const careerHistory = result.data.experiences?.map((exp: LinkedInExperience) => ({
+            title: exp.title,
+            organization: exp.company,
+            startYear: exp.starts_at?.year,
+            endYear: exp.ends_at?.year
+          })) || [];
+          
+          const education = result.data.education?.map((edu: LinkedInEducation) => ({
+            degree: edu.degree_name || 'Degree',
+            institution: edu.school,
+            year: edu.ends_at?.year
+          })) || [];
+          
+          onEnrichData({
+            careerHistory,
+            education,
+            bio: result.data.summary || staffer.bio
+          });
+          
+          toast({
+            title: "LinkedIn Research Complete",
+            description: `Found ${result.data.experiences?.length || 0} positions from LinkedIn profile`,
+          });
+          return;
+        }
+      }
+      
+      // Fallback to name-based search
       const nameParts = staffer.name.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
@@ -378,7 +423,13 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
           <Button 
             variant="outline" 
             size="sm"
-            onClick={handleLinkedInResearch}
+            onClick={() => {
+              if (showLinkedInInput) {
+                handleLinkedInResearch();
+              } else {
+                setShowLinkedInInput(true);
+              }
+            }}
             disabled={isLinkedInResearching}
             data-testid="button-linkedin-research"
           >
@@ -405,6 +456,49 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
           </Button>
         </div>
       </div>
+      
+      {showLinkedInInput && (
+        <div className="px-6 py-3 border-b bg-muted/30">
+          <div className="flex gap-2 items-center">
+            <div className="flex-1">
+              <input
+                type="url"
+                placeholder="Paste LinkedIn URL (e.g., linkedin.com/in/username)"
+                value={linkedInUrl}
+                onChange={(e) => setLinkedInUrl(e.target.value)}
+                className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                data-testid="input-linkedin-url"
+              />
+            </div>
+            <Button 
+              size="sm" 
+              onClick={() => handleLinkedInResearch()}
+              disabled={isLinkedInResearching || !linkedInUrl}
+              data-testid="button-submit-linkedin-url"
+            >
+              {isLinkedInResearching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => {
+                setShowLinkedInInput(false);
+                setLinkedInUrl("");
+              }}
+              data-testid="button-cancel-linkedin"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Enter the staffer's LinkedIn profile URL for more accurate career data
+          </p>
+        </div>
+      )}
       
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
