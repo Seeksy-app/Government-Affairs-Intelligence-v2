@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Folder, FileText, ArrowLeft, Building2, Calendar, MapPin, Phone,
   MessageCircle, X, Send, Bot, User, Loader2, Newspaper, Gavel,
@@ -276,128 +277,135 @@ export default function PublicPortal() {
     );
   }
 
-  const ChatPanel = () => (
-    <div className="fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)]">
-      <Card className="shadow-xl border-2">
-        <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between gap-2 bg-primary/5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-base">AI Research Assistant</CardTitle>
-              <p className="text-xs text-muted-foreground">Ask questions about your research</p>
-            </div>
+  const ChatSlideout = () => (
+    <SheetContent className="w-[400px] sm:w-[480px] flex flex-col p-0">
+      <div className="p-6 pb-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Bot className="w-5 h-5 text-primary" />
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(false)} data-testid="button-close-chat">
-            <X className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-80 p-4">
-            {messages.length === 0 && !streamingMessage && !pendingUserMessage && (
-              <div className="text-center text-muted-foreground py-8">
-                <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium">How can I help you today?</p>
-                <p className="text-xs mt-1">Ask me anything about your research documents and briefings.</p>
-              </div>
-            )}
-            <div className="space-y-4">
-              {messages.map((msg) => (
+          <div>
+            <h2 className="font-semibold text-lg">AI Research Assistant</h2>
+            <p className="text-xs text-muted-foreground">Ask questions about your research</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex-1 flex flex-col min-h-0 px-6">
+        <ScrollArea className="flex-1 py-4">
+          {messages.length === 0 && !streamingMessage && !pendingUserMessage && (
+            <div className="text-center text-muted-foreground py-8">
+              <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm font-medium">How can I help you today?</p>
+              <p className="text-xs mt-1">Ask me anything about your research documents and briefings.</p>
+            </div>
+          )}
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                data-testid={`chat-message-${msg.role}-${msg.id}`}
+                className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {msg.role === "assistant" && (
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
                 <div
-                  key={msg.id}
-                  data-testid={`chat-message-${msg.role}-${msg.id}`}
-                  className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
                 >
-                  {msg.role === "assistant" && (
-                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                      <Bot className="w-4 h-4 text-primary-foreground" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                  {msg.role === "user" && (
-                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4" />
-                    </div>
-                  )}
+                  {msg.content}
                 </div>
-              ))}
-              {pendingUserMessage && (
-                <div className="flex gap-2 justify-end" data-testid="chat-message-pending">
-                  <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-primary text-primary-foreground">
-                    {pendingUserMessage}
-                  </div>
+                {msg.role === "user" && (
                   <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <User className="w-4 h-4" />
                   </div>
+                )}
+              </div>
+            ))}
+            {pendingUserMessage && (
+              <div className="flex gap-2 justify-end" data-testid="chat-message-pending">
+                <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-primary text-primary-foreground">
+                  {pendingUserMessage}
                 </div>
-              )}
-              {streamingMessage && (
-                <div className="flex gap-2 justify-start" data-testid="chat-message-streaming">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted">
-                    {streamingMessage}
-                  </div>
+                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4" />
                 </div>
-              )}
-              {isStreaming && !streamingMessage && (
-                <div className="flex gap-2 justify-start" data-testid="chat-loading">
-                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <div className="rounded-lg px-3 py-2 bg-muted">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </div>
+              </div>
+            )}
+            {streamingMessage && (
+              <div className="flex gap-2 justify-start" data-testid="chat-message-streaming">
+                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-primary-foreground" />
                 </div>
-              )}
-            </div>
-            <div ref={chatEndRef} />
-          </ScrollArea>
-          <div className="p-3 border-t flex gap-2">
-            <Input
-              placeholder="Ask a question..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              disabled={isStreaming}
-              data-testid="input-chat-message"
-            />
-            <Button
-              size="icon"
-              onClick={sendMessage}
-              disabled={!chatInput.trim() || isStreaming}
-              data-testid="button-send-chat"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+                <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted">
+                  {streamingMessage}
+                </div>
+              </div>
+            )}
+            {isStreaming && !streamingMessage && (
+              <div className="flex gap-2 justify-start" data-testid="chat-loading">
+                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div className="rounded-lg px-3 py-2 bg-muted">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </div>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          <div ref={chatEndRef} />
+        </ScrollArea>
+      </div>
+      
+      <div className="p-4 border-t flex gap-2">
+        <Input
+          placeholder="Ask a question..."
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+          disabled={isStreaming}
+          data-testid="input-chat-message"
+        />
+        <Button
+          size="icon"
+          onClick={sendMessage}
+          disabled={!chatInput.trim() || isStreaming}
+          data-testid="button-send-chat"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </div>
+    </SheetContent>
   );
 
   // Document detail view
   if (selectedMatter) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="border-b bg-card">
-          <div className="container mx-auto py-4">
-            <Button variant="ghost" onClick={() => setSelectedMatter(null)} data-testid="button-back-to-matters">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
+      <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <div className="min-h-screen bg-background">
+          <div className="border-b bg-card">
+            <div className="container mx-auto py-4 flex items-center justify-between gap-4">
+              <Button variant="ghost" onClick={() => setSelectedMatter(null)} data-testid="button-back-to-matters">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="gap-2" data-testid="button-open-chat">
+                  <MessageCircle className="w-4 h-4" />
+                  Ask AI
+                  {messages.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{messages.length}</Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+            </div>
           </div>
-        </div>
 
         <div className="container mx-auto py-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
@@ -457,70 +465,72 @@ export default function PublicPortal() {
           </div>
         </div>
 
-        {!isChatOpen && (
-          <Button
-            className="fixed bottom-4 right-4 rounded-full shadow-lg"
-            size="lg"
-            onClick={() => setIsChatOpen(true)}
-            data-testid="button-open-chat"
-          >
-            <MessageCircle className="w-5 h-5 mr-2" />
-            Ask AI
-          </Button>
-        )}
-        {isChatOpen && <ChatPanel />}
-      </div>
+        <ChatSlideout />
+        </div>
+      </Sheet>
     );
   }
 
   // Main Dashboard View
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto py-6">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              {portal.clientLogo ? (
-                <img 
-                  src={portal.clientLogo} 
-                  alt={portal.clientName} 
-                  className="w-16 h-16 object-contain rounded-lg border"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Building2 className="w-8 h-8 text-primary" />
+    <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="border-b bg-card">
+          <div className="container mx-auto py-6">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                {portal.clientLogo ? (
+                  <img 
+                    src={portal.clientLogo} 
+                    alt={portal.clientName} 
+                    className="w-16 h-16 object-contain rounded-lg border"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Building2 className="w-8 h-8 text-primary" />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold" data-testid="text-portal-client-name">{portal.clientName}</h1>
+                  <p className="text-muted-foreground flex items-center gap-1">
+                    <Star className="w-4 h-4" />
+                    {portal.name}
+                  </p>
                 </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold" data-testid="text-portal-client-name">{portal.clientName}</h1>
-                <p className="text-muted-foreground flex items-center gap-1">
-                  <Star className="w-4 h-4" />
-                  {portal.name}
-                </p>
               </div>
-            </div>
-            <div className="text-right text-sm text-muted-foreground space-y-1">
-              {portal.clientAddress && (
-                <div className="flex items-center gap-2 justify-end">
-                  <MapPin className="w-4 h-4" />
-                  <span>{portal.clientAddress}</span>
+              <div className="flex flex-col items-end gap-2">
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="gap-2" data-testid="button-open-chat">
+                    <MessageCircle className="w-4 h-4" />
+                    Ask AI
+                    {messages.length > 0 && (
+                      <Badge variant="secondary" className="ml-1">{messages.length}</Badge>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <div className="text-right text-sm text-muted-foreground space-y-1">
+                  {portal.clientAddress && (
+                    <div className="flex items-center gap-2 justify-end">
+                      <MapPin className="w-4 h-4" />
+                      <span>{portal.clientAddress}</span>
+                    </div>
+                  )}
+                  {portal.clientPhone && (
+                    <div className="flex items-center gap-2 justify-end">
+                      <Phone className="w-4 h-4" />
+                      <span>{portal.clientPhone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 justify-end">
+                    <Clock className="w-4 h-4" />
+                    <span>{format(new Date(), "EEEE, MMMM d, yyyy")}</span>
+                  </div>
                 </div>
-              )}
-              {portal.clientPhone && (
-                <div className="flex items-center gap-2 justify-end">
-                  <Phone className="w-4 h-4" />
-                  <span>{portal.clientPhone}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 justify-end">
-                <Clock className="w-4 h-4" />
-                <span>{format(new Date(), "EEEE, MMMM d, yyyy")}</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
       {/* Tabs Navigation */}
       <div className="container mx-auto py-6">
@@ -889,18 +899,8 @@ export default function PublicPortal() {
         </div>
       </footer>
 
-      {/* AI Chat FAB */}
-      {!isChatOpen && (
-        <Button
-          className="fixed bottom-4 right-4 rounded-full shadow-lg h-14 w-14"
-          size="icon"
-          onClick={() => setIsChatOpen(true)}
-          data-testid="button-open-chat"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </Button>
-      )}
-      {isChatOpen && <ChatPanel />}
-    </div>
+      <ChatSlideout />
+      </div>
+    </Sheet>
   );
 }
