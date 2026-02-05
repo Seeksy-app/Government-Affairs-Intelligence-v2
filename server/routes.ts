@@ -2832,11 +2832,17 @@ export async function registerRoutes(
           ).join("\n\n")
         : "";
 
-      // Build bills context
+      // Build bills context with Congress.gov links
       const billsContext = clientBills.length > 0
-        ? clientBills.map((bill, i) => 
-            `[Bill ${i + 1}: ${bill.billId}]\nTitle: ${bill.title}\nStatus: ${bill.status || 'Unknown'}\nSponsor: ${bill.sponsor || 'Unknown'}\nChamber: ${bill.chamber || 'Unknown'}\nPriority: ${bill.priority || 'Normal'}\nLast Action: ${bill.lastActionDate || 'Unknown'}`
-          ).join("\n\n")
+        ? clientBills.map((bill, i) => {
+            // Generate Congress.gov URL from bill info
+            const billType = (bill.billType || 'hr').toLowerCase();
+            const congress = bill.congress || 119;
+            const billNumber = bill.billNumber || '';
+            const congressGovUrl = `https://www.congress.gov/bill/${congress}th-congress/${billType === 'hr' ? 'house-bill' : billType === 's' ? 'senate-bill' : billType === 'hres' ? 'house-resolution' : billType === 'sres' ? 'senate-resolution' : billType}/${billNumber}`;
+            
+            return `**${bill.title}** (${bill.billId})\n- **Sponsor:** ${bill.sponsor || 'Unknown'}\n- **Status:** ${bill.status || 'Unknown'}\n- **Chamber:** ${bill.chamber || 'Unknown'}\n- **Last Action:** ${bill.lastActionDate || 'Unknown'}\n- **Link:** [View on Congress.gov](${congressGovUrl})`;
+          }).join("\n\n")
         : "";
 
       // Combine all context
