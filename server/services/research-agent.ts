@@ -412,6 +412,69 @@ async function fetchWebResearch(question: string): Promise<string> {
   return "";
 }
 
+function detectMeetingIntent(question: string): boolean {
+  const meetingKeywords = [
+    'meet', 'meeting', 'schedule', 'appointment', 'visit', 'when can', 
+    'when should', 'best time', 'available', 'in dc', 'in district',
+    'office hours', 'book', 'arrange', 'set up', 'connect with'
+  ];
+  const lowerQuestion = question.toLowerCase();
+  return meetingKeywords.some(kw => lowerQuestion.includes(kw));
+}
+
+function getCongressionalScheduleContext(): string {
+  // 2026 Congressional Calendar - 119th Congress, 2nd Session
+  const periods = [
+    { start: "2026-01-06", end: "2026-01-16", type: "session", description: "Session begins" },
+    { start: "2026-01-19", end: "2026-01-23", type: "recess", description: "Martin Luther King Jr. Day District Work Period" },
+    { start: "2026-01-26", end: "2026-02-13", type: "session", description: "Legislative session" },
+    { start: "2026-02-16", end: "2026-02-20", type: "recess", description: "Presidents' Day District Work Period" },
+    { start: "2026-02-23", end: "2026-03-27", type: "session", description: "Legislative session" },
+    { start: "2026-03-30", end: "2026-04-10", type: "recess", description: "Spring District Work Period" },
+    { start: "2026-04-13", end: "2026-05-22", type: "session", description: "Legislative session" },
+    { start: "2026-05-25", end: "2026-05-29", type: "recess", description: "Memorial Day District Work Period" },
+    { start: "2026-06-01", end: "2026-07-03", type: "session", description: "Legislative session" },
+    { start: "2026-07-06", end: "2026-07-10", type: "recess", description: "Independence Day District Work Period" },
+    { start: "2026-07-13", end: "2026-07-31", type: "session", description: "Legislative session" },
+    { start: "2026-08-03", end: "2026-09-04", type: "recess", description: "August District Work Period" },
+    { start: "2026-09-08", end: "2026-10-02", type: "session", description: "Legislative session" },
+    { start: "2026-10-05", end: "2026-11-13", type: "recess", description: "Pre-Election District Work Period" },
+    { start: "2026-11-16", end: "2026-11-20", type: "session", description: "Lame Duck Session" },
+    { start: "2026-11-23", end: "2026-11-27", type: "recess", description: "Thanksgiving District Work Period" },
+    { start: "2026-11-30", end: "2026-12-18", type: "session", description: "Year-End Session" },
+    { start: "2026-12-21", end: "2026-12-31", type: "recess", description: "Holiday District Work Period" },
+  ];
+
+  const today = new Date().toISOString().split('T')[0];
+  const currentPeriod = periods.find(p => today >= p.start && today <= p.end);
+  const upcomingPeriods = periods.filter(p => p.start > today).slice(0, 4);
+
+  let context = `\n=== CONGRESSIONAL SCHEDULE (2026 - 119th Congress, 2nd Session) ===\n`;
+  context += `Today's Date: ${today}\n\n`;
+  
+  if (currentPeriod) {
+    context += `CURRENT STATUS: Congress is ${currentPeriod.type === 'session' ? 'IN SESSION' : 'IN RECESS'}\n`;
+    context += `Period: ${currentPeriod.description} (${currentPeriod.start} to ${currentPeriod.end})\n`;
+    context += currentPeriod.type === 'session' 
+      ? `Members are typically in Washington, D.C. - best time for Capitol Hill meetings.\n`
+      : `Members are typically in their home districts - best time for local/district meetings.\n`;
+  }
+  
+  context += `\nUPCOMING SCHEDULE:\n`;
+  for (const period of upcomingPeriods) {
+    const location = period.type === 'session' ? '(DC)' : '(District)';
+    context += `- ${period.start} to ${period.end}: ${period.description} ${location}\n`;
+  }
+  
+  context += `\nMEETING PLANNING GUIDANCE:\n`;
+  context += `- DC Meetings: Schedule during SESSION periods, preferably Tuesday-Thursday when floor votes occur.\n`;
+  context += `- District Meetings: Schedule during RECESS/District Work Periods when members are home.\n`;
+  context += `- Committee Hearings: Members on specific committees will be occupied during scheduled hearings.\n`;
+  context += `- Mondays/Fridays during session: Members often travel to/from DC, less ideal for meetings.\n\n`;
+
+  return context;
+}
+
 export async function* chatWithContext(
   question: string,
   documents: { title: string; content: string }[],
@@ -425,12 +488,18 @@ export async function* chatWithContext(
     console.log("Detected bill references:", billRefs);
     
     if (billRefs.length > 0) {
-      yield "🔍 Searching Congress.gov for bill information...\n\n";
+      yield "[Searching Congress.gov for bill information...]\n\n";
       enrichedContext += await fetchBillContext(billRefs);
     }
     
+    // Check if user is asking about meetings or scheduling
+    if (detectMeetingIntent(question)) {
+      yield "[Checking congressional schedule...]\n\n";
+      enrichedContext += getCongressionalScheduleContext();
+    }
+    
     if (documents.length === 0 && billRefs.length === 0 && question.length > 20) {
-      yield "🌐 Searching the web for relevant information...\n\n";
+      yield "[Searching the web for relevant information...]\n\n";
       enrichedContext += await fetchWebResearch(question);
     }
   }
@@ -439,7 +508,7 @@ export async function* chatWithContext(
     .map((doc, i) => `[Document ${i + 1}: ${doc.title}]\n${doc.content.slice(0, 10000)}`)
     .join("\n\n---\n\n");
 
-  const systemPrompt = `You are an expert research assistant for a political consulting firm specializing in government affairs, legislation, and policy analysis.
+  const systemPrompt = `You are an expert research assistant for a political consulting firm specializing in government affairs, legislation, policy analysis, and congressional engagement strategy.
 
 You have access to the following information:
 
@@ -448,11 +517,18 @@ ${documentContext || "(No documents uploaded to this matter yet)"}
 ${enrichedContext}
 
 INSTRUCTIONS:
-- Synthesize information from ALL available sources (documents, Congress.gov data, web research)
+- Synthesize information from ALL available sources (documents, Congress.gov data, web research, congressional schedule)
 - When discussing bills, include their status, sponsors, and key provisions
 - Cite your sources (e.g., "According to Congress.gov..." or "From the uploaded document...")
 - If asked about something not in your context, explain what information would be helpful
-- Be thorough, accurate, and actionable in your responses`;
+- Be thorough, accurate, and actionable in your responses
+
+MEETING & SCHEDULING GUIDANCE:
+- If asked about meeting with Congress members, use the congressional schedule to suggest optimal timing
+- DC meetings are best during SESSION periods (Tuesday-Thursday are ideal voting days)
+- District meetings are best during RECESS/District Work Periods
+- Consider committee assignments when suggesting meeting windows (members are busy during their hearings)
+- Provide specific date ranges and explain why those times are favorable`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },

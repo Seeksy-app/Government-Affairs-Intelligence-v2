@@ -48,9 +48,10 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - **Article Actions**: Forward articles via email, assign to client portals, mark read/delete
 - **Network Visualization**: View relationships and organizations
 - **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
-- **Congressional Schedules**: Track committee meetings and floor activity from Congress.gov API and RSS feeds
 - **Staff Persistence**: Selected Congress member and staff data persist in localStorage across page navigations
 - **Congress Member Favorites**: Star and save frequently accessed Congress members with Matter assignment
+- **Congressional Schedules**: Track 2026 session calendar, committee meetings, and floor activity
+- **AI Meeting Suggestions**: Research Agent uses congressional schedule to suggest optimal meeting windows
 - **Customers Portal**: Track relationship contacts (Congress members, staffers, manual entries) with Matter assignment for organizing outreach
 - **Matters (Sub-Clients)**: Manage client matters with isolated research folders
 - **AI Research Agent**: Context-aware Q&A from research documents using OpenAI
@@ -174,7 +175,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ### Congress API Routes
 - `GET /api/congress/members` - Search current Members of Congress (filters: search, chamber, party, state)
 - `GET /api/congress/members/:bioguideId` - Get detailed info for a specific member
-- `GET /api/congress/schedule/committee-meetings` - Get committee meetings (filters: chamber, congress, limit)
+- `GET /api/congress/schedule/calendar` - Get 2026 congressional session calendar (session vs. recess periods)
+- `GET /api/congress/schedule/committee-meetings` - Get committee meetings (filters: chamber, congress, limit, search)
 - `GET /api/congress/schedule/leadership` - Get floor activity from RSS feeds
 
 ### Customers Routes
