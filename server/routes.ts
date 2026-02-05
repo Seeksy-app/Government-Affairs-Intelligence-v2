@@ -3939,10 +3939,10 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
       const chamber = req.query.chamber as string || "house";
       const congress = req.query.congress as string || "119";
-      const limit = parseInt(req.query.limit as string) || 20;
+      const limit = Math.min(parseInt(req.query.limit as string) || 15, 15);
       const search = req.query.search as string || "";
 
-      // First get the list of meetings
+      // First get the list of meetings (fetch slightly more to allow for filtering)
       const listResponse = await fetch(
         `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}?api_key=${apiKey}&limit=${limit}&format=json`
       );
@@ -3954,9 +3954,9 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       const listData = await listResponse.json();
       const meetings = listData.committeeMeetings || [];
 
-      // Fetch full details for each meeting (limit to first 15 for performance)
+      // Fetch full details for each meeting (limit to 15 for performance)
       const detailedMeetings = await Promise.all(
-        meetings.slice(0, 15).map(async (meeting: any) => {
+        meetings.slice(0, limit).map(async (meeting: any) => {
           try {
             const detailResponse = await fetch(
               `https://api.congress.gov/v3/committee-meeting/${congress}/${chamber}/${meeting.eventId}?api_key=${apiKey}&format=json`

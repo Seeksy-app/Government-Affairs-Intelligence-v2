@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +24,7 @@ import {
   RefreshCw,
   Gavel,
   FileText,
+  Search,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -34,16 +36,23 @@ interface CommitteeMeeting {
   type: string;
   meetingStatus: string;
   date: string;
-  time?: string;
-  room?: string;
-  building?: string;
-  address?: string;
+  url?: string;
+  location?: {
+    room?: string;
+    building?: string;
+    address?: string;
+  };
   committees?: Array<{
     systemCode: string;
     name: string;
     url: string;
   }>;
   title?: string;
+  witnesses?: Array<{
+    name: string;
+    position?: string;
+    organization?: string;
+  }>;
 }
 
 interface FloorActivity {
@@ -60,11 +69,19 @@ interface FloorActivity {
 export default function CongressionalSchedules() {
   const [chamber, setChamber] = useState<string>("house");
   const [activeTab, setActiveTab] = useState("committee");
+  const [searchText, setSearchText] = useState("");
 
   const { data: committeeMeetings, isLoading: meetingsLoading, error: meetingsError, refetch: refetchMeetings } = useQuery<CommitteeMeeting[]>({
-    queryKey: ["/api/congress/schedule/committee-meetings", chamber],
+    queryKey: ["/api/congress/schedule/committee-meetings", chamber, searchText],
     queryFn: async () => {
-      const res = await fetch(`/api/congress/schedule/committee-meetings?chamber=${chamber}&limit=50`);
+      const params = new URLSearchParams({
+        chamber,
+        limit: "15",
+      });
+      if (searchText) {
+        params.set("search", searchText);
+      }
+      const res = await fetch(`/api/congress/schedule/committee-meetings?${params}`);
       if (!res.ok) throw new Error("Failed to fetch committee meetings");
       return res.json();
     },
@@ -97,17 +114,18 @@ export default function CongressionalSchedules() {
     }
   };
 
-  const formatMeetingTime = (timeStr?: string) => {
-    if (!timeStr) return "";
+  const formatMeetingTime = (dateStr: string) => {
     try {
-      const [hours, minutes] = timeStr.split(":");
-      const hour = parseInt(hours);
-      const ampm = hour >= 12 ? "PM" : "AM";
-      const hour12 = hour % 12 || 12;
-      return `${hour12}:${minutes} ${ampm}`;
+      return format(parseISO(dateStr), "h:mm a");
     } catch {
-      return timeStr;
+      return "";
     }
+  };
+
+  const getMeetingUrl = (meeting: CommitteeMeeting) => {
+    const congressNum = meeting.congress || 119;
+    const chamberName = meeting.chamber?.toLowerCase() || chamber;
+    return `https://www.congress.gov/event/${congressNum}th-congress/${chamberName}-event/${meeting.eventId}`;
   };
 
   return (
@@ -123,8 +141,11 @@ export default function CongressionalSchedules() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={chamber} onValueChange={setChamber}>
-            <SelectTrigger className="w-[150px]" data-testid="select-chamber">
+          <Select value={chamber} onValueChange={(val) => {
+            setChamber(val);
+            setSearchText("");
+          }}>
+            <SelectTrigger className="w-[130px]" data-testid="select-chamber">
               <SelectValue placeholder="Chamber" />
             </SelectTrigger>
             <SelectContent>
@@ -160,11 +181,26 @@ export default function CongressionalSchedules() {
 
         <TabsContent value="committee" className="mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                {chamber === "house" ? "House" : "Senate"} Committee Meetings
-              </CardTitle>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  {chamber === "house" ? "House" : "Senate"} Committee Meetings
+                </CardTitle>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by title, committee, witness..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    className="pl-9 w-[300px]"
+                    data-testid="input-meeting-search"
+                  />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Showing up to 15 most recent meetings with full details
+              </p>
             </CardHeader>
             <CardContent>
               {meetingsLoading ? (
@@ -190,12 +226,16 @@ export default function CongressionalSchedules() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <Badge className={getStatusColor(meeting.meetingStatus)}>
-                                  {meeting.meetingStatus}
-                                </Badge>
-                                <Badge variant="outline">
-                                  {meeting.type || "Meeting"}
-                                </Badge>
+                                {meeting.meetingStatus && (
+                                  <Badge className={getStatusColor(meeting.meetingStatus)}>
+                                    {meeting.meetingStatus}
+                                  </Badge>
+                                )}
+                                {meeting.type && (
+                                  <Badge variant="outline">
+                                    {meeting.type}
+                                  </Badge>
+                                )}
                               </div>
                               
                               {meeting.committees && meeting.committees.length > 0 && (
@@ -211,37 +251,60 @@ export default function CongressionalSchedules() {
                               )}
 
                               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {formatMeetingDate(meeting.date)}
-                                </span>
-                                {meeting.time && (
+                                {meeting.date && (
                                   <span className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4" />
-                                    {formatMeetingTime(meeting.time)}
+                                    <Calendar className="h-4 w-4" />
+                                    {formatMeetingDate(meeting.date)}
                                   </span>
                                 )}
-                                {(meeting.room || meeting.building) && (
+                                {meeting.date && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4" />
+                                    {formatMeetingTime(meeting.date)}
+                                  </span>
+                                )}
+                                {meeting.location && (meeting.location.room || meeting.location.building) && (
                                   <span className="flex items-center gap-1">
                                     <MapPin className="h-4 w-4" />
-                                    {meeting.room && `Room ${meeting.room}`}
-                                    {meeting.room && meeting.building && ", "}
-                                    {meeting.building}
+                                    {meeting.location.room && `Room ${meeting.location.room}`}
+                                    {meeting.location.room && meeting.location.building && ", "}
+                                    {meeting.location.building}
                                   </span>
                                 )}
                               </div>
+
+                              {meeting.witnesses && meeting.witnesses.length > 0 && (
+                                <div className="mt-3 pt-3 border-t">
+                                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    Witnesses ({meeting.witnesses.length})
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {meeting.witnesses.slice(0, 4).map((witness, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs">
+                                        {witness.name}
+                                        {witness.position && ` - ${witness.position}`}
+                                      </Badge>
+                                    ))}
+                                    {meeting.witnesses.length > 4 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{meeting.witnesses.length - 4} more
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            {meeting.committees && meeting.committees[0]?.url && (
-                              <Button variant="ghost" size="icon" asChild>
-                                <a
-                                  href={meeting.committees[0].url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
+                            <Button variant="ghost" size="icon" asChild>
+                              <a
+                                href={getMeetingUrl(meeting)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                data-testid={`link-meeting-${meeting.eventId}`}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -262,7 +325,9 @@ export default function CongressionalSchedules() {
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="font-medium">No committee meetings found</p>
-                  <p className="text-sm">Check back later for updates</p>
+                  <p className="text-sm">
+                    {searchText ? "Try a different search term" : "Check back later for updates"}
+                  </p>
                 </div>
               )}
             </CardContent>
