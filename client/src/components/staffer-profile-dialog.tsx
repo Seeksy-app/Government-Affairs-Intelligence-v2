@@ -147,10 +147,21 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
           variant: "default",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Research error:", error);
+      let errorMessage = "Could not complete research. Please try again.";
+      if (error?.message) {
+        // Try to extract JSON message from the error
+        const jsonMatch = error.message.match(/\{.*"message":\s*"([^"]+)"/);
+        if (jsonMatch) {
+          errorMessage = jsonMatch[1];
+        } else {
+          errorMessage = error.message;
+        }
+      }
       toast({
         title: "Research Error",
-        description: "Could not complete research. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
