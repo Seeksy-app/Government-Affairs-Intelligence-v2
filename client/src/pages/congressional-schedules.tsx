@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,12 @@ import {
   Gavel,
   FileText,
   Search,
+  CalendarDays,
+  Plane,
+  Building,
+  Info,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isWithinInterval, addDays } from "date-fns";
 
 interface CommitteeMeeting {
   eventId: number;
@@ -66,10 +70,32 @@ interface FloorActivity {
   error?: string;
 }
 
+interface CalendarPeriod {
+  start: string;
+  end: string;
+  type: "session" | "recess";
+  description: string;
+}
+
+interface CongressionalCalendar {
+  congress: number;
+  session: number;
+  year: number;
+  periods: CalendarPeriod[];
+  notes: string[];
+  currentPeriod: CalendarPeriod | null;
+  nextPeriod: CalendarPeriod | null;
+  today: string;
+}
+
 export default function CongressionalSchedules() {
   const [chamber, setChamber] = useState<string>("house");
-  const [activeTab, setActiveTab] = useState("committee");
+  const [activeTab, setActiveTab] = useState("calendar");
   const [searchText, setSearchText] = useState("");
+
+  const { data: calendarData, isLoading: calendarLoading, refetch: refetchCalendar } = useQuery<CongressionalCalendar>({
+    queryKey: ["/api/congress/schedule/calendar"],
+  });
 
   const { data: committeeMeetings, isLoading: meetingsLoading, error: meetingsError, refetch: refetchMeetings } = useQuery<CommitteeMeeting[]>({
     queryKey: ["/api/congress/schedule/committee-meetings", chamber, searchText],
@@ -128,6 +154,22 @@ export default function CongressionalSchedules() {
     return `https://www.congress.gov/event/${congressNum}th-congress/${chamberName}-event/${meeting.eventId}`;
   };
 
+  const isPeriodCurrent = (period: CalendarPeriod) => {
+    if (!calendarData?.today) return false;
+    const today = new Date(calendarData.today);
+    const start = new Date(period.start);
+    const end = new Date(period.end);
+    return isWithinInterval(today, { start, end });
+  };
+
+  const isPeriodUpcoming = (period: CalendarPeriod) => {
+    if (!calendarData?.today) return false;
+    const today = new Date(calendarData.today);
+    const start = new Date(period.start);
+    const soon = addDays(today, 14);
+    return start > today && start <= soon;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -137,7 +179,7 @@ export default function CongressionalSchedules() {
             Congressional Schedules
           </h1>
           <p className="text-muted-foreground mt-1">
-            Track committee meetings and floor activity
+            Track session calendar, committee meetings, and floor activity
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -156,6 +198,7 @@ export default function CongressionalSchedules() {
           <Button
             variant="outline"
             onClick={() => {
+              refetchCalendar();
               refetchMeetings();
               refetchFloor();
             }}
@@ -167,8 +210,44 @@ export default function CongressionalSchedules() {
         </div>
       </div>
 
+      {/* Current Status Banner */}
+      {calendarData?.currentPeriod && (
+        <Card className={calendarData.currentPeriod.type === "session" 
+          ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
+          : "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+        }>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              {calendarData.currentPeriod.type === "session" ? (
+                <Building className="h-5 w-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <Plane className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              )}
+              <div>
+                <p className="font-medium">
+                  Congress is currently {calendarData.currentPeriod.type === "session" ? "IN SESSION" : "IN RECESS"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {calendarData.currentPeriod.description} ({format(parseISO(calendarData.currentPeriod.start), "MMM d")} - {format(parseISO(calendarData.currentPeriod.end), "MMM d, yyyy")})
+                </p>
+              </div>
+              <Badge className={`ml-auto ${calendarData.currentPeriod.type === "session" 
+                ? "bg-green-600" 
+                : "bg-blue-600"
+              }`}>
+                {calendarData.currentPeriod.type === "session" ? "Members in DC" : "Members in Districts"}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Session Calendar
+          </TabsTrigger>
           <TabsTrigger value="committee" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Committee Meetings
@@ -178,6 +257,144 @@ export default function CongressionalSchedules() {
             Floor Activity
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="calendar" className="mt-4">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  2026 Congressional Calendar
+                </CardTitle>
+                <CardDescription>
+                  119th Congress, 2nd Session - Session periods vs. District Work Periods
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {calendarLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : calendarData?.periods ? (
+                  <ScrollArea className="h-[500px]">
+                    <div className="space-y-2 pr-4">
+                      {calendarData.periods.map((period, idx) => {
+                        const isCurrent = isPeriodCurrent(period);
+                        const isUpcoming = isPeriodUpcoming(period);
+                        return (
+                          <div
+                            key={idx}
+                            className={`p-3 rounded-lg border flex items-center gap-3 ${
+                              isCurrent
+                                ? period.type === "session"
+                                  ? "bg-green-100 border-green-300 dark:bg-green-950 dark:border-green-700"
+                                  : "bg-blue-100 border-blue-300 dark:bg-blue-950 dark:border-blue-700"
+                                : isUpcoming
+                                  ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800"
+                                  : ""
+                            }`}
+                            data-testid={`calendar-period-${idx}`}
+                          >
+                            {period.type === "session" ? (
+                              <Building className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                            ) : (
+                              <Plane className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium">{period.description}</span>
+                                {isCurrent && (
+                                  <Badge variant="outline" className="text-xs">Current</Badge>
+                                )}
+                                {isUpcoming && !isCurrent && (
+                                  <Badge variant="outline" className="text-xs bg-yellow-100 dark:bg-yellow-900">Upcoming</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {format(parseISO(period.start), "MMM d")} - {format(parseISO(period.end), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                            <Badge className={period.type === "session" 
+                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" 
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                            }>
+                              {period.type === "session" ? "In DC" : "District"}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">
+                    Calendar data not available
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Info className="h-4 w-4" />
+                    Meeting Planning Tips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Building className="h-4 w-4 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">During Session</p>
+                        <p className="text-xs text-muted-foreground">
+                          Members are in Washington, D.C. Best for meetings at Capitol Hill offices. Tuesday-Thursday are typically busiest.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Plane className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-sm">During Recess</p>
+                        <p className="text-xs text-muted-foreground">
+                          Members return to home districts. Ideal for local meetings and town halls.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {calendarData?.nextPeriod && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Clock className="h-4 w-4" />
+                      Coming Up
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3">
+                      {calendarData.nextPeriod.type === "session" ? (
+                        <Building className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <Plane className="h-5 w-5 text-blue-600" />
+                      )}
+                      <div>
+                        <p className="font-medium">{calendarData.nextPeriod.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Starts {format(parseISO(calendarData.nextPeriod.start), "MMMM d, yyyy")}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </TabsContent>
 
         <TabsContent value="committee" className="mt-4">
           <Card>

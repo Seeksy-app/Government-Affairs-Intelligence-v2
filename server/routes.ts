@@ -3990,6 +3990,63 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // Get 2026 Congressional Session Calendar (119th Congress, 2nd Session)
+  app.get("/api/congress/schedule/calendar", isAuthenticated, async (_req, res) => {
+    try {
+      // 2026 Congressional Calendar - 119th Congress, 2nd Session
+      // Session periods (Congress in DC) vs. District Work Periods (recess - members in home districts)
+      const calendar2026 = {
+        congress: 119,
+        session: 2,
+        year: 2026,
+        periods: [
+          { start: "2026-01-06", end: "2026-01-16", type: "session", description: "Session begins" },
+          { start: "2026-01-19", end: "2026-01-23", type: "recess", description: "Martin Luther King Jr. Day District Work Period" },
+          { start: "2026-01-26", end: "2026-02-13", type: "session", description: "Legislative session" },
+          { start: "2026-02-16", end: "2026-02-20", type: "recess", description: "Presidents' Day District Work Period" },
+          { start: "2026-02-23", end: "2026-03-27", type: "session", description: "Legislative session" },
+          { start: "2026-03-30", end: "2026-04-10", type: "recess", description: "Spring District Work Period" },
+          { start: "2026-04-13", end: "2026-05-22", type: "session", description: "Legislative session" },
+          { start: "2026-05-25", end: "2026-05-29", type: "recess", description: "Memorial Day District Work Period" },
+          { start: "2026-06-01", end: "2026-07-03", type: "session", description: "Legislative session" },
+          { start: "2026-07-06", end: "2026-07-10", type: "recess", description: "Independence Day District Work Period" },
+          { start: "2026-07-13", end: "2026-07-31", type: "session", description: "Legislative session" },
+          { start: "2026-08-03", end: "2026-09-04", type: "recess", description: "August District Work Period" },
+          { start: "2026-09-08", end: "2026-10-02", type: "session", description: "Legislative session" },
+          { start: "2026-10-05", end: "2026-11-13", type: "recess", description: "Pre-Election District Work Period" },
+          { start: "2026-11-16", end: "2026-11-20", type: "session", description: "Lame Duck Session" },
+          { start: "2026-11-23", end: "2026-11-27", type: "recess", description: "Thanksgiving District Work Period" },
+          { start: "2026-11-30", end: "2026-12-18", type: "session", description: "Year-End Session" },
+          { start: "2026-12-21", end: "2026-12-31", type: "recess", description: "Holiday District Work Period" },
+        ],
+        notes: [
+          "During SESSION periods, Members are typically in Washington, D.C.",
+          "During RECESS/District Work Periods, Members are typically in their home districts.",
+          "Committee hearings are generally scheduled during session periods.",
+          "Best times for DC meetings: During session, preferably mid-week (Tue-Thu).",
+          "Best times for district meetings: During recess periods in member's home state.",
+        ],
+      };
+
+      // Calculate current period
+      const today = new Date().toISOString().split('T')[0];
+      const currentPeriod = calendar2026.periods.find(p => 
+        today >= p.start && today <= p.end
+      );
+      const nextPeriod = calendar2026.periods.find(p => p.start > today);
+
+      res.json({
+        ...calendar2026,
+        currentPeriod: currentPeriod || null,
+        nextPeriod: nextPeriod || null,
+        today,
+      });
+    } catch (error) {
+      console.error("Error fetching calendar:", error);
+      res.status(500).json({ message: "Failed to fetch congressional calendar" });
+    }
+  });
+
   // Get leadership schedule from RSS feeds
   app.get("/api/congress/schedule/leadership", isAuthenticated, async (req, res) => {
     try {
