@@ -1370,6 +1370,145 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== HIGH INTENT KEYWORDS ROUTES ====================
+
+  // Get high intent keywords
+  app.get("/api/high-intent-keywords", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const keywords = await storage.getHighIntentKeywords(clientId);
+      res.json(keywords);
+    } catch (error) {
+      console.error("Error getting high intent keywords:", error);
+      res.status(500).json({ message: "Failed to get keywords" });
+    }
+  });
+
+  // Create high intent keyword
+  app.post("/api/high-intent-keywords", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const keyword = await storage.createHighIntentKeyword({ ...req.body, clientId });
+      res.json(keyword);
+    } catch (error) {
+      console.error("Error creating high intent keyword:", error);
+      res.status(500).json({ message: "Failed to create keyword" });
+    }
+  });
+
+  // Update high intent keyword
+  app.patch("/api/high-intent-keywords/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      
+      const keywords = await storage.getHighIntentKeywords(clientId);
+      const keyword = keywords.find(k => k.id === req.params.id);
+      if (!keyword) return res.status(404).json({ message: "Keyword not found" });
+      
+      const updated = await storage.updateHighIntentKeyword(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating high intent keyword:", error);
+      res.status(500).json({ message: "Failed to update keyword" });
+    }
+  });
+
+  // Delete high intent keyword
+  app.delete("/api/high-intent-keywords/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      
+      const keywords = await storage.getHighIntentKeywords(clientId);
+      const keyword = keywords.find(k => k.id === req.params.id);
+      if (!keyword) return res.status(404).json({ message: "Keyword not found" });
+      
+      await storage.deleteHighIntentKeyword(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting high intent keyword:", error);
+      res.status(500).json({ message: "Failed to delete keyword" });
+    }
+  });
+
+  // ==================== ARTICLE PORTAL ASSIGNMENT ROUTES ====================
+
+  // Get article portal assignments
+  app.get("/api/news/:articleId/assignments", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getArticlePortalAssignments(req.params.articleId);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error getting article assignments:", error);
+      res.status(500).json({ message: "Failed to get assignments" });
+    }
+  });
+
+  // Assign article to portal
+  app.post("/api/news/:articleId/assign-portal", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const userId = (req as any).userId;
+      const { portalId } = req.body;
+      const assignment = await storage.assignArticleToPortal(req.params.articleId, portalId, clientId, userId);
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning article to portal:", error);
+      res.status(500).json({ message: "Failed to assign article" });
+    }
+  });
+
+  // Unassign article from portal
+  app.delete("/api/news/:articleId/assign-portal/:portalId", isAuthenticated, async (req, res) => {
+    try {
+      await storage.unassignArticleFromPortal(req.params.articleId, req.params.portalId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error unassigning article from portal:", error);
+      res.status(500).json({ message: "Failed to unassign article" });
+    }
+  });
+
+  // Forward article via email
+  app.post("/api/news/:articleId/forward", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      
+      const article = await storage.getNewsArticle(req.params.articleId);
+      if (!article) return res.status(404).json({ message: "Article not found" });
+      
+      const { email, message } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
+      
+      // Use Resend to send the email
+      const { Resend } = await import("resend");
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      
+      await resend.emails.send({
+        from: "news@governmentaffairs.co",
+        to: email,
+        subject: `Shared Article: ${article.title}`,
+        html: `
+          <h2>${article.title}</h2>
+          <p><strong>Source:</strong> ${article.source || 'Unknown'}</p>
+          ${message ? `<p><strong>Message:</strong> ${message}</p>` : ''}
+          <p>${article.summary || ''}</p>
+          ${article.url ? `<p><a href="${article.url}">Read full article</a></p>` : ''}
+        `,
+      });
+      
+      res.json({ success: true, message: "Article forwarded successfully" });
+    } catch (error) {
+      console.error("Error forwarding article:", error);
+      res.status(500).json({ message: "Failed to forward article" });
+    }
+  });
+
   // ==================== CAREER HISTORY ROUTES ====================
 
   // Add career history to contact

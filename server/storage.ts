@@ -11,6 +11,8 @@ import {
   newsPreferences,
   rssFeeds,
   rssFeedClientAssignments,
+  highIntentKeywords,
+  newsArticlePortalAssignments,
   matters,
   researchDocuments,
   researchConversations,
@@ -62,6 +64,10 @@ import {
   type InsertRssFeed,
   type RssFeedClientAssignment,
   type InsertRssFeedClientAssignment,
+  type HighIntentKeyword,
+  type InsertHighIntentKeyword,
+  type NewsArticlePortalAssignment,
+  type InsertNewsArticlePortalAssignment,
   type Matter,
   type InsertMatter,
   type ResearchDocument,
@@ -1658,6 +1664,73 @@ export class DatabaseStorage implements IStorage {
   async getAllRssFeedAssignments(): Promise<(RssFeedClientAssignment & { feedName?: string; clientName?: string })[]> {
     const assignments = await db.select().from(rssFeedClientAssignments);
     return assignments;
+  }
+
+  // High Intent Keywords
+  async getHighIntentKeywords(clientId: string): Promise<HighIntentKeyword[]> {
+    return db.select().from(highIntentKeywords)
+      .where(eq(highIntentKeywords.clientId, clientId))
+      .orderBy(desc(highIntentKeywords.createdAt));
+  }
+
+  async createHighIntentKeyword(keyword: InsertHighIntentKeyword): Promise<HighIntentKeyword> {
+    const [created] = await db.insert(highIntentKeywords).values(keyword).returning();
+    return created;
+  }
+
+  async updateHighIntentKeyword(id: string, data: Partial<InsertHighIntentKeyword>): Promise<HighIntentKeyword | undefined> {
+    const [updated] = await db.update(highIntentKeywords).set(data).where(eq(highIntentKeywords.id, id)).returning();
+    return updated;
+  }
+
+  async deleteHighIntentKeyword(id: string): Promise<void> {
+    await db.delete(highIntentKeywords).where(eq(highIntentKeywords.id, id));
+  }
+
+  async incrementKeywordMatchCount(id: string): Promise<void> {
+    const [keyword] = await db.select().from(highIntentKeywords).where(eq(highIntentKeywords.id, id));
+    if (keyword) {
+      await db.update(highIntentKeywords)
+        .set({ matchCount: (keyword.matchCount || 0) + 1 })
+        .where(eq(highIntentKeywords.id, id));
+    }
+  }
+
+  // News Article Portal Assignments
+  async getArticlePortalAssignments(articleId: string): Promise<NewsArticlePortalAssignment[]> {
+    return db.select().from(newsArticlePortalAssignments)
+      .where(eq(newsArticlePortalAssignments.articleId, articleId));
+  }
+
+  async assignArticleToPortal(articleId: string, portalId: string, clientId: string, assignedBy?: string): Promise<NewsArticlePortalAssignment> {
+    const [assignment] = await db.insert(newsArticlePortalAssignments)
+      .values({ articleId, portalId, clientId, assignedBy })
+      .returning();
+    return assignment;
+  }
+
+  async unassignArticleFromPortal(articleId: string, portalId: string): Promise<void> {
+    await db.delete(newsArticlePortalAssignments)
+      .where(and(
+        eq(newsArticlePortalAssignments.articleId, articleId),
+        eq(newsArticlePortalAssignments.portalId, portalId)
+      ));
+  }
+
+  async getPortalArticles(portalId: string): Promise<NewsArticle[]> {
+    const assignments = await db.select()
+      .from(newsArticlePortalAssignments)
+      .where(eq(newsArticlePortalAssignments.portalId, portalId));
+    
+    if (assignments.length === 0) return [];
+    
+    const articleIds = assignments.map(a => a.articleId);
+    const articles = await db.select()
+      .from(newsArticles)
+      .where(or(...articleIds.map(id => eq(newsArticles.id, id))))
+      .orderBy(desc(newsArticles.publishedAt));
+    
+    return articles;
   }
 }
 

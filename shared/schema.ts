@@ -286,6 +286,45 @@ export const newsAlertsSent = pgTable("news_alerts_sent", {
 
 export type NewsAlertSent = typeof newsAlertsSent.$inferSelect;
 
+// High Intent Keywords - keywords to watch for in news articles
+export const highIntentKeywords = pgTable("high_intent_keywords", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  keyword: text("keyword").notNull(),
+  category: text("category"), // legislation, defense, healthcare, etc.
+  priority: text("priority").default("normal"), // high, normal, low
+  isActive: boolean("is_active").default(true),
+  matchCount: integer("match_count").default(0), // how many articles matched
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertHighIntentKeywordSchema = createInsertSchema(highIntentKeywords).omit({
+  id: true,
+  matchCount: true,
+  createdAt: true,
+});
+
+export type InsertHighIntentKeyword = z.infer<typeof insertHighIntentKeywordSchema>;
+export type HighIntentKeyword = typeof highIntentKeywords.$inferSelect;
+
+// News Article Portal Assignments - assign articles to client portals
+export const newsArticlePortalAssignments = pgTable("news_article_portal_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  articleId: varchar("article_id").notNull(),
+  portalId: varchar("portal_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by"),
+});
+
+export const insertNewsArticlePortalAssignmentSchema = createInsertSchema(newsArticlePortalAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type InsertNewsArticlePortalAssignment = z.infer<typeof insertNewsArticlePortalAssignmentSchema>;
+export type NewsArticlePortalAssignment = typeof newsArticlePortalAssignments.$inferSelect;
+
 // Matters (sub-clients - Adam's own clients for research)
 export const matters = pgTable("matters", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

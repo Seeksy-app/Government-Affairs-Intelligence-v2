@@ -36,7 +36,15 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { NewsArticle, InsertNewsArticle, RssFeed, Client, RssFeedClientAssignment } from "@shared/schema";
+import type { NewsArticle, InsertNewsArticle, RssFeed, Client, RssFeedClientAssignment, HighIntentKeyword, Portal } from "@shared/schema";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Mail, Share2, Target, Eye, EyeOff } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AssignmentWithClient extends RssFeedClientAssignment {
@@ -139,6 +147,81 @@ export default function News() {
     },
   });
 
+  // High Intent Keywords
+  const [newKeyword, setNewKeyword] = useState("");
+  const [isKeywordsOpen, setIsKeywordsOpen] = useState(false);
+  const [forwardEmail, setForwardEmail] = useState("");
+  const [forwardMessage, setForwardMessage] = useState("");
+  const [forwardArticleId, setForwardArticleId] = useState<string | null>(null);
+
+  const { data: highIntentKeywords } = useQuery<HighIntentKeyword[]>({
+    queryKey: ["/api/high-intent-keywords"],
+  });
+
+  const { data: portals } = useQuery<Portal[]>({
+    queryKey: ["/api/portals"],
+  });
+
+  const createKeywordMutation = useMutation({
+    mutationFn: async (keyword: string) => {
+      return apiRequest("POST", "/api/high-intent-keywords", { keyword });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/high-intent-keywords"] });
+      setNewKeyword("");
+      toast({ title: "Keyword added" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error adding keyword", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteKeywordMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/high-intent-keywords/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/high-intent-keywords"] });
+      toast({ title: "Keyword removed" });
+    },
+  });
+
+  const assignToPortalMutation = useMutation({
+    mutationFn: async ({ articleId, portalId }: { articleId: string; portalId: string }) => {
+      return apiRequest("POST", `/api/news/${articleId}/assign-portal`, { portalId });
+    },
+    onSuccess: () => {
+      toast({ title: "Article assigned to portal" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error assigning article", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const forwardArticleMutation = useMutation({
+    mutationFn: async ({ articleId, email, message }: { articleId: string; email: string; message: string }) => {
+      return apiRequest("POST", `/api/news/${articleId}/forward`, { email, message });
+    },
+    onSuccess: () => {
+      setForwardArticleId(null);
+      setForwardEmail("");
+      setForwardMessage("");
+      toast({ title: "Article forwarded successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error forwarding article", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Check if article matches any high intent keywords
+  const getMatchingKeywords = (article: NewsArticle): string[] => {
+    if (!highIntentKeywords || highIntentKeywords.length === 0) return [];
+    const text = `${article.title} ${article.summary || ""}`.toLowerCase();
+    return highIntentKeywords
+      .filter(k => text.includes(k.keyword.toLowerCase()))
+      .map(k => k.keyword);
+  };
+
   const fetchNewsMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/news/fetch", { hoursBack: 168 });
@@ -196,6 +279,19 @@ export default function News() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news"] });
       toast({ title: "Bookmark updated" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/news/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news"] });
+      toast({ title: "Article deleted" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error deleting article", description: error.message, variant: "destructive" });
     },
   });
 
@@ -319,6 +415,18 @@ export default function News() {
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${fetchNewsMutation.isPending ? "animate-spin" : ""}`} />
             {fetchNewsMutation.isPending ? "Fetching..." : "Refresh News"}
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => setIsKeywordsOpen(true)}
+            data-testid="button-high-intent"
+          >
+            <Target className="w-4 h-4 mr-2" />
+            High Intent
+            {highIntentKeywords && highIntentKeywords.length > 0 && (
+              <Badge variant="destructive" className="ml-2">{highIntentKeywords.length}</Badge>
+            )}
           </Button>
           
           <Dialog open={isRssDialogOpen} onOpenChange={setIsRssDialogOpen}>
@@ -856,6 +964,17 @@ export default function News() {
                             )}
                           </div>
                         )}
+                        {getMatchingKeywords(article).length > 0 && (
+                          <div className="flex items-center gap-1 mt-2 flex-wrap">
+                            <Target className="h-3 w-3 text-red-500" />
+                            <span className="text-xs text-red-600 font-medium">High Intent:</span>
+                            {getMatchingKeywords(article).map((keyword, i) => (
+                              <Badge key={i} variant="destructive" className="text-xs">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex items-center gap-3 mt-3 flex-wrap">
                           {article.category && (
                             <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(article.category)}`}>
@@ -939,6 +1058,49 @@ export default function News() {
                             </TooltipContent>
                           </Tooltip>
                         )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-more-${article.id}`}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setForwardArticleId(article.id)}
+                              data-testid={`menu-forward-${article.id}`}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Forward via Email
+                            </DropdownMenuItem>
+                            {portals && portals.length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                                  Assign to Portal
+                                </DropdownMenuItem>
+                                {portals.map(portal => (
+                                  <DropdownMenuItem
+                                    key={portal.id}
+                                    onClick={() => assignToPortalMutation.mutate({ articleId: article.id, portalId: portal.id })}
+                                    data-testid={`menu-assign-portal-${portal.id}`}
+                                  >
+                                    <Share2 className="h-4 w-4 mr-2" />
+                                    {portal.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => deleteMutation.mutate(article.id)}
+                              className="text-destructive"
+                              data-testid={`menu-delete-${article.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Article
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </CardContent>
@@ -967,6 +1129,132 @@ export default function News() {
           )}
         </CardContent>
       </Card>
+
+      {/* Forward Article Dialog */}
+      <Dialog open={!!forwardArticleId} onOpenChange={(open) => !open && setForwardArticleId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Forward Article via Email</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forward-email">Recipient Email</Label>
+              <Input
+                id="forward-email"
+                type="email"
+                placeholder="recipient@example.com"
+                value={forwardEmail}
+                onChange={(e) => setForwardEmail(e.target.value)}
+                data-testid="input-forward-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="forward-message">Message (optional)</Label>
+              <Textarea
+                id="forward-message"
+                placeholder="Add a personal message..."
+                value={forwardMessage}
+                onChange={(e) => setForwardMessage(e.target.value)}
+                data-testid="input-forward-message"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setForwardArticleId(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (forwardArticleId && forwardEmail) {
+                    forwardArticleMutation.mutate({
+                      articleId: forwardArticleId,
+                      email: forwardEmail,
+                      message: forwardMessage
+                    });
+                  }
+                }}
+                disabled={!forwardEmail || forwardArticleMutation.isPending}
+                data-testid="button-send-forward"
+              >
+                {forwardArticleMutation.isPending ? "Sending..." : "Send"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* High Intent Keywords Panel */}
+      <Dialog open={isKeywordsOpen} onOpenChange={setIsKeywordsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-red-500" />
+              High Intent Keywords
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Articles matching these keywords will be highlighted. Use this to track important topics, legislation, or entities.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add keyword..."
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newKeyword.trim()) {
+                    e.preventDefault();
+                    createKeywordMutation.mutate(newKeyword.trim());
+                  }
+                }}
+                data-testid="input-new-keyword"
+              />
+              <Button
+                onClick={() => {
+                  if (newKeyword.trim()) {
+                    createKeywordMutation.mutate(newKeyword.trim());
+                  }
+                }}
+                disabled={!newKeyword.trim() || createKeywordMutation.isPending}
+                data-testid="button-add-keyword"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {highIntentKeywords && highIntentKeywords.length > 0 ? (
+                highIntentKeywords.map((kw) => (
+                  <div
+                    key={kw.id}
+                    className="flex items-center justify-between p-2 border rounded-md"
+                    data-testid={`keyword-item-${kw.id}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">{kw.keyword}</Badge>
+                      {kw.matchCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {kw.matchCount} matches
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteKeywordMutation.mutate(kw.id)}
+                      data-testid={`button-delete-keyword-${kw.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-center text-muted-foreground py-4">
+                  No keywords configured
+                </p>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

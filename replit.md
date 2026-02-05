@@ -43,7 +43,9 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 ### For Client Users
 - **Contact Management**: Track political staffers, officials, and lobbyists
 - **Career Pattern Analysis**: Track career histories and connections
-- **News Aggregation**: Monitor political news with filtering
+- **News Aggregation**: Monitor political news with filtering, clickable article links
+- **High Intent Keywords**: Track specific terms across news articles with visual highlighting
+- **Article Actions**: Forward articles via email, assign to client portals, mark read/delete
 - **Network Visualization**: View relationships and organizations
 - **Members of Congress Search**: Search current senators and representatives with filters for chamber, party, and state (via Congress.gov API)
 - **Staff Persistence**: Selected Congress member and staff data persist in localStorage across page navigations
@@ -102,6 +104,8 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `customers` - Customer relationships (Congress members, staffers, manual contacts) with Matter assignment
 - `favorites` - Favorited Congress members for quick access
 - `rss_feed_client_assignments` - Links RSS feeds to specific clients for client portal access
+- `high_intent_keywords` - Keywords for highlighting high-priority news articles
+- `news_article_portal_assignments` - Links news articles to client portals
 
 ## API Routes
 
@@ -134,6 +138,17 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - `GET /api/news` - List news articles
 - `POST /api/news` - Add news article
 - `PATCH /api/news/:id` - Update article (mark read/flagged)
+- `DELETE /api/news/:id` - Delete article
+- `POST /api/news/:articleId/forward` - Forward article via email
+- `GET /api/news/:articleId/assignments` - Get article portal assignments
+- `POST /api/news/:articleId/assign-portal` - Assign article to portal
+- `DELETE /api/news/:articleId/assign-portal/:portalId` - Unassign article from portal
+
+### High Intent Keywords Routes
+- `GET /api/high-intent-keywords` - List keywords for client
+- `POST /api/high-intent-keywords` - Create keyword
+- `PATCH /api/high-intent-keywords/:id` - Update keyword
+- `DELETE /api/high-intent-keywords/:id` - Delete keyword
 
 ### Matters Routes
 - `GET /api/matters` - List matters for client
