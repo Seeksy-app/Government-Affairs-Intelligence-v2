@@ -147,12 +147,75 @@ interface LinkedInData {
   };
 }
 
+interface CompanyData {
+  name: string;
+  displayName?: string;
+  website?: string;
+  linkedinUrl?: string;
+  industry?: string;
+  size?: string;
+  founded?: number;
+  description?: string;
+  headquarters?: {
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+  employeeCount?: number;
+  politicalClassification?: {
+    isLobbyingFirm: boolean;
+    isPAC: boolean;
+    isThinkTank: boolean;
+    isGovernmentAgency: boolean;
+    isPoliticalOrg: boolean;
+    isCampaign: boolean;
+  };
+}
+
 function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData }: { staffer: Staffer; memberName: string; onBack: () => void; onNavigate: (path: string) => void; onEnrichData: (data: Partial<Staffer>) => void }) {
   const pathway = pathwayLabels[staffer.pathwayType || ''] || pathwayLabels.administrative;
   const [isResearching, setIsResearching] = useState(false);
   const [isLinkedInResearching, setIsLinkedInResearching] = useState(false);
   const [linkedInData, setLinkedInData] = useState<LinkedInData | null>(null);
+  const [isCompanyResearching, setIsCompanyResearching] = useState<string | null>(null);
+  const [companyData, setCompanyData] = useState<Record<string, CompanyData>>({});
   const { toast } = useToast();
+
+  const handleCompanyResearch = async (companyName: string) => {
+    if (companyData[companyName]) return; // Already researched
+    
+    setIsCompanyResearching(companyName);
+    try {
+      const response = await apiRequest("POST", "/api/research/company", {
+        companyName
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setCompanyData(prev => ({ ...prev, [companyName]: result.data }));
+        toast({
+          title: "Company Found",
+          description: `Found details for ${result.data.displayName || companyName}`,
+        });
+      } else {
+        toast({
+          title: "Company Not Found",
+          description: result.message || `Could not find details for ${companyName}`,
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error("Company research error:", error);
+      toast({
+        title: "Research Error",
+        description: "Could not research company. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompanyResearching(null);
+    }
+  };
   
   const handleAddToContacts = () => {
     const nameParts = staffer.name.split(' ');
@@ -536,10 +599,56 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
                           {position.startYear}{position.endYear ? ` - ${position.endYear}` : " - Present"}
                         </div>
                         <h4 className="font-semibold">{position.title}</h4>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Building2 className="h-3 w-3" />
+                        <button
+                          onClick={() => handleCompanyResearch(position.organization)}
+                          className="text-sm text-muted-foreground flex items-center gap-1 hover:text-primary transition-colors text-left"
+                          disabled={isCompanyResearching === position.organization}
+                          data-testid={`btn-research-company-${idx}`}
+                        >
+                          {isCompanyResearching === position.organization ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Building2 className="h-3 w-3" />
+                          )}
                           {position.organization}
-                        </p>
+                          {!companyData[position.organization] && (
+                            <Search className="h-3 w-3 ml-1 opacity-50" />
+                          )}
+                        </button>
+                        {companyData[position.organization] && (
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-xs space-y-1">
+                            {companyData[position.organization].industry && (
+                              <p><span className="text-muted-foreground">Industry:</span> {companyData[position.organization].industry}</p>
+                            )}
+                            {companyData[position.organization].size && (
+                              <p><span className="text-muted-foreground">Size:</span> {companyData[position.organization].size}</p>
+                            )}
+                            {companyData[position.organization].headquarters && (
+                              <p><span className="text-muted-foreground">HQ:</span> {[companyData[position.organization].headquarters?.city, companyData[position.organization].headquarters?.state].filter(Boolean).join(", ")}</p>
+                            )}
+                            {companyData[position.organization].politicalClassification && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {companyData[position.organization].politicalClassification?.isLobbyingFirm && (
+                                  <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">Lobbying Firm</Badge>
+                                )}
+                                {companyData[position.organization].politicalClassification?.isPAC && (
+                                  <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">PAC</Badge>
+                                )}
+                                {companyData[position.organization].politicalClassification?.isThinkTank && (
+                                  <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Think Tank</Badge>
+                                )}
+                                {companyData[position.organization].politicalClassification?.isGovernmentAgency && (
+                                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Government</Badge>
+                                )}
+                              </div>
+                            )}
+                            {companyData[position.organization].website && (
+                              <a href={companyData[position.organization].website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                                <ExternalLink className="h-3 w-3" /> Website
+                              </a>
+                            )}
+                          </div>
+                        )}
                         {position.memberServed && (
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                             <Users className="h-3 w-3" />

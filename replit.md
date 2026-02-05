@@ -46,6 +46,6 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Congress.gov API**: For searching and retrieving data on current Members of Congress.
 - **Perplexity AI**: Used for staffer research and general agent queries (`sonar` model).
 - **Firecrawl**: For web scraping, URL content extraction, and AI agent research.
-- **Proxycurl**: For enriching staffer profiles with LinkedIn career data.
+- **People Data Labs (PDL)**: For enriching staffer profiles with LinkedIn career data, company enrichment, and person search capabilities. Provides career history, trajectory analysis, skills, education, and organizational intelligence on lobbying firms, PACs, and think tanks.
 - **OpenAI API**: For AI research capabilities (via Replit AI Integrations).
 - **Influencers Club API**: For tracking and enriching data on social media influencers.

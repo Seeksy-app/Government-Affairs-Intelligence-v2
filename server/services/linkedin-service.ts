@@ -451,11 +451,25 @@ export function analyzeCareerPatterns(profile: LinkedInProfile): {
     }
   }
   
+  // Convert Set to Array without spreading
+  const sectorArray: string[] = [];
+  sectors.forEach(s => sectorArray.push(s));
+  
+  // Deduplicate keyTransitions
+  const uniqueTransitions: string[] = [];
+  const seenTransitions = new Set<string>();
+  for (const t of keyTransitions) {
+    if (!seenTransitions.has(t)) {
+      seenTransitions.add(t);
+      uniqueTransitions.push(t);
+    }
+  }
+  
   return {
     totalYearsExperience,
-    sectors: Array.from(sectors),
+    sectors: sectorArray,
     careerTrajectory,
-    keyTransitions: [...new Set(keyTransitions)],
+    keyTransitions: uniqueTransitions,
     politicalExperience,
     governmentExperience,
     campaignExperience,

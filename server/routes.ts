@@ -2054,6 +2054,136 @@ Format your response as a structured summary with clear sections.`;
     }
   });
 
+  // ==================== COMPANY ENRICHMENT ROUTES ====================
+
+  const companyEnrichmentSchema = z.object({
+    companyName: z.string().optional(),
+    website: z.string().url().optional(),
+    linkedinUrl: z.string().url().optional(),
+  }).refine(data => data.companyName || data.website || data.linkedinUrl, {
+    message: "Company name, website, or LinkedIn URL required"
+  });
+
+  // Enrich company profile using People Data Labs
+  app.post("/api/research/company", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = companyEnrichmentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      
+      const { companyName, website, linkedinUrl } = parsed.data;
+
+      const { enrichCompany } = await import("./services/linkedin-service");
+      
+      let company = null;
+      
+      // Try different identifiers in order of specificity
+      if (linkedinUrl) {
+        company = await enrichCompany(linkedinUrl, "linkedin");
+      }
+      if (!company && website) {
+        company = await enrichCompany(website, "website");
+      }
+      if (!company && companyName) {
+        company = await enrichCompany(companyName, "name");
+      }
+
+      if (!company) {
+        return res.json({
+          success: false,
+          message: `Could not find company information for ${companyName || website || linkedinUrl}`,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: company,
+      });
+    } catch (error: any) {
+      console.error("[Company Enrichment] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to enrich company profile" });
+    }
+  });
+
+  // ==================== PERSON SEARCH ROUTES ====================
+
+  const personSearchSchema = z.object({
+    company: z.string().optional(),
+    jobTitle: z.string().optional(),
+    location: z.string().optional(),
+    industry: z.string().optional(),
+    school: z.string().optional(),
+    skills: z.array(z.string()).optional(),
+    limit: z.number().min(1).max(100).optional().default(20),
+  }).refine(data => data.company || data.jobTitle || data.location || data.industry || data.school, {
+    message: "At least one search criterion required"
+  });
+
+  // Search for people by criteria (e.g., find former colleagues)
+  app.post("/api/research/people/search", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = personSearchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      
+      const { company, jobTitle, location, industry, school, skills, limit } = parsed.data;
+
+      const { searchPeople } = await import("./services/linkedin-service");
+      
+      const results = await searchPeople({
+        company,
+        jobTitle,
+        location,
+        industry,
+        school,
+        skills,
+        limit,
+      });
+
+      res.json({
+        success: true,
+        count: results.length,
+        data: results,
+      });
+    } catch (error: any) {
+      console.error("[Person Search] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to search for people" });
+    }
+  });
+
+  const formerColleaguesSchema = z.object({
+    companyName: z.string().min(1, "Company name required"),
+    limit: z.number().min(1).max(100).optional().default(20),
+  });
+
+  // Find former colleagues from a specific organization
+  app.post("/api/research/former-colleagues", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = formerColleaguesSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      
+      const { companyName, limit } = parsed.data;
+
+      const { findFormerColleagues } = await import("./services/linkedin-service");
+      
+      const results = await findFormerColleagues(companyName, limit);
+
+      res.json({
+        success: true,
+        count: results.length,
+        message: `Found ${results.length} people who worked at ${companyName}`,
+        data: results,
+      });
+    } catch (error: any) {
+      console.error("[Former Colleagues] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to find former colleagues" });
+    }
+  });
+
   // ==================== AI AGENT RESEARCH ROUTES ====================
 
   // Research a political entity using Firecrawl agent
