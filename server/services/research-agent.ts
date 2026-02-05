@@ -222,33 +222,31 @@ export async function runAgentQuery(
   prompt: string,
   schema?: ExtractSchema
 ): Promise<AgentQueryResult> {
+  // Use Perplexity for all agent queries for better results with citations
   try {
-    const response = await fetch("https://api.firecrawl.dev/v1/agent", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-        schema,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Agent request failed: ${error}`);
+    const result = await researchWithPerplexity(prompt);
+    
+    // Parse the response into structured data if a schema was provided
+    let parsedData: Record<string, unknown> = { rawContent: result.content };
+    
+    if (schema && schema.properties) {
+      // Try to extract structured data from the response
+      for (const key of Object.keys(schema.properties)) {
+        const regex = new RegExp(`${key}[:\\s]+([^\\n]+)`, 'i');
+        const match = result.content.match(regex);
+        if (match) {
+          parsedData[key] = match[1].trim();
+        }
+      }
     }
-
-    const result = await response.json();
-
+    
     return {
       success: true,
-      data: result.data || result,
-      sources: result.sources || [],
+      data: parsedData,
+      sources: result.citations || [],
     };
   } catch (error) {
-    console.error("Firecrawl agent error:", error);
+    console.error("Agent query error:", error);
     throw new Error(`Agent query failed: ${error}`);
   }
 }
