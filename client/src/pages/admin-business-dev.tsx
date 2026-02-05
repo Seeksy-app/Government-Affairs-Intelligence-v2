@@ -55,7 +55,7 @@ export default function AdminBusinessDev() {
         <TabsContent value="business-plan" className="space-y-6 mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Executive Summary */}
-            <Card>
+            <Card data-testid="card-executive-summary">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
@@ -94,7 +94,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Target Market */}
-            <Card>
+            <Card data-testid="card-target-market">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
@@ -131,7 +131,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Revenue Model */}
-            <Card>
+            <Card data-testid="card-revenue-model">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5" />
@@ -171,7 +171,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Competitive Advantage */}
-            <Card>
+            <Card data-testid="card-competitive-advantage">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Award className="h-5 w-5" />
@@ -222,7 +222,7 @@ export default function AdminBusinessDev() {
 
         {/* 3-Year Projections Tab */}
         <TabsContent value="projections" className="space-y-6 mt-6">
-          <Card>
+          <Card data-testid="card-projections">
             <CardHeader>
               <CardTitle>Three-Year Financial Projections</CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -315,7 +315,7 @@ export default function AdminBusinessDev() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Industry Tailwinds */}
-            <Card>
+            <Card data-testid="card-tailwinds">
               <CardHeader>
                 <CardTitle className="text-lg">Industry Tailwinds</CardTitle>
               </CardHeader>
@@ -340,7 +340,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Key Assumptions */}
-            <Card>
+            <Card data-testid="card-assumptions">
               <CardHeader>
                 <CardTitle className="text-lg">Key Assumptions</CardTitle>
               </CardHeader>
@@ -365,7 +365,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Investment Needs */}
-            <Card>
+            <Card data-testid="card-investment">
               <CardHeader>
                 <CardTitle className="text-lg">Investment Needs</CardTitle>
               </CardHeader>
@@ -395,7 +395,7 @@ export default function AdminBusinessDev() {
         <TabsContent value="go-to-market" className="space-y-6 mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Phase 1 */}
-            <Card>
+            <Card data-testid="card-phase1">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
@@ -430,7 +430,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 2 */}
-            <Card>
+            <Card data-testid="card-phase2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
@@ -465,7 +465,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 3 */}
-            <Card>
+            <Card data-testid="card-phase3">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
@@ -500,7 +500,7 @@ export default function AdminBusinessDev() {
             </Card>
 
             {/* Phase 4 */}
-            <Card>
+            <Card data-testid="card-phase4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Handshake className="h-5 w-5" />
@@ -536,7 +536,7 @@ export default function AdminBusinessDev() {
           </div>
 
           {/* Channel Mix Strategy */}
-          <Card>
+          <Card data-testid="card-channel-mix">
             <CardHeader>
               <CardTitle>Channel Mix Strategy</CardTitle>
             </CardHeader>

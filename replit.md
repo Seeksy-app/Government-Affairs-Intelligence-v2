@@ -39,6 +39,7 @@ A multi-tenant SaaS platform for political consulting firms. It provides tools f
 - Client management (CRUD)
 - User overview
 - **Client Impersonation**: View the platform as any client to troubleshoot or assist users
+- **Business Development Dashboard**: Strategic planning with 3-year projections, go-to-market phases, and channel mix strategy
 
 ### For Client Users
 - **Contact Management**: Track political staffers, officials, and lobbyists
