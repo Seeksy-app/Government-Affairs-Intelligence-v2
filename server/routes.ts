@@ -2967,7 +2967,7 @@ Format your response as a structured summary with clear sections.`;
     }
   });
 
-  // Portal Dashboard - Get client news from assigned feeds
+  // Portal Dashboard - Get only articles assigned/shared to this specific portal
   app.get("/api/public/portal/:clientSlug/:portalSlug/news", async (req, res) => {
     try {
       const { clientSlug, portalSlug } = req.params;
@@ -2982,38 +2982,10 @@ Format your response as a structured summary with clear sections.`;
         return res.status(404).json({ message: "Portal not found" });
       }
 
-      // Get all recent news articles for this client
-      // First try to get articles from assigned feeds, fallback to all client articles
-      const clientFeeds = await storage.getClientRssFeeds(client.id);
-      const allArticles = await storage.getNewsArticles(client.id);
+      // Only return articles that have been explicitly assigned to this portal
+      const assignedArticles = await storage.getPortalArticles(portal.id);
       
-      let filteredArticles = allArticles;
-      
-      // If client has assigned feeds, filter by those feed sources
-      if (clientFeeds.length > 0) {
-        const feedNames = clientFeeds.map(f => f.name.toLowerCase());
-        filteredArticles = allArticles.filter(a => 
-          a.source && feedNames.some(name => 
-            a.source!.toLowerCase().includes(name) || name.includes(a.source!.toLowerCase())
-          )
-        );
-        
-        // If filtering produced no results, show all articles
-        if (filteredArticles.length === 0) {
-          filteredArticles = allArticles;
-        }
-      }
-      
-      // Get most recent 20 articles
-      const recentArticles = filteredArticles
-        .sort((a, b) => {
-          const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-          const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-          return dateB - dateA;
-        })
-        .slice(0, 20);
-      
-      res.json(recentArticles.map(a => ({
+      res.json(assignedArticles.map(a => ({
         id: a.id,
         title: a.title,
         summary: a.summary,
