@@ -2184,6 +2184,265 @@ Format your response as a structured summary with clear sections.`;
     }
   });
 
+  // ==================== POLITICAL ORGANIZATIONS ROUTES ====================
+
+  app.get("/api/organizations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      const orgs = await storage.getPoliticalOrganizations(clientId || undefined);
+      res.json(orgs);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch organizations" });
+    }
+  });
+
+  async function getOrgWithTenantCheck(req: any, orgId: string) {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const org = await storage.getPoliticalOrganization(orgId, clientId);
+    return org || null;
+  }
+
+  app.get("/api/organizations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const org = await getOrgWithTenantCheck(req, req.params.id);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      res.json(org);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch organization" });
+    }
+  });
+
+  const createOrgSchema = z.object({
+    name: z.string().min(1),
+    orgType: z.string().optional(),
+    website: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+  });
+
+  app.post("/api/organizations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      const parsed = createOrgSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const existing = await storage.getPoliticalOrganizationByName(parsed.data.name, clientId);
+      if (existing) {
+        return res.status(409).json({ message: "Organization already tracked", data: existing });
+      }
+      const org = await storage.createPoliticalOrganization({
+        ...parsed.data,
+        clientId,
+        isTracked: true,
+      });
+      res.json(org);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create organization" });
+    }
+  });
+
+  const updateOrgSchema = z.object({
+    name: z.string().optional(),
+    orgType: z.string().optional(),
+    website: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+    industry: z.string().optional(),
+    description: z.string().optional(),
+    isActive: z.boolean().optional(),
+    isTracked: z.boolean().optional(),
+  });
+
+  app.patch("/api/organizations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await getOrgWithTenantCheck(req, req.params.id);
+      if (!existing) return res.status(404).json({ message: "Organization not found" });
+      const parsed = updateOrgSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
+      }
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const org = await storage.updatePoliticalOrganization(req.params.id, clientId, parsed.data);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+      res.json(org);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update organization" });
+    }
+  });
+
+  app.delete("/api/organizations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const existing = await getOrgWithTenantCheck(req, req.params.id);
+      if (!existing) return res.status(404).json({ message: "Organization not found" });
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      await storage.deletePoliticalOrganization(req.params.id, clientId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete organization" });
+    }
+  });
+
+  app.post("/api/organizations/enrich", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const parsed = z.object({
+        name: z.string().optional(),
+        website: z.string().optional(),
+        linkedinUrl: z.string().optional(),
+        saveToTracked: z.boolean().optional().default(false),
+      }).safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Name, website, or LinkedIn URL required" });
+      }
+      const { name, website, linkedinUrl, saveToTracked } = parsed.data;
+      if (!name && !website && !linkedinUrl) {
+        return res.status(400).json({ message: "At least one identifier is required" });
+      }
+
+      const { enrichCompany } = await import("./services/linkedin-service");
+      let company = null;
+      if (linkedinUrl) company = await enrichCompany(linkedinUrl, "linkedin");
+      if (!company && website) company = await enrichCompany(website, "website");
+      if (!company && name) company = await enrichCompany(name, "name");
+
+      if (!company) {
+        return res.json({ success: false, message: "Organization not found in PDL database" });
+      }
+
+      if (saveToTracked) {
+        const existing = await storage.getPoliticalOrganizationByName(company.name, clientId);
+        if (existing) {
+          const updated = await storage.updatePoliticalOrganization(existing.id, clientId, {
+            website: company.website || existing.website,
+            linkedinUrl: company.linkedinUrl || existing.linkedinUrl,
+            industry: company.industry || existing.industry,
+            description: company.description || existing.description,
+            employeeCount: company.employeeCount || existing.employeeCount,
+            employeeCountRange: company.employeeCountRange || existing.employeeCountRange,
+            founded: company.founded || existing.founded,
+            headquartersCity: company.headquarters?.city || existing.headquartersCity,
+            headquartersState: company.headquarters?.state || existing.headquartersState,
+            headquartersCountry: company.headquarters?.country || existing.headquartersCountry,
+            tags: company.tags || existing.tags,
+            naicsCode: company.naicsCode || existing.naicsCode,
+            sicCode: company.sicCode || existing.sicCode,
+            isLobbyingFirm: company.politicalClassification?.isLobbyingFirm || existing.isLobbyingFirm,
+            isPAC: company.politicalClassification?.isPAC || existing.isPAC,
+            isThinkTank: company.politicalClassification?.isThinkTank || existing.isThinkTank,
+            isGovernmentAgency: company.politicalClassification?.isGovernmentAgency || existing.isGovernmentAgency,
+            isPoliticalOrg: company.politicalClassification?.isPoliticalOrg || existing.isPoliticalOrg,
+            isCampaign: company.politicalClassification?.isCampaign || existing.isCampaign,
+            pdlEnriched: true,
+          });
+          return res.json({ success: true, data: company, saved: updated });
+        }
+
+        const orgType = company.politicalClassification?.isLobbyingFirm ? "Lobbying Firm"
+          : company.politicalClassification?.isPAC ? "PAC"
+          : company.politicalClassification?.isThinkTank ? "Think Tank"
+          : company.politicalClassification?.isGovernmentAgency ? "Government Agency"
+          : company.politicalClassification?.isPoliticalOrg ? "Political Organization"
+          : company.politicalClassification?.isCampaign ? "Campaign"
+          : company.industry || "Organization";
+
+        const saved = await storage.createPoliticalOrganization({
+          clientId,
+          name: company.name,
+          orgType,
+          website: company.website,
+          linkedinUrl: company.linkedinUrl,
+          industry: company.industry,
+          description: company.description,
+          employeeCount: company.employeeCount,
+          employeeCountRange: company.employeeCountRange,
+          founded: company.founded,
+          headquartersCity: company.headquarters?.city,
+          headquartersState: company.headquarters?.state,
+          headquartersCountry: company.headquarters?.country,
+          tags: company.tags,
+          naicsCode: company.naicsCode,
+          sicCode: company.sicCode,
+          isLobbyingFirm: company.politicalClassification?.isLobbyingFirm || false,
+          isPAC: company.politicalClassification?.isPAC || false,
+          isThinkTank: company.politicalClassification?.isThinkTank || false,
+          isGovernmentAgency: company.politicalClassification?.isGovernmentAgency || false,
+          isPoliticalOrg: company.politicalClassification?.isPoliticalOrg || false,
+          isCampaign: company.politicalClassification?.isCampaign || false,
+          pdlEnriched: true,
+          isTracked: true,
+        });
+        return res.json({ success: true, data: company, saved });
+      }
+
+      res.json({ success: true, data: company });
+    } catch (error: any) {
+      console.error("[Org Enrichment] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to enrich organization" });
+    }
+  });
+
+  app.post("/api/organizations/:id/people", isAuthenticated, async (req, res) => {
+    try {
+      const org = await getOrgWithTenantCheck(req, req.params.id);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const { searchPeople } = await import("./services/linkedin-service");
+      const parsed = z.object({
+        jobTitle: z.string().optional(),
+        limit: z.number().min(1).max(50).optional().default(20),
+      }).safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request body" });
+      }
+
+      const results = await searchPeople({
+        company: org.name,
+        jobTitle: parsed.data.jobTitle,
+        limit: parsed.data.limit,
+      });
+
+      res.json({ success: true, count: results.length, data: results });
+    } catch (error: any) {
+      console.error("[Org People] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to find people" });
+    }
+  });
+
+  app.post("/api/organizations/:id/ai-research", isAuthenticated, async (req, res) => {
+    try {
+      const org = await getOrgWithTenantCheck(req, req.params.id);
+      if (!org) return res.status(404).json({ message: "Organization not found" });
+
+      const entityType = org.isLobbyingFirm ? "lobbying firm"
+        : org.isPAC ? "political action committee"
+        : org.isThinkTank ? "think tank"
+        : org.isGovernmentAgency ? "government agency"
+        : "political organization";
+
+      const { researchPoliticalEntity } = await import("./services/research-agent");
+      const result = await researchPoliticalEntity(org.name, entityType);
+
+      if (result.summary) {
+        const clientId = await getClientId(req);
+        if (clientId) {
+          await storage.updatePoliticalOrganization(org.id, clientId, {
+            aiSummary: result.summary,
+            aiSources: result.sources || [],
+          });
+        }
+      }
+
+      res.json({ success: true, summary: result.summary, sources: result.sources });
+    } catch (error: any) {
+      console.error("[Org AI Research] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to research organization" });
+    }
+  });
+
   // ==================== AI AGENT RESEARCH ROUTES ====================
 
   // Research a political entity using Firecrawl agent

@@ -1075,18 +1075,44 @@ export type StafferConnection = typeof stafferConnections.$inferSelect;
 // Political organizations reference table
 export const politicalOrganizations = pgTable("political_organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
-  orgType: text("org_type"), // Congressional Office, Committee, Campaign, Think Tank, Lobbying Firm, etc.
+  clientId: varchar("client_id").references(() => clients.id),
+  name: text("name").notNull(),
+  orgType: text("org_type"),
   chamber: text("chamber"),
   party: text("party"),
   state: varchar("state", { length: 2 }),
+  website: text("website"),
+  linkedinUrl: text("linkedin_url"),
+  industry: text("industry"),
+  description: text("description"),
+  employeeCount: integer("employee_count"),
+  employeeCountRange: text("employee_count_range"),
+  founded: integer("founded"),
+  headquartersCity: text("headquarters_city"),
+  headquartersState: text("headquarters_state"),
+  headquartersCountry: text("headquarters_country"),
+  tags: text("tags").array(),
+  naicsCode: text("naics_code"),
+  sicCode: text("sic_code"),
+  isLobbyingFirm: boolean("is_lobbying_firm").default(false),
+  isPAC: boolean("is_pac").default(false),
+  isThinkTank: boolean("is_think_tank").default(false),
+  isGovernmentAgency: boolean("is_government_agency").default(false),
+  isPoliticalOrg: boolean("is_political_org").default(false),
+  isCampaign: boolean("is_campaign").default(false),
+  aiSummary: text("ai_summary"),
+  aiSources: text("ai_sources").array(),
+  pdlEnriched: boolean("pdl_enriched").default(false),
   isActive: boolean("is_active").default(true),
+  isTracked: boolean("is_tracked").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertPoliticalOrganizationSchema = createInsertSchema(politicalOrganizations).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertPoliticalOrganization = z.infer<typeof insertPoliticalOrganizationSchema>;

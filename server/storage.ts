@@ -348,11 +348,12 @@ export interface IStorage {
   deleteStafferConnection(id: string): Promise<void>;
 
   // Political Organizations
-  getPoliticalOrganizations(): Promise<PoliticalOrganization[]>;
-  getPoliticalOrganization(id: string): Promise<PoliticalOrganization | undefined>;
-  getPoliticalOrganizationByName(name: string): Promise<PoliticalOrganization | undefined>;
+  getPoliticalOrganizations(clientId?: string): Promise<PoliticalOrganization[]>;
+  getPoliticalOrganization(id: string, clientId: string): Promise<PoliticalOrganization | undefined>;
+  getPoliticalOrganizationByName(name: string, clientId: string): Promise<PoliticalOrganization | undefined>;
   createPoliticalOrganization(org: InsertPoliticalOrganization): Promise<PoliticalOrganization>;
-  updatePoliticalOrganization(id: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined>;
+  updatePoliticalOrganization(id: string, clientId: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined>;
+  deletePoliticalOrganization(id: string, clientId: string): Promise<void>;
 
   // Customers
   getCustomers(clientId: string): Promise<Customer[]>;
@@ -1465,17 +1466,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Political Organizations
-  async getPoliticalOrganizations(): Promise<PoliticalOrganization[]> {
+  async getPoliticalOrganizations(clientId?: string): Promise<PoliticalOrganization[]> {
+    if (clientId) {
+      return db.select().from(politicalOrganizations)
+        .where(eq(politicalOrganizations.clientId, clientId))
+        .orderBy(politicalOrganizations.name);
+    }
     return db.select().from(politicalOrganizations).orderBy(politicalOrganizations.name);
   }
 
-  async getPoliticalOrganization(id: string): Promise<PoliticalOrganization | undefined> {
-    const [org] = await db.select().from(politicalOrganizations).where(eq(politicalOrganizations.id, id));
+  async getPoliticalOrganization(id: string, clientId: string): Promise<PoliticalOrganization | undefined> {
+    const [org] = await db.select().from(politicalOrganizations)
+      .where(and(eq(politicalOrganizations.id, id), eq(politicalOrganizations.clientId, clientId)));
     return org;
   }
 
-  async getPoliticalOrganizationByName(name: string): Promise<PoliticalOrganization | undefined> {
-    const [org] = await db.select().from(politicalOrganizations).where(ilike(politicalOrganizations.name, name));
+  async getPoliticalOrganizationByName(name: string, clientId: string): Promise<PoliticalOrganization | undefined> {
+    const [org] = await db.select().from(politicalOrganizations)
+      .where(and(ilike(politicalOrganizations.name, name), eq(politicalOrganizations.clientId, clientId)));
     return org;
   }
 
@@ -1484,12 +1492,17 @@ export class DatabaseStorage implements IStorage {
     return newOrg;
   }
 
-  async updatePoliticalOrganization(id: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined> {
+  async updatePoliticalOrganization(id: string, clientId: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined> {
     const [updated] = await db.update(politicalOrganizations)
       .set(org)
-      .where(eq(politicalOrganizations.id, id))
+      .where(and(eq(politicalOrganizations.id, id), eq(politicalOrganizations.clientId, clientId)))
       .returning();
     return updated;
+  }
+
+  async deletePoliticalOrganization(id: string, clientId: string): Promise<void> {
+    await db.delete(politicalOrganizations)
+      .where(and(eq(politicalOrganizations.id, id), eq(politicalOrganizations.clientId, clientId)));
   }
 
   // Customers

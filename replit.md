@@ -34,6 +34,7 @@ The platform supports multiple client firms, each with isolated data, managed by
     - **Structured Data Extraction**: Extract specific data points from URLs using schemas.
 - **Social Media Tracking**: Track X/Twitter accounts and posts, keyword matching, alerts, engagement metrics, and auto-sync.
 - **Influencer Tracking**: Track influencers across multiple platforms (Instagram, YouTube, TikTok, Twitter, Twitch, OnlyFans) with profile enrichment and post tracking.
+- **Organization Tracking**: Search, enrich, and track lobbying firms, PACs, think tanks, government agencies, and political organizations using People Data Labs Company Enrichment API. Auto-classifies org type, stores enriched data (industry, employee count, HQ, etc.), supports key people finder via PDL Person Search, and AI-powered intelligence reports via Perplexity. Route: `/organizations`. Schema: `political_organizations` table.
 - **Client & Matter Management**: Manage sub-client matters with isolated research folders and track customer relationships with Matter assignment.
 
 ### UI/UX Decisions
