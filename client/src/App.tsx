@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalAIChat } from "@/components/global-ai-chat";
 
+import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import { LandingPage } from "@/components/landing-page";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -223,7 +224,9 @@ function AuthenticatedLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <AuthenticatedRouter />
+            <ErrorBoundary>
+              <AuthenticatedRouter />
+            </ErrorBoundary>
           </main>
         </div>
       </div>

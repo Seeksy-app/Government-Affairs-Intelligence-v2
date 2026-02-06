@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StafferProfileDialog } from "@/components/staffer-profile-dialog";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 interface CongressMember {
   bioguideId: string;
@@ -190,7 +191,9 @@ export default function NetworkPage() {
       const savedMember = localStorage.getItem('network_selectedMember');
       if (savedMember) {
         const member = JSON.parse(savedMember);
-        return localStorage.getItem(`network_stafferInfo_${member.bioguideId}`) || null;
+        if (member?.bioguideId) {
+          return localStorage.getItem(`network_stafferInfo_${member.bioguideId}`) || null;
+        }
       }
       return null;
     } catch {
@@ -630,8 +633,15 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
   const [selectedMember, setSelectedMember] = useState<CongressMember | null>(() => {
     try {
       const saved = localStorage.getItem('network_selectedMember');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (!parsed || !parsed.bioguideId || !parsed.name) {
+        localStorage.removeItem('network_selectedMember');
+        return null;
+      }
+      return parsed;
     } catch {
+      localStorage.removeItem('network_selectedMember');
       return null;
     }
   });
@@ -1574,6 +1584,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       {/* Member Detail Sheet */}
       <Sheet open={!!selectedMember} onOpenChange={(open) => !open && handleSelectMember(null)}>
         <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col">
+          <ErrorBoundary onReset={() => handleSelectMember(null)}>
           <SheetHeader className="pb-4">
             <SheetTitle className="flex items-center gap-3">
               <Avatar className="h-16 w-16">
@@ -1583,7 +1594,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span>{selectedMember?.firstName} {selectedMember?.lastName}</span>
                   {selectedMember && (
                     <>
@@ -1605,6 +1616,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         />
                       </Button>
                       {portals && portals.length > 0 ? (() => {
+                          try {
                           const existingCustomer = getCustomerBySource('congress_member', selectedMember.bioguideId);
                           const currentPortalName = existingCustomer?.portalId 
                             ? portals.find(p => p.id === existingCustomer.portalId)?.name 
@@ -1647,6 +1659,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                               </SelectContent>
                             </Select>
                           );
+                          } catch (e) {
+                            console.error("Error rendering portal selector:", e);
+                            return null;
+                          }
                         })() : (
                         <Button
                           variant="outline"
@@ -1660,7 +1676,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                     </>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge 
                     variant="outline" 
                     className={
@@ -1799,6 +1815,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 )}
                 
                 {stafferInfo && (() => {
+                  try {
                   const { intro, staffers } = parseStafferInfo(stafferInfo);
                   const isOfficial = stafferInfo.includes('House Telephone Directory') || stafferInfo.includes('directory.house.gov');
                   return (
@@ -1988,6 +2005,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                       </div>
                     </div>
                   );
+                  } catch (e) {
+                    console.error("Error rendering staffer info:", e);
+                    return <p className="text-sm text-muted-foreground">Error displaying staff data. Try refreshing.</p>;
+                  }
                 })()}
                 
                 {!stafferInfo && !stafferLoading && (
@@ -2042,6 +2063,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
               </div>
             </div>
           </ScrollArea>
+          </ErrorBoundary>
         </SheetContent>
       </Sheet>
 
