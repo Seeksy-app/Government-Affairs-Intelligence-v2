@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { seedDatabase } from "./seed";
 import { runAutoSync } from "./services/social-tracker";
 import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext } from "./services/news-aggregation";
+import { syncHouseDirectoryToDb, getDirectoryStats } from "./services/house-directory-service";
 import { db } from "./db";
 import { clients } from "@shared/schema";
 
@@ -122,6 +123,22 @@ app.use((req, res, next) => {
       
       log("Auto-sync scheduler started");
       
+      // Auto-sync House directory if cache is empty
+      setTimeout(async () => {
+        try {
+          const stats = await getDirectoryStats();
+          if (stats.totalEmployees === 0) {
+            log("House directory cache is empty, syncing from directory.house.gov...");
+            const result = await syncHouseDirectoryToDb();
+            log(`House directory sync complete: ${result.synced} employees synced, ${result.errors} errors`);
+          } else {
+            log(`House directory cache has ${stats.totalEmployees} employees (last synced: ${stats.lastSynced})`);
+          }
+        } catch (error) {
+          console.error("House directory auto-sync error:", error);
+        }
+      }, 5000);
+
       // Initialize RSS feeds and run initial news aggregation
       setTimeout(async () => {
         try {

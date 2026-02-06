@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -530,7 +530,13 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         const staffList = data.staff.map((s: any, idx: number) => {
           const phone = s.telephone ? `\n- Phone: ${s.telephone}` : '';
           const office = s.officeName ? `\n- Office: ${s.officeName}` : '';
-          return `${idx + 1}. ${s.jobTitle}:\n- Name: ${s.name}${phone}${office}`;
+          const nameParts = s.name?.split(' ').filter((p: string) => p && !p.match(/^(Jr\.?|Sr\.?|III|IV|II)$/i)).map((p: string) => p.replace(/[^a-zA-Z'-]/g, '')) || [];
+          const firstName = nameParts[0]?.toLowerCase() || '';
+          const lastName = nameParts[nameParts.length - 1]?.toLowerCase() || '';
+          const email = firstName && lastName && firstName !== lastName
+            ? `\n- Email: ${firstName}.${lastName}@mail.house.gov`
+            : '';
+          return `${idx + 1}. ${s.jobTitle}:\n- Name: ${s.name}${email}${phone}${office}`;
         }).join('\n\n');
         const intro = `Official staff from the House Telephone Directory (directory.house.gov) - ${data.staff.length} staff members found:`;
         setStafferInfo(`${intro}\n\n${staffList}`);
@@ -694,18 +700,27 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
     setSelectedMember(member);
     if (!member) {
       setStafferInfo(null);
+      setStafferLoading(false);
       localStorage.removeItem('network_selectedMember');
     } else {
-      // Check if we have cached staffer info for this member
       const cachedStafferInfo = localStorage.getItem(`network_stafferInfo_${member.bioguideId}`);
       if (cachedStafferInfo) {
         setStafferInfo(cachedStafferInfo);
+        setStafferLoading(false);
       } else {
         setStafferInfo(null);
       }
     }
-    setStafferLoading(false);
   };
+
+  useEffect(() => {
+    if (selectedMember && !stafferInfo && !stafferLoading && selectedMember.chamber === "House") {
+      const cachedStafferInfo = localStorage.getItem(`network_stafferInfo_${selectedMember.bioguideId}`);
+      if (!cachedStafferInfo) {
+        handleFindStaffers(selectedMember);
+      }
+    }
+  }, [selectedMember?.bioguideId]);
   
   // Fetch member details when selected
   const { data: memberDetails, isLoading: detailsLoading } = useQuery<CongressMember>({
@@ -1795,14 +1810,15 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                             Official Directory
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs" data-testid="badge-source-ai">
-                            AI Research
+                          <Badge variant="destructive" className="text-xs" data-testid="badge-source-ai">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            AI Research - Verify Names
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground">{staffers.length} staff found</span>
                       </div>
-                      {intro && !isOfficial && (
-                        <p className="text-sm text-muted-foreground">{intro}</p>
+                      {!isOfficial && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Names from AI research may be inaccurate. Verify against official sources before use.</p>
                       )}
                       {staffers.length > 0 ? (
                         <div className="space-y-2">

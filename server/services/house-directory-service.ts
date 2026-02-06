@@ -108,22 +108,24 @@ export async function syncHouseDirectoryToDb(): Promise<{ synced: number; errors
 
   for (let i = 0; i < employees.length; i += batchSize) {
     const batch = employees.slice(i, i + batchSize);
-    const records = batch.map(emp => {
-      const office = officeMap.get(emp.worksFor?._id || "");
-      const parentOffice = office?.parentOrganization || emp.worksFor?.parentOrganization;
-      return {
-        employeeId: emp._id,
-        name: emp.name,
-        jobTitle: formatJobTitle(emp.jobTitle),
-        officeCode: emp.worksFor?._id || null,
-        officeName: emp.worksFor?.name?.replace(/&amp;/g, '&') || null,
-        officeType: office?.description || emp.worksFor?.description || null,
-        telephone: emp.telephone || null,
-        address: emp.address?.streetAddress || office?.address?.streetAddress || null,
-        parentOfficeCode: parentOffice?._id || null,
-        parentOfficeName: parentOffice?.name?.replace(/&amp;/g, '&') || null,
-      };
-    });
+    const records = batch
+      .filter(emp => emp.name && emp.name.trim().length > 0)
+      .map(emp => {
+        const office = officeMap.get(emp.worksFor?._id || "");
+        const parentOffice = office?.parentOrganization || emp.worksFor?.parentOrganization;
+        return {
+          employeeId: emp._id,
+          name: emp.name,
+          jobTitle: formatJobTitle(emp.jobTitle),
+          officeCode: emp.worksFor?._id || null,
+          officeName: emp.worksFor?.name?.replace(/&amp;/g, '&') || null,
+          officeType: office?.description || emp.worksFor?.description || null,
+          telephone: emp.telephone || null,
+          address: emp.address?.streetAddress || office?.address?.streetAddress || null,
+          parentOfficeCode: parentOffice?._id || null,
+          parentOfficeName: parentOffice?.name?.replace(/&amp;/g, '&') || null,
+        };
+      });
 
     try {
       await db.insert(congressionalStaffDirectory).values(records as any[]);
