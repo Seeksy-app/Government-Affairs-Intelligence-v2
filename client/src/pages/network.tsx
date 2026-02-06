@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -77,6 +77,8 @@ interface ParsedStaffer {
   role: string;
   name: string;
   email?: string;
+  phone?: string;
+  office?: string;
 }
 
 function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffer[] } {
@@ -127,10 +129,23 @@ function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffe
       continue;
     }
     
+    // Phone line: "- Phone: (202) 225-4000"
+    const phoneMatch = trimmed.match(/^-\s*(?:\*\*)?Phone(?:\*\*)?:\s*(.+)$/i);
+    if (phoneMatch) {
+      currentStaffer.phone = phoneMatch[1].trim();
+      continue;
+    }
+    
+    // Office line: "- Office: Johnson, Mike"
+    const officeMatch = trimmed.match(/^-\s*(?:\*\*)?Office(?:\*\*)?:\s*(.+)$/i);
+    if (officeMatch) {
+      currentStaffer.office = officeMatch[1].trim();
+      continue;
+    }
+    
     // Title line (skip if we already have role): "- Title: Chief of Staff"
     const titleMatch = trimmed.match(/^-\s*Title:\s*(.+)$/i);
     if (titleMatch) {
-      // Use title as role if role is generic
       continue;
     }
     
@@ -468,6 +483,18 @@ export default function NetworkPage() {
   // Staffer lookup mutation
   const stafferMutation = useMutation({
     mutationFn: async (member: CongressMember) => {
+      const directoryRes = await fetch(
+        `/api/congress/staff-directory/lookup?lastName=${encodeURIComponent(member.lastName)}&firstName=${encodeURIComponent(member.firstName)}&state=${encodeURIComponent(member.state)}`,
+        { credentials: 'include' }
+      );
+      
+      if (directoryRes.ok) {
+        const directoryData = await directoryRes.json();
+        if (directoryData.success && directoryData.staff && directoryData.staff.length > 0) {
+          return { source: 'directory', staff: directoryData.staff };
+        }
+      }
+      
       const prompt = `Find the current key staff members for ${member.firstName} ${member.lastName}, ${member.chamber === "House" ? "Representative" : "Senator"} from ${member.state}.
 
 Please format your response as a numbered list with each staffer in this exact format:
@@ -485,10 +512,21 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         context: "",
         history: []
       });
-      return res.json();
+      const data = await res.json();
+      return { source: 'ai', response: data.response };
     },
     onSuccess: (data) => {
-      setStafferInfo(data.response);
+      if (data.source === 'directory') {
+        const staffList = data.staff.map((s: any, idx: number) => {
+          const phone = s.telephone ? `\n- Phone: ${s.telephone}` : '';
+          const office = s.officeName ? `\n- Office: ${s.officeName}` : '';
+          return `${idx + 1}. ${s.jobTitle}:\n- Name: ${s.name}${phone}${office}`;
+        }).join('\n\n');
+        const intro = `Official staff from the House Telephone Directory (directory.house.gov) - ${data.staff.length} staff members found:`;
+        setStafferInfo(`${intro}\n\n${staffList}`);
+      } else {
+        setStafferInfo(data.response);
+      }
       setStafferLoading(false);
     },
     onError: (error: Error) => {
@@ -1466,27 +1504,49 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                     <UserSearch className="h-4 w-4" />
                     Staff Members
                   </h4>
-                  {selectedMember && !stafferInfo && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleFindStaffers(selectedMember)}
-                      disabled={stafferLoading}
-                      data-testid="button-find-staffers"
-                    >
-                      {stafferLoading ? (
-                        <>
-                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                          Searching...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="h-3 w-3 mr-2" />
-                          Find Staffers
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    {selectedMember && !stafferInfo && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFindStaffers(selectedMember)}
+                        disabled={stafferLoading}
+                        data-testid="button-find-staffers"
+                      >
+                        {stafferLoading ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                            Searching...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="h-3 w-3 mr-2" />
+                            Find Staffers
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {selectedMember && stafferInfo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedMember) {
+                            localStorage.removeItem(`network_stafferInfo_${selectedMember.bioguideId}`);
+                          }
+                          handleFindStaffers(selectedMember);
+                        }}
+                        disabled={stafferLoading}
+                        data-testid="button-refresh-staffers"
+                      >
+                        {stafferLoading ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
                 {stafferLoading && (
@@ -1498,9 +1558,23 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 
                 {stafferInfo && (() => {
                   const { intro, staffers } = parseStafferInfo(stafferInfo);
+                  const isOfficial = stafferInfo.includes('House Telephone Directory') || stafferInfo.includes('directory.house.gov');
                   return (
                     <div className="space-y-3">
-                      {intro && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {isOfficial ? (
+                          <Badge variant="default" className="text-xs" data-testid="badge-source-official">
+                            <Landmark className="h-3 w-3 mr-1" />
+                            Official Directory
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs" data-testid="badge-source-ai">
+                            AI Research
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">{staffers.length} staff found</span>
+                      </div>
+                      {intro && !isOfficial && (
                         <p className="text-sm text-muted-foreground">{intro}</p>
                       )}
                       {staffers.length > 0 ? (
@@ -1520,6 +1594,15 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                     >
                                       <Mail className="h-3 w-3" />
                                       {staffer.email}
+                                    </a>
+                                  )}
+                                  {staffer.phone && (
+                                    <a 
+                                      href={`tel:${staffer.phone.replace(/[^\d]/g, '')}`}
+                                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1"
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      {staffer.phone}
                                     </a>
                                   )}
                                 </div>

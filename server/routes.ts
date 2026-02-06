@@ -4097,6 +4097,76 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ========== House Staff Directory ==========
+
+  app.get("/api/congress/staff-directory/sync", isAuthenticated, async (req, res) => {
+    try {
+      const { syncHouseDirectoryToDb } = await import("./services/house-directory-service");
+      const result = await syncHouseDirectoryToDb();
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Error syncing House directory:", error);
+      res.status(500).json({ message: error.message || "Failed to sync House directory" });
+    }
+  });
+
+  app.get("/api/congress/staff-directory/stats", isAuthenticated, async (req, res) => {
+    try {
+      const { getDirectoryStats } = await import("./services/house-directory-service");
+      const stats = await getDirectoryStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to get directory stats" });
+    }
+  });
+
+  app.get("/api/congress/staff-directory/lookup", isAuthenticated, async (req, res) => {
+    try {
+      const { lastName, firstName, state } = req.query;
+      if (!lastName) {
+        return res.status(400).json({ message: "lastName is required" });
+      }
+      const { lookupStaffByMember } = await import("./services/house-directory-service");
+      const staff = await lookupStaffByMember(
+        lastName as string,
+        firstName as string | undefined,
+        state as string | undefined
+      );
+      res.json({ success: true, staff, count: staff.length });
+    } catch (error: any) {
+      console.error("Error looking up staff:", error);
+      res.status(500).json({ message: error.message || "Failed to look up staff" });
+    }
+  });
+
+  app.get("/api/congress/staff-directory/by-office", isAuthenticated, async (req, res) => {
+    try {
+      const { officeCode } = req.query;
+      if (!officeCode) {
+        return res.status(400).json({ message: "officeCode is required" });
+      }
+      const { lookupStaffByOfficeCode } = await import("./services/house-directory-service");
+      const staff = await lookupStaffByOfficeCode(officeCode as string);
+      res.json({ success: true, staff, count: staff.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to look up staff by office" });
+    }
+  });
+
+  app.get("/api/congress/staff-directory/search", isAuthenticated, async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q) {
+        return res.status(400).json({ message: "Search query (q) is required" });
+      }
+      const { searchStaffDirectory } = await import("./services/house-directory-service");
+      const staff = await searchStaffDirectory(q as string);
+      res.json({ success: true, staff, count: staff.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to search staff directory" });
+    }
+  });
+
   // ========== Members of Congress Search ==========
   
   // Get all current members of Congress with filtering

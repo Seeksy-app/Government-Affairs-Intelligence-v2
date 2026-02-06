@@ -24,6 +24,7 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **News Aggregation & Analysis**: Monitor political news with filtering, clickable articles, high-intent keyword tracking, and article actions (forward, assign to portals, mark read/delete).
 - **Network Visualization**: Graphical representation of relationships and organizations.
 - **Congressional Tracking**: Search and manage Members of Congress, track schedules, committee meetings, and floor activity. Includes favoriting members and assigning committee meetings to client portals.
+- **House Staff Directory Integration**: Scrapes the official House Telephone Directory (directory.house.gov) for accurate congressional staff data (9,400+ employees). Caches data in `congressional_staff_directory` table. Falls back to AI research when directory data unavailable (e.g., Senate staff). Service: `server/services/house-directory-service.ts`.
 - **AI-Powered Research**:
     - **Context-aware Q&A**: AI agent for research documents.
     - **Staffer Research**: AI research on Congressional staffers with source citations.

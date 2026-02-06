@@ -1091,3 +1091,28 @@ export const insertPoliticalOrganizationSchema = createInsertSchema(politicalOrg
 
 export type InsertPoliticalOrganization = z.infer<typeof insertPoliticalOrganizationSchema>;
 export type PoliticalOrganization = typeof politicalOrganizations.$inferSelect;
+
+// Congressional Staff Directory (cached from House directory)
+export const congressionalStaffDirectory = pgTable("congressional_staff_directory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: text("employee_id"),
+  name: text("name").notNull(),
+  jobTitle: text("job_title").notNull(),
+  officeCode: text("office_code"),
+  officeName: text("office_name"),
+  officeType: text("office_type"),
+  telephone: text("telephone"),
+  address: text("address"),
+  parentOfficeCode: text("parent_office_code"),
+  parentOfficeName: text("parent_office_name"),
+  memberBioguideId: text("member_bioguide_id"),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+});
+
+export const insertCongressionalStaffDirectorySchema = createInsertSchema(congressionalStaffDirectory).omit({
+  id: true,
+  lastSyncedAt: true,
+});
+
+export type InsertCongressionalStaffDirectory = z.infer<typeof insertCongressionalStaffDirectorySchema>;
+export type CongressionalStaffDirectory = typeof congressionalStaffDirectory.$inferSelect;
