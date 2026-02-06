@@ -314,6 +314,7 @@ export interface IStorage {
     totalNews: number;
     unreadNews: number;
     totalMatters: number;
+    trackedBillsCount: number;
   }>;
 
   // Staffers
@@ -589,6 +590,7 @@ export class DatabaseStorage implements IStorage {
     const clientNews = await db.select().from(newsArticles).where(eq(newsArticles.clientId, clientId));
     const unread = clientNews.filter((n) => !n.isRead);
     const clientMatters = await db.select().from(matters).where(eq(matters.clientId, clientId));
+    const clientBills = await db.select().from(trackedBills).where(eq(trackedBills.clientId, clientId));
 
     return {
       totalContacts: clientContacts.length,
@@ -596,6 +598,7 @@ export class DatabaseStorage implements IStorage {
       totalNews: clientNews.length,
       unreadNews: unread.length,
       totalMatters: clientMatters.length,
+      trackedBillsCount: clientBills.length,
     };
   }
 

@@ -5065,8 +5065,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     try {
       const { series_ticker, event_ticker, limit } = req.query;
       const requestLimit = limit ? parseInt(limit as string) : 200;
+      let markets: any[];
       
-      // If specific filters are provided, use them
       if (series_ticker || event_ticker) {
         const result = await kalshiApi.getMarkets({
           seriesTicker: series_ticker as string,
@@ -5074,12 +5074,20 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
           status: "open",
           limit: requestLimit,
         });
-        res.json(result || { markets: [], cursor: null });
+        markets = result?.markets || [];
       } else {
-        // Otherwise, return political markets only
-        const markets = await kalshiApi.searchPoliticalMarkets(requestLimit);
-        res.json({ markets, cursor: null });
+        markets = await kalshiApi.searchPoliticalMarkets(requestLimit);
       }
+
+      const eventTickers = [...new Set(markets.map((m: any) => m.event_ticker).filter(Boolean))];
+      const imageMap = await kalshiApi.getEventImages(eventTickers.slice(0, 30));
+
+      const marketsWithImages = markets.map((m: any) => ({
+        ...m,
+        image_url: imageMap.get(m.ticker) || imageMap.get(m.event_ticker) || null,
+      }));
+
+      res.json({ markets: marketsWithImages, cursor: null });
     } catch (error) {
       console.error("Error fetching Kalshi markets:", error);
       res.status(500).json({ message: "Failed to fetch markets" });

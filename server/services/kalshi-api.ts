@@ -59,6 +59,16 @@ function transformMarket(raw: KalshiMarketRaw): KalshiMarket {
   };
 }
 
+export interface KalshiEventMetadata {
+  image_url?: string;
+  featured_image_url?: string;
+  market_details?: Array<{
+    market_ticker: string;
+    image_url?: string;
+    color_code?: string;
+  }>;
+}
+
 export interface KalshiEvent {
   event_ticker: string;
   title: string;
@@ -326,6 +336,36 @@ class KalshiAPI {
     
     console.log(`[Kalshi] Total political markets found: ${allMarkets.length}`);
     return allMarkets.slice(0, limit);
+  }
+
+  async getEventMetadata(eventTicker: string): Promise<KalshiEventMetadata | null> {
+    return this.request<KalshiEventMetadata>(`/events/${eventTicker}/metadata`, "GET", false);
+  }
+
+  async getEventImages(eventTickers: string[]): Promise<Map<string, string>> {
+    const imageMap = new Map<string, string>();
+    const batchSize = 5;
+    
+    for (let i = 0; i < eventTickers.length; i += batchSize) {
+      const batch = eventTickers.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(async (ticker) => {
+          const metadata = await this.getEventMetadata(ticker);
+          if (metadata?.image_url) {
+            imageMap.set(ticker, metadata.image_url);
+          }
+          if (metadata?.market_details) {
+            for (const detail of metadata.market_details) {
+              if (detail.image_url) {
+                imageMap.set(detail.market_ticker, detail.image_url);
+              }
+            }
+          }
+        })
+      );
+    }
+    
+    return imageMap;
   }
 
   async searchBillMarkets(billNumber: string): Promise<KalshiMarket[]> {

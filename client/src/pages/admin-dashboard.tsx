@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Users, Network, Newspaper, TrendingUp, Activity } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
 import type { Client } from "@shared/schema";
 
 interface Stats {
@@ -13,6 +15,8 @@ interface Stats {
 }
 
 export default function AdminDashboard() {
+  const [, navigate] = useLocation();
+
   const { data: stats, isLoading: statsLoading } = useQuery<Stats>({
     queryKey: ["/api/admin/stats"],
   });
@@ -26,13 +30,15 @@ export default function AdminDashboard() {
     value, 
     icon: Icon, 
     description,
-    accent
+    accent,
+    href
   }: { 
     title: string; 
     value: number | undefined; 
     icon: any; 
     description?: string;
     accent?: "primary" | "green" | "blue" | "purple" | "orange";
+    href?: string;
   }) => {
     const accentStyles = {
       primary: "bg-primary/10 text-primary border-l-primary",
@@ -46,7 +52,11 @@ export default function AdminDashboard() {
     const borderColor = style.split(" ").pop();
 
     return (
-      <Card className={`border-l-4 ${borderColor} overflow-visible`}>
+      <Card
+        className={`border-l-4 ${borderColor} overflow-visible ${href ? "cursor-pointer hover-elevate" : ""}`}
+        onClick={href ? () => navigate(href) : undefined}
+        data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
+      >
         <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
           <div className={`p-2 rounded-lg ${iconBg}`}>
@@ -78,7 +88,6 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Total Clients" 
@@ -86,6 +95,7 @@ export default function AdminDashboard() {
           icon={Building2}
           description="Licensed firms"
           accent="primary"
+          href="/admin/clients"
         />
         <StatCard 
           title="Active Clients" 
@@ -93,6 +103,7 @@ export default function AdminDashboard() {
           icon={Activity}
           description="Currently active"
           accent="green"
+          href="/admin/clients"
         />
         <StatCard 
           title="Total Users" 
@@ -100,6 +111,7 @@ export default function AdminDashboard() {
           icon={Users}
           description="Across all clients"
           accent="blue"
+          href="/admin/clients"
         />
         <StatCard 
           title="Total Contacts" 
@@ -107,6 +119,7 @@ export default function AdminDashboard() {
           icon={Network}
           description="Political contacts"
           accent="purple"
+          href="/admin/clients"
         />
         <StatCard 
           title="News Articles" 
@@ -117,15 +130,17 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Recent Clients */}
       <Card>
-        <CardHeader className="border-b bg-muted/30">
+        <CardHeader className="border-b bg-muted/30 flex flex-row items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10">
               <TrendingUp className="h-5 w-5 text-primary" />
             </div>
             Recent Clients
           </CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/admin/clients">View All</Link>
+          </Button>
         </CardHeader>
         <CardContent className="pt-4">
           {clientsLoading ? (
@@ -143,8 +158,9 @@ export default function AdminDashboard() {
           ) : recentClients && recentClients.length > 0 ? (
             <div className="space-y-2">
               {recentClients.map((client) => (
-                <div
+                <Link
                   key={client.id}
+                  href="/admin/clients"
                   className="flex items-center gap-4 p-3 rounded-lg border bg-card hover-elevate"
                   data-testid={`client-item-${client.id}`}
                 >
@@ -158,7 +174,7 @@ export default function AdminDashboard() {
                   <div className={`px-3 py-1 rounded-full text-xs font-medium ${client.isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}>
                     {client.isActive ? "Active" : "Inactive"}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (

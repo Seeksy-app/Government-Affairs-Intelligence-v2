@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contact, NewsArticle } from "@shared/schema";
@@ -20,9 +20,12 @@ interface ClientStats {
   highPriorityContacts: number;
   totalNews: number;
   unreadNews: number;
+  trackedBillsCount: number;
 }
 
 export default function ClientDashboard() {
+  const [, navigate] = useLocation();
+
   const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
     queryKey: ["/api/stats"],
   });
@@ -39,8 +42,12 @@ export default function ClientDashboard() {
     queryKey: ["/api/kalshi/political-markets"],
   });
 
-  const StatCard = ({ title, value, icon: Icon, description }: { title: string; value: number | undefined; icon: any; description?: string }) => (
-    <Card>
+  const StatCard = ({ title, value, icon: Icon, description, href }: { title: string; value: number | undefined; icon: any; description?: string; href?: string }) => (
+    <Card
+      className={href ? "cursor-pointer hover-elevate transition-colors" : ""}
+      onClick={href ? () => navigate(href) : undefined}
+      data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
+    >
       <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -75,7 +82,6 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* Daily Brief Card */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -94,64 +100,90 @@ export default function ClientDashboard() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="p-3 rounded-lg bg-background/50 border">
+            <div
+              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              onClick={() => navigate("/bills")}
+              data-testid="brief-card-bills"
+            >
               <div className="flex items-center gap-2 text-sm font-medium mb-1">
                 <FileText className="h-4 w-4 text-blue-500" />
                 Bills to Watch
               </div>
-              <p className="text-2xl font-bold">3</p>
-              <p className="text-xs text-muted-foreground">Moving today</p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{stats?.trackedBillsCount ?? 0}</p>
+              )}
+              <p className="text-xs text-muted-foreground">Tracked bills</p>
             </div>
-            <div className="p-3 rounded-lg bg-background/50 border">
+            <div
+              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              onClick={() => navigate("/news")}
+              data-testid="brief-card-news"
+            >
               <div className="flex items-center gap-2 text-sm font-medium mb-1">
                 <AlertCircle className="h-4 w-4 text-orange-500" />
                 Breaking News
               </div>
-              <p className="text-2xl font-bold">{stats?.unreadNews || 0}</p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{stats?.unreadNews ?? 0}</p>
+              )}
               <p className="text-xs text-muted-foreground">Unread articles</p>
             </div>
-            <div className="p-3 rounded-lg bg-background/50 border">
+            <div
+              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              onClick={() => navigate("/predictions")}
+              data-testid="brief-card-markets"
+            >
               <div className="flex items-center gap-2 text-sm font-medium mb-1">
                 <BarChart3 className="h-4 w-4 text-green-500" />
                 Market Moves
               </div>
-              <p className="text-2xl font-bold">{predictionMarkets?.length || 0}</p>
+              {marketsLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{predictionMarkets?.length ?? 0}</p>
+              )}
               <p className="text-xs text-muted-foreground">Active predictions</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Total Contacts" 
           value={stats?.totalContacts} 
           icon={Users}
           description="In your network"
+          href="/contacts"
         />
         <StatCard 
           title="High Priority" 
           value={stats?.highPriorityContacts} 
           icon={Star}
           description="Key contacts"
+          href="/contacts"
         />
         <StatCard 
           title="News Articles" 
           value={stats?.totalNews} 
           icon={Newspaper}
           description="Aggregated today"
+          href="/news"
         />
         <StatCard 
           title="Unread" 
           value={stats?.unreadNews} 
           icon={Activity}
           description="Pending review"
+          href="/news"
         />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Contacts */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
@@ -178,8 +210,9 @@ export default function ClientDashboard() {
             ) : recentContacts && recentContacts.length > 0 ? (
               <div className="space-y-3">
                 {recentContacts.slice(0, 5).map((contact) => (
-                  <div
+                  <Link
                     key={contact.id}
+                    href="/contacts"
                     className="flex items-center gap-4 p-2 rounded-lg hover-elevate"
                     data-testid={`contact-item-${contact.id}`}
                   >
@@ -197,7 +230,7 @@ export default function ClientDashboard() {
                     {contact.priority && contact.priority >= 4 && (
                       <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -210,7 +243,6 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent News */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
@@ -234,10 +266,19 @@ export default function ClientDashboard() {
             ) : recentNews && recentNews.length > 0 ? (
               <div className="space-y-4">
                 {recentNews.slice(0, 5).map((article) => (
-                  <div
+                  <a
                     key={article.id}
-                    className="p-3 rounded-lg hover-elevate space-y-1"
+                    href={article.url || "#"}
+                    target={article.url ? "_blank" : undefined}
+                    rel={article.url ? "noopener noreferrer" : undefined}
+                    className="block p-3 rounded-lg hover-elevate space-y-1"
                     data-testid={`news-item-${article.id}`}
+                    onClick={(e) => {
+                      if (!article.url) {
+                        e.preventDefault();
+                        navigate("/news");
+                      }
+                    }}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium text-sm line-clamp-2">{article.title}</p>
@@ -249,12 +290,12 @@ export default function ClientDashboard() {
                       <span>{article.source || "Unknown source"}</span>
                       {article.category && (
                         <>
-                          <span>•</span>
+                          <span>&#183;</span>
                           <span className="capitalize">{article.category}</span>
                         </>
                       )}
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
             ) : (
@@ -268,7 +309,6 @@ export default function ClientDashboard() {
         </Card>
       </div>
 
-      {/* Prediction Markets Widget */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
@@ -294,8 +334,9 @@ export default function ClientDashboard() {
               {predictionMarkets.slice(0, 6).map((market) => (
                 <div
                   key={market.ticker}
-                  className="p-3 rounded-lg border hover-elevate"
+                  className="p-3 rounded-lg border hover-elevate cursor-pointer"
                   data-testid={`market-item-${market.ticker}`}
+                  onClick={() => navigate("/predictions")}
                 >
                   <p className="text-sm font-medium line-clamp-2 mb-2">
                     {market.title}

@@ -22,6 +22,7 @@ interface KalshiMarket {
   close_time: string;
   result?: string;
   category?: string;
+  image_url?: string | null;
 }
 
 type PoliticsSubFilter = "all" | "us-elections" | "primaries" | "trump" | "foreign" | "international" | "house" | "congress" | "scotus" | "local" | "recurring";
@@ -215,7 +216,14 @@ export default function PredictionsPage() {
     return null;
   };
 
-  const getMarketImage = (title: string) => {
+  const getMarketImage = (title: string, imageUrl?: string | null) => {
+    if (imageUrl) {
+      return (
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <img src={imageUrl} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        </div>
+      );
+    }
     const t = title.toLowerCase();
     if (t.includes("shutdown") || t.includes("government") || t.includes("funding")) {
       return (
@@ -312,7 +320,7 @@ export default function PredictionsPage() {
       >
         <CardContent className="p-4 flex-1 flex flex-col min-h-0">
           <div className="flex items-start gap-3 mb-3">
-            {getMarketImage(market.title)}
+            {getMarketImage(market.title, market.image_url)}
             <h3 className="font-medium text-sm leading-snug flex-1 min-w-0 pr-1" style={{ wordBreak: 'break-word' }}>
               {market.title}
             </h3>
@@ -585,7 +593,7 @@ export default function PredictionsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-start gap-3">
-              {selectedMarket && getMarketImage(selectedMarket.title)}
+              {selectedMarket && getMarketImage(selectedMarket.title, selectedMarket.image_url)}
               <div className="flex-1">
                 <Badge variant="outline" className="mb-2">{selectedMarket?.ticker}</Badge>
                 <h2 className="text-xl font-bold">{selectedMarket?.title}</h2>
