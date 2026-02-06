@@ -279,63 +279,29 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
     try {
       const urlToUse = customUrl || linkedInUrl;
       
-      // If user provided a LinkedIn URL, use it directly
-      if (urlToUse && urlToUse.includes("linkedin.com")) {
-        const response = await apiRequest("POST", "/api/research/linkedin", {
-          linkedinUrl: urlToUse
-        });
-        
-        const result = await response.json();
-        
-        if (result.success && result.data) {
-          setLinkedInData(result.data);
-          setShowLinkedInInput(false);
-          setLinkedInUrl("");
-          
-          const careerHistory = result.data.experiences?.map((exp: LinkedInExperience) => ({
-            title: exp.title,
-            organization: exp.company,
-            startYear: exp.starts_at?.year,
-            endYear: exp.ends_at?.year
-          })) || [];
-          
-          const education = result.data.education?.map((edu: LinkedInEducation) => ({
-            degree: edu.degree_name || 'Degree',
-            institution: edu.school,
-            year: edu.ends_at?.year
-          })) || [];
-          
-          onEnrichData({
-            careerHistory,
-            education,
-            bio: result.data.summary || staffer.bio
-          });
-          
-          toast({
-            title: "LinkedIn Research Complete",
-            description: `Found ${result.data.experiences?.length || 0} positions from LinkedIn profile`,
-          });
-          return;
-        }
+      const urlToSearch = urlToUse && urlToUse.includes("linkedin.com") ? urlToUse : null;
+      
+      let requestBody: Record<string, string>;
+      if (urlToSearch) {
+        requestBody = { linkedinUrl: urlToSearch };
+      } else {
+        const nameParts = staffer.name.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        requestBody = { firstName, lastName, organization: `Office of ${memberName}` };
       }
       
-      // Fallback to name-based search
-      const nameParts = staffer.name.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
-      const response = await apiRequest("POST", "/api/research/linkedin", {
-        firstName,
-        lastName,
-        organization: `Office of ${memberName}`
-      });
+      const response = await apiRequest("POST", "/api/research/linkedin", requestBody);
       
       const result = await response.json();
       
       if (result.success && result.data) {
         setLinkedInData(result.data);
+        if (urlToSearch) {
+          setShowLinkedInInput(false);
+          setLinkedInUrl("");
+        }
         
-        // Also update the staffer data with LinkedIn info
         const careerHistory = result.data.experiences?.map((exp: LinkedInExperience) => ({
           title: exp.title,
           organization: exp.company,

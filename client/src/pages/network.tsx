@@ -174,6 +174,16 @@ export default function NetworkPage() {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showMemberSearch, setShowMemberSearch] = useState(false);
   
+  // Person Search (PDL)
+  const [showPersonSearch, setShowPersonSearch] = useState(false);
+  const [personSearchCompany, setPersonSearchCompany] = useState("");
+  const [personSearchTitle, setPersonSearchTitle] = useState("");
+  const [personSearchLocation, setPersonSearchLocation] = useState("");
+  const [personSearchIndustry, setPersonSearchIndustry] = useState("");
+  const [personSearchSchool, setPersonSearchSchool] = useState("");
+  const [personSearchResults, setPersonSearchResults] = useState<any[]>([]);
+  const [personSearchLoading, setPersonSearchLoading] = useState(false);
+
   // Staffer lookup - initialize from localStorage based on saved member
   const [stafferInfo, setStafferInfo] = useState<string | null>(() => {
     try {
@@ -647,6 +657,39 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
   }, [selectedMember?.bioguideId]);
   
   // Clear staffer info when member changes
+  const handlePersonSearch = async () => {
+    if (!personSearchCompany && !personSearchTitle && !personSearchLocation && !personSearchIndustry && !personSearchSchool) {
+      toast({ title: "Search Criteria Required", description: "Please enter at least one search criterion.", variant: "default" });
+      return;
+    }
+    setPersonSearchLoading(true);
+    try {
+      const body: Record<string, any> = {};
+      if (personSearchCompany) body.company = personSearchCompany;
+      if (personSearchTitle) body.jobTitle = personSearchTitle;
+      if (personSearchLocation) body.location = personSearchLocation;
+      if (personSearchIndustry) body.industry = personSearchIndustry;
+      if (personSearchSchool) body.school = personSearchSchool;
+      body.limit = 25;
+
+      const res = await apiRequest("POST", "/api/research/people/search", body);
+      const result = await res.json();
+      if (result.success) {
+        setPersonSearchResults(result.data || []);
+        if (result.data?.length === 0) {
+          toast({ title: "No Results", description: "No people matched your criteria. Try broadening your search." });
+        }
+      } else {
+        toast({ title: "Search Error", description: result.message || "Search failed", variant: "destructive" });
+      }
+    } catch (error: any) {
+      console.error("Person search error:", error);
+      toast({ title: "Search Error", description: "Could not complete search. Please try again.", variant: "destructive" });
+    } finally {
+      setPersonSearchLoading(false);
+    }
+  };
+
   const handleSelectMember = (member: CongressMember | null) => {
     setSelectedMember(member);
     if (!member) {
@@ -1065,6 +1108,190 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                   <Landmark className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No members found</p>
                   <p className="text-sm">Try adjusting your filters or search term</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Person Search (PDL) */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <UserSearch className="h-5 w-5" />
+              People Search
+            </CardTitle>
+            <Button
+              variant={showPersonSearch ? "default" : "outline"}
+              onClick={() => setShowPersonSearch(!showPersonSearch)}
+              data-testid="button-toggle-person-search"
+            >
+              {showPersonSearch ? "Hide Search" : "Search People"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showPersonSearch && (
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Search across millions of professional profiles to find people by company, title, location, industry, or school.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Company</Label>
+                  <Input
+                    placeholder="e.g. Akin Gump, U.S. Senate"
+                    value={personSearchCompany}
+                    onChange={(e) => setPersonSearchCompany(e.target.value)}
+                    data-testid="input-person-search-company"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Job Title</Label>
+                  <Input
+                    placeholder="e.g. Chief of Staff, Lobbyist"
+                    value={personSearchTitle}
+                    onChange={(e) => setPersonSearchTitle(e.target.value)}
+                    data-testid="input-person-search-title"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Location</Label>
+                  <Input
+                    placeholder="e.g. Washington DC"
+                    value={personSearchLocation}
+                    onChange={(e) => setPersonSearchLocation(e.target.value)}
+                    data-testid="input-person-search-location"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Industry</Label>
+                  <Input
+                    placeholder="e.g. Government, Legal Services"
+                    value={personSearchIndustry}
+                    onChange={(e) => setPersonSearchIndustry(e.target.value)}
+                    data-testid="input-person-search-industry"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">School / University</Label>
+                  <Input
+                    placeholder="e.g. Georgetown, Harvard Law"
+                    value={personSearchSchool}
+                    onChange={(e) => setPersonSearchSchool(e.target.value)}
+                    data-testid="input-person-search-school"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handlePersonSearch}
+                    disabled={personSearchLoading}
+                    className="w-full"
+                    data-testid="button-run-person-search"
+                  >
+                    {personSearchLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        Search People
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {personSearchResults.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{personSearchResults.length} results found</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPersonSearchResults([])}
+                      data-testid="button-clear-person-results"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Clear
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {personSearchResults.map((person, idx) => (
+                      <div
+                        key={person.id || idx}
+                        className="p-3 border rounded-lg hover-elevate"
+                        data-testid={`person-result-${idx}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarFallback className="text-xs">
+                              {(person.firstName?.[0] || '')}
+                              {(person.lastName?.[0] || '')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{person.fullName}</p>
+                            {person.jobTitle && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {person.jobTitle}
+                                {person.jobCompany && ` at ${person.jobCompany}`}
+                              </p>
+                            )}
+                            {person.location && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <MapPin className="h-3 w-3" />
+                                {person.location}
+                              </p>
+                            )}
+                            {person.industry && (
+                              <Badge variant="secondary" className="text-xs mt-1">{person.industry}</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 shrink-0">
+                            {person.linkedinUrl && (
+                              <a
+                                href={person.linkedinUrl.startsWith('http') ? person.linkedinUrl : `https://${person.linkedinUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary"
+                                data-testid={`link-linkedin-${idx}`}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const nameParts = (person.fullName || '').split(' ');
+                                const firstName = nameParts[0] || '';
+                                const lastName = nameParts.slice(1).join(' ') || '';
+                                window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&title=${encodeURIComponent(person.jobTitle || '')}&organization=${encodeURIComponent(person.jobCompany || '')}`;
+                              }}
+                              data-testid={`button-add-person-contact-${idx}`}
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        {person.skills && person.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {person.skills.slice(0, 5).map((skill: string, sIdx: number) => (
+                              <Badge key={sIdx} variant="outline" className="text-xs">{skill}</Badge>
+                            ))}
+                            {person.skills.length > 5 && (
+                              <Badge variant="outline" className="text-xs">+{person.skills.length - 5} more</Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

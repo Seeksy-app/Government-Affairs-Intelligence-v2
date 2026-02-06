@@ -1974,8 +1974,8 @@ Format your response as a structured summary with clear sections.`;
 
       const { firstName, lastName, organization, linkedinUrl } = req.body;
       
-      if (!firstName || !lastName) {
-        return res.status(400).json({ message: "First and last name are required" });
+      if (!linkedinUrl && (!firstName || !lastName)) {
+        return res.status(400).json({ message: "Either a LinkedIn URL or first and last name are required" });
       }
 
       console.log("[LinkedIn Research] API key present:", !!process.env.PDL_API_KEY);
@@ -1997,14 +1997,12 @@ Format your response as a structured summary with clear sections.`;
       let profile;
       let profileUrl = linkedinUrl || null;
 
-      // If we already have a LinkedIn URL, just enrich it
       if (linkedinUrl) {
         console.log("[LinkedIn Research] Enriching existing URL:", linkedinUrl);
         profile = await enrichLinkedInProfile(linkedinUrl);
       } else {
-        // Otherwise, look up by name and then enrich
         console.log("[LinkedIn Research] Looking up profile for:", firstName, lastName);
-        const result = await researchLinkedInProfile(firstName, lastName, organization);
+        const result = await researchLinkedInProfile(firstName!, lastName!, organization);
         profile = result.profile;
         profileUrl = result.profileUrl;
         
@@ -2017,11 +2015,13 @@ Format your response as a structured summary with clear sections.`;
         }
       }
 
+      const displayName = firstName && lastName ? `${firstName} ${lastName}` : (profile?.full_name || "this person");
+
       if (!profile) {
         return res.json({
           success: false,
           error: "Profile not found",
-          message: `Could not find LinkedIn profile for ${firstName} ${lastName}`
+          message: `Could not find LinkedIn profile for ${displayName}`
         });
       }
 
