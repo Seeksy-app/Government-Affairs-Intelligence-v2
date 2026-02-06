@@ -2149,7 +2149,7 @@ Format your response as a structured summary with clear sections.`;
       });
     } catch (error: any) {
       console.error("[Person Search] ERROR:", error?.message || error);
-      res.status(500).json({ message: error?.message || "Failed to search for people" });
+      res.status(500).json({ success: false, message: error?.message || "Failed to search for people" });
     }
   });
 

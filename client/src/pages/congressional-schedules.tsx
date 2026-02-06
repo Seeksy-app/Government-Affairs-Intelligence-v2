@@ -143,7 +143,7 @@ export default function CongressionalSchedules() {
   });
 
   const { data: portals } = useQuery<ClientPortal[]>({
-    queryKey: ["/api/client/portals"],
+    queryKey: ["/api/portals"],
   });
 
   const { data: meetingAssignments, refetch: refetchAssignments } = useQuery<any[]>({
