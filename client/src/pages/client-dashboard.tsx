@@ -321,8 +321,8 @@ export default function ClientDashboard() {
         </CardHeader>
         <CardContent>
           {marketsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="p-3 rounded-lg border">
                   <Skeleton className="h-4 w-full mb-2" />
                   <Skeleton className="h-8 w-20" />
@@ -330,8 +330,8 @@ export default function ClientDashboard() {
               ))}
             </div>
           ) : predictionMarkets && predictionMarkets.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {predictionMarkets.slice(0, 6).map((market) => (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {predictionMarkets.slice(0, 4).map((market) => (
                 <div
                   key={market.ticker}
                   className="p-3 rounded-lg border hover-elevate cursor-pointer"
