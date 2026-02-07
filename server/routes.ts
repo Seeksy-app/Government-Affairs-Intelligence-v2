@@ -6484,5 +6484,136 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     });
   });
 
+  // ==================== RANK TRACKING ROUTES ====================
+
+  app.get("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const queries = await storage.getRankTrackedQueries(clientId);
+      res.json(queries);
+    } catch (error) {
+      console.error("Error getting rank tracked queries:", error);
+      res.status(500).json({ message: "Failed to get rank tracked queries" });
+    }
+  });
+
+  app.post("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const { query: searchQuery, targetDomain, device, location } = req.body;
+      if (!searchQuery || typeof searchQuery !== "string" || searchQuery.trim().length === 0) {
+        return res.status(400).json({ message: "Query is required" });
+      }
+      const validDevices = ["desktop", "mobile", "tablet"];
+      const safeDevice = validDevices.includes(device) ? device : "desktop";
+      const tracked = await storage.createRankTrackedQuery({
+        clientId,
+        query: searchQuery.trim(),
+        targetDomain: typeof targetDomain === "string" && targetDomain.trim() ? targetDomain.trim() : null,
+        device: safeDevice,
+        location: typeof location === "string" && location.trim() ? location.trim() : null,
+        isActive: true,
+      });
+      res.json(tracked);
+    } catch (error) {
+      console.error("Error creating rank tracked query:", error);
+      res.status(500).json({ message: "Failed to create rank tracked query" });
+    }
+  });
+
+  app.patch("/api/rank-tracking/queries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const existing = await storage.getRankTrackedQuery(req.params.id);
+      if (!existing || existing.clientId !== clientId) {
+        return res.status(404).json({ message: "Tracked query not found" });
+      }
+      const allowedFields: Record<string, any> = {};
+      if (req.body.query && typeof req.body.query === "string") allowedFields.query = req.body.query.trim();
+      if (req.body.targetDomain !== undefined) allowedFields.targetDomain = typeof req.body.targetDomain === "string" && req.body.targetDomain.trim() ? req.body.targetDomain.trim() : null;
+      if (req.body.device) {
+        const validDevices = ["desktop", "mobile", "tablet"];
+        if (validDevices.includes(req.body.device)) allowedFields.device = req.body.device;
+      }
+      if (req.body.location !== undefined) allowedFields.location = typeof req.body.location === "string" && req.body.location.trim() ? req.body.location.trim() : null;
+      if (req.body.isActive !== undefined) allowedFields.isActive = Boolean(req.body.isActive);
+      const updated = await storage.updateRankTrackedQuery(req.params.id, allowedFields);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating rank tracked query:", error);
+      res.status(500).json({ message: "Failed to update rank tracked query" });
+    }
+  });
+
+  app.delete("/api/rank-tracking/queries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const existing = await storage.getRankTrackedQuery(req.params.id);
+      if (!existing || existing.clientId !== clientId) {
+        return res.status(404).json({ message: "Tracked query not found" });
+      }
+      await storage.deleteRankTrackedQuery(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting rank tracked query:", error);
+      res.status(500).json({ message: "Failed to delete rank tracked query" });
+    }
+  });
+
+  app.get("/api/rank-tracking/results/:queryId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const existing = await storage.getRankTrackedQuery(req.params.queryId);
+      if (!existing || existing.clientId !== clientId) {
+        return res.status(404).json({ message: "Tracked query not found" });
+      }
+      const results = await storage.getRankTrackingResults(req.params.queryId);
+      res.json(results);
+    } catch (error) {
+      console.error("Error getting rank results:", error);
+      res.status(500).json({ message: "Failed to get rank results" });
+    }
+  });
+
+  app.post("/api/rank-tracking/check/:queryId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (req as any).clientId;
+      const tracked = await storage.getRankTrackedQuery(req.params.queryId);
+      if (!tracked || tracked.clientId !== clientId) {
+        return res.status(404).json({ message: "Tracked query not found" });
+      }
+
+      const { checkRankings } = await import("./services/searchapi-rank-tracking");
+      const rankings = await checkRankings(tracked.query, {
+        device: tracked.device || "desktop",
+        location: tracked.location || undefined,
+      });
+
+      const resultsToStore = rankings.map((r) => ({
+        queryId: tracked.id,
+        clientId,
+        position: r.position,
+        title: r.title,
+        link: r.link,
+        domain: r.domain,
+        snippet: r.snippet,
+      }));
+
+      const stored = await storage.createRankTrackingResults(resultsToStore);
+      await storage.updateRankTrackedQueryLastChecked(tracked.id);
+
+      res.json({
+        results: stored,
+        total: rankings.length,
+        targetPosition: tracked.targetDomain
+          ? rankings.find((r) => r.domain?.includes(tracked.targetDomain!))?.position || null
+          : null,
+      });
+    } catch (error: any) {
+      console.error("Error checking rankings:", error);
+      res.status(500).json({ message: error.message || "Failed to check rankings" });
+    }
+  });
+
   return httpServer;
 }

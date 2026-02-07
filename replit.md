@@ -36,6 +36,7 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Influencer Tracking**: Track influencers across multiple platforms (Instagram, YouTube, TikTok, Twitter, Twitch, OnlyFans) with profile enrichment and post tracking.
 - **Organization Tracking**: Search, enrich, and track lobbying firms, PACs, think tanks, government agencies, and political organizations using People Data Labs Company Enrichment API. Auto-classifies org type, stores enriched data (industry, employee count, HQ, etc.), supports key people finder via PDL Person Search, and AI-powered intelligence reports via Perplexity. Route: `/organizations`. Schema: `political_organizations` table.
 - **Client & Matter Management**: Manage sub-client matters with isolated research folders and track customer relationships with Matter assignment.
+- **Google Rank Tracking**: Monitor search rankings using SearchAPI.io's Google Rank Tracking API. Track queries with configurable device (desktop/mobile/tablet) and location, highlight target domain positions, and store historical ranking data. Route: `/rank-tracking`. Schema: `rank_tracked_queries`, `rank_tracking_results` tables. Service: `server/services/searchapi-rank-tracking.ts`.
 
 ### UI/UX Decisions
 - Modern and responsive design using Shadcn/ui and Tailwind CSS.
@@ -51,3 +52,4 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **People Data Labs (PDL)**: For enriching staffer profiles with LinkedIn career data, company enrichment, and person search capabilities. Provides career history, trajectory analysis, skills, education, and organizational intelligence on lobbying firms, PACs, and think tanks.
 - **OpenAI API**: For AI research capabilities (via Replit AI Integrations).
 - **Influencers Club API**: For tracking and enriching data on social media influencers.
+- **SearchAPI.io**: For Google Rank Tracking API — monitors search result rankings with device/location targeting.

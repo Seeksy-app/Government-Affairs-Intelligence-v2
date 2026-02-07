@@ -81,6 +81,7 @@ export function AppSidebar() {
       { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
       { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
       { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
+      { title: "Rank Tracking", url: "/rank-tracking", icon: Search, tourId: "rank-tracking" },
     ],
   };
 

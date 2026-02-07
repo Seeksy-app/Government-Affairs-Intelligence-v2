@@ -1142,3 +1142,46 @@ export const insertCongressionalStaffDirectorySchema = createInsertSchema(congre
 
 export type InsertCongressionalStaffDirectory = z.infer<typeof insertCongressionalStaffDirectorySchema>;
 export type CongressionalStaffDirectory = typeof congressionalStaffDirectory.$inferSelect;
+
+// Google Rank Tracking - queries to track in Google search rankings
+export const rankTrackedQueries = pgTable("rank_tracked_queries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  query: text("query").notNull(),
+  targetDomain: text("target_domain"),
+  device: text("device").default("desktop"),
+  location: text("location"),
+  isActive: boolean("is_active").default(true),
+  lastCheckedAt: timestamp("last_checked_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertRankTrackedQuerySchema = createInsertSchema(rankTrackedQueries).omit({
+  id: true,
+  lastCheckedAt: true,
+  createdAt: true,
+});
+
+export type InsertRankTrackedQuery = z.infer<typeof insertRankTrackedQuerySchema>;
+export type RankTrackedQuery = typeof rankTrackedQueries.$inferSelect;
+
+// Google Rank Tracking Results - stores the rank check results
+export const rankTrackingResults = pgTable("rank_tracking_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  queryId: varchar("query_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  position: integer("position"),
+  title: text("title"),
+  link: text("link"),
+  domain: text("domain"),
+  snippet: text("snippet"),
+  checkedAt: timestamp("checked_at").defaultNow(),
+});
+
+export const insertRankTrackingResultSchema = createInsertSchema(rankTrackingResults).omit({
+  id: true,
+  checkedAt: true,
+});
+
+export type InsertRankTrackingResult = z.infer<typeof insertRankTrackingResultSchema>;
+export type RankTrackingResult = typeof rankTrackingResults.$inferSelect;

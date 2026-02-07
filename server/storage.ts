@@ -139,6 +139,12 @@ import {
   customerPortalAssignments,
   type CustomerPortalAssignment,
   type InsertCustomerPortalAssignment,
+  rankTrackedQueries,
+  rankTrackingResults,
+  type RankTrackedQuery,
+  type InsertRankTrackedQuery,
+  type RankTrackingResult,
+  type InsertRankTrackingResult,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -372,6 +378,16 @@ export interface IStorage {
   createCustomerPortalAssignment(data: InsertCustomerPortalAssignment): Promise<CustomerPortalAssignment>;
   deleteCustomerPortalAssignment(id: string): Promise<void>;
   deleteCustomerPortalAssignmentByIds(customerId: string, portalId: string): Promise<void>;
+
+  // Rank Tracking
+  getRankTrackedQueries(clientId: string): Promise<RankTrackedQuery[]>;
+  getRankTrackedQuery(id: string): Promise<RankTrackedQuery | undefined>;
+  createRankTrackedQuery(data: InsertRankTrackedQuery): Promise<RankTrackedQuery>;
+  updateRankTrackedQuery(id: string, data: Partial<InsertRankTrackedQuery>): Promise<RankTrackedQuery | undefined>;
+  deleteRankTrackedQuery(id: string): Promise<void>;
+  updateRankTrackedQueryLastChecked(id: string): Promise<void>;
+  getRankTrackingResults(queryId: string): Promise<RankTrackingResult[]>;
+  createRankTrackingResults(results: InsertRankTrackingResult[]): Promise<RankTrackingResult[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1793,6 +1809,48 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(committeeMeetingPortalAssignments)
       .where(eq(committeeMeetingPortalAssignments.portalId, portalId))
       .orderBy(desc(committeeMeetingPortalAssignments.meetingDate));
+  }
+
+  // Rank Tracking
+  async getRankTrackedQueries(clientId: string): Promise<RankTrackedQuery[]> {
+    return db.select().from(rankTrackedQueries)
+      .where(eq(rankTrackedQueries.clientId, clientId))
+      .orderBy(desc(rankTrackedQueries.createdAt));
+  }
+
+  async getRankTrackedQuery(id: string): Promise<RankTrackedQuery | undefined> {
+    const [query] = await db.select().from(rankTrackedQueries).where(eq(rankTrackedQueries.id, id));
+    return query;
+  }
+
+  async createRankTrackedQuery(data: InsertRankTrackedQuery): Promise<RankTrackedQuery> {
+    const [query] = await db.insert(rankTrackedQueries).values(data).returning();
+    return query;
+  }
+
+  async updateRankTrackedQuery(id: string, data: Partial<InsertRankTrackedQuery>): Promise<RankTrackedQuery | undefined> {
+    const [query] = await db.update(rankTrackedQueries).set(data).where(eq(rankTrackedQueries.id, id)).returning();
+    return query;
+  }
+
+  async deleteRankTrackedQuery(id: string): Promise<void> {
+    await db.delete(rankTrackingResults).where(eq(rankTrackingResults.queryId, id));
+    await db.delete(rankTrackedQueries).where(eq(rankTrackedQueries.id, id));
+  }
+
+  async updateRankTrackedQueryLastChecked(id: string): Promise<void> {
+    await db.update(rankTrackedQueries).set({ lastCheckedAt: new Date() }).where(eq(rankTrackedQueries.id, id));
+  }
+
+  async getRankTrackingResults(queryId: string): Promise<RankTrackingResult[]> {
+    return db.select().from(rankTrackingResults)
+      .where(eq(rankTrackingResults.queryId, queryId))
+      .orderBy(desc(rankTrackingResults.checkedAt));
+  }
+
+  async createRankTrackingResults(results: InsertRankTrackingResult[]): Promise<RankTrackingResult[]> {
+    if (results.length === 0) return [];
+    return db.insert(rankTrackingResults).values(results).returning();
   }
 }
 
