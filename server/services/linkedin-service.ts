@@ -759,9 +759,12 @@ export async function searchPeople(
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("PDL person search error:", error);
-      throw new Error(`Person search failed: ${error}`);
+      const errorText = await response.text();
+      console.error("PDL person search error:", errorText);
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error(`Person search failed: ${errorText}`);
     }
 
     const result = await response.json();

@@ -1167,14 +1167,14 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 <Label className="text-xs text-muted-foreground">Quick Searches</Label>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: "Lobbyists in DC", company: "", title: "Lobbyist", location: "Washington DC", industry: "Government Administration", school: "" },
-                    { label: "Government Affairs", company: "", title: "Government Affairs", location: "Washington DC", industry: "", school: "" },
-                    { label: "PAC Directors", company: "", title: "PAC Director", location: "", industry: "Political Organizations", school: "" },
-                    { label: "Chiefs of Staff", company: "", title: "Chief of Staff", location: "Washington DC", industry: "", school: "" },
-                    { label: "Policy Advisors", company: "", title: "Policy Advisor", location: "Washington DC", industry: "", school: "" },
-                    { label: "Legislative Directors", company: "", title: "Legislative Director", location: "", industry: "Government Administration", school: "" },
-                    { label: "Think Tank Researchers", company: "", title: "Research", location: "Washington DC", industry: "Think Tanks", school: "" },
-                    { label: "Campaign Managers", company: "", title: "Campaign Manager", location: "", industry: "", school: "" },
+                    { label: "Lobbyists in DC", company: "", title: "lobbyist", location: "washington", industry: "", school: "" },
+                    { label: "Government Affairs", company: "", title: "government affairs", location: "washington", industry: "", school: "" },
+                    { label: "PAC Directors", company: "", title: "director", location: "", industry: "political organizations", school: "" },
+                    { label: "Chiefs of Staff", company: "united states senate", title: "chief of staff", location: "", industry: "", school: "" },
+                    { label: "Policy Advisors", company: "", title: "policy advisor", location: "washington", industry: "", school: "" },
+                    { label: "Legislative Directors", company: "", title: "legislative director", location: "washington", industry: "", school: "" },
+                    { label: "Think Tank Staff", company: "", title: "", location: "washington", industry: "think tanks", school: "" },
+                    { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political organizations", school: "" },
                   ].map((preset) => (
                     <Button
                       key={preset.label}
