@@ -1163,6 +1163,61 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
               <p className="text-sm text-muted-foreground">
                 Search across millions of professional profiles to find people by company, title, location, industry, or school.
               </p>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Quick Searches</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Lobbyists in DC", company: "", title: "Lobbyist", location: "Washington DC", industry: "Government Administration", school: "" },
+                    { label: "Government Affairs", company: "", title: "Government Affairs", location: "Washington DC", industry: "", school: "" },
+                    { label: "PAC Directors", company: "", title: "PAC Director", location: "", industry: "Political Organizations", school: "" },
+                    { label: "Chiefs of Staff", company: "", title: "Chief of Staff", location: "Washington DC", industry: "", school: "" },
+                    { label: "Policy Advisors", company: "", title: "Policy Advisor", location: "Washington DC", industry: "", school: "" },
+                    { label: "Legislative Directors", company: "", title: "Legislative Director", location: "", industry: "Government Administration", school: "" },
+                    { label: "Think Tank Researchers", company: "", title: "Research", location: "Washington DC", industry: "Think Tanks", school: "" },
+                    { label: "Campaign Managers", company: "", title: "Campaign Manager", location: "", industry: "", school: "" },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.label}
+                      variant="outline"
+                      size="sm"
+                      disabled={personSearchLoading}
+                      onClick={async () => {
+                        setPersonSearchCompany(preset.company);
+                        setPersonSearchTitle(preset.title);
+                        setPersonSearchLocation(preset.location);
+                        setPersonSearchIndustry(preset.industry);
+                        setPersonSearchSchool(preset.school);
+                        setPersonSearchLoading(true);
+                        try {
+                          const body: Record<string, any> = { limit: 25 };
+                          if (preset.company) body.company = preset.company;
+                          if (preset.title) body.jobTitle = preset.title;
+                          if (preset.location) body.location = preset.location;
+                          if (preset.industry) body.industry = preset.industry;
+                          if (preset.school) body.school = preset.school;
+                          const res = await apiRequest("POST", "/api/research/people/search", body);
+                          const result = await res.json();
+                          if (result.success) {
+                            setPersonSearchResults(result.data || []);
+                            if (result.data?.length === 0) {
+                              toast({ title: "No Results", description: "No people matched this preset. Try customizing the fields." });
+                            }
+                          } else {
+                            toast({ title: "Search Error", description: result.message || "Search failed", variant: "destructive" });
+                          }
+                        } catch (error: any) {
+                          toast({ title: "Search Failed", description: error.message || "Failed to search", variant: "destructive" });
+                        } finally {
+                          setPersonSearchLoading(false);
+                        }
+                      }}
+                      data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Company</Label>
