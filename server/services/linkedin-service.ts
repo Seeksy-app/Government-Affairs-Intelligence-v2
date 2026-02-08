@@ -679,6 +679,7 @@ export interface PersonSearchResult {
   firstName?: string;
   lastName?: string;
   linkedinUrl?: string;
+  profilePicUrl?: string;
   jobTitle?: string;
   jobCompany?: string;
   location?: string;
@@ -779,6 +780,7 @@ export async function searchPeople(
       firstName: person.first_name,
       lastName: person.last_name,
       linkedinUrl: person.linkedin_url,
+      profilePicUrl: person.profile_pic_url || null,
       jobTitle: person.job_title,
       jobCompany: person.job_company_name,
       location: person.location_name,

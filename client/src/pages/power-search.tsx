@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -51,6 +51,7 @@ interface PersonResult {
   firstName?: string;
   lastName?: string;
   linkedinUrl?: string;
+  profilePicUrl?: string;
   jobTitle?: string;
   jobCompany?: string;
   location?: string;
@@ -441,6 +442,9 @@ export default function PowerSearchPage() {
                       >
                         <div className="flex items-start gap-3">
                           <Avatar className="h-10 w-10 shrink-0">
+                            {person.profilePicUrl && (
+                              <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
+                            )}
                             <AvatarFallback className="text-xs">
                               {(person.firstName?.[0] || '')}
                               {(person.lastName?.[0] || '')}
@@ -861,6 +865,9 @@ export default function PowerSearchPage() {
                                 {peopleResults.map((person, idx) => (
                                   <div key={person.id || idx} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`org-person-${idx}`}>
                                     <Avatar className="h-8 w-8">
+                                      {person.profilePicUrl && (
+                                        <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
+                                      )}
                                       <AvatarFallback className="text-xs">
                                         {(person.firstName?.[0] || '')}{(person.lastName?.[0] || '')}
                                       </AvatarFallback>
