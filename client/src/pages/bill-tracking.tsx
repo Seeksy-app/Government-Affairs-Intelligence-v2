@@ -26,7 +26,9 @@ const CONGRESS_SESSIONS = [
   { congress: 111, years: "2009-2011", label: "111th Congress (2009-2011)" },
   { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
 ];
-import type { TrackedBill, BillChangeHistory, BillTrackingAlert, Matter } from "@shared/schema";
+import type { TrackedBill, BillChangeHistory, BillTrackingAlert, Matter, ClientPortal, PortalTrackedBill } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Share2, Users } from "lucide-react";
 
 interface BillSearchResult {
   congress: number;
@@ -58,6 +60,47 @@ export default function BillTrackingPage() {
 
   const { data: matters } = useQuery<Matter[]>({
     queryKey: ["/api/matters"],
+  });
+
+  const { data: portals } = useQuery<ClientPortal[]>({
+    queryKey: ["/api/portals"],
+  });
+
+  const { data: selectedBillPortals } = useQuery<PortalTrackedBill[]>({
+    queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"],
+    queryFn: async () => {
+      if (!selectedBill) return [];
+      const res = await apiRequest("GET", `/api/tracked-bills/${selectedBill.id}/portals`);
+      return res.json();
+    },
+    enabled: !!selectedBill,
+  });
+
+  const shareBillMutation = useMutation({
+    mutationFn: async ({ billId, portalId }: { billId: string; portalId: string }) => {
+      const res = await apiRequest("POST", `/api/tracked-bills/${billId}/portals`, { portalId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Bill Shared", description: "Bill is now visible in the client portal." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Share", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const unshareBillMutation = useMutation({
+    mutationFn: async ({ billId, assignmentId }: { billId: string; assignmentId: string }) => {
+      await apiRequest("DELETE", `/api/tracked-bills/${billId}/portals/${assignmentId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Bill Unshared", description: "Bill removed from client portal." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Unshare", description: error.message, variant: "destructive" });
+    },
   });
 
   const assignMatterMutation = useMutation({
@@ -472,6 +515,49 @@ export default function BillTrackingPage() {
                 </Select>
               </div>
               
+              <div className="border-t pt-4">
+                <Label className="flex flex-col gap-1 mb-3">
+                  <span className="flex items-center gap-1">
+                    <Share2 className="w-4 h-4" />
+                    Share with Client Portals
+                  </span>
+                  <span className="text-xs text-muted-foreground font-normal">Make this bill visible to selected client portals</span>
+                </Label>
+                {portals && portals.length > 0 ? (
+                  <div className="space-y-2">
+                    {portals.map((portal) => {
+                      const assignment = selectedBillPortals?.find(a => a.portalId === portal.id);
+                      const isShared = !!assignment;
+                      return (
+                        <div key={portal.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
+                          <Checkbox
+                            id={`portal-${portal.id}`}
+                            checked={isShared}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                shareBillMutation.mutate({ billId: selectedBill.id, portalId: portal.id });
+                              } else if (assignment) {
+                                unshareBillMutation.mutate({ billId: selectedBill.id, assignmentId: assignment.id });
+                              }
+                            }}
+                            data-testid={`checkbox-portal-${portal.id}`}
+                          />
+                          <Label htmlFor={`portal-${portal.id}`} className="flex-1 cursor-pointer">
+                            <span className="text-sm">{portal.name}</span>
+                            {portal.description && (
+                              <span className="text-xs text-muted-foreground block">{portal.description}</span>
+                            )}
+                          </Label>
+                          {isShared && <Badge variant="secondary" className="text-xs">Shared</Badge>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No client portals configured yet.</p>
+                )}
+              </div>
+
               <div className="border-t pt-4">
                 <h4 className="text-sm font-medium mb-3">Alert Settings</h4>
               </div>

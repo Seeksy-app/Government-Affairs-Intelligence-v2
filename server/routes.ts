@@ -3275,19 +3275,26 @@ Format your response as a structured summary with clear sections.`;
         return res.status(404).json({ message: "Portal not found" });
       }
 
-      // Get tracked bills for this client
-      const bills = await storage.getTrackedBills(client.id);
+      // Get only bills shared with this specific portal
+      const portalBillAssignments = await storage.getPortalTrackedBills(portal.id);
+      const allBills = await storage.getTrackedBills(client.id);
+      const assignedBillIds = new Set(portalBillAssignments.map(a => a.trackedBillId));
+      const sharedBills = allBills.filter(b => assignedBillIds.has(b.id));
       
-      res.json(bills.slice(0, 10).map(b => ({
+      res.json(sharedBills.map(b => ({
         id: b.id,
-        billId: b.billId,
+        congress: b.congress,
+        billType: b.billType,
+        billNumber: b.billNumber,
         title: b.title,
         status: b.status,
         sponsor: b.sponsor,
-        chamber: b.chamber,
-        congress: b.congress,
-        priority: b.priority,
-        lastActionDate: b.lastActionDate,
+        sponsorParty: b.sponsorParty,
+        sponsorState: b.sponsorState,
+        policyArea: b.policyArea,
+        latestAction: b.latestAction,
+        latestActionDate: b.latestActionDate,
+        introducedDate: b.introducedDate,
       })));
     } catch (error) {
       console.error("Error getting portal bills:", error);
@@ -3341,8 +3348,8 @@ Format your response as a structured summary with clear sections.`;
       // Get assigned feeds
       const clientFeeds = await storage.getClientRssFeeds(client.id);
       
-      // Get tracked bills
-      const bills = await storage.getTrackedBills(client.id);
+      // Get tracked bills shared with this portal
+      const portalBills = await storage.getPortalTrackedBills(portal.id);
       
       // Get recent articles count
       const articles = await storage.getNewsArticles(client.id);
@@ -3355,9 +3362,9 @@ Format your response as a structured summary with clear sections.`;
       res.json({
         totalMatters: portalMatters.length,
         totalFeeds: clientFeeds.length,
-        totalBills: bills.length,
+        totalBills: portalBills.length,
         recentArticles: recentArticles.length,
-        highPriorityBills: bills.filter(b => b.priority === "high").length,
+        highPriorityBills: 0,
       });
     } catch (error) {
       console.error("Error getting portal stats:", error);
@@ -4325,6 +4332,76 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     } catch (error) {
       console.error("Error updating bill alerts:", error);
       res.status(500).json({ message: "Failed to update bill alerts" });
+    }
+  });
+
+  // ========== Portal Bill Sharing ==========
+
+  // Get portals a bill is shared with
+  app.get("/api/tracked-bills/:id/portals", isAuthenticated, async (req, res) => {
+    try {
+      const assignments = await storage.getPortalTrackedBillsByBill(req.params.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error getting bill portal assignments:", error);
+      res.status(500).json({ message: "Failed to get portal assignments" });
+    }
+  });
+
+  // Share a bill with a portal
+  app.post("/api/tracked-bills/:id/portals", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      const { portalId } = req.body;
+      if (!portalId) return res.status(400).json({ message: "portalId is required" });
+
+      // Verify the bill belongs to this client
+      const bill = await storage.getTrackedBill(req.params.id);
+      if (!bill || bill.clientId !== clientId) {
+        return res.status(403).json({ message: "Bill not found or unauthorized" });
+      }
+
+      // Verify the portal belongs to this client
+      const portal = await storage.getClientPortal(portalId);
+      if (!portal || portal.clientId !== clientId) {
+        return res.status(403).json({ message: "Portal not found or unauthorized" });
+      }
+
+      const existing = await storage.getPortalTrackedBills(portalId);
+      if (existing.some(a => a.trackedBillId === req.params.id)) {
+        return res.status(400).json({ message: "Bill already shared with this portal" });
+      }
+
+      const assignment = await storage.createPortalTrackedBill({
+        portalId,
+        trackedBillId: req.params.id,
+      });
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error sharing bill with portal:", error);
+      res.status(500).json({ message: "Failed to share bill" });
+    }
+  });
+
+  // Unshare a bill from a portal
+  app.delete("/api/tracked-bills/:id/portals/:assignmentId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+
+      // Verify the bill belongs to this client before removing assignment
+      const bill = await storage.getTrackedBill(req.params.id);
+      if (!bill || bill.clientId !== clientId) {
+        return res.status(403).json({ message: "Bill not found or unauthorized" });
+      }
+
+      await storage.deletePortalTrackedBill(req.params.assignmentId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error unsharing bill from portal:", error);
+      res.status(500).json({ message: "Failed to unshare bill" });
     }
   });
 

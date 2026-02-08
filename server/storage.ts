@@ -25,6 +25,7 @@ import {
   securityControls,
   clientPortals,
   portalMatterAccess,
+  portalTrackedBills,
   portalConversations,
   portalMessages,
   youtubeWatchList,
@@ -93,6 +94,8 @@ import {
   type InsertClientPortal,
   type PortalMatterAccess,
   type InsertPortalMatterAccess,
+  type PortalTrackedBill,
+  type InsertPortalTrackedBill,
   type PortalConversation,
   type InsertPortalConversation,
   type PortalMessage,
@@ -267,6 +270,13 @@ export interface IStorage {
   createPortalMatterAccess(access: InsertPortalMatterAccess): Promise<PortalMatterAccess>;
   deletePortalMatterAccess(id: string): Promise<void>;
   deletePortalMatterAccessByPortal(portalId: string): Promise<void>;
+
+  // Portal Tracked Bills
+  getPortalTrackedBills(portalId: string): Promise<PortalTrackedBill[]>;
+  getPortalTrackedBillsByBill(trackedBillId: string): Promise<PortalTrackedBill[]>;
+  createPortalTrackedBill(data: InsertPortalTrackedBill): Promise<PortalTrackedBill>;
+  deletePortalTrackedBill(id: string): Promise<void>;
+  deletePortalTrackedBillsByPortal(portalId: string): Promise<void>;
 
   // YouTube Watch List
   getYoutubeWatchList(clientId: string): Promise<YoutubeWatchList[]>;
@@ -886,6 +896,28 @@ export class DatabaseStorage implements IStorage {
 
   async deletePortalMatterAccessByPortal(portalId: string): Promise<void> {
     await db.delete(portalMatterAccess).where(eq(portalMatterAccess.portalId, portalId));
+  }
+
+  // Portal Tracked Bills
+  async getPortalTrackedBills(portalId: string): Promise<PortalTrackedBill[]> {
+    return db.select().from(portalTrackedBills).where(eq(portalTrackedBills.portalId, portalId));
+  }
+
+  async getPortalTrackedBillsByBill(trackedBillId: string): Promise<PortalTrackedBill[]> {
+    return db.select().from(portalTrackedBills).where(eq(portalTrackedBills.trackedBillId, trackedBillId));
+  }
+
+  async createPortalTrackedBill(data: InsertPortalTrackedBill): Promise<PortalTrackedBill> {
+    const [result] = await db.insert(portalTrackedBills).values(data).returning();
+    return result;
+  }
+
+  async deletePortalTrackedBill(id: string): Promise<void> {
+    await db.delete(portalTrackedBills).where(eq(portalTrackedBills.id, id));
+  }
+
+  async deletePortalTrackedBillsByPortal(portalId: string): Promise<void> {
+    await db.delete(portalTrackedBills).where(eq(portalTrackedBills.portalId, portalId));
   }
 
   // Portal Conversations (for Firm's Client AI chat)
