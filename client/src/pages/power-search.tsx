@@ -308,6 +308,10 @@ export default function PowerSearchPage() {
                     { label: "Legislative Directors", company: "", title: "legislative director", location: "washington", industry: "", school: "" },
                     { label: "Think Tank Staff", company: "", title: "", location: "washington", industry: "think tanks", school: "" },
                     { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political organizations", school: "" },
+                    { label: "City Managers", company: "", title: "city manager", location: "", industry: "government administration", school: "" },
+                    { label: "County Administrators", company: "", title: "county administrator", location: "", industry: "government administration", school: "" },
+                    { label: "State Grant Officers", company: "", title: "grants", location: "", industry: "government administration", school: "" },
+                    { label: "Municipal Finance Directors", company: "", title: "finance director", location: "", industry: "government administration", school: "" },
                   ].map((preset) => (
                     <Button
                       key={preset.label}

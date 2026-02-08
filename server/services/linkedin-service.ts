@@ -774,18 +774,23 @@ export async function searchPeople(
       return [];
     }
 
+    const titleCase = (str: string | null | undefined): string | undefined => {
+      if (!str) return undefined;
+      return str.replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
     return result.data.map((person: any) => ({
       id: person.id,
-      fullName: person.full_name || `${person.first_name || ""} ${person.last_name || ""}`.trim(),
-      firstName: person.first_name,
-      lastName: person.last_name,
+      fullName: titleCase(person.full_name || `${person.first_name || ""} ${person.last_name || ""}`.trim()) || "",
+      firstName: titleCase(person.first_name),
+      lastName: titleCase(person.last_name),
       linkedinUrl: person.linkedin_url,
       profilePicUrl: person.profile_pic_url || null,
-      jobTitle: person.job_title,
-      jobCompany: person.job_company_name,
-      location: person.location_name,
-      industry: person.industry,
-      skills: person.skills || [],
+      jobTitle: titleCase(person.job_title),
+      jobCompany: titleCase(person.job_company_name),
+      location: titleCase(person.location_name),
+      industry: titleCase(person.industry),
+      skills: (person.skills || []).map((s: string) => titleCase(s) || s),
       matchScore: person.match_score,
     }));
   } catch (error) {
