@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -75,7 +75,7 @@ export function AppSidebar() {
     icon: TrendingUp,
     items: [
       { title: "Network", url: "/network", icon: Network, tourId: "network" },
-      { title: "Organizations", url: "/organizations", icon: Building2, tourId: "organizations" },
+      { title: "Power Search", url: "/power-search", icon: Zap, tourId: "power-search" },
       { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
       { title: "Schedules", url: "/schedules", icon: Calendar, tourId: "schedules" },
       { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
