@@ -578,6 +578,22 @@ export const insertPortalMatterAccessSchema = createInsertSchema(portalMatterAcc
 export type InsertPortalMatterAccess = z.infer<typeof insertPortalMatterAccessSchema>;
 export type PortalMatterAccess = typeof portalMatterAccess.$inferSelect;
 
+// Portal tracked bill access (which bills are shared with which portal)
+export const portalTrackedBills = pgTable("portal_tracked_bills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  portalId: varchar("portal_id").notNull(),
+  trackedBillId: varchar("tracked_bill_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPortalTrackedBillSchema = createInsertSchema(portalTrackedBills).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPortalTrackedBill = z.infer<typeof insertPortalTrackedBillSchema>;
+export type PortalTrackedBill = typeof portalTrackedBills.$inferSelect;
+
 // Portal AI Conversations (for Firm's Client portals)
 export const portalConversations = pgTable("portal_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
