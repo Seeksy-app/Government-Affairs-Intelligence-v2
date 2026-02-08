@@ -181,7 +181,47 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
   const [companyData, setCompanyData] = useState<Record<string, CompanyData>>({});
   const [showLinkedInInput, setShowLinkedInInput] = useState(false);
   const [linkedInUrl, setLinkedInUrl] = useState("");
+  const [isFindingLinkedIn, setIsFindingLinkedIn] = useState(false);
   const { toast } = useToast();
+
+  const handleFindLinkedIn = async () => {
+    setIsFindingLinkedIn(true);
+    try {
+      const nameParts = staffer.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const res = await apiRequest("POST", "/api/research/people/search", {
+        jobTitle: staffer.title || '',
+        company: memberName || '',
+        limit: 5,
+      });
+      const result = await res.json();
+      if (result.success && result.data?.length > 0) {
+        const nameToMatch = staffer.name.toLowerCase();
+        const match = result.data.find((p: any) =>
+          p.fullName?.toLowerCase() === nameToMatch ||
+          (p.firstName?.toLowerCase() === firstName.toLowerCase() && p.lastName?.toLowerCase() === lastName.toLowerCase())
+        );
+        if (match?.linkedinUrl) {
+          const url = match.linkedinUrl.startsWith('http') ? match.linkedinUrl : `https://${match.linkedinUrl}`;
+          setLinkedInUrl(url);
+          toast({ title: "LinkedIn Found", description: `Found LinkedIn profile for ${staffer.name}` });
+        } else if (result.data[0]?.linkedinUrl) {
+          const url = result.data[0].linkedinUrl.startsWith('http') ? result.data[0].linkedinUrl : `https://${result.data[0].linkedinUrl}`;
+          setLinkedInUrl(url);
+          toast({ title: "Possible Match", description: `Found a possible LinkedIn match: ${result.data[0].fullName}. Please verify before using.` });
+        } else {
+          toast({ title: "Not Found", description: "Could not find a LinkedIn profile. Try searching manually.", variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Not Found", description: "No results found. Try pasting the URL manually.", variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: "Search Failed", description: error.message || "Failed to search for LinkedIn profile", variant: "destructive" });
+    } finally {
+      setIsFindingLinkedIn(false);
+    }
+  };
 
   const handleCompanyResearch = async (companyName: string) => {
     if (companyData[companyName]) return; // Already researched
@@ -448,6 +488,25 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
                 <Search className="h-4 w-4" />
               )}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleFindLinkedIn}
+              disabled={isFindingLinkedIn || isLinkedInResearching}
+              data-testid="button-find-linkedin"
+            >
+              {isFindingLinkedIn ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Finding...
+                </>
+              ) : (
+                <>
+                  <Linkedin className="h-4 w-4 mr-1" />
+                  Find
+                </>
+              )}
+            </Button>
             <Button 
               size="sm" 
               variant="ghost"
@@ -461,7 +520,7 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Enter the staffer's LinkedIn profile URL for more accurate career data
+            Paste a LinkedIn URL or click "Find" to auto-search for their profile
           </p>
         </div>
       )}
