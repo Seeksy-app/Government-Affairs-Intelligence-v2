@@ -61,6 +61,7 @@ export function AppSidebar() {
     { title: "Users", url: "/admin/users", icon: Users, tourId: "admin-users" },
     { title: "Sources", url: "/sources", icon: Database, tourId: "admin-sources" },
     { title: "Knowledge Base", url: "/admin/kb", icon: Book, tourId: "admin-kb" },
+    { title: "Tech Stack", url: "/admin/tech", icon: Zap, tourId: "admin-tech" },
     { title: "Security", url: "/admin/security", icon: Lock, tourId: "admin-security" },
     { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
   ];

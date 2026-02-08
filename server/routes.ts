@@ -6561,6 +6561,135 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     });
   });
 
+  // ==================== TECH / API STATUS ROUTES ====================
+
+  app.get("/api/admin/tech/api-status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Super admin access required" });
+
+      const apis = [
+        {
+          name: "OpenAI (GPT-4.1)",
+          key: "AI_INTEGRATIONS_OPENAI_API_KEY",
+          configured: !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+          category: "ai",
+          description: "AI-powered research, content extraction, entity analysis, and structured data extraction",
+          docsUrl: "https://platform.openai.com/docs",
+        },
+        {
+          name: "Google Gemini (2.5 Flash)",
+          key: "AI_INTEGRATIONS_GEMINI_API_KEY",
+          configured: !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+          category: "ai",
+          description: "Fallback AI model for research queries and content generation",
+          docsUrl: "https://ai.google.dev/docs",
+        },
+        {
+          name: "Perplexity AI (Sonar)",
+          key: "PERPLEXITY_API_KEY",
+          configured: !!process.env.PERPLEXITY_API_KEY,
+          category: "ai",
+          description: "Staffer research, entity research, and real-time web-connected AI queries",
+          docsUrl: "https://docs.perplexity.ai",
+        },
+        {
+          name: "People Data Labs",
+          key: "PDL_API_KEY",
+          configured: !!process.env.PDL_API_KEY,
+          category: "data",
+          description: "LinkedIn career enrichment, people search, company enrichment, and organization intelligence",
+          docsUrl: "https://docs.peopledatalabs.com",
+        },
+        {
+          name: "Congress.gov API",
+          key: "CONGRESS_API_KEY",
+          configured: !!process.env.CONGRESS_API_KEY,
+          category: "data",
+          description: "Search Members of Congress, track bills, committee schedules, and floor activity",
+          docsUrl: "https://api.congress.gov",
+        },
+        {
+          name: "Firecrawl",
+          key: "FIRECRAWL_API_KEY",
+          configured: !!process.env.FIRECRAWL_API_KEY,
+          category: "data",
+          description: "Web scraping, URL content extraction, and AI agent web research",
+          docsUrl: "https://docs.firecrawl.dev",
+        },
+        {
+          name: "SearchAPI.io",
+          key: "SEARCHAPI_API_KEY",
+          configured: !!process.env.SEARCHAPI_API_KEY,
+          category: "data",
+          description: "Google rank tracking with device and location targeting",
+          docsUrl: "https://www.searchapi.io/docs",
+        },
+        {
+          name: "Influencers Club",
+          key: "INFLUENCERS_API_KEY",
+          configured: !!process.env.INFLUENCERS_API_KEY,
+          category: "social",
+          description: "Track and enrich influencer profiles across Instagram, YouTube, TikTok, Twitter, Twitch",
+          docsUrl: null,
+        },
+        {
+          name: "Kalshi",
+          key: "KALSHI_API_KEY",
+          configured: !!process.env.KALSHI_API_KEY,
+          category: "data",
+          description: "Live political prediction markets and event contracts",
+          docsUrl: "https://trading-api.readme.io",
+        },
+        {
+          name: "Resend",
+          key: "RESEND_API_KEY",
+          configured: !!process.env.RESEND_API_KEY,
+          category: "comms",
+          description: "Transactional email delivery for daily briefs, research updates, and notifications",
+          docsUrl: "https://resend.com/docs",
+        },
+        {
+          name: "Miro",
+          key: "MIRO_API_KEY",
+          configured: !!process.env.MIRO_API_KEY,
+          category: "tools",
+          description: "Whiteboard collaboration and visual project planning",
+          docsUrl: "https://developers.miro.com/docs",
+        },
+        {
+          name: "Replit Object Storage",
+          key: "DEFAULT_OBJECT_STORAGE_BUCKET_ID",
+          configured: !!process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID,
+          category: "infra",
+          description: "Cloud file storage for documents, uploads, and media assets",
+          docsUrl: null,
+        },
+        {
+          name: "PostgreSQL Database",
+          key: "DATABASE_URL",
+          configured: !!process.env.DATABASE_URL,
+          category: "infra",
+          description: "Primary relational database for all platform data",
+          docsUrl: null,
+        },
+      ];
+
+      const summary = {
+        total: apis.length,
+        configured: apis.filter(a => a.configured).length,
+        missing: apis.filter(a => !a.configured).length,
+      };
+
+      res.json({ apis, summary });
+    } catch (error) {
+      console.error("Error getting API status:", error);
+      res.status(500).json({ message: "Failed to get API status" });
+    }
+  });
+
   // ==================== RANK TRACKING ROUTES ====================
 
   app.get("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
