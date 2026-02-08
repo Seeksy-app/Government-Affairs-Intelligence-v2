@@ -774,8 +774,8 @@ export async function searchPeople(
       return [];
     }
 
-    const titleCase = (str: string | null | undefined): string | undefined => {
-      if (!str) return undefined;
+    const titleCase = (str: any): string | undefined => {
+      if (!str || typeof str !== "string") return undefined;
       return str.replace(/\b\w/g, (c) => c.toUpperCase());
     };
 
@@ -790,7 +790,7 @@ export async function searchPeople(
       jobCompany: titleCase(person.job_company_name),
       location: titleCase(person.location_name),
       industry: titleCase(person.industry),
-      skills: (person.skills || []).map((s: string) => titleCase(s) || s),
+      skills: (person.skills || []).filter((s: any) => typeof s === "string").map((s: string) => titleCase(s) || s),
       matchScore: person.match_score,
     }));
   } catch (error) {
