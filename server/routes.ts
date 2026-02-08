@@ -6565,7 +6565,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.get("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const queries = await storage.getRankTrackedQueries(clientId);
       res.json(queries);
     } catch (error) {
@@ -6576,7 +6577,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.post("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const { query: searchQuery, targetDomain, device, location } = req.body;
       if (!searchQuery || typeof searchQuery !== "string" || searchQuery.trim().length === 0) {
         return res.status(400).json({ message: "Query is required" });
@@ -6600,7 +6602,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.patch("/api/rank-tracking/queries/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const existing = await storage.getRankTrackedQuery(req.params.id);
       if (!existing || existing.clientId !== clientId) {
         return res.status(404).json({ message: "Tracked query not found" });
@@ -6624,7 +6627,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.delete("/api/rank-tracking/queries/:id", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const existing = await storage.getRankTrackedQuery(req.params.id);
       if (!existing || existing.clientId !== clientId) {
         return res.status(404).json({ message: "Tracked query not found" });
@@ -6639,7 +6643,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.get("/api/rank-tracking/results/:queryId", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const existing = await storage.getRankTrackedQuery(req.params.queryId);
       if (!existing || existing.clientId !== clientId) {
         return res.status(404).json({ message: "Tracked query not found" });
@@ -6654,7 +6659,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
 
   app.post("/api/rank-tracking/check/:queryId", isAuthenticated, async (req, res) => {
     try {
-      const clientId = (req as any).clientId;
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const tracked = await storage.getRankTrackedQuery(req.params.queryId);
       if (!tracked || tracked.clientId !== clientId) {
         return res.status(404).json({ message: "Tracked query not found" });
