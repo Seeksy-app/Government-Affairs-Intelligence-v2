@@ -38,7 +38,9 @@ import {
   Phone,
   ChevronLeft,
   ChevronRight,
-  History
+  History,
+  FileText,
+  Linkedin
 } from "lucide-react";
 import type { Staffer, LegistormStaffer } from "@shared/schema";
 
@@ -174,6 +176,7 @@ export default function StaffersPage() {
   const [lsPage, setLsPage] = useState(0);
   const [lsSelectedId, setLsSelectedId] = useState<number | null>(null);
   const [lsResearchResult, setLsResearchResult] = useState<string | null>(null);
+  const [linkedinLookupLoading, setLinkedinLookupLoading] = useState(false);
   
   const [newStaffer, setNewStaffer] = useState({
     name: "",
@@ -300,6 +303,37 @@ export default function StaffersPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { data: lsStafferBills } = useQuery<any[]>({
+    queryKey: ["/api/legistorm/staffers", lsSelectedId, "bills"],
+    queryFn: async () => {
+      const res = await fetch(`/api/legistorm/staffers/${lsSelectedId}/bills`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!lsSelectedId,
+  });
+
+  const linkedinLookupMutation = useMutation({
+    mutationFn: async (legistormId: number) => {
+      setLinkedinLookupLoading(true);
+      const res = await apiRequest("POST", `/api/legistorm/staffers/${legistormId}/linkedin`);
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.success && data.linkedinUrl) {
+        toast({ title: "LinkedIn Found", description: "Profile URL saved to staffer record." });
+        queryClient.invalidateQueries({ queryKey: [`/api/legistorm/staffers/${lsSelectedId}`] });
+      } else {
+        toast({ title: "Not Found", description: data.error || "Could not find a LinkedIn profile for this staffer.", variant: "destructive" });
+      }
+      setLinkedinLookupLoading(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Lookup failed", description: error.message, variant: "destructive" });
+      setLinkedinLookupLoading(false);
     },
   });
 
@@ -1110,7 +1144,7 @@ export default function StaffersPage() {
                     )}
                   </div>
 
-                  {(lsStafferDetail.email || lsStafferDetail.phone || lsStafferDetail.officeAddress) && (
+                  {(lsStafferDetail.email || lsStafferDetail.phone || lsStafferDetail.officeAddress || (lsStafferDetail as any).linkedinUrl) && (
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Contact Information</h4>
                       {lsStafferDetail.email && (
@@ -1131,6 +1165,14 @@ export default function StaffersPage() {
                           {lsStafferDetail.officeAddress}
                         </p>
                       )}
+                      {(lsStafferDetail as any).linkedinUrl && (
+                        <p className="text-sm flex items-center gap-2">
+                          <Linkedin className="h-4 w-4 text-muted-foreground" />
+                          <a href={(lsStafferDetail as any).linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid="link-linkedin-profile">
+                            {(lsStafferDetail as any).linkedinUrl}
+                          </a>
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1148,6 +1190,21 @@ export default function StaffersPage() {
                         <><Search className="h-4 w-4 mr-2" /> Research Career</>
                       )}
                     </Button>
+                    {!(lsStafferDetail as any).linkedinUrl && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => lsStafferDetail && linkedinLookupMutation.mutate(lsStafferDetail.legistormId)}
+                        disabled={linkedinLookupLoading}
+                        data-testid="button-find-linkedin"
+                      >
+                        {linkedinLookupLoading ? (
+                          <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Finding LinkedIn...</>
+                        ) : (
+                          <><Linkedin className="h-4 w-4 mr-2" /> Find LinkedIn</>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {lsResearchResult && (
@@ -1205,25 +1262,68 @@ export default function StaffersPage() {
                         Position History ({(lsStafferDetail.positions as any[]).length})
                       </h4>
                       <div className="space-y-2">
-                        {(lsStafferDetail.positions as any[]).map((pos: any, i: number) => (
-                          <div key={pos.id || i} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
-                            <div className={`h-2 w-2 mt-2 rounded-full ${pos.isCurrent ? "bg-green-500" : "bg-muted-foreground/50"}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium">{pos.title}</p>
-                              {pos.memberName && (
-                                <p className="text-xs text-muted-foreground">{pos.memberName}</p>
+                        {(lsStafferDetail.positions as any[]).map((pos: any, i: number) => {
+                          const posStartYear = pos.startDate ? parseInt(pos.startDate.split("-")[0]) : null;
+                          const posEndYear = pos.endDate ? parseInt(pos.endDate.split("-")[0]) : new Date().getFullYear();
+                          const matchingBills = (lsStafferBills || []).filter((bill: any) => {
+                            if (!bill.yearStart && !bill.yearEnd) {
+                              if (bill.positionMemberName && pos.memberName) {
+                                return bill.positionMemberName.toLowerCase().includes(pos.memberName.toLowerCase().split(" ").pop() || "");
+                              }
+                              return false;
+                            }
+                            const billStart = bill.yearStart || bill.yearEnd;
+                            const billEnd = bill.yearEnd || bill.yearStart;
+                            if (posStartYear && posEndYear) {
+                              return billStart <= posEndYear && billEnd >= posStartYear;
+                            }
+                            return false;
+                          });
+
+                          return (
+                            <div key={pos.id || i} className="p-3 rounded-md bg-muted/50 space-y-2">
+                              <div className="flex items-start gap-3">
+                                <div className={`h-2 w-2 mt-2 rounded-full shrink-0 ${pos.isCurrent ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{pos.title}</p>
+                                  {pos.memberName && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <User className="h-3 w-3" />
+                                      {pos.memberName}
+                                      {pos.chamber && <Badge variant="outline" className="ml-1 text-[10px] py-0 px-1">{pos.chamber}</Badge>}
+                                      {pos.state && <span className="text-muted-foreground/70">({pos.state}{pos.district ? `-${pos.district}` : ""})</span>}
+                                    </p>
+                                  )}
+                                  {pos.officeName && !pos.memberName && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Building2 className="h-3 w-3" />
+                                      {pos.officeName}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {pos.startDate || "Unknown"} - {pos.isCurrent ? "Present" : pos.endDate || "Unknown"}
+                                  </p>
+                                </div>
+                              </div>
+                              {matchingBills.length > 0 && (
+                                <div className="ml-5 pl-3 border-l-2 border-muted-foreground/20">
+                                  <p className="text-[11px] font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                                    <FileText className="h-3 w-3" />
+                                    Bills ({matchingBills.length})
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {matchingBills.map((bill: any) => (
+                                      <Badge key={bill.id} variant="outline" className="text-[10px] py-0 px-1.5" data-testid={`badge-bill-${bill.id}`}>
+                                        {bill.billType?.toUpperCase()}.{bill.billNumber}
+                                        {bill.role && <span className="ml-1 text-muted-foreground/70">({bill.role})</span>}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
-                              {pos.officeName && !pos.memberName && (
-                                <p className="text-xs text-muted-foreground">{pos.officeName}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {pos.startDate || "Unknown"} - {pos.isCurrent ? "Present" : pos.endDate || "Unknown"}
-                                {pos.chamber && ` | ${pos.chamber}`}
-                                {pos.state && ` | ${pos.state}`}
-                              </p>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

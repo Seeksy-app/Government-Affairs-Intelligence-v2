@@ -6914,6 +6914,79 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // LinkedIn lookup for LegiStorm staffers using PDL
+  app.post("/api/legistorm/staffers/:legistormId/linkedin", isAuthenticated, async (req, res) => {
+    try {
+      if (!process.env.PDL_API_KEY) {
+        return res.status(400).json({ message: "People Data Labs API key not configured" });
+      }
+      const { getLegistormStaffer } = await import("./services/legistorm-service");
+      const staffer = await getLegistormStaffer(parseInt(req.params.legistormId));
+      if (!staffer) return res.status(404).json({ message: "Staffer not found" });
+
+      const { researchLinkedInProfile } = await import("./services/linkedin-service");
+
+      const nameParts = staffer.fullName.split(" ");
+      const firstName = staffer.firstName || nameParts[0];
+      const lastName = staffer.lastName || nameParts[nameParts.length - 1];
+      let org = staffer.currentOffice || staffer.currentMemberName || "US Congress";
+      if (org.toLowerCase().includes("office of")) {
+        org = "US Congress";
+      }
+
+      const result = await researchLinkedInProfile(firstName, lastName, org);
+
+      if (result.profileUrl) {
+        const { db } = await import("./db");
+        const { legistormStaffers } = await import("@shared/schema");
+        const { eq } = await import("drizzle-orm");
+        await db.update(legistormStaffers)
+          .set({ linkedinUrl: result.profileUrl })
+          .where(eq(legistormStaffers.legistormId, parseInt(req.params.legistormId)));
+      }
+
+      res.json({
+        success: !!result.profileUrl,
+        linkedinUrl: result.profileUrl,
+        error: result.error,
+      });
+    } catch (error: any) {
+      console.error("Error looking up LinkedIn for staffer:", error);
+      res.status(500).json({ message: error.message || "Failed to look up LinkedIn profile" });
+    }
+  });
+
+  // Get bill associations for a specific LegiStorm staffer
+  app.get("/api/legistorm/staffers/:legistormId/bills", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const { db } = await import("./db");
+      const { stafferBillAssociations, legistormStaffers } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const staffer = await db.select({ id: legistormStaffers.id })
+        .from(legistormStaffers)
+        .where(eq(legistormStaffers.legistormId, parseInt(req.params.legistormId)))
+        .limit(1);
+
+      if (!staffer.length) return res.json([]);
+
+      const bills = await db.select()
+        .from(stafferBillAssociations)
+        .where(and(
+          eq(stafferBillAssociations.clientId, clientId),
+          eq(stafferBillAssociations.stafferId, staffer[0].id),
+          eq(stafferBillAssociations.stafferType, "legistorm")
+        ));
+
+      res.json(bills);
+    } catch (error: any) {
+      console.error("Error getting staffer bills:", error);
+      res.status(500).json({ message: error.message || "Failed to get bills" });
+    }
+  });
+
   // ==================== STAFFER-BILL MAPPING ROUTES ====================
 
   app.get("/api/staffer-bills", isAuthenticated, async (req, res) => {
