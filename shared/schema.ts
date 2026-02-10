@@ -1239,6 +1239,7 @@ export const legistormStaffers = pgTable("legistorm_staffers", {
     state: string | null;
     district: number | null;
   }>>(),
+  linkedinUrl: text("linkedin_url"),
   careerResearch: text("career_research"),
   careerResearchedAt: timestamp("career_researched_at"),
   lastUpdatedFromApi: timestamp("last_updated_from_api"),
