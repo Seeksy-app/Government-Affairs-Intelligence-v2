@@ -234,6 +234,11 @@ export default function StaffersPage() {
   }>({
     queryKey: ["/api/legistorm/status"],
     enabled: activeTab === "legistorm",
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const isRunning = data?.syncHistory?.some((s: any) => s.status === "running");
+      return isRunning ? 3000 : false;
+    },
   });
 
   const { data: lsStafferDetail } = useQuery<LegistormStaffer>({
@@ -806,10 +811,12 @@ export default function StaffersPage() {
               {lsStatus?.syncHistory?.[0] && (
                 <span className="text-xs text-muted-foreground">
                   Last sync: {lsStatus.syncHistory[0].status === "running"
-                    ? "In progress..."
-                    : lsStatus.syncHistory[0].completedAt
-                      ? new Date(lsStatus.syncHistory[0].completedAt).toLocaleDateString()
-                      : "Never"
+                    ? `In progress... (${(lsStatus.syncHistory[0].recordsProcessed || 0).toLocaleString()} records processed)`
+                    : lsStatus.syncHistory[0].status === "failed"
+                      ? `Failed: ${lsStatus.syncHistory[0].errorMessage || "Unknown error"}`
+                      : lsStatus.syncHistory[0].completedAt
+                        ? new Date(lsStatus.syncHistory[0].completedAt).toLocaleDateString()
+                        : "Never"
                   }
                 </span>
               )}
@@ -819,7 +826,7 @@ export default function StaffersPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => syncMutation.mutate("incremental")}
-                disabled={syncMutation.isPending}
+                disabled={syncMutation.isPending || lsStatus?.syncHistory?.[0]?.status === "running"}
                 data-testid="button-incremental-sync"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -829,11 +836,11 @@ export default function StaffersPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => syncMutation.mutate("full")}
-                disabled={syncMutation.isPending}
+                disabled={syncMutation.isPending || lsStatus?.syncHistory?.[0]?.status === "running"}
                 data-testid="button-full-sync"
               >
                 <Database className="h-4 w-4 mr-2" />
-                Full Sync
+                {lsStatus?.syncHistory?.[0]?.status === "running" ? "Syncing..." : "Full Sync"}
               </Button>
             </div>
           </div>

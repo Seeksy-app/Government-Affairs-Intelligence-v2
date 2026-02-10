@@ -414,7 +414,25 @@ export async function getLegistormStaffer(legistormId: number) {
   return staffer || null;
 }
 
+export async function cleanupStaleSyncs() {
+  const staleThreshold = new Date(Date.now() - 10 * 60 * 1000);
+  await db.update(legistormSyncLog)
+    .set({
+      status: "failed",
+      errorMessage: "Sync interrupted (server restart)",
+      completedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(legistormSyncLog.status, "running"),
+        sql`${legistormSyncLog.startedAt} < ${staleThreshold}`
+      )
+    );
+}
+
 export async function getSyncStatus() {
+  await cleanupStaleSyncs();
+
   const latestSync = await db.select().from(legistormSyncLog)
     .orderBy(desc(legistormSyncLog.startedAt))
     .limit(5);
