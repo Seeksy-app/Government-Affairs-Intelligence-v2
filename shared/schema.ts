@@ -1265,3 +1265,38 @@ export const legistormSyncLog = pgTable("legistorm_sync_log", {
 });
 
 export type LegistormSyncLog = typeof legistormSyncLog.$inferSelect;
+
+// Staffer-Bill Associations (maps staffers to bills they worked on across their career)
+export const stafferBillAssociations = pgTable("staffer_bill_associations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  stafferType: text("staffer_type").notNull(), // "contact" or "legistorm"
+  stafferId: varchar("staffer_id").notNull(), // contacts.id or legistormStaffers.id
+  stafferName: text("staffer_name").notNull(),
+  trackedBillId: varchar("tracked_bill_id"), // link to tracked_bills.id (optional for untracked bills)
+  billTitle: text("bill_title"),
+  billType: text("bill_type"), // hr, s, hjres, etc.
+  billNumber: integer("bill_number"),
+  congress: integer("congress"),
+  role: text("role"), // authored, co-sponsored, negotiated, staffed_committee, floor_managed, drafted, etc.
+  positionTitle: text("position_title"), // what title they held when working on this bill
+  positionOrganization: text("position_organization"), // which office/org they were at
+  positionMemberName: text("position_member_name"), // which member they worked for
+  yearStart: integer("year_start"), // when they worked on the bill
+  yearEnd: integer("year_end"),
+  confidence: text("confidence").default("confirmed"), // confirmed, high, medium, low
+  source: text("source").default("manual"), // manual, ai_discovered, imported
+  sourceDetails: text("source_details"), // AI research citation or import source
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertStafferBillAssociationSchema = createInsertSchema(stafferBillAssociations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertStafferBillAssociation = z.infer<typeof insertStafferBillAssociationSchema>;
+export type StafferBillAssociation = typeof stafferBillAssociations.$inferSelect;
