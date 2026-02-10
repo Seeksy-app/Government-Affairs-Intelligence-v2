@@ -161,6 +161,33 @@ export class CongressAPI {
     }>(`/member/${bioguideId}/sponsored-legislation`, { limit });
   }
 
+  async getMemberCosponsoredBills(bioguideId: string, limit = 50) {
+    return this.fetch<{
+      cosponsoredLegislation: Array<{
+        congress: number;
+        type: string;
+        number: number;
+        title: string;
+        introducedDate: string;
+        latestAction?: {
+          actionDate: string;
+          text: string;
+        };
+      }>;
+    }>(`/member/${bioguideId}/cosponsored-legislation`, { limit });
+  }
+
+  async getBillCommittees(congress: number, billType: string, billNumber: number) {
+    return this.fetch<{
+      committees: Array<{
+        name: string;
+        chamber: string;
+        systemCode: string;
+        url: string;
+      }>;
+    }>(`/bill/${congress}/${billType}/${billNumber}/committees`);
+  }
+
   async searchByKeyword(keyword: string, congress = 119, limit = 50): Promise<CongressBill[]> {
     console.log(`[Congress API] Searching for keyword: "${keyword}", congress: ${congress}`);
     
