@@ -163,6 +163,7 @@ export default function StaffersPage() {
   const [lsState, setLsState] = useState("all");
   const [lsPage, setLsPage] = useState(0);
   const [lsSelectedId, setLsSelectedId] = useState<number | null>(null);
+  const [lsResearchResult, setLsResearchResult] = useState<string | null>(null);
   
   const [newStaffer, setNewStaffer] = useState({
     name: "",
@@ -261,6 +262,25 @@ export default function StaffersPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const lsResearchMutation = useMutation({
+    mutationFn: async (staffer: LegistormStaffer) => {
+      const res = await apiRequest("POST", "/api/research/staffer", {
+        name: staffer.fullName,
+        title: staffer.currentTitle,
+        organization: staffer.currentOffice,
+        memberName: staffer.currentMemberName,
+      });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const content = data?.data?.rawContent || data?.rawContent || data?.content || "";
+      setLsResearchResult(content || JSON.stringify(data, null, 2));
+    },
+    onError: (error: Error) => {
+      toast({ title: "Research failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1021,7 +1041,7 @@ export default function StaffersPage() {
             </>
           )}
 
-          <Dialog open={!!lsSelectedId} onOpenChange={(open) => { if (!open) setLsSelectedId(null); }}>
+          <Dialog open={!!lsSelectedId} onOpenChange={(open) => { if (!open) { setLsSelectedId(null); setLsResearchResult(null); } }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl">{lsStafferDetail?.fullName || "Staffer Details"}</DialogTitle>
@@ -1092,6 +1112,34 @@ export default function StaffersPage() {
                           {lsStafferDetail.officeAddress}
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => lsStafferDetail && lsResearchMutation.mutate(lsStafferDetail)}
+                      disabled={lsResearchMutation.isPending}
+                      data-testid="button-research-career"
+                    >
+                      {lsResearchMutation.isPending ? (
+                        <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
+                      ) : (
+                        <><Search className="h-4 w-4 mr-2" /> Research Career</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {lsResearchResult && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        AI Career Research
+                      </h4>
+                      <div className="p-4 rounded-md bg-muted/50 text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+                        {lsResearchResult}
+                      </div>
                     </div>
                   )}
 
