@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -141,6 +141,16 @@ function getChamberColor(chamber: string | null): string {
   }
 }
 
+function renderFormattedText(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-medium text-foreground">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 export default function StaffersPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -247,6 +257,14 @@ export default function StaffersPage() {
     enabled: !!lsSelectedId,
   });
 
+  useEffect(() => {
+    if (lsStafferDetail?.careerResearch) {
+      setLsResearchResult(lsStafferDetail.careerResearch);
+    } else {
+      setLsResearchResult(null);
+    }
+  }, [lsStafferDetail, lsSelectedId]);
+
   const syncMutation = useMutation({
     mutationFn: async (type: "full" | "incremental") => {
       return apiRequest("POST", `/api/legistorm/sync/${type}`);
@@ -272,6 +290,7 @@ export default function StaffersPage() {
         title: staffer.currentTitle,
         organization: staffer.currentOffice,
         memberName: staffer.currentMemberName,
+        legistormId: staffer.legistormId,
       });
       return await res.json();
     },
@@ -1137,8 +1156,44 @@ export default function StaffersPage() {
                         <Search className="h-4 w-4" />
                         AI Career Research
                       </h4>
-                      <div className="p-4 rounded-md bg-muted/50 text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto">
-                        {lsResearchResult}
+                      <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[400px] overflow-y-auto space-y-3">
+                        {lsResearchResult.split(/\n{2,}/).map((block, bIdx) => {
+                          const trimmed = block.trim();
+                          if (!trimmed) return null;
+
+                          if (trimmed.startsWith("### ")) {
+                            const heading = trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "").replace(/\[\d+\]/g, "");
+                            return <h4 key={bIdx} className="font-semibold text-sm mt-3 first:mt-0 text-foreground">{heading}</h4>;
+                          }
+                          if (trimmed.startsWith("## ")) {
+                            const heading = trimmed.replace(/^##\s*/, "").replace(/\*\*/g, "").replace(/\[\d+\]/g, "");
+                            return <h3 key={bIdx} className="font-semibold text-base mt-3 first:mt-0 text-foreground">{heading}</h3>;
+                          }
+
+                          const lines = trimmed.split("\n");
+                          const isList = lines.every(l => /^\s*[-*•]\s/.test(l) || !l.trim());
+                          if (isList) {
+                            return (
+                              <ul key={bIdx} className="space-y-1 pl-1">
+                                {lines.filter(l => l.trim()).map((line, lIdx) => {
+                                  const content = line.replace(/^\s*[-*•]\s*/, "")
+                                    .replace(/\[\d+\]/g, "")
+                                    .replace(/\*\*([^*]+)\*\*/g, "$1");
+                                  const parts = content.split(/\*\*([^*]+)\*\*/);
+                                  return (
+                                    <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
+                                      <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+                                      <span>{renderFormattedText(content)}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            );
+                          }
+
+                          const cleanedText = trimmed.replace(/\[\d+\]/g, "");
+                          return <p key={bIdx} className="text-muted-foreground leading-relaxed">{renderFormattedText(cleanedText)}</p>;
+                        })}
                       </div>
                     </div>
                   )}

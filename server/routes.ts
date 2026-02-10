@@ -51,6 +51,22 @@ const agentQuerySchema = z.object({
   schema: z.record(z.unknown()).optional(),
 });
 
+function extractRelevantSnippet(text: string, keywords: string[], maxLength = 200): string {
+  const lower = text.toLowerCase();
+  let bestIdx = -1;
+  for (const kw of keywords) {
+    const idx = lower.indexOf(kw);
+    if (idx !== -1 && (bestIdx === -1 || idx < bestIdx)) bestIdx = idx;
+  }
+  if (bestIdx === -1) return text.slice(0, maxLength) + "...";
+  const start = Math.max(0, bestIdx - 60);
+  const end = Math.min(text.length, start + maxLength);
+  let snippet = text.slice(start, end).replace(/\n+/g, " ").trim();
+  if (start > 0) snippet = "..." + snippet;
+  if (end < text.length) snippet += "...";
+  return snippet;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1896,7 +1912,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not assigned to a client" });
       }
 
-      const { name, title, organization, memberName } = req.body;
+      const { name, title, organization, memberName, legistormId } = req.body;
       if (!name) {
         return res.status(400).json({ message: "Staffer name is required" });
       }
@@ -1951,6 +1967,29 @@ Format your response as a structured summary with clear sections.`;
       
       const parsedData = parseCareerData(result.content);
       
+      // Save research to legistorm_staffers table
+      try {
+        const { db } = await import("./db");
+        const { legistormStaffers } = await import("@shared/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        if (legistormId) {
+          await db.update(legistormStaffers)
+            .set({ careerResearch: result.content, careerResearchedAt: new Date() })
+            .where(eq(legistormStaffers.legistormId, parseInt(legistormId)));
+        } else {
+          const matchName = name.trim();
+          const matches = await db.select({ id: legistormStaffers.id }).from(legistormStaffers).where(eq(legistormStaffers.fullName, matchName)).limit(1);
+          if (matches.length > 0) {
+            await db.update(legistormStaffers)
+              .set({ careerResearch: result.content, careerResearchedAt: new Date() })
+              .where(eq(legistormStaffers.id, matches[0].id));
+          }
+        }
+      } catch (saveErr) {
+        console.error("[Staffer Research] Could not save research:", saveErr);
+      }
+      
       res.json({
         success: true,
         data: parsedData,
@@ -1960,6 +1999,55 @@ Format your response as a structured summary with clear sections.`;
       console.error("[Staffer Research] ERROR:", error?.message || error);
       console.error("[Staffer Research] Stack:", error?.stack);
       res.status(500).json({ message: error?.message || "Failed to research staffer" });
+    }
+  });
+
+  // Search career research data across staffers
+  app.get("/api/staffers/career-search", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const query = (req.query.q as string || "").trim();
+      if (!query) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const { db } = await import("./db");
+      const { legistormStaffers } = await import("@shared/schema");
+      const { ilike, and } = await import("drizzle-orm");
+
+      const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+      
+      const conditions = keywords.map(kw => ilike(legistormStaffers.careerResearch, `%${kw}%`));
+      
+      const results = await db.select({
+        id: legistormStaffers.id,
+        fullName: legistormStaffers.fullName,
+        currentTitle: legistormStaffers.currentTitle,
+        currentOffice: legistormStaffers.currentOffice,
+        currentMemberName: legistormStaffers.currentMemberName,
+        chamber: legistormStaffers.chamber,
+        party: legistormStaffers.party,
+        state: legistormStaffers.state,
+        careerResearch: legistormStaffers.careerResearch,
+      })
+      .from(legistormStaffers)
+      .where(and(...conditions))
+      .limit(50);
+
+      const matched = results.map(r => ({
+        ...r,
+        careerResearchSnippet: extractRelevantSnippet(r.careerResearch || "", keywords),
+        careerResearch: undefined,
+      }));
+
+      res.json({ results: matched, total: matched.length });
+    } catch (error: any) {
+      console.error("Career search error:", error);
+      res.status(500).json({ message: "Career search failed" });
     }
   });
 
@@ -2541,7 +2629,60 @@ Format your response as a structured summary with clear sections.`;
 
       const { prompt, schema } = parsed.data;
       const { runAgentQuery, generateSummary } = await import("./services/research-agent");
-      const result = await runAgentQuery(prompt, schema as any);
+      
+      // Check if the query is about staffers/careers - augment with local data
+      const stafferKeywords = ["staffer", "staff", "worked with", "worked on", "energy", "health", "defense", "education", "agriculture", "finance", "transportation", "judiciary", "appropriations", "commerce", "foreign", "veteran", "environment", "tax", "budget", "immigration", "technology", "cyber", "housing", "labor", "committee", "bill", "policy", "career"];
+      const isStafferQuery = stafferKeywords.some(kw => prompt.toLowerCase().includes(kw));
+      
+      let careerContext = "";
+      if (isStafferQuery) {
+        try {
+          const { db } = await import("./db");
+          const { legistormStaffers } = await import("@shared/schema");
+          const { ilike, and: andOp } = await import("drizzle-orm");
+          const queryWords = prompt.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          
+          if (queryWords.length > 0) {
+            const conditions = queryWords.map(kw => ilike(legistormStaffers.careerResearch, `%${kw}%`));
+            
+            const relevant = await db.select({
+              fullName: legistormStaffers.fullName,
+              currentTitle: legistormStaffers.currentTitle,
+              currentOffice: legistormStaffers.currentOffice,
+              currentMemberName: legistormStaffers.currentMemberName,
+              chamber: legistormStaffers.chamber,
+              party: legistormStaffers.party,
+              state: legistormStaffers.state,
+              careerResearch: legistormStaffers.careerResearch,
+            })
+            .from(legistormStaffers)
+            .where(andOp(...conditions))
+            .limit(10);
+            
+            if (relevant.length > 0) {
+              const MAX_CONTEXT = 6000;
+              let totalLen = 0;
+              const entries: string[] = [];
+              for (const s of relevant) {
+                const research = (s.careerResearch || "").slice(0, 600);
+                const entry = `STAFFER: ${s.fullName} | ${s.currentTitle || "N/A"} | ${s.currentOffice || "N/A"} | ${s.currentMemberName || "N/A"} | ${s.chamber || "N/A"} | ${s.party || "N/A"} | ${s.state || "N/A"}\nRESEARCH: ${research}`;
+                if (totalLen + entry.length > MAX_CONTEXT) break;
+                entries.push(entry);
+                totalLen += entry.length;
+              }
+              careerContext = "\n\n--- LOCAL CAREER RESEARCH DATA ---\nThe following staffers have career research data matching the query. Use this data to answer:\n\n" + entries.join("\n---\n");
+            }
+          }
+        } catch (dbErr) {
+          console.error("Error fetching career research for agent:", dbErr);
+        }
+      }
+      
+      const augmentedPrompt = careerContext 
+        ? `${prompt}\n\nIMPORTANT: First check and prioritize the local career research data below when answering. If the local data contains relevant staffers, include them in your response with their details.${careerContext}`
+        : prompt;
+      
+      const result = await runAgentQuery(augmentedPrompt, schema as any);
 
       const content = JSON.stringify(result.data, null, 2);
       const summary = await generateSummary(content);
