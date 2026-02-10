@@ -6628,6 +6628,14 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
           docsUrl: "https://www.searchapi.io/docs",
         },
         {
+          name: "LegiStorm",
+          key: "LEGISTORM_API_KEY",
+          configured: !!process.env.LEGISTORM_API_KEY,
+          category: "data",
+          description: "Congressional staff directory with 12,000+ staffers, position history, and contact data",
+          docsUrl: "https://api.legistorm.com",
+        },
+        {
           name: "Influencers Club",
           key: "INFLUENCERS_API_KEY",
           configured: !!process.env.INFLUENCERS_API_KEY,

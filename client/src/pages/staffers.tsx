@@ -33,9 +33,14 @@ import {
   RefreshCw,
   User,
   ExternalLink,
-  CheckSquare
+  CheckSquare,
+  Database,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  History
 } from "lucide-react";
-import type { Staffer } from "@shared/schema";
+import type { Staffer, LegistormStaffer } from "@shared/schema";
 
 const CHAMBERS = [
   { value: "all", label: "All Chambers" },
@@ -151,6 +156,13 @@ export default function StaffersPage() {
   const [partyFilter, setPartyFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [specialtyFilter, setSpecialtyFilter] = useState("");
+
+  const [lsQuery, setLsQuery] = useState("");
+  const [lsChamber, setLsChamber] = useState("all");
+  const [lsParty, setLsParty] = useState("all");
+  const [lsState, setLsState] = useState("all");
+  const [lsPage, setLsPage] = useState(0);
+  const [lsSelectedId, setLsSelectedId] = useState<number | null>(null);
   
   const [newStaffer, setNewStaffer] = useState({
     name: "",
@@ -192,6 +204,59 @@ export default function StaffersPage() {
     topOrganizations: { name: string; count: number }[];
   }>({
     queryKey: ["/api/staffers/stats"],
+  });
+
+  const lsSearchParams = new URLSearchParams();
+  if (lsQuery) lsSearchParams.set("q", lsQuery);
+  if (lsChamber !== "all") lsSearchParams.set("chamber", lsChamber);
+  if (lsParty !== "all") lsSearchParams.set("party", lsParty);
+  if (lsState !== "all") lsSearchParams.set("state", lsState);
+  lsSearchParams.set("limit", "50");
+  lsSearchParams.set("offset", (lsPage * 50).toString());
+
+  const lsSearchUrl = `/api/legistorm/staffers?${lsSearchParams.toString()}`;
+
+  const { data: lsResult, isLoading: lsLoading } = useQuery<{
+    staffers: LegistormStaffer[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>({
+    queryKey: [lsSearchUrl],
+    enabled: activeTab === "legistorm",
+  });
+
+  const { data: lsStatus } = useQuery<{
+    syncHistory: any[];
+    totalStaffers: number;
+    currentStaffers: number;
+    isConfigured: boolean;
+  }>({
+    queryKey: ["/api/legistorm/status"],
+    enabled: activeTab === "legistorm",
+  });
+
+  const { data: lsStafferDetail } = useQuery<LegistormStaffer>({
+    queryKey: [`/api/legistorm/staffers/${lsSelectedId}`],
+    enabled: !!lsSelectedId,
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async (type: "full" | "incremental") => {
+      return apiRequest("POST", `/api/legistorm/sync/${type}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Sync started", description: "LegiStorm sync is running in the background." });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === "string" && key.startsWith("/api/legistorm");
+        },
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const createStafferMutation = useMutation({
@@ -481,6 +546,10 @@ export default function StaffersPage() {
             <BarChart3 className="h-4 w-4 mr-2" />
             Statistics
           </TabsTrigger>
+          <TabsTrigger value="legistorm" data-testid="tab-legistorm">
+            <Database className="h-4 w-4 mr-2" />
+            LegiStorm Directory
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="search" className="space-y-4">
@@ -723,6 +792,339 @@ export default function StaffersPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="legistorm" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Badge variant="outline" className="text-sm">
+                {lsStatus?.totalStaffers?.toLocaleString() || 0} total staffers
+              </Badge>
+              <Badge variant="outline" className="text-sm">
+                {lsStatus?.currentStaffers?.toLocaleString() || 0} current
+              </Badge>
+              {lsStatus?.syncHistory?.[0] && (
+                <span className="text-xs text-muted-foreground">
+                  Last sync: {lsStatus.syncHistory[0].status === "running"
+                    ? "In progress..."
+                    : lsStatus.syncHistory[0].completedAt
+                      ? new Date(lsStatus.syncHistory[0].completedAt).toLocaleDateString()
+                      : "Never"
+                  }
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncMutation.mutate("incremental")}
+                disabled={syncMutation.isPending}
+                data-testid="button-incremental-sync"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Incremental Sync
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncMutation.mutate("full")}
+                disabled={syncMutation.isPending}
+                data-testid="button-full-sync"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Full Sync
+              </Button>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Search LegiStorm Directory</CardTitle>
+              <CardDescription>Search across {lsStatus?.totalStaffers?.toLocaleString() || 0} congressional staffers from LegiStorm</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="lg:col-span-1">
+                  <Input
+                    placeholder="Search by name, title, office..."
+                    value={lsQuery}
+                    onChange={(e) => { setLsQuery(e.target.value); setLsPage(0); }}
+                    className="w-full"
+                    data-testid="input-ls-search"
+                  />
+                </div>
+                <Select value={lsChamber} onValueChange={(v) => { setLsChamber(v); setLsPage(0); }}>
+                  <SelectTrigger data-testid="select-ls-chamber">
+                    <SelectValue placeholder="Chamber" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHAMBERS.filter(c => c.value !== "Both" && c.value !== "Former").map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={lsParty} onValueChange={(v) => { setLsParty(v); setLsPage(0); }}>
+                  <SelectTrigger data-testid="select-ls-party">
+                    <SelectValue placeholder="Party" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PARTIES.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={lsState} onValueChange={(v) => { setLsState(v); setLsPage(0); }}>
+                  <SelectTrigger data-testid="select-ls-state">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {lsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-12 w-12 rounded-full mb-4" />
+                    <Skeleton className="h-5 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2 mb-4" />
+                    <Skeleton className="h-8 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (lsResult?.staffers?.length || 0) === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Database className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  {(lsStatus?.totalStaffers || 0) === 0 ? "No LegiStorm data synced yet" : "No staffers match your search"}
+                </h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  {(lsStatus?.totalStaffers || 0) === 0
+                    ? "Run a full sync to download congressional staff data from LegiStorm"
+                    : "Try adjusting your search filters"
+                  }
+                </p>
+                {(lsStatus?.totalStaffers || 0) === 0 && (
+                  <Button onClick={() => syncMutation.mutate("full")} disabled={syncMutation.isPending}>
+                    <Database className="h-4 w-4 mr-2" />
+                    Start Full Sync
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(lsResult?.offset || 0) + 1}-{Math.min((lsResult?.offset || 0) + (lsResult?.limit || 50), lsResult?.total || 0)} of {lsResult?.total?.toLocaleString()} staffers
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setLsPage(p => Math.max(0, p - 1))}
+                    disabled={lsPage === 0}
+                    data-testid="button-ls-prev"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {lsPage + 1} of {Math.ceil((lsResult?.total || 0) / 50)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setLsPage(p => p + 1)}
+                    disabled={(lsPage + 1) * 50 >= (lsResult?.total || 0)}
+                    data-testid="button-ls-next"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {lsResult?.staffers?.map((staffer) => (
+                  <Card
+                    key={staffer.id}
+                    className="hover-elevate cursor-pointer transition-all"
+                    onClick={() => setLsSelectedId(staffer.legistormId)}
+                    data-testid={`card-ls-staffer-${staffer.legistormId}`}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-primary/10 text-primary">
+                            {staffer.fullName.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{staffer.fullName}</h3>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {staffer.currentTitle || "Staff"}
+                          </p>
+                          {staffer.currentMemberName && (
+                            <p className="text-sm text-muted-foreground truncate">
+                              {staffer.currentMemberName}
+                            </p>
+                          )}
+                          {staffer.currentOffice && !staffer.currentMemberName && (
+                            <p className="text-sm text-muted-foreground truncate">
+                              {staffer.currentOffice}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {staffer.party && (
+                          <Badge variant="outline" className={getPartyColor(staffer.party)}>
+                            {staffer.party}
+                          </Badge>
+                        )}
+                        {staffer.chamber && (
+                          <Badge variant="outline" className={getChamberColor(staffer.chamber)}>
+                            {staffer.chamber}
+                          </Badge>
+                        )}
+                        {staffer.state && (
+                          <Badge variant="outline">
+                            {staffer.state}
+                          </Badge>
+                        )}
+                      </div>
+                      {staffer.email && (
+                        <p className="text-xs text-muted-foreground mt-3 truncate flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {staffer.email}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          <Dialog open={!!lsSelectedId} onOpenChange={(open) => { if (!open) setLsSelectedId(null); }}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl">{lsStafferDetail?.fullName || "Staffer Details"}</DialogTitle>
+              </DialogHeader>
+              {lsStafferDetail ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {lsStafferDetail.currentTitle && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Title</p>
+                        <p className="text-sm">{lsStafferDetail.currentTitle}</p>
+                      </div>
+                    )}
+                    {lsStafferDetail.currentMemberName && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Member</p>
+                        <p className="text-sm">{lsStafferDetail.currentMemberName}</p>
+                      </div>
+                    )}
+                    {lsStafferDetail.currentOffice && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Office</p>
+                        <p className="text-sm">{lsStafferDetail.currentOffice}</p>
+                      </div>
+                    )}
+                    {lsStafferDetail.chamber && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Chamber</p>
+                        <Badge variant="outline" className={getChamberColor(lsStafferDetail.chamber)}>
+                          {lsStafferDetail.chamber}
+                        </Badge>
+                      </div>
+                    )}
+                    {lsStafferDetail.party && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Party</p>
+                        <Badge variant="outline" className={getPartyColor(lsStafferDetail.party)}>
+                          {lsStafferDetail.party}
+                        </Badge>
+                      </div>
+                    )}
+                    {lsStafferDetail.state && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">State</p>
+                        <p className="text-sm">{lsStafferDetail.state}{lsStafferDetail.district ? ` - District ${lsStafferDetail.district}` : ""}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {(lsStafferDetail.email || lsStafferDetail.phone || lsStafferDetail.officeAddress) && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Contact Information</h4>
+                      {lsStafferDetail.email && (
+                        <p className="text-sm flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <a href={`mailto:${lsStafferDetail.email}`} className="text-primary hover:underline">{lsStafferDetail.email}</a>
+                        </p>
+                      )}
+                      {lsStafferDetail.phone && (
+                        <p className="text-sm flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          {lsStafferDetail.phone}
+                        </p>
+                      )}
+                      {lsStafferDetail.officeAddress && (
+                        <p className="text-sm flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          {lsStafferDetail.officeAddress}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {lsStafferDetail.positions && (lsStafferDetail.positions as any[]).length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm flex items-center gap-2">
+                        <History className="h-4 w-4" />
+                        Position History ({(lsStafferDetail.positions as any[]).length})
+                      </h4>
+                      <div className="space-y-2">
+                        {(lsStafferDetail.positions as any[]).map((pos: any, i: number) => (
+                          <div key={pos.id || i} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
+                            <div className={`h-2 w-2 mt-2 rounded-full ${pos.isCurrent ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">{pos.title}</p>
+                              {pos.memberName && (
+                                <p className="text-xs text-muted-foreground">{pos.memberName}</p>
+                              )}
+                              {pos.officeName && !pos.memberName && (
+                                <p className="text-xs text-muted-foreground">{pos.officeName}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {pos.startDate || "Unknown"} - {pos.isCurrent ? "Present" : pos.endDate || "Unknown"}
+                                {pos.chamber && ` | ${pos.chamber}`}
+                                {pos.state && ` | ${pos.state}`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>

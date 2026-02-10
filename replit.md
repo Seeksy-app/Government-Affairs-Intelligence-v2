@@ -37,6 +37,7 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Organization Tracking**: Search, enrich, and track lobbying firms, PACs, think tanks, government agencies, and political organizations using People Data Labs Company Enrichment API. Auto-classifies org type, stores enriched data (industry, employee count, HQ, etc.), supports key people finder via PDL Person Search, and AI-powered intelligence reports via Perplexity. Route: `/organizations`. Schema: `political_organizations` table.
 - **Client & Matter Management**: Manage sub-client matters with isolated research folders and track customer relationships with Matter assignment.
 - **Google Rank Tracking**: Monitor search rankings using SearchAPI.io's Google Rank Tracking API. Track queries with configurable device (desktop/mobile/tablet) and location, highlight target domain positions, and store historical ranking data. Route: `/rank-tracking`. Schema: `rank_tracked_queries`, `rank_tracking_results` tables. Service: `server/services/searchapi-rank-tracking.ts`.
+- **LegiStorm Congressional Staff Directory**: Syncs 12,000+ congressional staffers from LegiStorm API with full and incremental sync support. Caches staffer profiles, position histories, contact info, member associations, and office details. Searchable/filterable via "LegiStorm Directory" tab on staffers page. Schema: `legistorm_staffers`, `legistorm_sync_log` tables. Service: `server/services/legistorm-service.ts`. Admin sync controls restricted to super admins.
 
 ### UI/UX Decisions
 - Modern and responsive design using Shadcn/ui and Tailwind CSS.
@@ -53,3 +54,4 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **OpenAI API**: For AI research capabilities (via Replit AI Integrations).
 - **Influencers Club API**: For tracking and enriching data on social media influencers.
 - **SearchAPI.io**: For Google Rank Tracking API — monitors search result rankings with device/location targeting.
+- **LegiStorm API**: For congressional staff directory data — provides 12,000+ staffer profiles with position histories, contact information, and member associations. Supports full and incremental sync patterns.
