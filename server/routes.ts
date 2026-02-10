@@ -6872,11 +6872,131 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         return res.status(500).json({ message: "Perplexity API key not configured" });
       }
 
+      let enrichedContext = "";
+      let memberBillsList: Array<{ congress: number; type: string; number: number; title: string; introducedDate: string }> = [];
+
+      if (stafferName && stafferType === "legistorm" && stafferId) {
+        try {
+          const { getLegistormStaffer } = await import("./services/legistorm-service");
+          const legistormId = parseInt(stafferId);
+          const staffer = !isNaN(legistormId) ? await getLegistormStaffer(legistormId) : null;
+
+          if (staffer) {
+            const positions = (staffer.positions as any[]) || [];
+            if (positions.length > 0) {
+              enrichedContext += `\n\n## LegiStorm Employment History for ${stafferName}:\n`;
+              for (const pos of positions) {
+                enrichedContext += `- ${pos.title || "Staff"} in ${pos.officeName || pos.memberName || "Unknown office"} (${pos.startDate || "?"} to ${pos.endDate || "present"})`;
+                if (pos.chamber) enrichedContext += ` [${pos.chamber}]`;
+                if (pos.state) enrichedContext += ` [${pos.state}${pos.district ? `-${pos.district}` : ""}]`;
+                enrichedContext += "\n";
+              }
+            }
+
+            const congressApiKey = process.env.CONGRESS_API_KEY;
+            if (congressApiKey) {
+              const congressApi = new CongressAPI(congressApiKey);
+              const memberNames = new Set<string>();
+              for (const pos of positions) {
+                if (pos.memberName) memberNames.add(pos.memberName);
+              }
+              if (staffer.currentMemberName) memberNames.add(staffer.currentMemberName);
+
+              for (const memberName of memberNames) {
+                try {
+                  const nameParts = memberName.split(" ");
+                  const lastName = nameParts[nameParts.length - 1];
+                  const pos = positions.find(p => p.memberName === memberName);
+                  const posState = pos?.state || staffer.state || undefined;
+                  const posChamber = pos?.chamber?.toLowerCase() as "house" | "senate" | undefined;
+
+                  const members = await congressApi.searchMembers(lastName, {
+                    chamber: posChamber,
+                    state: posState || undefined,
+                  });
+
+                  let matched = members.find(m => {
+                    const mName = m.name.toLowerCase();
+                    const nameMatch = nameParts.every(part => mName.includes(part.toLowerCase()));
+                    if (!nameMatch) return false;
+                    if (posState && m.state !== posState) return false;
+                    return true;
+                  });
+                  if (!matched && members.length === 1) {
+                    const mName = members[0].name.toLowerCase();
+                    if (nameParts.some(part => mName.includes(part.toLowerCase()))) {
+                      matched = members[0];
+                    }
+                  }
+
+                  if (matched) {
+                    const startYear = pos?.startDate ? parseInt(pos.startDate.substring(0, 4)) : null;
+                    const endYear = pos?.endDate ? parseInt(pos.endDate.substring(0, 4)) : new Date().getFullYear();
+
+                    try {
+                      const sponsored = await congressApi.getMemberBills(matched.bioguideId, 100);
+                      const bills = (sponsored.sponsoredLegislation || []).filter(b => {
+                        if (!startYear) return true;
+                        const billYear = b.introducedDate ? parseInt(b.introducedDate.substring(0, 4)) : null;
+                        return billYear && billYear >= startYear && billYear <= (endYear || 2030);
+                      });
+
+                      if (bills.length > 0) {
+                        enrichedContext += `\n## Bills sponsored by ${memberName} (${matched.party}-${matched.state}) during ${stafferName}'s tenure:\n`;
+                        for (const b of bills.slice(0, 25)) {
+                          const typeLabel = b.type?.replace(".", "") || "";
+                          enrichedContext += `- ${typeLabel.toUpperCase()} ${b.number}: ${b.title} (introduced ${b.introducedDate})\n`;
+                          memberBillsList.push({ congress: b.congress, type: typeLabel.toLowerCase(), number: b.number, title: b.title, introducedDate: b.introducedDate });
+                        }
+                        if (bills.length > 25) enrichedContext += `... and ${bills.length - 25} more bills\n`;
+                      }
+                    } catch (e) { /* skip if API fails for this member */ }
+
+                    try {
+                      const cosponsored = await congressApi.getMemberCosponsoredBills(matched.bioguideId, 50);
+                      const coBills = (cosponsored.cosponsoredLegislation || []).filter(b => {
+                        if (!startYear) return true;
+                        const billYear = b.introducedDate ? parseInt(b.introducedDate.substring(0, 4)) : null;
+                        return billYear && billYear >= startYear && billYear <= (endYear || 2030);
+                      });
+
+                      if (coBills.length > 0) {
+                        enrichedContext += `\n## Key bills cosponsored by ${memberName} during ${stafferName}'s tenure:\n`;
+                        for (const b of coBills.slice(0, 15)) {
+                          const typeLabel = b.type?.replace(".", "") || "";
+                          enrichedContext += `- ${typeLabel.toUpperCase()} ${b.number}: ${b.title} (introduced ${b.introducedDate})\n`;
+                          memberBillsList.push({ congress: b.congress, type: typeLabel.toLowerCase(), number: b.number, title: b.title, introducedDate: b.introducedDate });
+                        }
+                      }
+                    } catch (e) { /* skip cosponsored if API fails */ }
+                  }
+                } catch (e) { /* skip this member lookup */ }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Error enriching staffer data:", e);
+        }
+      }
+
       let prompt = "";
       if (stafferName && billTitle) {
         prompt = `Research the connection between congressional staffer "${stafferName}" and the bill "${billTitle}" (${billType?.toUpperCase() || ""} ${billNumber || ""}, ${congress || ""}th Congress). What role did this staffer play in the bill? Did they draft it, negotiate it, staff the committee hearing, or manage it on the floor? Provide specific details about their involvement, their title at the time, and which member of Congress they were working for. If no connection exists, say so clearly.`;
       } else if (stafferName) {
-        prompt = `Research congressional staffer "${stafferName}" and list all significant bills and legislation they have been involved with throughout their career. For each bill, specify: the bill number, title, their role (drafted, negotiated, staffed committee, floor managed, etc.), what position they held at the time, and which member they worked for. Focus on confirmed involvement, not speculation.`;
+        prompt = `Research congressional staffer "${stafferName}" and identify which bills they likely worked on throughout their career.`;
+        if (enrichedContext) {
+          prompt += `\n\nI have the following verified data from LegiStorm and Congress.gov to help your analysis:${enrichedContext}`;
+          prompt += `\n\nUsing this employment history and bill data above, analyze which of these bills the staffer "${stafferName}" most likely worked on directly. For each relevant bill, specify:
+1. The bill number and title
+2. Their likely role (drafted, negotiated, staffed committee, floor managed, policy advisor, legislative counsel, etc.)
+3. What position they held at the time
+4. Which member they worked for
+5. Your confidence level (high/medium/low)
+
+Focus on bills that align with the staffer's position title, the committee jurisdiction, and the member's legislative priorities. A Chief of Staff or Legislative Director would be involved in most major bills. A Legislative Assistant or Policy Advisor would focus on bills in their issue area.`;
+        } else {
+          prompt += ` For each bill, specify: the bill number, title, their role (drafted, negotiated, staffed committee, floor managed, etc.), what position they held at the time, and which member they worked for. Focus on confirmed involvement, not speculation.`;
+        }
       } else {
         prompt = `Research the bill "${billTitle}" (${billType?.toUpperCase() || ""} ${billNumber || ""}, ${congress || ""}th Congress) and identify the key congressional staffers who worked on it. For each staffer, specify: their name, role in the bill (drafted, negotiated, staffed committee, floor managed, etc.), their title at the time, and which member of Congress they worked for. Focus on confirmed involvement.`;
       }
@@ -6890,10 +7010,10 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
         body: JSON.stringify({
           model: "sonar",
           messages: [
-            { role: "system", content: "You are a congressional research expert. Provide factual, sourced information about congressional staffers and their involvement with legislation. Be specific about roles, titles, and timeframes." },
+            { role: "system", content: "You are a congressional research expert specializing in identifying staffer involvement with legislation. You have access to verified employment and bill data. Use this data to make informed analysis about which bills a staffer likely worked on based on their position, the member they served, and the timing. Be specific about roles, titles, timeframes, and confidence levels. Format bill references consistently as 'H.R. 123' or 'S. 456' style." },
             { role: "user", content: prompt },
           ],
-          max_tokens: 2000,
+          max_tokens: 3000,
         }),
       });
 
@@ -6905,7 +7025,16 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       const content = data.choices?.[0]?.message?.content || "No results found.";
       const citations = data.citations || [];
 
-      res.json({ research: content, citations, prompt });
+      res.json({
+        research: content,
+        citations,
+        prompt,
+        enrichedData: {
+          positionsFound: enrichedContext ? true : false,
+          memberBillsCount: memberBillsList.length,
+          memberBills: memberBillsList.slice(0, 50),
+        },
+      });
     } catch (error: any) {
       console.error("Error in AI discovery:", error);
       res.status(500).json({ message: error.message || "AI discovery failed" });

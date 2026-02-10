@@ -79,6 +79,11 @@ export default function BillMappingPage() {
     queryKey: ["/api/contacts"],
   });
 
+  const { data: legistormData } = useQuery<{ staffers: LegistormStaffer[] }>({
+    queryKey: ["/api/legistorm/staffers?limit=500"],
+  });
+  const legistormStaffers = legistormData?.staffers || [];
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest("DELETE", `/api/staffer-bills/${id}`);
@@ -296,6 +301,8 @@ export default function BillMappingPage() {
         open={showAiDialog}
         onOpenChange={setShowAiDialog}
         trackedBills={trackedBills}
+        contacts={contacts}
+        legistormStaffers={legistormStaffers}
       />
     </div>
   );
@@ -810,17 +817,41 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
   );
 }
 
-function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
+function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistormStaffers }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trackedBills: TrackedBill[];
+  contacts: Contact[];
+  legistormStaffers: LegistormStaffer[];
 }) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"staffer" | "bill">("staffer");
+  const [stafferSource, setStafferSource] = useState<"legistorm" | "contact" | "custom">("legistorm");
+  const [selectedStafferId, setSelectedStafferId] = useState("");
   const [stafferName, setStafferName] = useState("");
+  const [stafferSearch, setStafferSearch] = useState("");
   const [selectedBillId, setSelectedBillId] = useState("");
   const [customBillTitle, setCustomBillTitle] = useState("");
-  const [result, setResult] = useState<{ research: string; citations: string[] } | null>(null);
+  const [result, setResult] = useState<{ research: string; citations: string[]; enrichedData?: { positionsFound: boolean; memberBillsCount: number; memberBills: any[] } } | null>(null);
+
+  const filteredLegistorm = useMemo(() => {
+    if (!stafferSearch.trim()) return legistormStaffers.slice(0, 20);
+    const q = stafferSearch.toLowerCase();
+    return legistormStaffers.filter(s =>
+      s.fullName?.toLowerCase().includes(q) ||
+      s.currentTitle?.toLowerCase().includes(q) ||
+      s.currentMemberName?.toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [legistormStaffers, stafferSearch]);
+
+  const filteredContacts = useMemo(() => {
+    if (!stafferSearch.trim()) return contacts.slice(0, 20);
+    const q = stafferSearch.toLowerCase();
+    return contacts.filter(c => {
+      const fullName = `${c.firstName || ""} ${c.lastName || ""}`.toLowerCase();
+      return fullName.includes(q) || c.title?.toLowerCase().includes(q);
+    }).slice(0, 20);
+  }, [contacts, stafferSearch]);
 
   const discoverMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -839,7 +870,24 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
     const selectedBill = trackedBills.find(b => b.id === selectedBillId);
     const data: any = {};
 
-    if (stafferName) data.stafferName = stafferName;
+    if (stafferSource === "legistorm" && selectedStafferId) {
+      const staffer = legistormStaffers.find(s => s.legistormId?.toString() === selectedStafferId);
+      if (staffer) {
+        data.stafferName = staffer.fullName;
+        data.stafferType = "legistorm";
+        data.stafferId = staffer.legistormId?.toString();
+      }
+    } else if (stafferSource === "contact" && selectedStafferId) {
+      const contact = contacts.find(c => c.id === selectedStafferId);
+      if (contact) {
+        data.stafferName = `${contact.firstName} ${contact.lastName}`.trim();
+        data.stafferType = "contact";
+        data.stafferId = contact.id;
+      }
+    } else if (stafferName) {
+      data.stafferName = stafferName;
+    }
+
     if (selectedBill) {
       data.billTitle = selectedBill.title;
       data.billType = selectedBill.billType;
@@ -857,8 +905,15 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
     discoverMutation.mutate(data);
   }
 
+  function handleSelectStaffer(source: "legistorm" | "contact", id: string, name: string) {
+    setStafferSource(source);
+    setSelectedStafferId(id);
+    setStafferName(name);
+    setStafferSearch(name);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setResult(null); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setResult(null); setStafferSearch(""); setSelectedStafferId(""); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -866,7 +921,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
             AI Bill Discovery
           </DialogTitle>
           <DialogDescription>
-            Use AI to research connections between staffers and legislation. Results can be saved as associations.
+            Cross-references LegiStorm employment history with Congress.gov bill data, then uses AI to analyze likely involvement.
           </DialogDescription>
         </DialogHeader>
 
@@ -875,30 +930,124 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
             <div>
               <Label className="text-sm font-medium mb-2 block">Research Focus</Label>
               <div className="flex gap-2">
-                <Button size="sm" variant={mode === "staffer" ? "default" : "outline"} onClick={() => setMode("staffer")}>
+                <Button size="sm" variant={mode === "staffer" ? "default" : "outline"} onClick={() => setMode("staffer")} data-testid="button-mode-staffer">
                   Research a Staffer
                 </Button>
-                <Button size="sm" variant={mode === "bill" ? "default" : "outline"} onClick={() => setMode("bill")}>
+                <Button size="sm" variant={mode === "bill" ? "default" : "outline"} onClick={() => setMode("bill")} data-testid="button-mode-bill">
                   Research a Bill
                 </Button>
               </div>
             </div>
 
             {(mode === "staffer" || mode === "bill") && (
-              <div>
-                <Label>Staffer Name {mode === "bill" ? "(optional)" : ""}</Label>
-                <Input
-                  value={stafferName}
-                  onChange={e => setStafferName(e.target.value)}
-                  placeholder="e.g., Sarah Johnson"
-                  data-testid="input-ai-staffer"
-                />
+              <div className="space-y-2">
+                <Label>Staffer {mode === "bill" ? "(optional)" : ""}</Label>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant={stafferSource === "legistorm" ? "default" : "outline"}
+                    onClick={() => { setStafferSource("legistorm"); setSelectedStafferId(""); setStafferSearch(""); }}
+                    data-testid="button-source-legistorm"
+                  >
+                    LegiStorm Directory
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={stafferSource === "contact" ? "default" : "outline"}
+                    onClick={() => { setStafferSource("contact"); setSelectedStafferId(""); setStafferSearch(""); }}
+                    data-testid="button-source-contact"
+                  >
+                    Contacts
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={stafferSource === "custom" ? "default" : "outline"}
+                    onClick={() => { setStafferSource("custom"); setSelectedStafferId(""); setStafferSearch(""); }}
+                    data-testid="button-source-custom"
+                  >
+                    Type Name
+                  </Button>
+                </div>
+
+                {stafferSource === "custom" ? (
+                  <Input
+                    value={stafferName}
+                    onChange={e => setStafferName(e.target.value)}
+                    placeholder="e.g., Sarah Johnson"
+                    data-testid="input-ai-staffer"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      value={stafferSearch}
+                      onChange={e => { setStafferSearch(e.target.value); setSelectedStafferId(""); }}
+                      placeholder={stafferSource === "legistorm" ? "Search LegiStorm staffers..." : "Search contacts..."}
+                      data-testid="input-ai-staffer-search"
+                    />
+                    {selectedStafferId && (
+                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium flex-1">{stafferName}</span>
+                        {stafferSource === "legistorm" && (
+                          <Badge variant="secondary" className="text-xs">LegiStorm</Badge>
+                        )}
+                        <Button size="icon" variant="ghost" onClick={() => { setSelectedStafferId(""); setStafferName(""); setStafferSearch(""); }} data-testid="button-clear-staffer">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {!selectedStafferId && stafferSearch.length >= 2 && (
+                      <ScrollArea className="max-h-40 border rounded-md">
+                        <div className="p-1">
+                          {stafferSource === "legistorm" ? (
+                            filteredLegistorm.length > 0 ? filteredLegistorm.map(s => (
+                              <button
+                                key={s.legistormId}
+                                className="w-full text-left px-3 py-2 text-sm hover-elevate rounded-md flex items-center gap-2"
+                                onClick={() => handleSelectStaffer("legistorm", s.legistormId?.toString() || "", s.fullName || "")}
+                                data-testid={`option-staffer-${s.legistormId}`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">{s.fullName}</div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {s.currentTitle}{s.currentMemberName ? ` - ${s.currentMemberName}` : ""}{s.chamber ? ` (${s.chamber})` : ""}
+                                  </div>
+                                </div>
+                              </button>
+                            )) : <div className="px-3 py-2 text-sm text-muted-foreground">No staffers found</div>
+                          ) : (
+                            filteredContacts.length > 0 ? filteredContacts.map(c => (
+                              <button
+                                key={c.id}
+                                className="w-full text-left px-3 py-2 text-sm hover-elevate rounded-md flex items-center gap-2"
+                                onClick={() => handleSelectStaffer("contact", c.id, `${c.firstName} ${c.lastName}`.trim())}
+                                data-testid={`option-contact-${c.id}`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">{c.firstName} {c.lastName}</div>
+                                  <div className="text-xs text-muted-foreground truncate">{c.title}{c.organization ? ` at ${c.organization}` : ""}</div>
+                                </div>
+                              </button>
+                            )) : <div className="px-3 py-2 text-sm text-muted-foreground">No contacts found</div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </div>
+                )}
+
+                {stafferSource === "legistorm" && selectedStafferId && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    Will cross-reference employment history with Congress.gov bill data for richer results
+                  </div>
+                )}
               </div>
             )}
 
             <div>
               <Label>Bill {mode === "staffer" ? "(optional - narrows research)" : ""}</Label>
-              <Select value={selectedBillId} onValueChange={setSelectedBillId}>
+              <Select value={selectedBillId} onValueChange={(v) => setSelectedBillId(v === "none" ? "" : v)}>
                 <SelectTrigger data-testid="select-ai-bill">
                   <SelectValue placeholder="Select a tracked bill (optional)" />
                 </SelectTrigger>
@@ -918,6 +1067,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
                     value={customBillTitle}
                     onChange={e => setCustomBillTitle(e.target.value)}
                     placeholder="e.g., Infrastructure Investment and Jobs Act"
+                    data-testid="input-custom-bill"
                   />
                 </div>
               )}
@@ -927,7 +1077,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
               {discoverMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Researching...
+                  Researching (cross-referencing APIs)...
                 </>
               ) : (
                 <>
@@ -939,6 +1089,28 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
           </div>
         ) : (
           <div className="space-y-4">
+            {result.enrichedData?.positionsFound && (
+              <div className="bg-primary/10 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm font-medium">Data Sources Used</span>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <div className="flex items-center gap-1">
+                    <span>LegiStorm employment history</span>
+                  </div>
+                  {result.enrichedData.memberBillsCount > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span>Congress.gov: {result.enrichedData.memberBillsCount} bills from member(s) during tenure</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <span>Perplexity AI analysis</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-muted/50 rounded-md p-4">
               <h4 className="font-medium mb-2 flex items-center gap-2">
                 <Bot className="w-4 h-4" />
@@ -948,6 +1120,28 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
                 {result.research}
               </div>
             </div>
+
+            {result.enrichedData?.memberBills && result.enrichedData.memberBills.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Member Bills Found ({result.enrichedData.memberBills.length})
+                </h4>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {result.enrichedData.memberBills.map((b: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded hover-elevate">
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {(b.type || "").toUpperCase()} {b.number}
+                        </Badge>
+                        <span className="truncate flex-1">{b.title}</span>
+                        <span className="text-muted-foreground shrink-0">{b.introducedDate?.substring(0, 4)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
             {result.citations && result.citations.length > 0 && (
               <div>
@@ -970,10 +1164,10 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills }: {
             )}
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setResult(null)} className="flex-1">
+              <Button variant="outline" onClick={() => setResult(null)} className="flex-1" data-testid="button-new-research">
                 New Research
               </Button>
-              <Button variant="outline" onClick={() => { onOpenChange(false); setResult(null); }}>
+              <Button variant="outline" onClick={() => { onOpenChange(false); setResult(null); }} data-testid="button-close-results">
                 Close
               </Button>
             </div>
