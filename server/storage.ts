@@ -148,6 +148,9 @@ import {
   type InsertRankTrackedQuery,
   type RankTrackingResult,
   type InsertRankTrackingResult,
+  stafferBillAssociations,
+  type StafferBillAssociation,
+  type InsertStafferBillAssociation,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -398,6 +401,15 @@ export interface IStorage {
   updateRankTrackedQueryLastChecked(id: string): Promise<void>;
   getRankTrackingResults(queryId: string): Promise<RankTrackingResult[]>;
   createRankTrackingResults(results: InsertRankTrackingResult[]): Promise<RankTrackingResult[]>;
+
+  // Staffer-Bill Associations
+  getStafferBillAssociations(clientId: string, filters?: { stafferId?: string; stafferType?: string; trackedBillId?: string }): Promise<StafferBillAssociation[]>;
+  getStafferBillAssociation(id: string): Promise<StafferBillAssociation | undefined>;
+  createStafferBillAssociation(data: InsertStafferBillAssociation): Promise<StafferBillAssociation>;
+  updateStafferBillAssociation(id: string, data: Partial<InsertStafferBillAssociation>): Promise<StafferBillAssociation | undefined>;
+  deleteStafferBillAssociation(id: string): Promise<void>;
+  getStafferBillsByStaffer(stafferType: string, stafferId: string): Promise<StafferBillAssociation[]>;
+  getStafferBillsByBill(trackedBillId: string): Promise<StafferBillAssociation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1883,6 +1895,46 @@ export class DatabaseStorage implements IStorage {
   async createRankTrackingResults(results: InsertRankTrackingResult[]): Promise<RankTrackingResult[]> {
     if (results.length === 0) return [];
     return db.insert(rankTrackingResults).values(results).returning();
+  }
+
+  // Staffer-Bill Associations
+  async getStafferBillAssociations(clientId: string, filters?: { stafferId?: string; stafferType?: string; trackedBillId?: string }): Promise<StafferBillAssociation[]> {
+    const conditions = [eq(stafferBillAssociations.clientId, clientId)];
+    if (filters?.stafferId) conditions.push(eq(stafferBillAssociations.stafferId, filters.stafferId));
+    if (filters?.stafferType) conditions.push(eq(stafferBillAssociations.stafferType, filters.stafferType));
+    if (filters?.trackedBillId) conditions.push(eq(stafferBillAssociations.trackedBillId, filters.trackedBillId));
+    return db.select().from(stafferBillAssociations).where(and(...conditions)).orderBy(desc(stafferBillAssociations.createdAt));
+  }
+
+  async getStafferBillAssociation(id: string): Promise<StafferBillAssociation | undefined> {
+    const [result] = await db.select().from(stafferBillAssociations).where(eq(stafferBillAssociations.id, id));
+    return result;
+  }
+
+  async createStafferBillAssociation(data: InsertStafferBillAssociation): Promise<StafferBillAssociation> {
+    const [result] = await db.insert(stafferBillAssociations).values(data).returning();
+    return result;
+  }
+
+  async updateStafferBillAssociation(id: string, data: Partial<InsertStafferBillAssociation>): Promise<StafferBillAssociation | undefined> {
+    const [result] = await db.update(stafferBillAssociations).set({ ...data, updatedAt: new Date() }).where(eq(stafferBillAssociations.id, id)).returning();
+    return result;
+  }
+
+  async deleteStafferBillAssociation(id: string): Promise<void> {
+    await db.delete(stafferBillAssociations).where(eq(stafferBillAssociations.id, id));
+  }
+
+  async getStafferBillsByStaffer(stafferType: string, stafferId: string): Promise<StafferBillAssociation[]> {
+    return db.select().from(stafferBillAssociations)
+      .where(and(eq(stafferBillAssociations.stafferType, stafferType), eq(stafferBillAssociations.stafferId, stafferId)))
+      .orderBy(desc(stafferBillAssociations.yearStart));
+  }
+
+  async getStafferBillsByBill(trackedBillId: string): Promise<StafferBillAssociation[]> {
+    return db.select().from(stafferBillAssociations)
+      .where(eq(stafferBillAssociations.trackedBillId, trackedBillId))
+      .orderBy(stafferBillAssociations.stafferName);
   }
 }
 
