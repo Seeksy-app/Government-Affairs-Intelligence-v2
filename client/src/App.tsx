@@ -53,6 +53,7 @@ import CongressionalSchedulesPage from "@/pages/congressional-schedules";
 import OrganizationsPage from "@/pages/organizations";
 import PowerSearchPage from "@/pages/power-search";
 import RankTrackingPage from "@/pages/rank-tracking";
+import BillMappingPage from "@/pages/bill-mapping";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
@@ -78,6 +79,7 @@ function AuthenticatedRouter() {
       <Route path="/matters" component={MattersPage} />
       <Route path="/matters/:id" component={MatterDetailPage} />
       <Route path="/bills" component={BillTrackingPage} />
+      <Route path="/bill-mapping" component={BillMappingPage} />
       <Route path="/predictions" component={PredictionsPage} />
       <Route path="/social" component={SocialTrackingPage} />
       <Route path="/influencers" component={InfluencerTrackingPage} />

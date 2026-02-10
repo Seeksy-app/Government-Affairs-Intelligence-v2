@@ -6773,6 +6773,145 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ==================== STAFFER-BILL MAPPING ROUTES ====================
+
+  app.get("/api/staffer-bills", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const filters: any = {};
+      if (req.query.stafferId) filters.stafferId = req.query.stafferId as string;
+      if (req.query.stafferType) filters.stafferType = req.query.stafferType as string;
+      if (req.query.trackedBillId) filters.trackedBillId = req.query.trackedBillId as string;
+      const associations = await storage.getStafferBillAssociations(clientId, filters);
+      res.json(associations);
+    } catch (error: any) {
+      console.error("Error getting staffer-bill associations:", error);
+      res.status(500).json({ message: "Failed to get staffer-bill associations" });
+    }
+  });
+
+  app.get("/api/staffer-bills/by-staffer/:stafferType/:stafferId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const { stafferType, stafferId } = req.params;
+      const associations = await storage.getStafferBillsByStaffer(clientId, stafferType, stafferId);
+      res.json(associations);
+    } catch (error: any) {
+      console.error("Error getting staffer bills:", error);
+      res.status(500).json({ message: "Failed to get staffer bills" });
+    }
+  });
+
+  app.get("/api/staffer-bills/by-bill/:trackedBillId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const associations = await storage.getStafferBillsByBill(clientId, req.params.trackedBillId);
+      res.json(associations);
+    } catch (error: any) {
+      console.error("Error getting bill staffers:", error);
+      res.status(500).json({ message: "Failed to get bill staffers" });
+    }
+  });
+
+  app.post("/api/staffer-bills", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const association = await storage.createStafferBillAssociation({ ...req.body, clientId });
+      res.json(association);
+    } catch (error: any) {
+      console.error("Error creating staffer-bill association:", error);
+      res.status(500).json({ message: "Failed to create association" });
+    }
+  });
+
+  app.patch("/api/staffer-bills/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const existing = await storage.getStafferBillAssociation(req.params.id);
+      if (!existing) return res.status(404).json({ message: "Association not found" });
+      if (existing.clientId !== clientId) return res.status(403).json({ message: "Not authorized" });
+      const association = await storage.updateStafferBillAssociation(req.params.id, req.body);
+      res.json(association);
+    } catch (error: any) {
+      console.error("Error updating staffer-bill association:", error);
+      res.status(500).json({ message: "Failed to update association" });
+    }
+  });
+
+  app.delete("/api/staffer-bills/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const existing = await storage.getStafferBillAssociation(req.params.id);
+      if (!existing) return res.status(404).json({ message: "Association not found" });
+      if (existing.clientId !== clientId) return res.status(403).json({ message: "Not authorized" });
+      await storage.deleteStafferBillAssociation(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting staffer-bill association:", error);
+      res.status(500).json({ message: "Failed to delete association" });
+    }
+  });
+
+  app.post("/api/staffer-bills/ai-discover", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const { stafferName, stafferType, stafferId, billTitle, billType, billNumber, congress } = req.body;
+      if (!stafferName && !billTitle) {
+        return res.status(400).json({ message: "Provide either stafferName or billTitle" });
+      }
+
+      const perplexityKey = process.env.PERPLEXITY_API_KEY;
+      if (!perplexityKey) {
+        return res.status(500).json({ message: "Perplexity API key not configured" });
+      }
+
+      let prompt = "";
+      if (stafferName && billTitle) {
+        prompt = `Research the connection between congressional staffer "${stafferName}" and the bill "${billTitle}" (${billType?.toUpperCase() || ""} ${billNumber || ""}, ${congress || ""}th Congress). What role did this staffer play in the bill? Did they draft it, negotiate it, staff the committee hearing, or manage it on the floor? Provide specific details about their involvement, their title at the time, and which member of Congress they were working for. If no connection exists, say so clearly.`;
+      } else if (stafferName) {
+        prompt = `Research congressional staffer "${stafferName}" and list all significant bills and legislation they have been involved with throughout their career. For each bill, specify: the bill number, title, their role (drafted, negotiated, staffed committee, floor managed, etc.), what position they held at the time, and which member they worked for. Focus on confirmed involvement, not speculation.`;
+      } else {
+        prompt = `Research the bill "${billTitle}" (${billType?.toUpperCase() || ""} ${billNumber || ""}, ${congress || ""}th Congress) and identify the key congressional staffers who worked on it. For each staffer, specify: their name, role in the bill (drafted, negotiated, staffed committee, floor managed, etc.), their title at the time, and which member of Congress they worked for. Focus on confirmed involvement.`;
+      }
+
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You are a congressional research expert. Provide factual, sourced information about congressional staffers and their involvement with legislation. Be specific about roles, titles, and timeframes." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "No results found.";
+      const citations = data.citations || [];
+
+      res.json({ research: content, citations, prompt });
+    } catch (error: any) {
+      console.error("Error in AI discovery:", error);
+      res.status(500).json({ message: error.message || "AI discovery failed" });
+    }
+  });
+
   // ==================== RANK TRACKING ROUTES ====================
 
   app.get("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {

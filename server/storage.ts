@@ -408,8 +408,8 @@ export interface IStorage {
   createStafferBillAssociation(data: InsertStafferBillAssociation): Promise<StafferBillAssociation>;
   updateStafferBillAssociation(id: string, data: Partial<InsertStafferBillAssociation>): Promise<StafferBillAssociation | undefined>;
   deleteStafferBillAssociation(id: string): Promise<void>;
-  getStafferBillsByStaffer(stafferType: string, stafferId: string): Promise<StafferBillAssociation[]>;
-  getStafferBillsByBill(trackedBillId: string): Promise<StafferBillAssociation[]>;
+  getStafferBillsByStaffer(clientId: string, stafferType: string, stafferId: string): Promise<StafferBillAssociation[]>;
+  getStafferBillsByBill(clientId: string, trackedBillId: string): Promise<StafferBillAssociation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1925,15 +1925,15 @@ export class DatabaseStorage implements IStorage {
     await db.delete(stafferBillAssociations).where(eq(stafferBillAssociations.id, id));
   }
 
-  async getStafferBillsByStaffer(stafferType: string, stafferId: string): Promise<StafferBillAssociation[]> {
+  async getStafferBillsByStaffer(clientId: string, stafferType: string, stafferId: string): Promise<StafferBillAssociation[]> {
     return db.select().from(stafferBillAssociations)
-      .where(and(eq(stafferBillAssociations.stafferType, stafferType), eq(stafferBillAssociations.stafferId, stafferId)))
+      .where(and(eq(stafferBillAssociations.clientId, clientId), eq(stafferBillAssociations.stafferType, stafferType), eq(stafferBillAssociations.stafferId, stafferId)))
       .orderBy(desc(stafferBillAssociations.yearStart));
   }
 
-  async getStafferBillsByBill(trackedBillId: string): Promise<StafferBillAssociation[]> {
+  async getStafferBillsByBill(clientId: string, trackedBillId: string): Promise<StafferBillAssociation[]> {
     return db.select().from(stafferBillAssociations)
-      .where(eq(stafferBillAssociations.trackedBillId, trackedBillId))
+      .where(and(eq(stafferBillAssociations.clientId, clientId), eq(stafferBillAssociations.trackedBillId, trackedBillId)))
       .orderBy(stafferBillAssociations.stafferName);
   }
 }
