@@ -1201,3 +1201,67 @@ export const insertRankTrackingResultSchema = createInsertSchema(rankTrackingRes
 
 export type InsertRankTrackingResult = z.infer<typeof insertRankTrackingResultSchema>;
 export type RankTrackingResult = typeof rankTrackingResults.$inferSelect;
+
+// LegiStorm Congressional Staff Directory - cached from LegiStorm API
+export const legistormStaffers = pgTable("legistorm_staffers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  legistormId: integer("legistorm_id").notNull().unique(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  preferredFirstName: text("preferred_first_name"),
+  preferredLastName: text("preferred_last_name"),
+  fullName: text("full_name").notNull(),
+  gender: text("gender"),
+  party: text("party"),
+  race: text("race"),
+  email: text("email"),
+  phone: text("phone"),
+  officeAddress: text("office_address"),
+  currentTitle: text("current_title"),
+  currentOffice: text("current_office"),
+  currentMemberName: text("current_member_name"),
+  currentMemberId: integer("current_member_id"),
+  chamber: text("chamber"),
+  state: varchar("state", { length: 2 }),
+  district: integer("district"),
+  isCurrentStaff: boolean("is_current_staff").default(true),
+  positions: jsonb("positions").$type<Array<{
+    id: number;
+    title: string;
+    isCurrent: boolean;
+    startDate: string | null;
+    endDate: string | null;
+    memberName: string | null;
+    memberId: number | null;
+    officeName: string | null;
+    officeId: number | null;
+    chamber: string | null;
+    state: string | null;
+    district: number | null;
+  }>>(),
+  lastUpdatedFromApi: timestamp("last_updated_from_api"),
+  syncedAt: timestamp("synced_at").defaultNow(),
+});
+
+export const insertLegistormStafferSchema = createInsertSchema(legistormStaffers).omit({
+  id: true,
+  syncedAt: true,
+});
+
+export type InsertLegistormStaffer = z.infer<typeof insertLegistormStafferSchema>;
+export type LegistormStaffer = typeof legistormStaffers.$inferSelect;
+
+// LegiStorm sync tracking
+export const legistormSyncLog = pgTable("legistorm_sync_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  syncType: text("sync_type").notNull(),
+  status: text("status").notNull(),
+  recordsProcessed: integer("records_processed").default(0),
+  recordsCreated: integer("records_created").default(0),
+  recordsUpdated: integer("records_updated").default(0),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export type LegistormSyncLog = typeof legistormSyncLog.$inferSelect;

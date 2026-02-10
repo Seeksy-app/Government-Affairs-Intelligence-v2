@@ -6690,6 +6690,81 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  // ==================== LEGISTORM ROUTES ====================
+
+  app.get("/api/legistorm/status", isAuthenticated, async (req, res) => {
+    try {
+      const { getSyncStatus } = await import("./services/legistorm-service");
+      const status = await getSyncStatus();
+      res.json(status);
+    } catch (error: any) {
+      console.error("Error getting LegiStorm status:", error);
+      res.status(500).json({ message: error.message || "Failed to get status" });
+    }
+  });
+
+  app.post("/api/legistorm/sync/full", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Super admin access required" });
+
+      const { runFullSync } = await import("./services/legistorm-service");
+      const result = await runFullSync();
+      res.json({ message: "Full sync started", logId: result.logId });
+    } catch (error: any) {
+      console.error("Error starting full sync:", error);
+      res.status(500).json({ message: error.message || "Failed to start sync" });
+    }
+  });
+
+  app.post("/api/legistorm/sync/incremental", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      if (!superAdmin) return res.status(403).json({ message: "Super admin access required" });
+
+      const { runIncrementalSync } = await import("./services/legistorm-service");
+      const result = await runIncrementalSync();
+      res.json({ message: "Incremental sync started", logId: result.logId });
+    } catch (error: any) {
+      console.error("Error starting incremental sync:", error);
+      res.status(500).json({ message: error.message || "Failed to start sync" });
+    }
+  });
+
+  app.get("/api/legistorm/staffers", isAuthenticated, async (req, res) => {
+    try {
+      const { searchLegistormStaffers } = await import("./services/legistorm-service");
+      const query = (req.query.q as string) || "";
+      const chamber = req.query.chamber as string;
+      const state = req.query.state as string;
+      const party = req.query.party as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await searchLegistormStaffers(query, { chamber, state, party, limit, offset });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error searching LegiStorm staffers:", error);
+      res.status(500).json({ message: error.message || "Failed to search staffers" });
+    }
+  });
+
+  app.get("/api/legistorm/staffers/:legistormId", isAuthenticated, async (req, res) => {
+    try {
+      const { getLegistormStaffer } = await import("./services/legistorm-service");
+      const staffer = await getLegistormStaffer(parseInt(req.params.legistormId));
+      if (!staffer) return res.status(404).json({ message: "Staffer not found" });
+      res.json(staffer);
+    } catch (error: any) {
+      console.error("Error getting LegiStorm staffer:", error);
+      res.status(500).json({ message: error.message || "Failed to get staffer" });
+    }
+  });
+
   // ==================== RANK TRACKING ROUTES ====================
 
   app.get("/api/rank-tracking/queries", isAuthenticated, async (req, res) => {
