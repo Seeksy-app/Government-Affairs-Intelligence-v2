@@ -6894,7 +6894,9 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
 
+      console.log(`[LegiStorm Search] q="${query}" chamber="${chamber}" state="${state}" party="${party}" limit=${limit} offset=${offset}`);
       const result = await searchLegistormStaffers(query, { chamber, state, party, limit, offset });
+      console.log(`[LegiStorm Search] Found ${result.total} results, returning ${result.staffers.length}`);
       res.json(result);
     } catch (error: any) {
       console.error("Error searching LegiStorm staffers:", error);
