@@ -230,14 +230,21 @@ export default function StaffersPage() {
 
   const lsSearchUrl = `/api/legistorm/staffers?${lsSearchParams.toString()}`;
 
-  const { data: lsResult, isLoading: lsLoading } = useQuery<{
+  const { data: lsResult, isLoading: lsLoading, error: lsError } = useQuery<{
     staffers: LegistormStaffer[];
     total: number;
     limit: number;
     offset: number;
   }>({
-    queryKey: [lsSearchUrl],
+    queryKey: ["/api/legistorm/staffers", lsQuery, lsChamber, lsParty, lsState, lsPage],
+    queryFn: async () => {
+      const res = await fetch(lsSearchUrl, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+      return res.json();
+    },
     enabled: activeTab === "legistorm",
+    staleTime: 30000,
+    retry: 1,
   });
 
   const { data: lsStatus } = useQuery<{
