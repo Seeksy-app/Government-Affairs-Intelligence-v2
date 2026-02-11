@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -210,12 +211,20 @@ function AccessMappingBoard() {
                             <p className="text-xs text-muted-foreground truncate">{staffer.currentTitle}</p>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <Badge variant={influence.color as any} className="text-xs">
-                            {influence.label}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{influence.score}/100</span>
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex flex-col items-end gap-1 shrink-0 cursor-help">
+                              <Badge variant={influence.color as any} className="text-xs">
+                                {influence.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{influence.score}/100</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            <p className="font-medium">{influence.label} Influence ({influence.score}/100)</p>
+                            <p className="text-xs text-muted-foreground">Based on title: {staffer.currentTitle}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 items-center">
                         {staffer.email && (
@@ -752,15 +761,30 @@ function NetworkPathFinder() {
                     const influence = getInfluenceScore(s.currentTitle || "");
                     return (
                       <div key={idx} className="flex items-center gap-3 p-3 border rounded-md" data-testid={`path-staffer-${idx}`}>
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
-                          {influence.score}
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0 cursor-help">
+                              {influence.score}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="font-medium">{influence.label} Influence ({influence.score}/100)</p>
+                            <p className="text-xs text-muted-foreground">Based on title: {s.currentTitle}</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{s.fullName}</p>
                           <p className="text-xs text-muted-foreground truncate">{s.currentTitle}</p>
                           {s.email && <p className="text-xs text-muted-foreground">{s.email}</p>}
                         </div>
-                        <Badge variant={influence.color as any} className="shrink-0 text-xs">{influence.label}</Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant={influence.color as any} className="shrink-0 text-xs cursor-help">{influence.label}</Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Influence tier based on staff role seniority</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     );
                   })}
@@ -920,10 +944,17 @@ function PowerGridDashboard() {
                         <span className="text-xs text-muted-foreground">{member.state}</span>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-primary">{member.staffCount}</p>
-                      <p className="text-xs text-muted-foreground">staff</p>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="text-right shrink-0 cursor-help">
+                          <p className="text-lg font-bold text-primary">{member.staffCount}</p>
+                          <p className="text-xs text-muted-foreground">staff</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Total staffers tracked for {member.memberName}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   {member.topStaffers && member.topStaffers.length > 0 && (
                     <div className="space-y-1.5">
@@ -936,7 +967,15 @@ function PowerGridDashboard() {
                               <p className="text-xs font-medium truncate">{s.name}</p>
                               <p className="text-xs text-muted-foreground truncate">{s.title}</p>
                             </div>
-                            <Badge variant={inf.color as any} className="text-xs shrink-0">{inf.score}</Badge>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant={inf.color as any} className="text-xs shrink-0 cursor-help">{inf.score}</Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">
+                                <p className="font-medium">{inf.label} Influence</p>
+                                <p className="text-xs text-muted-foreground">{s.title} — Score: {inf.score}/100</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         );
                       })}
