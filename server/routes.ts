@@ -20,6 +20,12 @@ import {
   insertYoutubeWatchListSchema,
   insertTrackedBillSchema,
   insertClientApplicationSchema,
+  strategyBoards,
+  strategyCards,
+  insertStrategyBoardSchema,
+  insertStrategyCardSchema,
+  legistormStaffers,
+  stafferBillAssociations,
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
@@ -7391,6 +7397,403 @@ Focus on bills that align with the staffer's position title, the committee juris
     } catch (error: any) {
       console.error("Error checking rankings:", error);
       res.status(500).json({ message: error.message || "Failed to check rankings" });
+    }
+  });
+
+  // ==================== Strategy Board Routes ====================
+
+  // Access Mapping - Find staffers for a member
+  app.get("/api/strategy/access-map", isAuthenticated, async (req, res) => {
+    try {
+      const memberName = req.query.memberName as string;
+      if (!memberName) return res.status(400).json({ message: "memberName is required" });
+
+      const { ilike } = await import("drizzle-orm");
+      const { db } = await import("./db");
+
+      const staffers = await db.select().from(legistormStaffers)
+        .where(ilike(legistormStaffers.currentMemberName, `%${memberName}%`))
+        .limit(50);
+
+      res.json({ staffers, total: staffers.length });
+    } catch (error: any) {
+      console.error("Error in access map:", error);
+      res.status(500).json({ message: error.message || "Failed to get access map" });
+    }
+  });
+
+  // AI Access Strategy
+  app.get("/api/strategy/ai-access", isAuthenticated, async (req, res) => {
+    try {
+      const memberName = req.query.memberName as string;
+      if (!memberName) return res.status(400).json({ message: "memberName is required" });
+
+      const { ilike } = await import("drizzle-orm");
+      const { db } = await import("./db");
+
+      const staffers = await db.select().from(legistormStaffers)
+        .where(ilike(legistormStaffers.currentMemberName, `%${memberName}%`))
+        .limit(20);
+
+      const stafferSummary = staffers.map(s => `${s.fullName} - ${s.currentTitle} (${s.email || 'no email'})`).join("\n");
+
+      const prompt = `You are a government affairs strategy consultant. A client needs access to ${memberName} in Congress.
+
+Here are the current staffers in their office:
+${stafferSummary}
+
+Provide a concise access strategy that includes:
+1. Which staffers to approach first and why (based on their title/role)
+2. Best approach for initial contact (email, meeting request, etc.)
+3. Key talking points to open the conversation
+4. Common mistakes to avoid
+5. Timeline recommendation
+
+Keep the response practical, actionable, and under 500 words.`;
+
+      if (process.env.PERPLEXITY_API_KEY) {
+        const response = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar",
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 1000,
+          }),
+        });
+        const data = await response.json();
+        res.json({ strategy: data.choices?.[0]?.message?.content || "No strategy generated" });
+      } else {
+        res.json({ strategy: `Access Strategy for ${memberName}:\n\nBased on ${staffers.length} staffers found, prioritize reaching out to senior staff members like the Chief of Staff or Legislative Director first. These individuals have the most direct access and influence on policy decisions.\n\nRecommended approach:\n1. Start with email introduction\n2. Reference specific policy areas of mutual interest\n3. Request a brief introductory meeting\n4. Follow up within one week` });
+      }
+    } catch (error: any) {
+      console.error("Error generating AI strategy:", error);
+      res.status(500).json({ message: error.message || "Failed to generate strategy" });
+    }
+  });
+
+  // Bill search for strategy
+  app.get("/api/strategy/bill-search", isAuthenticated, async (req, res) => {
+    try {
+      const q = req.query.q as string;
+      if (!q) return res.json([]);
+
+      const congressApi = new CongressAPI();
+      const results = await congressApi.searchBills(q, 10);
+      res.json(results || []);
+    } catch (error: any) {
+      console.error("Error searching bills:", error);
+      res.status(500).json({ message: error.message || "Failed to search bills" });
+    }
+  });
+
+  // Bill influence map
+  app.get("/api/strategy/bill-influence", isAuthenticated, async (req, res) => {
+    try {
+      const billId = req.query.billId as string;
+      const billLabel = req.query.billLabel as string;
+      if (!billId) return res.status(400).json({ message: "billId required" });
+
+      const clientId = await getClientId(req);
+      const { ilike, or, and, eq } = await import("drizzle-orm");
+      const { db } = await import("./db");
+
+      const associations = await db.select().from(stafferBillAssociations)
+        .where(
+          clientId
+            ? and(
+                eq(stafferBillAssociations.clientId, clientId),
+                or(
+                  ilike(stafferBillAssociations.billTitle, `%${billLabel || billId}%`),
+                  eq(stafferBillAssociations.billNumber, parseInt(billId) || 0)
+                )
+              )
+            : or(
+                ilike(stafferBillAssociations.billTitle, `%${billLabel || billId}%`),
+                eq(stafferBillAssociations.billNumber, parseInt(billId) || 0)
+              )
+        )
+        .limit(50);
+
+      let aiStrategy = "";
+      if (associations.length > 0 && process.env.PERPLEXITY_API_KEY) {
+        const stafferList = associations.map(a => `${a.stafferName} (${a.role || "connected"}, ${a.positionTitle || ""})`).join(", ");
+        try {
+          const aiRes = await fetch("https://api.perplexity.ai/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "sonar",
+              messages: [{ role: "user", content: `Provide a brief political influence strategy for the bill "${billLabel || billId}". These staffers are connected: ${stafferList}. Give 3-4 actionable recommendations in under 200 words.` }],
+              max_tokens: 500,
+            }),
+          });
+          const aiData = await aiRes.json();
+          aiStrategy = aiData.choices?.[0]?.message?.content || "";
+        } catch (e) {
+          console.error("AI strategy error:", e);
+        }
+      }
+
+      res.json({ staffers: associations, aiStrategy });
+    } catch (error: any) {
+      console.error("Error getting bill influence:", error);
+      res.status(500).json({ message: error.message || "Failed to get bill influence" });
+    }
+  });
+
+  // Network path finder
+  app.post("/api/strategy/find-path", isAuthenticated, async (req, res) => {
+    try {
+      const { target } = req.body;
+      if (!target) return res.status(400).json({ message: "target is required" });
+
+      const { ilike, or } = await import("drizzle-orm");
+      const { db } = await import("./db");
+
+      const directStaffers = await db.select().from(legistormStaffers)
+        .where(
+          or(
+            ilike(legistormStaffers.currentMemberName, `%${target}%`),
+            ilike(legistormStaffers.currentOffice, `%${target}%`)
+          )
+        )
+        .limit(20);
+
+      const committeeStaffers = await db.select().from(legistormStaffers)
+        .where(ilike(legistormStaffers.currentOffice, `%committee%`))
+        .limit(10);
+
+      const committeeConnections = committeeStaffers
+        .filter(s => s.currentOffice?.toLowerCase().includes(target.toLowerCase().split(" ").pop() || ""))
+        .map(s => ({
+          committee: s.currentOffice,
+          role: s.currentTitle,
+          stafferName: s.fullName,
+        }));
+
+      let aiRecommendation = "";
+      if (process.env.PERPLEXITY_API_KEY) {
+        try {
+          const stafferContext = directStaffers.slice(0, 5).map(s => `${s.fullName} (${s.currentTitle})`).join(", ");
+          const aiRes = await fetch("https://api.perplexity.ai/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "sonar",
+              messages: [{ role: "user", content: `A government affairs professional needs access to "${target}" in Congress. ${directStaffers.length > 0 ? `Direct staffers found: ${stafferContext}.` : "No direct staffers found."} Provide a brief, practical networking strategy with 3-4 specific steps. Include alternative approaches if direct access is difficult. Keep it under 250 words.` }],
+              max_tokens: 500,
+            }),
+          });
+          const aiData = await aiRes.json();
+          aiRecommendation = aiData.choices?.[0]?.message?.content || "";
+        } catch (e) {
+          console.error("AI path error:", e);
+        }
+      }
+
+      res.json({
+        directStaffers,
+        committeeConnections,
+        aiRecommendation,
+      });
+    } catch (error: any) {
+      console.error("Error finding path:", error);
+      res.status(500).json({ message: error.message || "Failed to find path" });
+    }
+  });
+
+  // Power Grid - Members with their staffers
+  app.get("/api/strategy/power-grid", isAuthenticated, async (req, res) => {
+    try {
+      const chamber = req.query.chamber as string;
+      const party = req.query.party as string;
+      const state = req.query.state as string;
+
+      const { db } = await import("./db");
+      const { sql, ilike, eq, and, isNotNull, count } = await import("drizzle-orm");
+
+      const conditions = [isNotNull(legistormStaffers.currentMemberName)];
+      if (chamber && chamber !== "all") conditions.push(eq(legistormStaffers.chamber, chamber));
+      if (party && party !== "all") conditions.push(ilike(legistormStaffers.party, `%${party}%`));
+      if (state) conditions.push(eq(legistormStaffers.state, state));
+
+      const memberGroups = await db.select({
+        memberName: legistormStaffers.currentMemberName,
+        chamber: legistormStaffers.chamber,
+        party: legistormStaffers.party,
+        state: legistormStaffers.state,
+        staffCount: count(),
+      })
+        .from(legistormStaffers)
+        .where(and(...conditions))
+        .groupBy(
+          legistormStaffers.currentMemberName,
+          legistormStaffers.chamber,
+          legistormStaffers.party,
+          legistormStaffers.state
+        )
+        .orderBy(sql`count(*) DESC`)
+        .limit(100);
+
+      const result = await Promise.all(memberGroups.map(async (mg) => {
+        const topStaffers = await db.select({
+          name: legistormStaffers.fullName,
+          title: legistormStaffers.currentTitle,
+          email: legistormStaffers.email,
+        })
+          .from(legistormStaffers)
+          .where(
+            and(
+              eq(legistormStaffers.currentMemberName, mg.memberName!),
+              ...(chamber && chamber !== "all" ? [eq(legistormStaffers.chamber, chamber)] : [])
+            )
+          )
+          .limit(5);
+
+        return {
+          ...mg,
+          topStaffers,
+        };
+      }));
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error getting power grid:", error);
+      res.status(500).json({ message: error.message || "Failed to get power grid" });
+    }
+  });
+
+  // Strategy Boards CRUD
+  app.get("/api/strategy/boards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      const { db } = await import("./db");
+      const { eq, desc } = await import("drizzle-orm");
+
+      const boards = clientId
+        ? await db.select().from(strategyBoards).where(eq(strategyBoards.clientId, clientId)).orderBy(desc(strategyBoards.createdAt))
+        : await db.select().from(strategyBoards).orderBy(desc(strategyBoards.createdAt));
+
+      res.json(boards);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to get boards" });
+    }
+  });
+
+  app.post("/api/strategy/boards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const { db } = await import("./db");
+
+      const [board] = await db.insert(strategyBoards).values({
+        clientId,
+        name: req.body.name,
+        description: req.body.description,
+        targetType: req.body.targetType,
+        targetId: req.body.targetId,
+        targetName: req.body.targetName,
+      }).returning();
+
+      res.json(board);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create board" });
+    }
+  });
+
+  app.delete("/api/strategy/boards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+
+      await db.delete(strategyCards).where(eq(strategyCards.boardId, req.params.id));
+      await db.delete(strategyBoards).where(eq(strategyBoards.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete board" });
+    }
+  });
+
+  // Strategy Cards CRUD
+  app.get("/api/strategy/boards/:boardId/cards", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+
+      const cards = await db.select().from(strategyCards)
+        .where(eq(strategyCards.boardId, req.params.boardId))
+        .orderBy(strategyCards.position);
+
+      res.json(cards);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to get cards" });
+    }
+  });
+
+  app.post("/api/strategy/boards/:boardId/cards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const { db } = await import("./db");
+
+      const [card] = await db.insert(strategyCards).values({
+        boardId: req.params.boardId,
+        clientId,
+        entityType: req.body.entityType,
+        entityId: req.body.entityId,
+        entityName: req.body.entityName,
+        entityMeta: req.body.entityMeta,
+        stage: req.body.stage || "Identify",
+        notes: req.body.notes,
+        priority: req.body.priority || "medium",
+      }).returning();
+
+      res.json(card);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create card" });
+    }
+  });
+
+  app.patch("/api/strategy/cards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+
+      const updates: any = {};
+      if (req.body.stage !== undefined) updates.stage = req.body.stage;
+      if (req.body.position !== undefined) updates.position = req.body.position;
+      if (req.body.notes !== undefined) updates.notes = req.body.notes;
+      if (req.body.priority !== undefined) updates.priority = req.body.priority;
+      updates.updatedAt = new Date();
+
+      const [card] = await db.update(strategyCards)
+        .set(updates)
+        .where(eq(strategyCards.id, req.params.id))
+        .returning();
+
+      res.json(card);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update card" });
+    }
+  });
+
+  app.delete("/api/strategy/cards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+
+      await db.delete(strategyCards).where(eq(strategyCards.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete card" });
     }
   });
 

@@ -54,6 +54,7 @@ import OrganizationsPage from "@/pages/organizations";
 import PowerSearchPage from "@/pages/power-search";
 import RankTrackingPage from "@/pages/rank-tracking";
 import BillMappingPage from "@/pages/bill-mapping";
+import StrategyBoardPage from "@/pages/strategy-board";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
@@ -89,6 +90,7 @@ function AuthenticatedRouter() {
       <Route path="/power-search" component={PowerSearchPage} />
       <Route path="/organizations" component={PowerSearchPage} />
       <Route path="/rank-tracking" component={RankTrackingPage} />
+      <Route path="/strategy" component={StrategyBoardPage} />
       <Route path="/ai-agent" component={AIAgentPage} />
       <Route path="/sources" component={SourcesPage} />
       <Route path="/portals" component={ClientPortals} />

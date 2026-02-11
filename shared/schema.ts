@@ -1303,3 +1303,52 @@ export const insertStafferBillAssociationSchema = createInsertSchema(stafferBill
 
 export type InsertStafferBillAssociation = z.infer<typeof insertStafferBillAssociationSchema>;
 export type StafferBillAssociation = typeof stafferBillAssociations.$inferSelect;
+
+// Strategy Boards (Kanban boards for engagement pipeline)
+export const strategyBoards = pgTable("strategy_boards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  targetType: text("target_type"), // "member", "bill", "general"
+  targetId: text("target_id"), // member bioguideId or bill ID
+  targetName: text("target_name"),
+  columns: jsonb("columns").default(sql`'["Identify","Research","Outreach","In Progress","Connected"]'::jsonb`),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertStrategyBoardSchema = createInsertSchema(strategyBoards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertStrategyBoard = z.infer<typeof insertStrategyBoardSchema>;
+export type StrategyBoard = typeof strategyBoards.$inferSelect;
+
+// Strategy Cards (items on the Kanban board)
+export const strategyCards = pgTable("strategy_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull(),
+  clientId: varchar("client_id").notNull(),
+  entityType: text("entity_type").notNull(), // "staffer", "bill", "contact", "member"
+  entityId: text("entity_id").notNull(),
+  entityName: text("entity_name").notNull(),
+  entityMeta: jsonb("entity_meta"), // title, office, party, etc.
+  stage: text("stage").notNull().default("Identify"),
+  position: integer("position").default(0),
+  notes: text("notes"),
+  priority: text("priority").default("medium"), // low, medium, high, critical
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertStrategyCardSchema = createInsertSchema(strategyCards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertStrategyCard = z.infer<typeof insertStrategyCardSchema>;
+export type StrategyCard = typeof strategyCards.$inferSelect;
