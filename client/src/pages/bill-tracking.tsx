@@ -488,9 +488,9 @@ export default function BillTrackingPage() {
                 <Label htmlFor="matter-select" className="flex flex-col gap-1">
                   <span className="flex items-center gap-1">
                     <FolderOpen className="w-4 h-4" />
-                    Assign to Matter
+                    Assign to Research Project
                   </span>
-                  <span className="text-xs text-muted-foreground font-normal">Link this bill to a client matter for organization</span>
+                  <span className="text-xs text-muted-foreground font-normal">Link this bill to a research project for organization</span>
                 </Label>
                 <Select
                   value={selectedBill.matterId || "none"}

@@ -45,7 +45,9 @@ import {
   UserPlus,
   FolderOpen,
   BookOpen,
-  Copy
+  Copy,
+  Book,
+  Building
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1138,19 +1140,40 @@ export default function StaffersPage() {
                             const path = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(lsStafferDetail.email || "")}&title=${encodeURIComponent(lsStafferDetail.currentTitle || "")}&organization=${encodeURIComponent(lsStafferDetail.currentOffice || "")}`;
                             navigate(path);
                           }}
-                          data-testid="menu-save-as-contact"
+                          data-testid="menu-add-to-contacts"
                         >
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Save as Contact
+                          Add to Client Contacts
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const stafferContent = `Staffer: ${lsStafferDetail.fullName}\nTitle: ${lsStafferDetail.currentTitle || ""}\nOffice: ${lsStafferDetail.currentOffice || ""}\nMember: ${lsStafferDetail.currentMemberName || ""}\nEmail: ${lsStafferDetail.email || ""}\nPhone: ${lsStafferDetail.phone || ""}\n${(lsStafferDetail as any).linkedinUrl ? "LinkedIn: " + (lsStafferDetail as any).linkedinUrl : ""}`;
+                            navigate(`/admin/kb?addArticle=true&title=${encodeURIComponent(lsStafferDetail.fullName + " - Staffer Profile")}&content=${encodeURIComponent(stafferContent)}`);
+                          }}
+                          data-testid="menu-add-to-kb"
+                        >
+                          <Book className="h-4 w-4 mr-2" />
+                          Knowledge Base
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
                             navigate(`/matters?addDoc=true&title=${encodeURIComponent(lsStafferDetail.fullName + " - Staffer Profile")}&content=${encodeURIComponent(`Staffer: ${lsStafferDetail.fullName}\nTitle: ${lsStafferDetail.currentTitle || ""}\nOffice: ${lsStafferDetail.currentOffice || ""}\nMember: ${lsStafferDetail.currentMemberName || ""}\nEmail: ${lsStafferDetail.email || ""}\nPhone: ${lsStafferDetail.phone || ""}\n${(lsStafferDetail as any).linkedinUrl ? "LinkedIn: " + (lsStafferDetail as any).linkedinUrl : ""}`)}`);
                           }}
-                          data-testid="menu-assign-to-matter"
+                          data-testid="menu-add-to-research"
                         >
                           <FolderOpen className="h-4 w-4 mr-2" />
-                          Assign to Client Matter
+                          Research Project
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const firstName = lsStafferDetail.firstName || lsStafferDetail.fullName.split(" ")[0] || "";
+                            const lastName = lsStafferDetail.lastName || lsStafferDetail.fullName.split(" ").slice(1).join(" ") || "";
+                            navigate(`/admin/clients?addClient=true&name=${encodeURIComponent(lsStafferDetail.fullName)}&contactName=${encodeURIComponent(firstName + " " + lastName)}&contactEmail=${encodeURIComponent(lsStafferDetail.email || "")}`);
+                          }}
+                          data-testid="menu-add-as-client"
+                        >
+                          <Building className="h-4 w-4 mr-2" />
+                          Add as Client
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -1390,14 +1413,45 @@ export default function StaffersPage() {
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem
                                       onClick={() => {
+                                        const firstName = lsStafferDetail?.firstName || lsStafferDetail?.fullName.split(" ")[0] || "";
+                                        const lastName = lsStafferDetail?.lastName || lsStafferDetail?.fullName.split(" ").slice(1).join(" ") || "";
+                                        navigate(`/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(lsStafferDetail?.email || "")}&title=${encodeURIComponent(pos.title || "")}&organization=${encodeURIComponent(pos.officeName || "")}`);
+                                      }}
+                                      data-testid={`menu-position-add-contact-${i}`}
+                                    >
+                                      <UserPlus className="h-4 w-4 mr-2" />
+                                      Add to Client Contacts
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const posContent = `${lsStafferDetail?.fullName || ""}\nPosition: ${pos.title}\nMember: ${pos.memberName || "N/A"}\nOffice: ${pos.officeName || "N/A"}\nChamber: ${pos.chamber || "N/A"}\nState: ${pos.state || "N/A"}\nPeriod: ${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"}`;
+                                        navigate(`/admin/kb?addArticle=true&title=${encodeURIComponent(`${lsStafferDetail?.fullName || ""} - ${pos.title}`)}&content=${encodeURIComponent(posContent)}`);
+                                      }}
+                                      data-testid={`menu-position-add-kb-${i}`}
+                                    >
+                                      <Book className="h-4 w-4 mr-2" />
+                                      Knowledge Base
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
                                         const positionInfo = `${lsStafferDetail?.fullName || ""} - ${pos.title}${pos.memberName ? ` under ${pos.memberName}` : ""}${pos.officeName ? ` at ${pos.officeName}` : ""} (${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"})`;
                                         navigate(`/matters?addDoc=true&title=${encodeURIComponent(positionInfo)}&content=${encodeURIComponent(`Position: ${pos.title}\nMember: ${pos.memberName || "N/A"}\nOffice: ${pos.officeName || "N/A"}\nChamber: ${pos.chamber || "N/A"}\nState: ${pos.state || "N/A"}\nPeriod: ${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"}`)}`);
                                       }}
-                                      data-testid={`menu-position-assign-matter-${i}`}
+                                      data-testid={`menu-position-add-research-${i}`}
                                     >
                                       <FolderOpen className="h-4 w-4 mr-2" />
-                                      Assign to Client Matter
+                                      Research Project
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        navigate(`/admin/clients?addClient=true&name=${encodeURIComponent(lsStafferDetail?.fullName || "")}&contactName=${encodeURIComponent(lsStafferDetail?.fullName || "")}&contactEmail=${encodeURIComponent(lsStafferDetail?.email || "")}`);
+                                      }}
+                                      data-testid={`menu-position-add-client-${i}`}
+                                    >
+                                      <Building className="h-4 w-4 mr-2" />
+                                      Add as Client
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       onClick={() => {
                                         const positionInfo = `${pos.title}${pos.memberName ? ` - ${pos.memberName}` : ""}${pos.officeName ? ` - ${pos.officeName}` : ""} (${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"})`;
@@ -1407,7 +1461,7 @@ export default function StaffersPage() {
                                       data-testid={`menu-position-copy-${i}`}
                                     >
                                       <Copy className="h-4 w-4 mr-2" />
-                                      Copy Position Info
+                                      Copy Info
                                     </DropdownMenuItem>
                                     {pos.memberName && (
                                       <DropdownMenuItem
