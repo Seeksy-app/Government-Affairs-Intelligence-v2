@@ -19,7 +19,8 @@ import {
   Loader2, ExternalLink, Briefcase, Brain, RefreshCw, Landmark,
   Scale, BookOpen, Flag, UserSearch, Calendar, Hash, X, UserPlus, Zap
 } from "lucide-react";
-import type { PoliticalOrganization } from "@shared/schema";
+import { Textarea } from "@/components/ui/textarea";
+import type { PoliticalOrganization, Client, KbCategory } from "@shared/schema";
 
 interface CompanyEnrichResult {
   name: string;
@@ -106,6 +107,91 @@ export default function PowerSearchPage() {
   const [personSearchSchool, setPersonSearchSchool] = useState("");
   const [personSearchResults, setPersonSearchResults] = useState<PersonResult[]>([]);
   const [personSearchLoading, setPersonSearchLoading] = useState(false);
+
+  // Contact+ Dialog state
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [contactDialogPerson, setContactDialogPerson] = useState<PersonResult | null>(null);
+  const [contactAssignType, setContactAssignType] = useState<"client" | "general" | "kb">("general");
+  const [contactClientId, setContactClientId] = useState("");
+  const [contactKbId, setContactKbId] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
+  const [newKbName, setNewKbName] = useState("");
+  const [showNewKbInput, setShowNewKbInput] = useState(false);
+  const [contactSaving, setContactSaving] = useState(false);
+
+  const { data: clientsList = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const { data: kbCategories = [] } = useQuery<KbCategory[]>({
+    queryKey: ["/api/admin/kb/categories"],
+  });
+
+  const openContactDialog = (person: PersonResult) => {
+    setContactDialogPerson(person);
+    setContactAssignType("general");
+    setContactClientId("");
+    setContactKbId("");
+    setContactNotes("");
+    setNewKbName("");
+    setShowNewKbInput(false);
+    setContactDialogOpen(true);
+  };
+
+  const handleCreateKb = async () => {
+    if (!newKbName.trim()) return;
+    try {
+      const res = await apiRequest("POST", "/api/admin/kb/categories", {
+        name: newKbName.trim(),
+        scope: "owner",
+        description: "",
+      });
+      const created = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/kb/categories"] });
+      setContactKbId(created.id);
+      setNewKbName("");
+      setShowNewKbInput(false);
+      toast({ title: "Knowledge Base created", description: `"${created.name}" is now available` });
+    } catch (error: any) {
+      toast({ title: "Failed to create KB", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleSaveContact = async () => {
+    if (!contactDialogPerson) return;
+    setContactSaving(true);
+    try {
+      const nameParts = (contactDialogPerson.fullName || '').split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const body: Record<string, any> = {
+        firstName,
+        lastName,
+        title: contactDialogPerson.jobTitle || '',
+        organization: contactDialogPerson.jobCompany || '',
+        notes: contactNotes || undefined,
+      };
+
+      if (contactAssignType === "client" && contactClientId) {
+        body.assignToClientId = contactClientId;
+      }
+
+      if (contactAssignType === "kb" && contactKbId) {
+        body.kbCategoryId = contactKbId;
+      }
+
+      const res = await apiRequest("POST", "/api/contacts/from-search", body);
+      const result = await res.json();
+
+      toast({ title: "Contact saved", description: `${firstName} ${lastName} has been added` });
+      setContactDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Failed to save contact", description: error.message, variant: "destructive" });
+    } finally {
+      setContactSaving(false);
+    }
+  };
 
   // Organizations state
   const [orgSearchQuery, setOrgSearchQuery] = useState("");
@@ -300,18 +386,18 @@ export default function PowerSearchPage() {
                 <Label className="text-xs text-muted-foreground">Quick Searches</Label>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: "Lobbyists in DC", company: "", title: "lobbyist", location: "washington", industry: "", school: "" },
-                    { label: "Government Affairs", company: "", title: "government affairs", location: "washington", industry: "", school: "" },
-                    { label: "PAC Directors", company: "", title: "director", location: "", industry: "political organizations", school: "" },
-                    { label: "Chiefs of Staff", company: "united states senate", title: "chief of staff", location: "", industry: "", school: "" },
-                    { label: "Policy Advisors", company: "", title: "policy advisor", location: "washington", industry: "", school: "" },
-                    { label: "Legislative Directors", company: "", title: "legislative director", location: "washington", industry: "", school: "" },
-                    { label: "Think Tank Staff", company: "", title: "", location: "washington", industry: "think tanks", school: "" },
-                    { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political organizations", school: "" },
-                    { label: "City Managers", company: "", title: "city manager", location: "", industry: "government administration", school: "" },
-                    { label: "County Administrators", company: "", title: "county administrator", location: "", industry: "government administration", school: "" },
-                    { label: "State Grant Officers", company: "", title: "grants", location: "", industry: "government administration", school: "" },
-                    { label: "Municipal Finance Directors", company: "", title: "finance director", location: "", industry: "government administration", school: "" },
+                    { label: "Lobbyists in DC", company: "", title: "lobbyist", location: "washington dc", industry: "", school: "" },
+                    { label: "Government Affairs", company: "", title: "government affairs", location: "washington dc", industry: "", school: "" },
+                    { label: "PAC Directors", company: "", title: "director", location: "", industry: "political", school: "" },
+                    { label: "Chiefs of Staff", company: "", title: "chief of staff", location: "washington dc", industry: "government", school: "" },
+                    { label: "Policy Advisors", company: "", title: "policy", location: "washington dc", industry: "government", school: "" },
+                    { label: "Legislative Directors", company: "", title: "legislative director", location: "washington dc", industry: "", school: "" },
+                    { label: "Think Tank Staff", company: "", title: "", location: "washington dc", industry: "think tank", school: "" },
+                    { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political", school: "" },
+                    { label: "City Managers", company: "", title: "city manager", location: "", industry: "government", school: "" },
+                    { label: "County Administrators", company: "", title: "county administrator", location: "", industry: "government", school: "" },
+                    { label: "State Grant Officers", company: "", title: "grant", location: "", industry: "government", school: "" },
+                    { label: "Municipal Finance Directors", company: "", title: "finance director", location: "", industry: "government", school: "" },
                   ].map((preset) => (
                     <Button
                       key={preset.label}
@@ -487,12 +573,7 @@ export default function PowerSearchPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => {
-                                const nameParts = (person.fullName || '').split(' ');
-                                const firstName = nameParts[0] || '';
-                                const lastName = nameParts.slice(1).join(' ') || '';
-                                window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&title=${encodeURIComponent(person.jobTitle || '')}&organization=${encodeURIComponent(person.jobCompany || '')}`;
-                              }}
+                              onClick={() => openContactDialog(person)}
                               data-testid={`button-add-person-contact-${idx}`}
                             >
                               <UserPlus className="h-4 w-4" />
@@ -930,6 +1011,160 @@ export default function PowerSearchPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Save Contact
+            </DialogTitle>
+          </DialogHeader>
+          {contactDialogPerson && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 border rounded-md">
+                <Avatar className="h-10 w-10">
+                  {contactDialogPerson.profilePicUrl && (
+                    <AvatarImage src={contactDialogPerson.profilePicUrl} alt={contactDialogPerson.fullName} />
+                  )}
+                  <AvatarFallback className="text-xs">
+                    {contactDialogPerson.firstName?.[0]}{contactDialogPerson.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{contactDialogPerson.fullName}</p>
+                  {contactDialogPerson.jobTitle && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {contactDialogPerson.jobTitle}
+                      {contactDialogPerson.jobCompany && ` at ${contactDialogPerson.jobCompany}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Assign To</Label>
+                <Select value={contactAssignType} onValueChange={(v) => setContactAssignType(v as "client" | "general" | "kb")}>
+                  <SelectTrigger data-testid="select-contact-assign-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Contact</SelectItem>
+                    <SelectItem value="client">Assign to Client</SelectItem>
+                    <SelectItem value="kb">Assign to Knowledge Base</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {contactAssignType === "client" && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Client</Label>
+                  <Select value={contactClientId} onValueChange={setContactClientId}>
+                    <SelectTrigger data-testid="select-contact-client">
+                      <SelectValue placeholder="Select a client..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientsList.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {contactAssignType === "kb" && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Knowledge Base</Label>
+                  <Select value={contactKbId} onValueChange={setContactKbId}>
+                    <SelectTrigger data-testid="select-contact-kb">
+                      <SelectValue placeholder="Select a KB..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {kbCategories.map((kb) => (
+                        <SelectItem key={kb.id} value={kb.id}>
+                          {kb.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!showNewKbInput ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowNewKbInput(true)}
+                      data-testid="button-show-create-kb"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Create New KB
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="New KB name..."
+                        value={newKbName}
+                        onChange={(e) => setNewKbName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleCreateKb()}
+                        data-testid="input-new-kb-name"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleCreateKb}
+                        disabled={!newKbName.trim()}
+                        data-testid="button-create-kb"
+                      >
+                        Create
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setShowNewKbInput(false); setNewKbName(""); }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Notes (optional)</Label>
+                <Textarea
+                  placeholder="Add notes about this contact..."
+                  value={contactNotes}
+                  onChange={(e) => setContactNotes(e.target.value)}
+                  className="resize-none"
+                  rows={2}
+                  data-testid="textarea-contact-notes"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setContactDialogOpen(false)} data-testid="button-cancel-contact">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveContact}
+              disabled={contactSaving || (contactAssignType === "client" && !contactClientId)}
+              data-testid="button-save-contact"
+            >
+              {contactSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Save Contact
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

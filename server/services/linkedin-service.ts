@@ -713,8 +713,8 @@ export async function searchPeople(
   const conditions: string[] = [];
   
   if (params.company) {
-    // Match current or past company
-    conditions.push(`job_company_name='${params.company.replace(/'/g, "''")}'`);
+    const escaped = params.company.replace(/'/g, "''");
+    conditions.push(`(job_company_name LIKE '%${escaped}%' OR experience.company.name LIKE '%${escaped}%')`);
   }
   
   if (params.jobTitle) {
@@ -722,15 +722,21 @@ export async function searchPeople(
   }
   
   if (params.location) {
-    conditions.push(`location_name LIKE '%${params.location.replace(/'/g, "''")}%'`);
+    const loc = params.location.replace(/'/g, "''").toLowerCase();
+    if (loc === "washington" || loc === "washington dc" || loc === "washington, dc" || loc === "dc") {
+      conditions.push(`location_locality='washington'`);
+      conditions.push(`location_region='district of columbia'`);
+    } else {
+      conditions.push(`location_name LIKE '%${params.location.replace(/'/g, "''")}%'`);
+    }
   }
   
   if (params.industry) {
-    conditions.push(`industry='${params.industry.replace(/'/g, "''")}'`);
+    conditions.push(`industry LIKE '%${params.industry.replace(/'/g, "''")}%'`);
   }
   
   if (params.school) {
-    conditions.push(`education.school.name='${params.school.replace(/'/g, "''")}'`);
+    conditions.push(`education.school.name LIKE '%${params.school.replace(/'/g, "''")}%'`);
   }
   
   if (params.skills && params.skills.length > 0) {

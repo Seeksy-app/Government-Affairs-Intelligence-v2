@@ -997,6 +997,55 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/contacts/from-search", isAuthenticated, async (req, res) => {
+    try {
+      const { firstName, lastName, title, organization, notes, assignToClientId, kbCategoryId } = req.body;
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "First and last name are required" });
+      }
+
+      const userId = getUserId(req);
+      let clientId: string | null = null;
+
+      if (assignToClientId) {
+        const superAdmin = userId ? await storage.getSuperAdminByUserId(userId) : null;
+        if (!superAdmin) {
+          return res.status(403).json({ message: "Only admins can assign contacts to specific clients" });
+        }
+        clientId = assignToClientId;
+      } else {
+        clientId = await getClientId(req);
+      }
+
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+
+      const notesParts: string[] = [];
+      if (notes) notesParts.push(notes);
+      if (kbCategoryId) notesParts.push(`[KB: ${kbCategoryId}]`);
+
+      const contactData: any = {
+        clientId,
+        firstName,
+        lastName,
+        title: title || null,
+        organization: organization || null,
+        notes: notesParts.length > 0 ? notesParts.join('\n') : null,
+      };
+
+      const parsed = insertContactSchema.safeParse(contactData);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const contact = await storage.createContact(parsed.data);
+      res.status(201).json({ success: true, contact });
+    } catch (error) {
+      console.error("Error creating contact from search:", error);
+      res.status(500).json({ message: "Failed to create contact" });
+    }
+  });
+
   // Update contact
   app.patch("/api/contacts/:id", isAuthenticated, async (req, res) => {
     try {
