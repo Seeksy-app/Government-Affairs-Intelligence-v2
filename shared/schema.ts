@@ -1262,6 +1262,7 @@ export const legistormSyncLog = pgTable("legistorm_sync_log", {
   recordsProcessed: integer("records_processed").default(0),
   recordsCreated: integer("records_created").default(0),
   recordsUpdated: integer("records_updated").default(0),
+  lastPage: integer("last_page").default(0),
   errorMessage: text("error_message"),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),

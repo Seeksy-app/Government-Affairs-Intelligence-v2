@@ -311,21 +311,32 @@ export async function syncStaffers(options: {
   return { created, updated, processed };
 }
 
-export async function runFullSync(): Promise<{ logId: string }> {
-  const [log] = await db.insert(legistormSyncLog).values({
-    syncType: "full",
-    status: "running",
-  }).returning();
+export async function runFullSync(resumeFromPage?: number, existingLogId?: string): Promise<{ logId: string }> {
+  let logId: string;
+  
+  if (existingLogId) {
+    logId = existingLogId;
+    await db.update(legistormSyncLog)
+      .set({ status: "running", errorMessage: null })
+      .where(eq(legistormSyncLog.id, existingLogId));
+  } else {
+    const [log] = await db.insert(legistormSyncLog).values({
+      syncType: "full",
+      status: "running",
+    }).returning();
+    logId = log.id;
+  }
 
   (async () => {
     try {
       const result = await syncStaffers({
         updatedFrom: "2020-01-01",
         updatedTo: new Date().toISOString().split("T")[0],
+        startPage: resumeFromPage || 1,
         onProgress: async (processed, page) => {
           await db.update(legistormSyncLog)
-            .set({ recordsProcessed: processed })
-            .where(eq(legistormSyncLog.id, log.id));
+            .set({ recordsProcessed: processed, lastPage: page })
+            .where(eq(legistormSyncLog.id, logId));
         },
       });
 
@@ -337,7 +348,8 @@ export async function runFullSync(): Promise<{ logId: string }> {
           recordsUpdated: result.updated,
           completedAt: new Date(),
         })
-        .where(eq(legistormSyncLog.id, log.id));
+        .where(eq(legistormSyncLog.id, logId));
+      console.log(`Full sync completed: ${result.processed} staffers processed`);
     } catch (error: any) {
       await db.update(legistormSyncLog)
         .set({
@@ -345,11 +357,60 @@ export async function runFullSync(): Promise<{ logId: string }> {
           errorMessage: error.message || "Unknown error",
           completedAt: new Date(),
         })
-        .where(eq(legistormSyncLog.id, log.id));
+        .where(eq(legistormSyncLog.id, logId));
+      console.error(`Full sync failed:`, error.message);
     }
   })();
 
-  return { logId: log.id };
+  return { logId };
+}
+
+export async function resumeInterruptedSync(): Promise<boolean> {
+  const interrupted = await db.select().from(legistormSyncLog)
+    .where(eq(legistormSyncLog.status, "running"))
+    .orderBy(desc(legistormSyncLog.startedAt))
+    .limit(1);
+
+  if (interrupted.length > 0) {
+    const sync = interrupted[0];
+    const resumePage = (sync.lastPage || 0) + 1;
+    console.log(`Resuming interrupted ${sync.syncType} sync from page ${resumePage} (${sync.recordsProcessed || 0} already processed)`);
+    
+    if (sync.syncType === "full") {
+      await runFullSync(resumePage, sync.id);
+    } else {
+      await db.update(legistormSyncLog)
+        .set({ status: "failed", errorMessage: "Interrupted by server restart", completedAt: new Date() })
+        .where(eq(legistormSyncLog.id, sync.id));
+    }
+    return true;
+  }
+
+  const totalStaffers = await db.select({ count: sql<number>`count(*)` }).from(legistormStaffers);
+  const count = Number(totalStaffers[0]?.count || 0);
+  
+  if (count < 10000) {
+    const lastCompleted = await db.select().from(legistormSyncLog)
+      .where(eq(legistormSyncLog.status, "completed"))
+      .orderBy(desc(legistormSyncLog.completedAt))
+      .limit(1);
+    
+    const lastFailed = await db.select().from(legistormSyncLog)
+      .where(eq(legistormSyncLog.status, "failed"))
+      .orderBy(desc(legistormSyncLog.completedAt))
+      .limit(1);
+
+    const needsSync = !lastCompleted.length || 
+      (lastFailed.length && lastFailed[0].errorMessage?.includes("restart"));
+    
+    if (needsSync) {
+      console.log(`Database has only ${count} staffers, auto-starting full sync...`);
+      await runFullSync();
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function runIncrementalSync(): Promise<{ logId: string }> {

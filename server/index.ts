@@ -6,6 +6,7 @@ import { seedDatabase } from "./seed";
 import { runAutoSync } from "./services/social-tracker";
 import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext } from "./services/news-aggregation";
 import { syncHouseDirectoryToDb, getDirectoryStats } from "./services/house-directory-service";
+import { resumeInterruptedSync } from "./services/legistorm-service";
 import { db } from "./db";
 import { clients } from "@shared/schema";
 
@@ -138,6 +139,18 @@ app.use((req, res, next) => {
           console.error("House directory auto-sync error:", error);
         }
       }, 5000);
+
+      // Auto-resume interrupted LegiStorm syncs or start sync if database is incomplete
+      setTimeout(async () => {
+        try {
+          const resumed = await resumeInterruptedSync();
+          if (resumed) {
+            log("LegiStorm sync auto-resumed on startup");
+          }
+        } catch (error) {
+          console.error("LegiStorm auto-resume error:", error);
+        }
+      }, 8000);
 
       // Initialize RSS feeds and run initial news aggregation
       setTimeout(async () => {
