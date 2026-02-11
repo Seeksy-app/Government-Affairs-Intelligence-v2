@@ -40,8 +40,20 @@ import {
   ChevronRight,
   History,
   FileText,
-  Linkedin
+  Linkedin,
+  MoreHorizontal,
+  UserPlus,
+  FolderOpen,
+  BookOpen,
+  Copy
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Staffer, LegistormStaffer } from "@shared/schema";
 
 const CHAMBERS = [
@@ -1109,7 +1121,60 @@ export default function StaffersPage() {
           <Dialog open={!!lsSelectedId} onOpenChange={(open) => { if (!open) { setLsSelectedId(null); setLsResearchResult(null); } }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="text-xl">{lsStafferDetail?.fullName || "Staffer Details"}</DialogTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <DialogTitle className="text-xl">{lsStafferDetail?.fullName || "Staffer Details"}</DialogTitle>
+                  {lsStafferDetail && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" data-testid="button-staffer-actions">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const firstName = lsStafferDetail.firstName || lsStafferDetail.fullName.split(" ")[0] || "";
+                            const lastName = lsStafferDetail.lastName || lsStafferDetail.fullName.split(" ").slice(1).join(" ") || "";
+                            const path = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(lsStafferDetail.email || "")}&title=${encodeURIComponent(lsStafferDetail.currentTitle || "")}&organization=${encodeURIComponent(lsStafferDetail.currentOffice || "")}`;
+                            navigate(path);
+                          }}
+                          data-testid="menu-save-as-contact"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Save as Contact
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            navigate(`/matters?addDoc=true&title=${encodeURIComponent(lsStafferDetail.fullName + " - Staffer Profile")}&content=${encodeURIComponent(`Staffer: ${lsStafferDetail.fullName}\nTitle: ${lsStafferDetail.currentTitle || ""}\nOffice: ${lsStafferDetail.currentOffice || ""}\nMember: ${lsStafferDetail.currentMemberName || ""}\nEmail: ${lsStafferDetail.email || ""}\nPhone: ${lsStafferDetail.phone || ""}\n${(lsStafferDetail as any).linkedinUrl ? "LinkedIn: " + (lsStafferDetail as any).linkedinUrl : ""}`)}`);
+                          }}
+                          data-testid="menu-assign-to-matter"
+                        >
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          Assign to Client Matter
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const info = [
+                              lsStafferDetail.fullName,
+                              lsStafferDetail.currentTitle,
+                              lsStafferDetail.currentOffice,
+                              lsStafferDetail.email,
+                              lsStafferDetail.phone,
+                              (lsStafferDetail as any).linkedinUrl,
+                            ].filter(Boolean).join("\n");
+                            navigator.clipboard.writeText(info);
+                            toast({ title: "Copied", description: "Staffer info copied to clipboard" });
+                          }}
+                          data-testid="menu-copy-info"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Info
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </DialogHeader>
               {lsStafferDetail ? (
                 <div className="space-y-6">
@@ -1293,7 +1358,7 @@ export default function StaffersPage() {
                           });
 
                           return (
-                            <div key={pos.id || i} className="p-3 rounded-md bg-muted/50 space-y-2">
+                            <div key={pos.id || i} className="p-3 rounded-md bg-muted/50 space-y-2 hover-elevate group/pos">
                               <div className="flex items-start gap-3">
                                 <div className={`h-2 w-2 mt-2 rounded-full shrink-0 ${pos.isCurrent ? "bg-green-500" : "bg-muted-foreground/50"}`} />
                                 <div className="flex-1 min-w-0">
@@ -1316,6 +1381,47 @@ export default function StaffersPage() {
                                     {pos.startDate || "Unknown"} - {pos.isCurrent ? "Present" : pos.endDate || "Unknown"}
                                   </p>
                                 </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="shrink-0 opacity-0 group-hover/pos:opacity-100 focus:opacity-100 transition-opacity" data-testid={`button-position-actions-${i}`}>
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const positionInfo = `${lsStafferDetail?.fullName || ""} - ${pos.title}${pos.memberName ? ` under ${pos.memberName}` : ""}${pos.officeName ? ` at ${pos.officeName}` : ""} (${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"})`;
+                                        navigate(`/matters?addDoc=true&title=${encodeURIComponent(positionInfo)}&content=${encodeURIComponent(`Position: ${pos.title}\nMember: ${pos.memberName || "N/A"}\nOffice: ${pos.officeName || "N/A"}\nChamber: ${pos.chamber || "N/A"}\nState: ${pos.state || "N/A"}\nPeriod: ${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"}`)}`);
+                                      }}
+                                      data-testid={`menu-position-assign-matter-${i}`}
+                                    >
+                                      <FolderOpen className="h-4 w-4 mr-2" />
+                                      Assign to Client Matter
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        const positionInfo = `${pos.title}${pos.memberName ? ` - ${pos.memberName}` : ""}${pos.officeName ? ` - ${pos.officeName}` : ""} (${pos.startDate || "?"} - ${pos.isCurrent ? "Present" : pos.endDate || "?"})`;
+                                        navigator.clipboard.writeText(positionInfo);
+                                        toast({ title: "Copied", description: "Position info copied to clipboard" });
+                                      }}
+                                      data-testid={`menu-position-copy-${i}`}
+                                    >
+                                      <Copy className="h-4 w-4 mr-2" />
+                                      Copy Position Info
+                                    </DropdownMenuItem>
+                                    {pos.memberName && (
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          navigate(`/congress?search=${encodeURIComponent(pos.memberName)}`);
+                                        }}
+                                        data-testid={`menu-position-view-member-${i}`}
+                                      >
+                                        <User className="h-4 w-4 mr-2" />
+                                        View Member
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                               {matchingBills.length > 0 && (
                                 <div className="ml-5 pl-3 border-l-2 border-muted-foreground/20">
