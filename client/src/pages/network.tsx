@@ -1553,16 +1553,18 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                   </div>
                 ) : memberBills?.sponsoredLegislation && memberBills.sponsoredLegislation.length > 0 ? (
                   <div className="space-y-3">
-                    {memberBills.sponsoredLegislation.slice(0, 10).map((bill) => (
-                      <div key={`${bill.type}-${bill.number}`} className="p-3 rounded-lg border hover-elevate">
+                    {memberBills.sponsoredLegislation.slice(0, 10).map((bill, idx) => (
+                      <div key={`${bill.type || 'bill'}-${bill.number || idx}`} className="p-3 rounded-lg border hover-elevate">
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="secondary" className="text-xs">
-                            {bill.type.toUpperCase()} {bill.number}
+                            {(bill.type || '').toUpperCase()} {bill.number}
                           </Badge>
+                          {bill.introducedDate && (
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {new Date(bill.introducedDate).toLocaleDateString()}
                           </span>
+                          )}
                         </div>
                         <p className="text-sm font-medium line-clamp-2">{bill.title}</p>
                         {bill.latestAction && (
