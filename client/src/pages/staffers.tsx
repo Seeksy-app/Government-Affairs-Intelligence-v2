@@ -156,7 +156,7 @@ function renderFormattedText(text: string): React.ReactNode {
 export default function StaffersPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("search");
+  const [activeTab, setActiveTab] = useState("legistorm");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedStaffers, setSelectedStaffers] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);

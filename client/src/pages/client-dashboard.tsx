@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin } from "lucide-react";
+import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -139,6 +139,24 @@ interface ClientStats {
   trackedBillsCount: number;
 }
 
+function getPriceColor(price: number) {
+  if (price >= 70) return "text-emerald-600 dark:text-emerald-400";
+  if (price >= 40) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
+}
+
+function getPriceBg(price: number) {
+  if (price >= 70) return "bg-emerald-500/10 border-emerald-500/20";
+  if (price >= 40) return "bg-amber-500/10 border-amber-500/20";
+  return "bg-rose-500/10 border-rose-500/20";
+}
+
+function getPriceBarColor(price: number) {
+  if (price >= 70) return "bg-emerald-500";
+  if (price >= 40) return "bg-amber-500";
+  return "bg-rose-500";
+}
+
 export default function ClientDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
@@ -163,29 +181,6 @@ export default function ClientDashboard() {
 
   const displayName = user?.firstName || user?.email?.split("@")[0] || "there";
   const WeatherIcon = weather ? getWeatherIcon(weather.weatherCode) : Cloud;
-
-  const StatCard = ({ title, value, icon: Icon, description, href }: { title: string; value: number | undefined; icon: any; description?: string; href?: string }) => (
-    <Card
-      className={href ? "cursor-pointer hover-elevate transition-colors" : ""}
-      onClick={href ? () => navigate(href) : undefined}
-      data-testid={`stat-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
-    >
-      <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        {statsLoading ? (
-          <Skeleton className="h-8 w-16" />
-        ) : (
-          <div className="text-2xl font-bold">{value ?? 0}</div>
-        )}
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="p-6 space-y-6">
@@ -239,11 +234,178 @@ export default function ClientDashboard() {
         </CardContent>
       </Card>
 
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+      <div data-testid="section-predictions">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-indigo-500/10">
+              <BarChart3 className="h-4 w-4 text-indigo-500" />
+            </div>
+            <h2 className="text-lg font-semibold">Prediction Markets</h2>
+            <Badge variant="outline" className="text-xs ml-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+              Live
+            </Badge>
+          </div>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/predictions" data-testid="link-view-all-predictions">View All</Link>
+          </Button>
+        </div>
+        {marketsLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-4 w-full mb-3" />
+                  <Skeleton className="h-8 w-24 mb-2" />
+                  <Skeleton className="h-2 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : predictionMarkets && predictionMarkets.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {predictionMarkets.slice(0, 8).map((market) => (
+              <Card
+                key={market.ticker}
+                className="cursor-pointer hover-elevate overflow-visible"
+                onClick={() => navigate("/predictions")}
+                data-testid={`market-card-${market.ticker}`}
+              >
+                <CardContent className="p-4">
+                  <p className="text-sm font-medium line-clamp-2 mb-3 min-h-[2.5rem]" data-testid={`market-title-${market.ticker}`}>
+                    {market.title}
+                  </p>
+                  <div className="flex items-end justify-between gap-2 mb-2">
+                    <span className={`text-2xl font-bold ${getPriceColor(market.yes_price)}`} data-testid={`market-price-${market.ticker}`}>
+                      {market.yes_price}%
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {market.yes_price >= 60 ? (
+                        <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                      ) : market.yes_price <= 40 ? (
+                        <ArrowDownRight className="h-3 w-3 text-rose-500" />
+                      ) : (
+                        <Minus className="h-3 w-3 text-amber-500" />
+                      )}
+                      <span>Vol: {market.volume >= 1000 ? `${(market.volume / 1000).toFixed(1)}k` : market.volume.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getPriceBarColor(market.yes_price)}`}
+                      style={{ width: `${market.yes_price}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[10px] text-muted-foreground">Yes</span>
+                    <span className="text-[10px] text-muted-foreground">No</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="text-center py-8 text-muted-foreground">
+              <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No prediction markets available</p>
+              <p className="text-sm">Political markets will appear when active</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card
+          className="cursor-pointer hover-elevate overflow-visible border-l-4 border-l-blue-500"
+          onClick={() => navigate("/contacts")}
+          data-testid="stat-card-total-contacts"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Total Contacts</span>
+              <div className="p-1.5 rounded-md bg-blue-500/10">
+                <Users className="h-4 w-4 text-blue-500" />
+              </div>
+            </div>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold">{stats?.totalContacts ?? 0}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">In your network</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover-elevate overflow-visible border-l-4 border-l-amber-500"
+          onClick={() => navigate("/contacts")}
+          data-testid="stat-card-high-priority"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">High Priority</span>
+              <div className="p-1.5 rounded-md bg-amber-500/10">
+                <Star className="h-4 w-4 text-amber-500" />
+              </div>
+            </div>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold">{stats?.highPriorityContacts ?? 0}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Key contacts</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover-elevate overflow-visible border-l-4 border-l-emerald-500"
+          onClick={() => navigate("/news")}
+          data-testid="stat-card-news-articles"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">News Articles</span>
+              <div className="p-1.5 rounded-md bg-emerald-500/10">
+                <Newspaper className="h-4 w-4 text-emerald-500" />
+              </div>
+            </div>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold">{stats?.totalNews ?? 0}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Aggregated today</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover-elevate overflow-visible border-l-4 border-l-rose-500"
+          onClick={() => navigate("/news")}
+          data-testid="stat-card-unread"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground">Unread</span>
+              <div className="p-1.5 rounded-md bg-rose-500/10">
+                <Activity className="h-4 w-4 text-rose-500" />
+              </div>
+            </div>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold">{stats?.unreadNews ?? 0}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Pending review</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 dark:from-indigo-500/10 dark:via-purple-500/10 dark:to-pink-500/10 border-indigo-500/20">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Sparkles className="h-5 w-5 text-primary" />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+              <Sparkles className="h-5 w-5 text-indigo-500" />
             </div>
             <div>
               <CardTitle>Daily Brief</CardTitle>
@@ -258,7 +420,7 @@ export default function ClientDashboard() {
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <div
-              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              className="p-3 rounded-lg bg-background/80 border cursor-pointer hover-elevate"
               onClick={() => navigate("/bills")}
               data-testid="brief-card-bills"
             >
@@ -274,7 +436,7 @@ export default function ClientDashboard() {
               <p className="text-xs text-muted-foreground">Tracked bills</p>
             </div>
             <div
-              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              className="p-3 rounded-lg bg-background/80 border cursor-pointer hover-elevate"
               onClick={() => navigate("/news")}
               data-testid="brief-card-news"
             >
@@ -290,12 +452,12 @@ export default function ClientDashboard() {
               <p className="text-xs text-muted-foreground">Unread articles</p>
             </div>
             <div
-              className="p-3 rounded-lg bg-background/50 border cursor-pointer hover-elevate"
+              className="p-3 rounded-lg bg-background/80 border cursor-pointer hover-elevate"
               onClick={() => navigate("/predictions")}
               data-testid="brief-card-markets"
             >
               <div className="flex items-center gap-2 text-sm font-medium mb-1">
-                <BarChart3 className="h-4 w-4 text-green-500" />
+                <BarChart3 className="h-4 w-4 text-emerald-500" />
                 Market Moves
               </div>
               {marketsLoading ? (
@@ -309,42 +471,11 @@ export default function ClientDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard 
-          title="Total Contacts" 
-          value={stats?.totalContacts} 
-          icon={Users}
-          description="In your network"
-          href="/contacts"
-        />
-        <StatCard 
-          title="High Priority" 
-          value={stats?.highPriorityContacts} 
-          icon={Star}
-          description="Key contacts"
-          href="/contacts"
-        />
-        <StatCard 
-          title="News Articles" 
-          value={stats?.totalNews} 
-          icon={Newspaper}
-          description="Aggregated today"
-          href="/news"
-        />
-        <StatCard 
-          title="Unread" 
-          value={stats?.unreadNews} 
-          icon={Activity}
-          description="Pending review"
-          href="/news"
-        />
-      </div>
-
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+              <Users className="h-5 w-5 text-blue-500" />
               Recent Contacts
             </CardTitle>
             <Button variant="ghost" size="sm" asChild>
@@ -373,7 +504,7 @@ export default function ClientDashboard() {
                     className="flex items-center gap-4 p-2 rounded-lg hover-elevate"
                     data-testid={`contact-item-${contact.id}`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-400">
                       {contact.firstName[0]}{contact.lastName[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -385,7 +516,7 @@ export default function ClientDashboard() {
                       </p>
                     </div>
                     {contact.priority && contact.priority >= 4 && (
-                      <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                     )}
                   </Link>
                 ))}
@@ -403,7 +534,7 @@ export default function ClientDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
-              <Newspaper className="h-5 w-5" />
+              <Newspaper className="h-5 w-5 text-emerald-500" />
               Latest News
             </CardTitle>
             <Button variant="ghost" size="sm" asChild>
@@ -440,7 +571,7 @@ export default function ClientDashboard() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium text-sm line-clamp-2">{article.title}</p>
                       {!article.isRead && (
-                        <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />
+                        <div className="w-2 h-2 rounded-full bg-rose-500 shrink-0 mt-1" />
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -448,7 +579,7 @@ export default function ClientDashboard() {
                       {article.category && (
                         <>
                           <span>&#183;</span>
-                          <span className="capitalize">{article.category}</span>
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{article.category}</Badge>
                         </>
                       )}
                     </div>
@@ -465,64 +596,6 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Political Prediction Markets
-          </CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/predictions">View All</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {marketsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="p-3 rounded-lg border">
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-8 w-20" />
-                </div>
-              ))}
-            </div>
-          ) : predictionMarkets && predictionMarkets.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {predictionMarkets.slice(0, 4).map((market) => (
-                <div
-                  key={market.ticker}
-                  className="p-3 rounded-lg border hover-elevate cursor-pointer"
-                  data-testid={`market-item-${market.ticker}`}
-                  onClick={() => navigate("/predictions")}
-                >
-                  <p className="text-sm font-medium line-clamp-2 mb-2">
-                    {market.title}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={market.yes_price >= 50 ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {market.yes_price}% Yes
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      Vol: {market.volume.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No prediction markets available</p>
-              <p className="text-sm">Political markets will appear when active</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

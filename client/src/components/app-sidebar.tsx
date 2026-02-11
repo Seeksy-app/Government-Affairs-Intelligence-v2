@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -71,29 +71,45 @@ export function AppSidebar() {
     { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
   ];
 
-  const clientIntelGroup = {
-    label: "Intelligence",
-    icon: TrendingUp,
+  const clientDirectoryGroup = {
+    label: "Directory",
+    icon: Users,
     items: [
+      { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
+      { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
+      { title: "Organizations", url: "/organizations", icon: Building2, tourId: "organizations" },
       { title: "Network", url: "/network", icon: Network, tourId: "network" },
-      { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
       { title: "Power Search", url: "/power-search", icon: Zap, tourId: "power-search" },
-      { title: "Bills", url: "/bills", icon: FileText, tourId: "bills" },
+    ],
+  };
+
+  const clientLegislativeGroup = {
+    label: "Legislative",
+    icon: Landmark,
+    items: [
+      { title: "Bills", url: "/bills", icon: ScrollText, tourId: "bills" },
       { title: "Bill Mapping", url: "/bill-mapping", icon: MapPin, tourId: "bill-mapping" },
       { title: "Schedules", url: "/schedules", icon: Calendar, tourId: "schedules" },
+    ],
+  };
+
+  const clientNewsGroup = {
+    label: "News & Markets",
+    icon: Globe,
+    items: [
       { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
-      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
       { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
       { title: "Rank Tracking", url: "/rank-tracking", icon: Search, tourId: "rank-tracking" },
     ],
   };
 
-  const clientPeopleGroup = {
-    label: "People",
-    icon: Users,
+  const clientStrategyGroup = {
+    label: "Strategy",
+    icon: Crosshair,
     items: [
-      { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
-      { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
+      { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
+      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
+      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
     ],
   };
 
@@ -111,14 +127,13 @@ export function AppSidebar() {
     icon: Settings,
     items: [
       { title: "Research Projects", url: "/matters", icon: FolderOpen, tourId: "matters" },
-      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
       { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
       { title: "Security", url: "/security", icon: Lock, tourId: "security" },
       { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
     ],
   };
 
-  const clientGroups = [clientIntelGroup, clientPeopleGroup, clientSocialGroup, clientManageGroup];
+  const clientGroups = [clientDirectoryGroup, clientLegislativeGroup, clientNewsGroup, clientStrategyGroup, clientSocialGroup, clientManageGroup];
 
   const isClientView = !isSuperAdmin || isImpersonating;
   const groupLabel = (isSuperAdmin && !isImpersonating) 
