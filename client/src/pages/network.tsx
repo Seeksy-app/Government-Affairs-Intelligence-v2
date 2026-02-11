@@ -761,6 +761,212 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         </div>
       </div>
 
+      {/* Members Search Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5" />
+              Search Members
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowMemberSearch(!showMemberSearch)}
+              data-testid="button-toggle-member-search"
+            >
+              {showMemberSearch ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showMemberSearch && (
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1 flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name (e.g. Johnson, Mike Johnson)..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleMemberSearch()}
+                      className="pl-9"
+                      data-testid="input-member-search"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleMemberSearch}
+                    disabled={membersLoading}
+                    data-testid="button-search-members"
+                  >
+                    {membersLoading ? "Searching..." : "Search"}
+                  </Button>
+                </div>
+                
+                <Select value={chamberFilter} onValueChange={(v) => handleFilterChange(setChamberFilter, v)}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-chamber">
+                    <SelectValue placeholder="Chamber" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Chambers</SelectItem>
+                    <SelectItem value="senate">Senate</SelectItem>
+                    <SelectItem value="house">House</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={partyFilter} onValueChange={(v) => handleFilterChange(setPartyFilter, v)}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-party">
+                    <SelectValue placeholder="Party" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Parties</SelectItem>
+                    <SelectItem value="D">Democrat</SelectItem>
+                    <SelectItem value="R">Republican</SelectItem>
+                    <SelectItem value="I">Independent</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={stateFilter} onValueChange={(v) => handleFilterChange(setStateFilter, v)}>
+                  <SelectTrigger className="w-full md:w-44" data-testid="select-state">
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    {US_STATES.map(state => (
+                      <SelectItem key={state.code} value={state.code}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {(memberSearch || chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setMemberSearch("");
+                      setChamberFilter("all");
+                      setPartyFilter("all");
+                      setStateFilter("all");
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              
+              {membersLoading ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="p-4 rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-24 mt-1" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : congressMembers && congressMembers.length > 0 ? (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Showing {Math.min(congressMembers.length, 50)} of {congressMembers.length} members
+                  </p>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {congressMembers.slice(0, 50).map((member) => (
+                      <div
+                        key={member.bioguideId}
+                        className="p-4 rounded-lg border hover-elevate cursor-pointer"
+                        onClick={() => handleSelectMember(member)}
+                        data-testid={`member-card-${member.bioguideId}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={member.imageUrl} alt={member.name} />
+                            <AvatarFallback>
+                              {member.firstName?.[0]}{member.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{member.firstName} {member.lastName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge 
+                                variant="outline" 
+                                className={
+                                  member.party === "D" 
+                                    ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                                    : member.party === "R" 
+                                    ? "border-red-500 text-red-600 dark:text-red-400"
+                                    : "border-gray-500"
+                                }
+                              >
+                                {member.party === "D" ? "Democrat" : member.party === "R" ? "Republican" : "Independent"}
+                              </Badge>
+                              <Badge variant="secondary">
+                                {member.state}{member.district ? `-${member.district}` : ""}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {member.chamber === "House" ? "Representative" : member.chamber === "Senate" ? "Senator" : member.chamber}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {member.leadership && member.leadership.length > 0 && (
+                          <div className="mt-2 pt-2 border-t">
+                            <div className="flex flex-wrap gap-1">
+                              {member.leadership.map((role, idx) => (
+                                <Badge key={idx} variant="default" className="text-xs">
+                                  {role}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {(member.phone || member.website) && (
+                          <div className="mt-2 pt-2 border-t space-y-1">
+                            {member.phone && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Phone className="h-3 w-3" />
+                                <span>{member.phone}</span>
+                              </div>
+                            )}
+                            {member.website && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Globe className="h-3 w-3" />
+                                <a 
+                                  href={member.website} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="hover:underline truncate"
+                                >
+                                  Official Website
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Landmark className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No members found</p>
+                  <p className="text-sm">Try adjusting your filters or search term</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Favorite Congress Members */}
       {favorites && favorites.length > 0 && (
         <Card>
@@ -890,471 +1096,6 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           </CardContent>
         </Card>
       )}
-
-      {/* Members Search Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Landmark className="h-5 w-5" />
-              Search Members
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowMemberSearch(!showMemberSearch)}
-              data-testid="button-toggle-member-search"
-            >
-              {showMemberSearch ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        {showMemberSearch && (
-          <CardContent>
-            <div className="space-y-4">
-              {/* Search and Filters */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1 flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name (e.g. Johnson, Mike Johnson)..."
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleMemberSearch()}
-                      className="pl-9"
-                      data-testid="input-member-search"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleMemberSearch}
-                    disabled={membersLoading}
-                    data-testid="button-search-members"
-                  >
-                    {membersLoading ? "Searching..." : "Search"}
-                  </Button>
-                </div>
-                
-                <Select value={chamberFilter} onValueChange={(v) => handleFilterChange(setChamberFilter, v)}>
-                  <SelectTrigger className="w-full md:w-40" data-testid="select-chamber">
-                    <SelectValue placeholder="Chamber" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Chambers</SelectItem>
-                    <SelectItem value="senate">Senate</SelectItem>
-                    <SelectItem value="house">House</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={partyFilter} onValueChange={(v) => handleFilterChange(setPartyFilter, v)}>
-                  <SelectTrigger className="w-full md:w-40" data-testid="select-party">
-                    <SelectValue placeholder="Party" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Parties</SelectItem>
-                    <SelectItem value="D">Democrat</SelectItem>
-                    <SelectItem value="R">Republican</SelectItem>
-                    <SelectItem value="I">Independent</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={stateFilter} onValueChange={(v) => handleFilterChange(setStateFilter, v)}>
-                  <SelectTrigger className="w-full md:w-44" data-testid="select-state">
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {US_STATES.map(state => (
-                      <SelectItem key={state.code} value={state.code}>
-                        {state.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {(memberSearch || chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all") && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setMemberSearch("");
-                      setChamberFilter("all");
-                      setPartyFilter("all");
-                      setStateFilter("all");
-                    }}
-                    data-testid="button-clear-filters"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              
-              {/* Results */}
-              {membersLoading ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="p-4 rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="flex-1">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-24 mt-1" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : congressMembers && congressMembers.length > 0 ? (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Showing {Math.min(congressMembers.length, 50)} of {congressMembers.length} members
-                  </p>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {congressMembers.slice(0, 50).map((member) => (
-                      <div
-                        key={member.bioguideId}
-                        className="p-4 rounded-lg border hover-elevate cursor-pointer"
-                        onClick={() => handleSelectMember(member)}
-                        data-testid={`member-card-${member.bioguideId}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={member.imageUrl} alt={member.name} />
-                            <AvatarFallback>
-                              {member.firstName?.[0]}{member.lastName?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{member.firstName} {member.lastName}</p>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Badge 
-                                variant="outline" 
-                                className={
-                                  member.party === "D" 
-                                    ? "border-blue-500 text-blue-600 dark:text-blue-400" 
-                                    : member.party === "R" 
-                                    ? "border-red-500 text-red-600 dark:text-red-400"
-                                    : "border-gray-500"
-                                }
-                              >
-                                {member.party === "D" ? "Democrat" : member.party === "R" ? "Republican" : "Independent"}
-                              </Badge>
-                              <Badge variant="secondary">
-                                {member.state}{member.district ? `-${member.district}` : ""}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {member.chamber === "House" ? "Representative" : member.chamber === "Senate" ? "Senator" : member.chamber}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {member.leadership && member.leadership.length > 0 && (
-                          <div className="mt-2 pt-2 border-t">
-                            <div className="flex flex-wrap gap-1">
-                              {member.leadership.map((role, idx) => (
-                                <Badge key={idx} variant="default" className="text-xs">
-                                  {role}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {(member.phone || member.website) && (
-                          <div className="mt-2 pt-2 border-t space-y-1">
-                            {member.phone && (
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                <span>{member.phone}</span>
-                              </div>
-                            )}
-                            {member.website && (
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Globe className="h-3 w-3" />
-                                <a 
-                                  href={member.website} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="hover:underline truncate"
-                                >
-                                  Official Website
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Landmark className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No members found</p>
-                  <p className="text-sm">Try adjusting your filters or search term</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {searchQuery.trim() && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Search Results ({searchResults.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {searchResults.length > 0 ? (
-              <div className="space-y-4">
-                {searchResults.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="p-4 rounded-lg border hover-elevate"
-                    data-testid={`search-result-${contact.id}`}
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                        {contact.firstName[0]}{contact.lastName[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">
-                          {contact.firstName} {contact.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {contact.title} {contact.organization ? `at ${contact.organization}` : ""}
-                        </p>
-                      </div>
-                      {contact.priority && contact.priority >= 4 && (
-                        <Badge variant="outline">Priority {contact.priority}</Badge>
-                      )}
-                    </div>
-                    
-                    {contact.careerHistory && contact.careerHistory.length > 0 ? (
-                      <div className="relative pl-4 border-l-2 border-primary/30 space-y-3 ml-6">
-                        {contact.careerHistory.map((career) => (
-                          <div key={career.id} className="relative">
-                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
-                            <div className="pl-3">
-                              <p className="text-sm font-medium">{career.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {career.organization}
-                                {career.startYear && ` (${career.startYear}${career.endYear ? `-${career.endYear}` : "-present"})`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground ml-6">No career history recorded</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No staffers found for "{searchQuery}"</p>
-                <p className="text-sm">Try a different name, title, or organization</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Key Contacts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Key Contacts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="flex-1">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-24 mt-1" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : highPriorityContacts.length > 0 ? (
-              <div className="space-y-4">
-                {highPriorityContacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="p-3 rounded-lg border hover-elevate"
-                    data-testid={`key-contact-${contact.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                        {contact.firstName[0]}{contact.lastName[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">
-                          {contact.firstName} {contact.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {contact.title} {contact.organization ? `at ${contact.organization}` : ""}
-                        </p>
-                      </div>
-                      <Badge variant="outline">Priority {contact.priority}</Badge>
-                    </div>
-                    {contact.careerHistory && contact.careerHistory.length > 0 && (
-                      <div className="mt-3 pl-15">
-                        <p className="text-xs text-muted-foreground mb-2">Career Path</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {contact.careerHistory.slice(0, 3).map((career, idx) => (
-                            <div key={career.id} className="flex items-center gap-1">
-                              <span className="text-xs bg-muted px-2 py-1 rounded">
-                                {career.organization} ({career.startYear})
-                              </span>
-                              {idx < Math.min(contact.careerHistory!.length - 1, 2) && (
-                                <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No high-priority contacts</p>
-                <p className="text-sm">Mark contacts as priority 4-5 to see them here</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Career Patterns */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Network className="h-5 w-5" />
-              Career Patterns
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-3 w-2/3" />
-                  </div>
-                ))}
-              </div>
-            ) : recentContacts.length > 0 ? (
-              <div className="space-y-4">
-                {recentContacts.filter(c => c.careerHistory && c.careerHistory.length > 0).slice(0, 5).map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="p-3 rounded-lg border space-y-2"
-                    data-testid={`career-pattern-${contact.id}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                        {contact.firstName[0]}{contact.lastName[0]}
-                      </div>
-                      <span className="font-medium text-sm">
-                        {contact.firstName} {contact.lastName}
-                      </span>
-                    </div>
-                    {contact.careerHistory && (
-                      <div className="relative pl-4 border-l-2 border-muted space-y-2">
-                        {contact.careerHistory.map((career) => (
-                          <div key={career.id} className="relative">
-                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-background border-2 border-primary" />
-                            <div className="pl-3">
-                              <p className="text-sm font-medium">{career.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {career.organization}
-                                {career.startYear && ` (${career.startYear}${career.endYear ? `-${career.endYear}` : "-present"})`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {recentContacts.filter(c => c.careerHistory && c.careerHistory.length > 0).length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Network className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No career history recorded</p>
-                    <p className="text-sm">Add career history to contacts to see patterns</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Network className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No contacts with career history</p>
-                <p className="text-sm">Add career history to see patterns</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Organizations Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Organizations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24" />
-              ))}
-            </div>
-          ) : contacts && contacts.length > 0 ? (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Object.entries(
-                contacts.reduce((acc, contact) => {
-                  const org = contact.organization || "Unknown";
-                  acc[org] = (acc[org] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>)
-              )
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 8)
-                .map(([org, count]) => (
-                  <Card key={org} className="hover-elevate">
-                    <CardContent className="p-4">
-                      <p className="font-medium text-sm truncate">{org}</p>
-                      <p className="text-2xl font-bold mt-1">{count}</p>
-                      <p className="text-xs text-muted-foreground">contact{count !== 1 ? "s" : ""}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No organizations yet</p>
-              <p className="text-sm">Add contacts with organizations to see them here</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Member Detail Sheet */}
       <Sheet open={!!selectedMember} onOpenChange={(open) => !open && handleSelectMember(null)}>
