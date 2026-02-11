@@ -1973,12 +1973,52 @@ Format your response as a structured summary with clear sections.`;
       
       const parsedData = parseCareerData(result.content);
       
-      // Save research to legistorm_staffers table
+      // Auto-search LinkedIn via PDL if staffer doesn't already have one
+      let linkedinUrl: string | null = null;
       try {
         const { db } = await import("./db");
         const { legistormStaffers } = await import("@shared/schema");
         const { eq } = await import("drizzle-orm");
+
+        // Check if staffer already has a LinkedIn URL
+        let existingLinkedin: string | null = null;
+        if (legistormId) {
+          const existing = await db.select({ linkedinUrl: legistormStaffers.linkedinUrl })
+            .from(legistormStaffers)
+            .where(eq(legistormStaffers.legistormId, parseInt(legistormId)))
+            .limit(1);
+          existingLinkedin = existing[0]?.linkedinUrl || null;
+        }
+
+        if (!existingLinkedin && process.env.PDL_API_KEY) {
+          console.log("[Staffer Research] Auto-searching LinkedIn for:", name);
+          try {
+            const { researchLinkedInProfile } = await import("./services/linkedin-service");
+            const nameParts = name.split(" ");
+            const firstName = nameParts[0] || "";
+            const lastName = nameParts.slice(1).join(" ") || "";
+            let org = organization || memberName || "US Congress";
+            if (org.toLowerCase().includes("office of")) {
+              org = "US Congress";
+            }
+            const liResult = await researchLinkedInProfile(firstName, lastName, org);
+            if (liResult.profileUrl) {
+              linkedinUrl = liResult.profileUrl;
+              console.log("[Staffer Research] LinkedIn found:", linkedinUrl);
+              if (legistormId) {
+                await db.update(legistormStaffers)
+                  .set({ linkedinUrl: liResult.profileUrl })
+                  .where(eq(legistormStaffers.legistormId, parseInt(legistormId)));
+              }
+            }
+          } catch (liErr: any) {
+            console.error("[Staffer Research] LinkedIn auto-search failed (non-blocking):", liErr?.message);
+          }
+        } else if (existingLinkedin) {
+          linkedinUrl = existingLinkedin;
+        }
         
+        // Save research to legistorm_staffers table
         if (legistormId) {
           await db.update(legistormStaffers)
             .set({ careerResearch: result.content, careerResearchedAt: new Date() })
@@ -1998,7 +2038,7 @@ Format your response as a structured summary with clear sections.`;
       
       res.json({
         success: true,
-        data: parsedData,
+        data: { ...parsedData, linkedinUrl },
         sources: result.citations || []
       });
     } catch (error: any) {

@@ -307,6 +307,11 @@ export default function StaffersPage() {
     onSuccess: (data: any) => {
       const content = data?.data?.rawContent || data?.rawContent || data?.content || "";
       setLsResearchResult(content || JSON.stringify(data, null, 2));
+      const foundLinkedin = data?.data?.linkedinUrl;
+      if (foundLinkedin) {
+        toast({ title: "Research Complete", description: `Career research done and LinkedIn profile found.` });
+        queryClient.invalidateQueries({ queryKey: [`/api/legistorm/staffers/${lsSelectedId}`] });
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
@@ -1194,10 +1199,10 @@ export default function StaffersPage() {
                       {lsResearchMutation.isPending ? (
                         <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
                       ) : (
-                        <><Search className="h-4 w-4 mr-2" /> Research Career</>
+                        <><Search className="h-4 w-4 mr-2" /> Research Career + LinkedIn</>
                       )}
                     </Button>
-                    {!(lsStafferDetail as any).linkedinUrl && (
+                    {!(lsStafferDetail as any).linkedinUrl && !lsResearchMutation.isPending && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -1208,7 +1213,7 @@ export default function StaffersPage() {
                         {linkedinLookupLoading ? (
                           <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Finding LinkedIn...</>
                         ) : (
-                          <><Linkedin className="h-4 w-4 mr-2" /> Find LinkedIn</>
+                          <><Linkedin className="h-4 w-4 mr-2" /> Find LinkedIn Only</>
                         )}
                       </Button>
                     )}
