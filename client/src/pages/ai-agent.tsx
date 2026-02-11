@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio, FileText, ExternalLink, Clock, Bookmark, RefreshCw } from "lucide-react";
+import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio, FileText, ExternalLink, Clock, Bookmark, RefreshCw, Plus, FolderOpen, BookOpen } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Matter } from "@shared/schema";
+import type { Matter, KbCategory } from "@shared/schema";
 
 interface SearchResult {
   id: string;
@@ -56,6 +57,15 @@ interface CongressBill {
     text: string;
   };
 }
+
+interface DetectedBill {
+  fullMatch: string;
+  billType: string;
+  billNumber: number;
+  displayText: string;
+}
+
+const BILL_PATTERN = /\b(H\.R\.|H\.J\.RES\.|H\.CON\.RES\.|H\.RES\.|S\.J\.RES\.|S\.CON\.RES\.|S\.RES\.|S\.)[\s]*(\d+)\b/gi;
 
 const SUGGESTED_PROMPTS = [
   "Find recent lobbying activities related to healthcare reform",
@@ -102,6 +112,17 @@ export default function AIAgentPage() {
   const [billSearch, setBillSearch] = useState("");
   const [billResults, setBillResults] = useState<CongressBill[]>([]);
   const [billSearchLoading, setBillSearchLoading] = useState(false);
+  const [trackBillDialogOpen, setTrackBillDialogOpen] = useState(false);
+  const [selectedBillToTrack, setSelectedBillToTrack] = useState<DetectedBill | null>(null);
+  const [trackBillAction, setTrackBillAction] = useState<"track" | "kb" | "research">("track");
+  const [trackBillMatterId, setTrackBillMatterId] = useState<string>("");
+  const [trackBillKbCategoryId, setTrackBillKbCategoryId] = useState<string>("");
+  const [trackBillNotes, setTrackBillNotes] = useState("");
+  const [trackBillLoading, setTrackBillLoading] = useState(false);
+
+  const { data: kbCategories = [] } = useQuery<KbCategory[]>({
+    queryKey: ["/api/kb/categories"],
+  });
 
   const searchBills = async () => {
     if (!billSearch.trim()) return;
@@ -266,6 +287,142 @@ export default function AIAgentPage() {
     chatMutation.mutate(prompt);
   };
 
+  const openTrackBillDialog = (bill: DetectedBill) => {
+    setSelectedBillToTrack(bill);
+    setTrackBillAction("track");
+    setTrackBillMatterId("");
+    setTrackBillKbCategoryId("");
+    setTrackBillNotes("");
+    setTrackBillDialogOpen(true);
+  };
+
+  const handleTrackBill = async () => {
+    if (!selectedBillToTrack) return;
+    setTrackBillLoading(true);
+    try {
+      if (trackBillAction === "track") {
+        await apiRequest("POST", "/api/tracked-bills", {
+          congress: 119,
+          billType: selectedBillToTrack.billType,
+          billNumber: selectedBillToTrack.billNumber,
+          title: `${selectedBillToTrack.displayText}`,
+          notes: trackBillNotes || undefined,
+          matterId: (trackBillMatterId && trackBillMatterId !== "none") ? trackBillMatterId : undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
+        toast({ title: "Bill tracked", description: `${selectedBillToTrack.displayText} added to Bill Tracking` });
+      } else if (trackBillAction === "kb") {
+        const slug = selectedBillToTrack.displayText.toLowerCase().replace(/\./g, '-').replace(/\s+/g, '-');
+        await apiRequest("POST", "/api/admin/kb/articles", {
+          scope: "owner",
+          categoryId: (trackBillKbCategoryId && trackBillKbCategoryId !== "none") ? trackBillKbCategoryId : undefined,
+          title: `Bill Reference: ${selectedBillToTrack.displayText}`,
+          slug: `bill-${slug}-${Date.now()}`,
+          summary: `Congressional bill ${selectedBillToTrack.displayText}`,
+          content: trackBillNotes ? `# ${selectedBillToTrack.displayText}\n\n${trackBillNotes}` : `# ${selectedBillToTrack.displayText}\n\nCongressional bill reference saved from AI Agent research.`,
+          isPublished: true,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
+        toast({ title: "Saved to Knowledge Base", description: `${selectedBillToTrack.displayText} added to KB` });
+      } else if (trackBillAction === "research") {
+        if (!trackBillMatterId) {
+          toast({ title: "Select a Research Project", description: "Please select a research project to save to", variant: "destructive" });
+          setTrackBillLoading(false);
+          return;
+        }
+        const billTypeToPath: Record<string, string> = {
+          'H.R.': 'house-bill', 'HR': 'house-bill', 'hr': 'house-bill',
+          'S.': 'senate-bill', 'S': 'senate-bill', 's': 'senate-bill',
+          'H.J.RES.': 'house-joint-resolution', 'hjres': 'house-joint-resolution',
+          'S.J.RES.': 'senate-joint-resolution', 'sjres': 'senate-joint-resolution',
+          'H.CON.RES.': 'house-concurrent-resolution', 'hconres': 'house-concurrent-resolution',
+          'S.CON.RES.': 'senate-concurrent-resolution', 'sconres': 'senate-concurrent-resolution',
+          'H.RES.': 'house-resolution', 'hres': 'house-resolution',
+          'S.RES.': 'senate-resolution', 'sres': 'senate-resolution',
+        };
+        const urlPath = billTypeToPath[selectedBillToTrack.billType] || 'senate-bill';
+        await apiRequest("POST", `/api/matters/${trackBillMatterId}/documents/url`, {
+          url: `https://www.congress.gov/bill/119th-congress/${urlPath}/${selectedBillToTrack.billNumber}`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/matters", trackBillMatterId, "documents"] });
+        toast({ title: "Saved to Research Project", description: `${selectedBillToTrack.displayText} added to research project` });
+      }
+      setTrackBillDialogOpen(false);
+    } catch (error: any) {
+      const msg = error?.message || "Failed to save bill";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setTrackBillLoading(false);
+    }
+  };
+
+  const renderMessageContent = (content: string, isUser: boolean) => {
+    if (isUser) {
+      return <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>;
+    }
+
+    const regex = new RegExp(BILL_PATTERN.source, 'gi');
+    const parts: (string | { bill: DetectedBill })[] = [];
+    let lastIndex = 0;
+    let match;
+    const seenInMsg = new Set<string>();
+
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(content.slice(lastIndex, match.index));
+      }
+      const billType = match[1].replace(/\s/g, '');
+      const billNumber = parseInt(match[2], 10);
+      const key = `${billType}${billNumber}`.toUpperCase();
+      const bill: DetectedBill = {
+        fullMatch: match[0],
+        billType,
+        billNumber,
+        displayText: `${billType}${billNumber}`,
+      };
+      parts.push({ bill });
+      if (!seenInMsg.has(key)) {
+        seenInMsg.add(key);
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < content.length) {
+      parts.push(content.slice(lastIndex));
+    }
+
+    if (parts.length === 1 && typeof parts[0] === 'string') {
+      return <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>;
+    }
+
+    return (
+      <div className="text-sm whitespace-pre-wrap leading-relaxed">
+        {parts.map((part, idx) => {
+          if (typeof part === 'string') {
+            return <span key={idx}>{part}</span>;
+          }
+          return (
+            <span key={idx} className="inline-flex items-center gap-0.5 align-middle">
+              <Badge variant="outline" className="font-mono text-xs mx-0.5 cursor-default" data-testid={`badge-bill-${part.bill.displayText}`}>{part.bill.displayText}</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1 text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openTrackBillDialog(part.bill);
+                }}
+                data-testid={`button-track-bill-${part.bill.displayText}`}
+              >
+                <Bookmark className="w-3 h-3" />
+                Track
+              </Button>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   const isLoading = urlSearchMutation.isPending || entityResearchMutation.isPending || queryMutation.isPending;
 
   return (
@@ -371,7 +528,7 @@ export default function AIAgentPage() {
                             }`}
                             data-testid={`chat-message-${i}`}
                           >
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            {renderMessageContent(msg.content, msg.role === "user")}
                           </div>
                         </div>
                       ))}
@@ -946,6 +1103,127 @@ export default function AIAgentPage() {
                 <Bot className="w-4 h-4 mr-2" />
               )}
               Run Query
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={trackBillDialogOpen} onOpenChange={setTrackBillDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bookmark className="w-5 h-5" />
+              Track Bill
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBillToTrack && (
+                <span>Save <strong>{selectedBillToTrack.displayText}</strong> to your platform</span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Save to</Label>
+              <Select value={trackBillAction} onValueChange={(v: any) => setTrackBillAction(v)}>
+                <SelectTrigger data-testid="select-track-bill-action">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="track">
+                    <span className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" /> Bill Tracking
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="kb">
+                    <span className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" /> Knowledge Base
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="research">
+                    <span className="flex items-center gap-2">
+                      <FolderOpen className="w-4 h-4" /> Research Project
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {trackBillAction === "track" && matters.length > 0 && (
+              <div className="space-y-2">
+                <Label>Assign to Research Project (optional)</Label>
+                <Select value={trackBillMatterId} onValueChange={setTrackBillMatterId}>
+                  <SelectTrigger data-testid="select-track-bill-matter">
+                    <SelectValue placeholder="No project assigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project assigned</SelectItem>
+                    {matters.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {trackBillAction === "kb" && kbCategories.length > 0 && (
+              <div className="space-y-2">
+                <Label>KB Category (optional)</Label>
+                <Select value={trackBillKbCategoryId} onValueChange={setTrackBillKbCategoryId}>
+                  <SelectTrigger data-testid="select-track-bill-kb-category">
+                    <SelectValue placeholder="No category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No category</SelectItem>
+                    {kbCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {trackBillAction === "research" && (
+              <div className="space-y-2">
+                <Label>Research Project</Label>
+                <Select value={trackBillMatterId} onValueChange={setTrackBillMatterId}>
+                  <SelectTrigger data-testid="select-track-bill-research-project">
+                    <SelectValue placeholder="Select a project..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {matters.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                placeholder="Add context or notes about this bill..."
+                value={trackBillNotes}
+                onChange={(e) => setTrackBillNotes(e.target.value)}
+                className="min-h-[80px]"
+                data-testid="input-track-bill-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTrackBillDialogOpen(false)} data-testid="button-cancel-track-bill">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleTrackBill}
+              disabled={trackBillLoading || (trackBillAction === "research" && !trackBillMatterId)}
+              data-testid="button-confirm-track-bill"
+            >
+              {trackBillLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
+              {trackBillAction === "track" ? "Track Bill" : trackBillAction === "kb" ? "Save to KB" : "Save to Project"}
             </Button>
           </DialogFooter>
         </DialogContent>
