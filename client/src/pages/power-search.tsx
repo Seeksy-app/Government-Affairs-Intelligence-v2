@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Building2, Search, Plus, Trash2, Globe, Users, MapPin,
-  Loader2, ExternalLink, Briefcase, Brain, RefreshCw, Landmark,
-  Scale, BookOpen, Flag, UserSearch, Calendar, Hash, X, UserPlus, Zap
+  Loader2, ExternalLink, Briefcase, Brain, Landmark,
+  Scale, BookOpen, Flag, UserSearch, Calendar, X, UserPlus, Zap,
+  ChevronRight
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import type { PoliticalOrganization, Client, KbCategory } from "@shared/schema";
@@ -93,13 +94,27 @@ function getClassificationBadges(classification: CompanyEnrichResult["politicalC
   return badges.length > 0 ? badges : null;
 }
 
+const PEOPLE_PRESETS = [
+  { label: "Lobbyists in DC", company: "", title: "lobbyist", location: "washington dc", industry: "", school: "" },
+  { label: "Government Affairs", company: "", title: "government affairs", location: "washington dc", industry: "", school: "" },
+  { label: "PAC Directors", company: "", title: "director", location: "", industry: "political", school: "" },
+  { label: "Chiefs of Staff", company: "", title: "chief of staff", location: "washington dc", industry: "government", school: "" },
+  { label: "Policy Advisors", company: "", title: "policy", location: "washington dc", industry: "government", school: "" },
+  { label: "Legislative Directors", company: "", title: "legislative director", location: "washington dc", industry: "", school: "" },
+  { label: "Think Tank Staff", company: "", title: "", location: "washington dc", industry: "think tank", school: "" },
+  { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political", school: "" },
+  { label: "City Managers", company: "", title: "city manager", location: "", industry: "government", school: "" },
+  { label: "County Administrators", company: "", title: "county administrator", location: "", industry: "government", school: "" },
+  { label: "State Grant Officers", company: "", title: "grant", location: "", industry: "government", school: "" },
+  { label: "Municipal Finance Directors", company: "", title: "finance director", location: "", industry: "government", school: "" },
+];
+
 export default function PowerSearchPage() {
   const { toast } = useToast();
   const [location] = useLocation();
   const defaultTab = location === "/organizations" ? "organizations" : "people";
   const [mainTab, setMainTab] = useState(defaultTab);
 
-  // People Search state
   const [personSearchCompany, setPersonSearchCompany] = useState("");
   const [personSearchTitle, setPersonSearchTitle] = useState("");
   const [personSearchLocation, setPersonSearchLocation] = useState("");
@@ -108,7 +123,6 @@ export default function PowerSearchPage() {
   const [personSearchResults, setPersonSearchResults] = useState<PersonResult[]>([]);
   const [personSearchLoading, setPersonSearchLoading] = useState(false);
 
-  // Contact+ Dialog state
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactDialogPerson, setContactDialogPerson] = useState<PersonResult | null>(null);
   const [contactAssignType, setContactAssignType] = useState<"client" | "general" | "kb">("general");
@@ -119,13 +133,8 @@ export default function PowerSearchPage() {
   const [showNewKbInput, setShowNewKbInput] = useState(false);
   const [contactSaving, setContactSaving] = useState(false);
 
-  const { data: clientsList = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
-  });
-
-  const { data: kbCategories = [] } = useQuery<KbCategory[]>({
-    queryKey: ["/api/admin/kb/categories"],
-  });
+  const { data: clientsList = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
+  const { data: kbCategories = [] } = useQuery<KbCategory[]>({ queryKey: ["/api/admin/kb/categories"] });
 
   const openContactDialog = (person: PersonResult) => {
     setContactDialogPerson(person);
@@ -176,14 +185,11 @@ export default function PowerSearchPage() {
       if (contactAssignType === "client" && contactClientId) {
         body.assignToClientId = contactClientId;
       }
-
       if (contactAssignType === "kb" && contactKbId) {
         body.kbCategoryId = contactKbId;
       }
 
-      const res = await apiRequest("POST", "/api/contacts/from-search", body);
-      const result = await res.json();
-
+      await apiRequest("POST", "/api/contacts/from-search", body);
       toast({ title: "Contact saved", description: `${firstName} ${lastName} has been added` });
       setContactDialogOpen(false);
     } catch (error: any) {
@@ -193,7 +199,61 @@ export default function PowerSearchPage() {
     }
   };
 
-  // Organizations state
+  const runPersonSearch = async (params: { company?: string; title?: string; location?: string; industry?: string; school?: string }) => {
+    setPersonSearchLoading(true);
+    try {
+      const body: Record<string, any> = { limit: 25 };
+      if (params.company) body.company = params.company;
+      if (params.title) body.jobTitle = params.title;
+      if (params.location) body.location = params.location;
+      if (params.industry) body.industry = params.industry;
+      if (params.school) body.school = params.school;
+      const res = await apiRequest("POST", "/api/research/people/search", body);
+      const result = await res.json();
+      if (result.success) {
+        setPersonSearchResults(result.data || []);
+        if (result.data?.length === 0) {
+          toast({ title: "No Results", description: "No people matched your search criteria." });
+        }
+      } else {
+        toast({ title: "Search Error", description: result.message || "Search failed", variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: "Search Failed", description: error.message || "Failed to search", variant: "destructive" });
+    } finally {
+      setPersonSearchLoading(false);
+    }
+  };
+
+  const handlePersonSearch = () => {
+    if (!personSearchCompany && !personSearchTitle && !personSearchLocation && !personSearchIndustry && !personSearchSchool) {
+      toast({ title: "Please fill in at least one field", variant: "destructive" });
+      return;
+    }
+    runPersonSearch({
+      company: personSearchCompany,
+      title: personSearchTitle,
+      location: personSearchLocation,
+      industry: personSearchIndustry,
+      school: personSearchSchool,
+    });
+  };
+
+  const handlePresetSearch = (preset: typeof PEOPLE_PRESETS[0]) => {
+    setPersonSearchCompany(preset.company);
+    setPersonSearchTitle(preset.title);
+    setPersonSearchLocation(preset.location);
+    setPersonSearchIndustry(preset.industry);
+    setPersonSearchSchool(preset.school);
+    runPersonSearch({
+      company: preset.company,
+      title: preset.title,
+      location: preset.location,
+      industry: preset.industry,
+      school: preset.school,
+    });
+  };
+
   const [orgSearchQuery, setOrgSearchQuery] = useState("");
   const [orgSearchType, setOrgSearchType] = useState<"name" | "website">("name");
   const [filterType, setFilterType] = useState<string>("all");
@@ -220,36 +280,6 @@ export default function PowerSearchPage() {
     },
   });
 
-  const handlePersonSearch = async () => {
-    if (!personSearchCompany && !personSearchTitle && !personSearchLocation && !personSearchIndustry && !personSearchSchool) {
-      toast({ title: "Please fill in at least one field", variant: "destructive" });
-      return;
-    }
-    setPersonSearchLoading(true);
-    try {
-      const body: Record<string, any> = { limit: 25 };
-      if (personSearchCompany) body.company = personSearchCompany;
-      if (personSearchTitle) body.jobTitle = personSearchTitle;
-      if (personSearchLocation) body.location = personSearchLocation;
-      if (personSearchIndustry) body.industry = personSearchIndustry;
-      if (personSearchSchool) body.school = personSearchSchool;
-      const res = await apiRequest("POST", "/api/research/people/search", body);
-      const result = await res.json();
-      if (result.success) {
-        setPersonSearchResults(result.data || []);
-        if (result.data?.length === 0) {
-          toast({ title: "No Results", description: "No people matched your search criteria." });
-        }
-      } else {
-        toast({ title: "Search Error", description: result.message || "Search failed", variant: "destructive" });
-      }
-    } catch (error: any) {
-      toast({ title: "Search Failed", description: error.message || "Failed to search", variant: "destructive" });
-    } finally {
-      setPersonSearchLoading(false);
-    }
-  };
-
   const handleOrgSearch = async () => {
     if (!orgSearchQuery.trim()) return;
     setIsSearching(true);
@@ -267,7 +297,7 @@ export default function PowerSearchPage() {
         setEnrichResult(data.data);
         setOrgActiveTab("search");
       } else {
-        toast({ title: "Not found", description: "Organization not found in the database. Try a different name or website.", variant: "destructive" });
+        toast({ title: "Not found", description: "Organization not found. Try a different name or website.", variant: "destructive" });
       }
     } catch (error: any) {
       toast({ title: "Search failed", description: error.message, variant: "destructive" });
@@ -350,259 +380,261 @@ export default function PowerSearchPage() {
 
   return (
     <div className="flex flex-col h-full" data-testid="power-search-page">
-      <div className="p-4 border-b flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+      <div className="p-4 pb-0">
+        <div className="flex items-center gap-2 mb-4">
           <Zap className="h-5 w-5" />
           <h1 className="text-lg font-semibold" data-testid="text-page-title">Power Search</h1>
         </div>
+
+        <Tabs value={mainTab} onValueChange={setMainTab}>
+          <TabsList>
+            <TabsTrigger value="people" data-testid="tab-people-search">
+              <UserSearch className="h-4 w-4 mr-1.5" />
+              People
+            </TabsTrigger>
+            <TabsTrigger value="organizations" data-testid="tab-organizations">
+              <Building2 className="h-4 w-4 mr-1.5" />
+              Organizations
+              {organizations.length > 0 && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px]">{organizations.length}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="px-4 pt-3">
-          <Tabs value={mainTab} onValueChange={setMainTab}>
-            <TabsList>
-              <TabsTrigger value="people" data-testid="tab-people-search">
-                <UserSearch className="h-4 w-4 mr-1.5" />
-                People
-              </TabsTrigger>
-              <TabsTrigger value="organizations" data-testid="tab-organizations">
-                <Building2 className="h-4 w-4 mr-1.5" />
-                Organizations
-                {organizations.length > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px]">{organizations.length}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
+      <div className="flex-1 overflow-hidden">
         {mainTab === "people" && (
-          <div className="flex-1 overflow-auto p-4">
-            <div className="space-y-4 max-w-5xl">
-              <p className="text-sm text-muted-foreground">
-                Search across millions of professional profiles to find people by company, title, location, industry, or school.
-              </p>
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Quick Searches</Label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: "Lobbyists in DC", company: "", title: "lobbyist", location: "washington dc", industry: "", school: "" },
-                    { label: "Government Affairs", company: "", title: "government affairs", location: "washington dc", industry: "", school: "" },
-                    { label: "PAC Directors", company: "", title: "director", location: "", industry: "political", school: "" },
-                    { label: "Chiefs of Staff", company: "", title: "chief of staff", location: "washington dc", industry: "government", school: "" },
-                    { label: "Policy Advisors", company: "", title: "policy", location: "washington dc", industry: "government", school: "" },
-                    { label: "Legislative Directors", company: "", title: "legislative director", location: "washington dc", industry: "", school: "" },
-                    { label: "Think Tank Staff", company: "", title: "", location: "washington dc", industry: "think tank", school: "" },
-                    { label: "Campaign Staff", company: "", title: "campaign", location: "", industry: "political", school: "" },
-                    { label: "City Managers", company: "", title: "city manager", location: "", industry: "government", school: "" },
-                    { label: "County Administrators", company: "", title: "county administrator", location: "", industry: "government", school: "" },
-                    { label: "State Grant Officers", company: "", title: "grant", location: "", industry: "government", school: "" },
-                    { label: "Municipal Finance Directors", company: "", title: "finance director", location: "", industry: "government", school: "" },
-                  ].map((preset) => (
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-5">
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Search millions of professional profiles by company, title, location, industry, or school.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PEOPLE_PRESETS.map((preset) => (
+                        <Button
+                          key={preset.label}
+                          variant="outline"
+                          size="sm"
+                          disabled={personSearchLoading}
+                          onClick={() => handlePresetSearch(preset)}
+                          data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        >
+                          {preset.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1">Company</Label>
+                      <Input
+                        placeholder="e.g. Akin Gump"
+                        value={personSearchCompany}
+                        onChange={(e) => setPersonSearchCompany(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handlePersonSearch()}
+                        data-testid="input-person-search-company"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1">Job Title</Label>
+                      <Input
+                        placeholder="e.g. Lobbyist"
+                        value={personSearchTitle}
+                        onChange={(e) => setPersonSearchTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handlePersonSearch()}
+                        data-testid="input-person-search-title"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1">Location</Label>
+                      <Input
+                        placeholder="e.g. Washington DC"
+                        value={personSearchLocation}
+                        onChange={(e) => setPersonSearchLocation(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handlePersonSearch()}
+                        data-testid="input-person-search-location"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1">Industry</Label>
+                      <Input
+                        placeholder="e.g. Government"
+                        value={personSearchIndustry}
+                        onChange={(e) => setPersonSearchIndustry(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handlePersonSearch()}
+                        data-testid="input-person-search-industry"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1">School</Label>
+                      <Input
+                        placeholder="e.g. Georgetown"
+                        value={personSearchSchool}
+                        onChange={(e) => setPersonSearchSchool(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handlePersonSearch()}
+                        data-testid="input-person-search-school"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {(personSearchCompany || personSearchTitle || personSearchLocation || personSearchIndustry || personSearchSchool) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setPersonSearchCompany("");
+                            setPersonSearchTitle("");
+                            setPersonSearchLocation("");
+                            setPersonSearchIndustry("");
+                            setPersonSearchSchool("");
+                          }}
+                          data-testid="button-clear-fields"
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" />
+                          Clear Fields
+                        </Button>
+                      )}
+                    </div>
                     <Button
-                      key={preset.label}
-                      variant="outline"
-                      size="sm"
+                      onClick={handlePersonSearch}
                       disabled={personSearchLoading}
-                      onClick={async () => {
-                        setPersonSearchCompany(preset.company);
-                        setPersonSearchTitle(preset.title);
-                        setPersonSearchLocation(preset.location);
-                        setPersonSearchIndustry(preset.industry);
-                        setPersonSearchSchool(preset.school);
-                        setPersonSearchLoading(true);
-                        try {
-                          const body: Record<string, any> = { limit: 25 };
-                          if (preset.company) body.company = preset.company;
-                          if (preset.title) body.jobTitle = preset.title;
-                          if (preset.location) body.location = preset.location;
-                          if (preset.industry) body.industry = preset.industry;
-                          if (preset.school) body.school = preset.school;
-                          const res = await apiRequest("POST", "/api/research/people/search", body);
-                          const result = await res.json();
-                          if (result.success) {
-                            setPersonSearchResults(result.data || []);
-                            if (result.data?.length === 0) {
-                              toast({ title: "No Results", description: "No people matched this preset. Try customizing the fields." });
-                            }
-                          } else {
-                            toast({ title: "Search Error", description: result.message || "Search failed", variant: "destructive" });
-                          }
-                        } catch (error: any) {
-                          toast({ title: "Search Failed", description: error.message || "Failed to search", variant: "destructive" });
-                        } finally {
-                          setPersonSearchLoading(false);
-                        }
-                      }}
-                      data-testid={`button-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
+                      data-testid="button-run-person-search"
                     >
-                      {preset.label}
+                      {personSearchLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4 mr-2" />
+                      )}
+                      {personSearchLoading ? "Searching..." : "Search People"}
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {personSearchLoading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {Array(6).fill(0).map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-full" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Company</Label>
-                  <Input
-                    placeholder="e.g. Akin Gump, U.S. Senate"
-                    value={personSearchCompany}
-                    onChange={(e) => setPersonSearchCompany(e.target.value)}
-                    data-testid="input-person-search-company"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Job Title</Label>
-                  <Input
-                    placeholder="e.g. Chief of Staff, Lobbyist"
-                    value={personSearchTitle}
-                    onChange={(e) => setPersonSearchTitle(e.target.value)}
-                    data-testid="input-person-search-title"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Location</Label>
-                  <Input
-                    placeholder="e.g. Washington DC"
-                    value={personSearchLocation}
-                    onChange={(e) => setPersonSearchLocation(e.target.value)}
-                    data-testid="input-person-search-location"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Industry</Label>
-                  <Input
-                    placeholder="e.g. Government, Legal Services"
-                    value={personSearchIndustry}
-                    onChange={(e) => setPersonSearchIndustry(e.target.value)}
-                    data-testid="input-person-search-industry"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">School / University</Label>
-                  <Input
-                    placeholder="e.g. Georgetown, Harvard Law"
-                    value={personSearchSchool}
-                    onChange={(e) => setPersonSearchSchool(e.target.value)}
-                    data-testid="input-person-search-school"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    onClick={handlePersonSearch}
-                    disabled={personSearchLoading}
-                    className="w-full"
-                    data-testid="button-run-person-search"
-                  >
-                    {personSearchLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4 mr-2" />
-                        Search People
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+              )}
 
-              {personSearchResults.length > 0 && (
-                <div className="space-y-2 mt-4">
+              {!personSearchLoading && personSearchResults.length > 0 && (
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{personSearchResults.length} results found</span>
+                    <p className="text-sm font-medium">{personSearchResults.length} results found</p>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setPersonSearchResults([])}
                       data-testid="button-clear-person-results"
                     >
-                      <X className="h-4 w-4 mr-1" />
-                      Clear
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Clear Results
                     </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                     {personSearchResults.map((person, idx) => (
-                      <div
+                      <Card
                         key={person.id || idx}
-                        className="p-3 border rounded-md hover-elevate"
+                        className="hover-elevate"
                         data-testid={`person-result-${idx}`}
                       >
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-10 w-10 shrink-0">
-                            {person.profilePicUrl && (
-                              <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
-                            )}
-                            <AvatarFallback className="text-xs">
-                              {(person.firstName?.[0] || '')}
-                              {(person.lastName?.[0] || '')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{person.fullName}</p>
-                            {person.jobTitle && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {person.jobTitle}
-                                {person.jobCompany && ` at ${person.jobCompany}`}
-                              </p>
-                            )}
-                            {person.location && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {person.location}
-                              </p>
-                            )}
-                            {person.industry && (
-                              <Badge variant="secondary" className="text-xs mt-1">{person.industry}</Badge>
-                            )}
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10 shrink-0">
+                              {person.profilePicUrl && (
+                                <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
+                              )}
+                              <AvatarFallback className="text-xs">
+                                {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{person.fullName}</p>
+                                  {person.jobTitle && (
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                      {person.jobTitle}
+                                      {person.jobCompany && ` at ${person.jobCompany}`}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  {person.linkedinUrl && (
+                                    <a
+                                      href={person.linkedinUrl.startsWith('http') ? person.linkedinUrl : `https://${person.linkedinUrl}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      data-testid={`link-linkedin-${idx}`}
+                                    >
+                                      <Button variant="ghost" size="icon">
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </a>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openContactDialog(person)}
+                                    data-testid={`button-add-person-contact-${idx}`}
+                                  >
+                                    <UserPlus className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {person.location && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <MapPin className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{person.location}</span>
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {person.industry && (
+                                  <Badge variant="secondary" className="text-[10px]">{person.industry}</Badge>
+                                )}
+                                {person.skills?.slice(0, 3).map((skill, sIdx) => (
+                                  <Badge key={sIdx} variant="outline" className="text-[10px]">{skill}</Badge>
+                                ))}
+                                {person.skills && person.skills.length > 3 && (
+                                  <Badge variant="outline" className="text-[10px]">+{person.skills.length - 3} more</Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-1 shrink-0">
-                            {person.linkedinUrl && (
-                              <a
-                                href={person.linkedinUrl.startsWith('http') ? person.linkedinUrl : `https://${person.linkedinUrl}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary"
-                                data-testid={`link-linkedin-${idx}`}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openContactDialog(person)}
-                              data-testid={`button-add-person-contact-${idx}`}
-                            >
-                              <UserPlus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {person.skills && person.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {person.skills.slice(0, 5).map((skill: string, sIdx: number) => (
-                              <Badge key={sIdx} variant="outline" className="text-xs">{skill}</Badge>
-                            ))}
-                            {person.skills.length > 5 && (
-                              <Badge variant="outline" className="text-xs">+{person.skills.length - 5} more</Badge>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          </div>
+          </ScrollArea>
         )}
 
         {mainTab === "organizations" && (
-          <div className="flex-1 overflow-hidden flex">
-            <div className="w-full flex flex-col lg:flex-row">
-              <div className="lg:w-[420px] border-r flex flex-col">
+          <div className="flex-1 overflow-hidden flex h-full">
+            <div className="w-full flex flex-col lg:flex-row h-full">
+              <div className="lg:w-[400px] border-r flex flex-col">
                 <div className="p-3 border-b space-y-3">
                   <div className="flex gap-2">
                     <Select value={orgSearchType} onValueChange={(v: "name" | "website") => setOrgSearchType(v)}>
@@ -615,13 +647,13 @@ export default function PowerSearchPage() {
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder={orgSearchType === "name" ? "Search organization name..." : "Enter website URL..."}
+                      placeholder={orgSearchType === "name" ? "Search organization..." : "Enter website URL..."}
                       value={orgSearchQuery}
                       onChange={(e) => setOrgSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleOrgSearch()}
                       data-testid="input-org-search"
                     />
-                    <Button onClick={handleOrgSearch} disabled={isSearching || !orgSearchQuery.trim()} data-testid="button-search-org">
+                    <Button onClick={handleOrgSearch} disabled={isSearching || !orgSearchQuery.trim()} size="icon" data-testid="button-search-org">
                       {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -665,7 +697,7 @@ export default function PowerSearchPage() {
                         <div className="p-6 text-center text-muted-foreground">
                           <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                           <p className="text-sm font-medium">No organizations tracked</p>
-                          <p className="text-xs mt-1">Search for an organization above to enrich and track it</p>
+                          <p className="text-xs mt-1">Search above to enrich and track organizations</p>
                         </div>
                       ) : (
                         filteredOrgs.map(org => (
@@ -697,6 +729,7 @@ export default function PowerSearchPage() {
                                   </p>
                                 )}
                               </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                             </div>
                           </div>
                         ))
@@ -722,7 +755,6 @@ export default function PowerSearchPage() {
                               {getClassificationBadges(enrichResult.politicalClassification)}
                               {enrichResult.industry && <Badge variant="outline">{enrichResult.industry}</Badge>}
                             </div>
-
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               {enrichResult.website && (
                                 <div className="flex items-center gap-1">
@@ -751,7 +783,6 @@ export default function PowerSearchPage() {
                                 </div>
                               )}
                             </div>
-
                             {enrichResult.tags && enrichResult.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1">
                                 {enrichResult.tags.slice(0, 8).map(tag => (
@@ -765,7 +796,7 @@ export default function PowerSearchPage() {
                         <div className="p-6 text-center text-muted-foreground">
                           <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
                           <p className="text-sm font-medium">Search for an organization</p>
-                          <p className="text-xs mt-1">Enter a company name or website to look up and enrich</p>
+                          <p className="text-xs mt-1">Enter a name or website to look up and enrich</p>
                         </div>
                       )}
                     </div>
@@ -954,7 +985,7 @@ export default function PowerSearchPage() {
                                         <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
                                       )}
                                       <AvatarFallback className="text-xs">
-                                        {(person.firstName?.[0] || '')}{(person.lastName?.[0] || '')}
+                                        {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
                                       </AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 min-w-0">
@@ -970,22 +1001,19 @@ export default function PowerSearchPage() {
                                     </div>
                                     <div className="flex gap-1 shrink-0">
                                       {person.linkedinUrl && (
-                                        <a href={person.linkedinUrl.startsWith('http') ? person.linkedinUrl : `https://${person.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
-                                          <ExternalLink className="h-4 w-4" />
+                                        <a href={person.linkedinUrl.startsWith('http') ? person.linkedinUrl : `https://${person.linkedinUrl}`} target="_blank" rel="noopener noreferrer">
+                                          <Button variant="ghost" size="icon">
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </Button>
                                         </a>
                                       )}
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        onClick={() => {
-                                          const nameParts = (person.fullName || '').split(' ');
-                                          const firstName = nameParts[0] || '';
-                                          const lastName = nameParts.slice(1).join(' ') || '';
-                                          window.location.href = `/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&title=${encodeURIComponent(person.jobTitle || '')}&organization=${encodeURIComponent(person.jobCompany || '')}`;
-                                        }}
+                                        onClick={() => openContactDialog(person)}
                                         data-testid={`button-add-org-person-${idx}`}
                                       >
-                                        <UserPlus className="h-4 w-4" />
+                                        <UserPlus className="h-3.5 w-3.5" />
                                       </Button>
                                     </div>
                                   </div>
@@ -1022,7 +1050,7 @@ export default function PowerSearchPage() {
           </DialogHeader>
           {contactDialogPerson && (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 border rounded-md">
+              <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
                 <Avatar className="h-10 w-10">
                   {contactDialogPerson.profilePicUrl && (
                     <AvatarImage src={contactDialogPerson.profilePicUrl} alt={contactDialogPerson.fullName} />

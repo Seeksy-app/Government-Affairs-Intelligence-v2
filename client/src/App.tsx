@@ -50,7 +50,6 @@ import InfluencerTrackingPage from "@/pages/influencer-tracking";
 import StaffersPage from "@/pages/staffers";
 import StafferDetailPage from "@/pages/staffer-detail";
 import CongressionalSchedulesPage from "@/pages/congressional-schedules";
-import OrganizationsPage from "@/pages/organizations";
 import PowerSearchPage from "@/pages/power-search";
 import RankTrackingPage from "@/pages/rank-tracking";
 import BillMappingPage from "@/pages/bill-mapping";

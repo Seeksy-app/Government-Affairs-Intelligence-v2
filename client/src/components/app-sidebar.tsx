@@ -77,7 +77,6 @@ export function AppSidebar() {
     items: [
       { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
       { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
-      { title: "Organizations", url: "/organizations", icon: Building2, tourId: "organizations" },
       { title: "Members", url: "/network", icon: Landmark, tourId: "network" },
       { title: "Power Search", url: "/power-search", icon: Zap, tourId: "power-search" },
     ],
