@@ -891,13 +891,13 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         </Card>
       )}
 
-      {/* Members of Congress Search Section */}
+      {/* Members Search Section */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Landmark className="h-5 w-5" />
-              Members of Congress
+              Members
             </CardTitle>
             <Button
               variant={showMemberSearch ? "default" : "outline"}
