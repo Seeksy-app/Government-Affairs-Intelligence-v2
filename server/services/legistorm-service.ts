@@ -210,9 +210,10 @@ export async function syncStaffers(options: {
   updatedFrom: string;
   updatedTo: string;
   onProgress?: (processed: number, page: number) => void;
+  startPage?: number;
 }): Promise<{ created: number; updated: number; processed: number }> {
-  const { updatedFrom, updatedTo, onProgress } = options;
-  let page = 1;
+  const { updatedFrom, updatedTo, onProgress, startPage } = options;
+  let page = startPage || 1;
   const limit = 500;
   let created = 0;
   let updated = 0;
@@ -232,25 +233,68 @@ export async function syncStaffers(options: {
       break;
     }
 
+    const batch: any[] = [];
     for (const item of data) {
       try {
-        const parsed = parseStaffResponse(item);
-        const existing = await db.select().from(legistormStaffers)
-          .where(eq(legistormStaffers.legistormId, parsed.legistormId))
-          .limit(1);
-
-        if (existing.length > 0) {
-          await db.update(legistormStaffers)
-            .set(parsed)
-            .where(eq(legistormStaffers.legistormId, parsed.legistormId));
-          updated++;
-        } else {
-          await db.insert(legistormStaffers).values(parsed);
-          created++;
-        }
-        processed++;
+        batch.push(parseStaffResponse(item));
       } catch (err) {
-        console.error(`Error processing staffer ${item.staff?.id}:`, err);
+        console.error(`Error parsing staffer ${item.staff?.id}:`, err);
+      }
+    }
+
+    if (batch.length > 0) {
+      try {
+        await db.insert(legistormStaffers)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: legistormStaffers.legistormId,
+            set: {
+              firstName: sql`excluded.first_name`,
+              lastName: sql`excluded.last_name`,
+              preferredFirstName: sql`excluded.preferred_first_name`,
+              preferredLastName: sql`excluded.preferred_last_name`,
+              fullName: sql`excluded.full_name`,
+              gender: sql`excluded.gender`,
+              race: sql`excluded.race`,
+              party: sql`excluded.party`,
+              email: sql`excluded.email`,
+              phone: sql`excluded.phone`,
+              officeAddress: sql`excluded.office_address`,
+              currentTitle: sql`excluded.current_title`,
+              currentOffice: sql`excluded.current_office`,
+              currentMemberName: sql`excluded.current_member_name`,
+              currentMemberId: sql`excluded.current_member_id`,
+              chamber: sql`excluded.chamber`,
+              state: sql`excluded.state`,
+              district: sql`excluded.district`,
+              isCurrentStaff: sql`excluded.is_current_staff`,
+              positions: sql`excluded.positions`,
+              lastUpdatedFromApi: sql`excluded.last_updated_from_api`,
+            },
+          });
+        processed += batch.length;
+      } catch (batchErr) {
+        console.error(`Batch insert failed on page ${page}, falling back to individual inserts`);
+        for (const parsed of batch) {
+          try {
+            const existing = await db.select({ id: legistormStaffers.id }).from(legistormStaffers)
+              .where(eq(legistormStaffers.legistormId, parsed.legistormId))
+              .limit(1);
+
+            if (existing.length > 0) {
+              await db.update(legistormStaffers)
+                .set(parsed)
+                .where(eq(legistormStaffers.legistormId, parsed.legistormId));
+              updated++;
+            } else {
+              await db.insert(legistormStaffers).values(parsed);
+              created++;
+            }
+            processed++;
+          } catch (err) {
+            console.error(`Error processing individual staffer:`, err);
+          }
+        }
       }
     }
 
@@ -260,7 +304,7 @@ export async function syncStaffers(options: {
       hasMore = false;
     } else {
       page++;
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 300));
     }
   }
 
