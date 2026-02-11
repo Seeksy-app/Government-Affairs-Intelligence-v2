@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -173,7 +173,7 @@ export default function NetworkPage() {
   const [chamberFilter, setChamberFilter] = useState<string>("all");
   const [partyFilter, setPartyFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<string>("all");
-  const [showMemberSearch, setShowMemberSearch] = useState(false);
+  const [showMemberSearch, setShowMemberSearch] = useState(true);
   
 
   // Staffer lookup - initialize from localStorage based on saved member
@@ -897,14 +897,15 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Landmark className="h-5 w-5" />
-              Members
+              Search Members
             </CardTitle>
             <Button
-              variant={showMemberSearch ? "default" : "outline"}
+              variant="ghost"
+              size="icon"
               onClick={() => setShowMemberSearch(!showMemberSearch)}
               data-testid="button-toggle-member-search"
             >
-              {showMemberSearch ? "Hide Search" : "Search Members"}
+              {showMemberSearch ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
           </div>
         </CardHeader>
