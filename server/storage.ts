@@ -46,6 +46,10 @@ import {
   stafferCareerPositions,
   stafferConnections,
   politicalOrganizations,
+  platformModules,
+  clientModules,
+  sportsTeams,
+  sportsContacts,
   type Client,
   type InsertClient,
   type ClientUser,
@@ -139,6 +143,14 @@ import {
   type InsertStafferConnection,
   type PoliticalOrganization,
   type InsertPoliticalOrganization,
+  type PlatformModule,
+  type InsertPlatformModule,
+  type ClientModule,
+  type InsertClientModule,
+  type SportsTeam,
+  type InsertSportsTeam,
+  type SportsContact,
+  type InsertSportsContact,
   customerPortalAssignments,
   type CustomerPortalAssignment,
   type InsertCustomerPortalAssignment,
@@ -374,6 +386,31 @@ export interface IStorage {
   createPoliticalOrganization(org: InsertPoliticalOrganization): Promise<PoliticalOrganization>;
   updatePoliticalOrganization(id: string, clientId: string, org: Partial<InsertPoliticalOrganization>): Promise<PoliticalOrganization | undefined>;
   deletePoliticalOrganization(id: string, clientId: string): Promise<void>;
+
+  // Platform Modules
+  getModules(): Promise<PlatformModule[]>;
+  getModuleByKey(key: string): Promise<PlatformModule | undefined>;
+  createModule(mod: InsertPlatformModule): Promise<PlatformModule>;
+
+  // Client Modules
+  getClientModules(clientId: string): Promise<(ClientModule & { module: PlatformModule })[]>;
+  enableClientModule(clientId: string, moduleId: string): Promise<ClientModule>;
+  disableClientModule(clientId: string, moduleId: string): Promise<void>;
+  isModuleEnabled(clientId: string, moduleKey: string): Promise<boolean>;
+
+  // Sports Teams
+  getSportsTeams(clientId: string): Promise<SportsTeam[]>;
+  getSportsTeam(id: string): Promise<SportsTeam | undefined>;
+  createSportsTeam(team: InsertSportsTeam): Promise<SportsTeam>;
+  updateSportsTeam(id: string, team: Partial<InsertSportsTeam>): Promise<SportsTeam | undefined>;
+  deleteSportsTeam(id: string): Promise<void>;
+
+  // Sports Contacts
+  getSportsContacts(teamId: string): Promise<SportsContact[]>;
+  getSportsContactsByClient(clientId: string): Promise<SportsContact[]>;
+  createSportsContact(contact: InsertSportsContact): Promise<SportsContact>;
+  updateSportsContact(id: string, contact: Partial<InsertSportsContact>): Promise<SportsContact | undefined>;
+  deleteSportsContact(id: string): Promise<void>;
 
   // Customers
   getCustomers(clientId: string): Promise<Customer[]>;
@@ -1566,6 +1603,115 @@ export class DatabaseStorage implements IStorage {
   async deletePoliticalOrganization(id: string, clientId: string): Promise<void> {
     await db.delete(politicalOrganizations)
       .where(and(eq(politicalOrganizations.id, id), eq(politicalOrganizations.clientId, clientId)));
+  }
+
+  // Platform Modules
+  async getModules(): Promise<PlatformModule[]> {
+    return db.select().from(platformModules).orderBy(platformModules.name);
+  }
+
+  async getModuleByKey(key: string): Promise<PlatformModule | undefined> {
+    const [mod] = await db.select().from(platformModules).where(eq(platformModules.key, key));
+    return mod;
+  }
+
+  async createModule(mod: InsertPlatformModule): Promise<PlatformModule> {
+    const [created] = await db.insert(platformModules).values(mod).returning();
+    return created;
+  }
+
+  // Client Modules
+  async getClientModules(clientId: string): Promise<(ClientModule & { module: PlatformModule })[]> {
+    const cms = await db.select().from(clientModules).where(eq(clientModules.clientId, clientId));
+    const results = [];
+    for (const cm of cms) {
+      const [mod] = await db.select().from(platformModules).where(eq(platformModules.id, cm.moduleId));
+      if (mod) results.push({ ...cm, module: mod });
+    }
+    return results;
+  }
+
+  async enableClientModule(clientId: string, moduleId: string): Promise<ClientModule> {
+    const existing = await db.select().from(clientModules)
+      .where(and(eq(clientModules.clientId, clientId), eq(clientModules.moduleId, moduleId)));
+    if (existing.length > 0) {
+      const [updated] = await db.update(clientModules).set({ enabled: true }).where(eq(clientModules.id, existing[0].id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(clientModules).values({ clientId, moduleId, enabled: true }).returning();
+    return created;
+  }
+
+  async disableClientModule(clientId: string, moduleId: string): Promise<void> {
+    await db.update(clientModules).set({ enabled: false })
+      .where(and(eq(clientModules.clientId, clientId), eq(clientModules.moduleId, moduleId)));
+  }
+
+  async isModuleEnabled(clientId: string, moduleKey: string): Promise<boolean> {
+    const [mod] = await db.select().from(platformModules).where(eq(platformModules.key, moduleKey));
+    if (!mod) return false;
+    const [cm] = await db.select().from(clientModules)
+      .where(and(eq(clientModules.clientId, clientId), eq(clientModules.moduleId, mod.id), eq(clientModules.enabled, true)));
+    return !!cm;
+  }
+
+  // Sports Teams
+  async getSportsTeams(clientId: string): Promise<SportsTeam[]> {
+    return db.select().from(sportsTeams)
+      .where(eq(sportsTeams.clientId, clientId))
+      .orderBy(sportsTeams.name);
+  }
+
+  async getSportsTeam(id: string): Promise<SportsTeam | undefined> {
+    const [team] = await db.select().from(sportsTeams).where(eq(sportsTeams.id, id));
+    return team;
+  }
+
+  async createSportsTeam(team: InsertSportsTeam): Promise<SportsTeam> {
+    const [created] = await db.insert(sportsTeams).values(team).returning();
+    return created;
+  }
+
+  async updateSportsTeam(id: string, team: Partial<InsertSportsTeam>): Promise<SportsTeam | undefined> {
+    const [updated] = await db.update(sportsTeams)
+      .set({ ...team, updatedAt: new Date() })
+      .where(eq(sportsTeams.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSportsTeam(id: string): Promise<void> {
+    await db.delete(sportsTeams).where(eq(sportsTeams.id, id));
+  }
+
+  // Sports Contacts
+  async getSportsContacts(teamId: string): Promise<SportsContact[]> {
+    return db.select().from(sportsContacts)
+      .where(eq(sportsContacts.teamId, teamId))
+      .orderBy(sportsContacts.name);
+  }
+
+  async getSportsContactsByClient(clientId: string): Promise<SportsContact[]> {
+    return db.select().from(sportsContacts)
+      .where(eq(sportsContacts.clientId, clientId))
+      .orderBy(sportsContacts.name);
+  }
+
+  async createSportsContact(contact: InsertSportsContact): Promise<SportsContact> {
+    const [created] = await db.insert(sportsContacts).values(contact).returning();
+    return created;
+  }
+
+  async updateSportsContact(id: string, contact: Partial<InsertSportsContact>): Promise<SportsContact | undefined> {
+    const [updated] = await db.update(sportsContacts)
+      .set(contact)
+      .where(eq(sportsContacts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSportsContact(id: string): Promise<void> {
+    await db.delete(sportsContacts).where(eq(sportsContacts.id, id));
   }
 
   // Customers

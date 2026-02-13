@@ -1379,3 +1379,112 @@ export const insertVeteranCongressMemberSchema = createInsertSchema(veteranCongr
 
 export type InsertVeteranCongressMember = z.infer<typeof insertVeteranCongressMemberSchema>;
 export type VeteranCongressMember = typeof veteranCongressMembers.$inferSelect;
+
+// Platform Modules (add-on features firms can enable)
+export const platformModules = pgTable("platform_modules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").default("general"),
+  icon: text("icon"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPlatformModuleSchema = createInsertSchema(platformModules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPlatformModule = z.infer<typeof insertPlatformModuleSchema>;
+export type PlatformModule = typeof platformModules.$inferSelect;
+
+// Client Module Assignments (which firms have which modules enabled)
+export const clientModules = pgTable("client_modules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  moduleId: varchar("module_id").notNull().references(() => platformModules.id),
+  enabled: boolean("enabled").default(true),
+  enabledAt: timestamp("enabled_at").defaultNow(),
+});
+
+export const insertClientModuleSchema = createInsertSchema(clientModules).omit({
+  id: true,
+  enabledAt: true,
+});
+
+export type InsertClientModule = z.infer<typeof insertClientModuleSchema>;
+export type ClientModule = typeof clientModules.$inferSelect;
+
+// Sports Teams / Franchises
+export const sportsTeams = pgTable("sports_teams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id),
+  name: text("name").notNull(),
+  league: text("league"),
+  conference: text("conference"),
+  division: text("division"),
+  level: text("level").default("professional"),
+  sport: text("sport"),
+  city: text("city"),
+  state: text("state"),
+  venue: text("venue"),
+  website: text("website"),
+  logoUrl: text("logo_url"),
+  socialTwitter: text("social_twitter"),
+  socialInstagram: text("social_instagram"),
+  socialFacebook: text("social_facebook"),
+  communityUrl: text("community_url"),
+  ticketPartnerUrl: text("ticket_partner_url"),
+  estimatedAttendance: integer("estimated_attendance"),
+  notes: text("notes"),
+  aiResearch: text("ai_research"),
+  aiResearchedAt: timestamp("ai_researched_at"),
+  pdlEnriched: boolean("pdl_enriched").default(false),
+  scrapedData: jsonb("scraped_data"),
+  scrapedAt: timestamp("scraped_at"),
+  outreachStatus: text("outreach_status").default("not_started"),
+  outreachNotes: text("outreach_notes"),
+  lastContactedAt: timestamp("last_contacted_at"),
+  isTracked: boolean("is_tracked").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSportsTeamSchema = createInsertSchema(sportsTeams).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  aiResearchedAt: true,
+  scrapedAt: true,
+});
+
+export type InsertSportsTeam = z.infer<typeof insertSportsTeamSchema>;
+export type SportsTeam = typeof sportsTeams.$inferSelect;
+
+// Sports Contacts (key people at teams/franchises)
+export const sportsContacts = pgTable("sports_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id),
+  teamId: varchar("team_id").references(() => sportsTeams.id),
+  name: text("name").notNull(),
+  title: text("title"),
+  department: text("department"),
+  email: text("email"),
+  phone: text("phone"),
+  linkedinUrl: text("linkedin_url"),
+  roleType: text("role_type"),
+  source: text("source").default("manual"),
+  notes: text("notes"),
+  aiResearch: text("ai_research"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSportsContactSchema = createInsertSchema(sportsContacts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSportsContact = z.infer<typeof insertSportsContactSchema>;
+export type SportsContact = typeof sportsContacts.$inferSelect;

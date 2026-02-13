@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -52,6 +52,15 @@ export function AppSidebar() {
 
   const isSuperAdmin = userRole?.isSuperAdmin;
   const isImpersonating = isSuperAdmin && userRole?.impersonatingClientId;
+
+  const effectiveClientId = isImpersonating ? userRole?.impersonatingClientId : userRole?.clientId;
+
+  const { data: sportsModuleCheck } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/modules/check/sports"],
+    enabled: !!user && !!effectiveClientId,
+  });
+
+  const hasSportsModule = sportsModuleCheck?.enabled === true;
 
   const superAdminItems = [
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
@@ -127,12 +136,29 @@ export function AppSidebar() {
     items: [
       { title: "Research Projects", url: "/matters", icon: FolderOpen, tourId: "matters" },
       { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
+      { title: "Modules", url: "/modules", icon: Puzzle, tourId: "modules" },
       { title: "Security", url: "/security", icon: Lock, tourId: "security" },
       { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
     ],
   };
 
-  const clientGroups = [clientDirectoryGroup, clientLegislativeGroup, clientNewsGroup, clientStrategyGroup, clientSocialGroup, clientManageGroup];
+  const clientSportsGroup = {
+    label: "Sports",
+    icon: Trophy,
+    items: [
+      { title: "Sports Dashboard", url: "/sports", icon: Trophy, tourId: "sports" },
+    ],
+  };
+
+  const clientGroups = [
+    clientDirectoryGroup,
+    clientLegislativeGroup,
+    clientNewsGroup,
+    clientStrategyGroup,
+    clientSocialGroup,
+    ...(hasSportsModule ? [clientSportsGroup] : []),
+    clientManageGroup,
+  ];
 
   const isClientView = !isSuperAdmin || isImpersonating;
   const groupLabel = (isSuperAdmin && !isImpersonating) 

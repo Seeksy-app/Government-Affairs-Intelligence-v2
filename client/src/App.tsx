@@ -54,6 +54,8 @@ import PowerSearchPage from "@/pages/power-search";
 import RankTrackingPage from "@/pages/rank-tracking";
 import BillMappingPage from "@/pages/bill-mapping";
 import StrategyBoardPage from "@/pages/strategy-board";
+import SportsPage from "@/pages/sports";
+import ModulesPage from "@/pages/modules";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
@@ -97,6 +99,8 @@ function AuthenticatedRouter() {
       <Route path="/kb" component={KnowledgeBase} />
       <Route path="/security" component={Security} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/sports" component={SportsPage} />
+      <Route path="/modules" component={ModulesPage} />
       
       {/* Default redirect based on role */}
       <Route path="/" component={HomeRedirect} />

@@ -8165,5 +8165,307 @@ Respond in this exact JSON format only, including the ID field exactly as provid
     }
   });
 
+  // ==================== PLATFORM MODULES ROUTES ====================
+
+  app.get("/api/modules", isAuthenticated, async (req, res) => {
+    try {
+      const modules = await storage.getModules();
+      res.json(modules);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch modules" });
+    }
+  });
+
+  app.post("/api/modules", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = z.object({
+        key: z.string().min(1),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        icon: z.string().optional(),
+      }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+      const mod = await storage.createModule(parsed.data);
+      res.json(mod);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create module" });
+    }
+  });
+
+  app.get("/api/clients/:clientId/modules", isAuthenticated, async (req, res) => {
+    try {
+      const clientModules = await storage.getClientModules(req.params.clientId);
+      res.json(clientModules);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch client modules" });
+    }
+  });
+
+  app.post("/api/clients/:clientId/modules/:moduleId/enable", isAuthenticated, async (req, res) => {
+    try {
+      const result = await storage.enableClientModule(req.params.clientId, req.params.moduleId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to enable module" });
+    }
+  });
+
+  app.post("/api/clients/:clientId/modules/:moduleId/disable", isAuthenticated, async (req, res) => {
+    try {
+      await storage.disableClientModule(req.params.clientId, req.params.moduleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to disable module" });
+    }
+  });
+
+  app.get("/api/modules/check/:moduleKey", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.json({ enabled: false });
+      const enabled = await storage.isModuleEnabled(clientId, req.params.moduleKey);
+      res.json({ enabled });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to check module" });
+    }
+  });
+
+  // ==================== SPORTS MODULE ROUTES ====================
+
+  app.get("/api/sports/teams", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const teams = await storage.getSportsTeams(clientId);
+      res.json(teams);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch sports teams" });
+    }
+  });
+
+  app.get("/api/sports/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getSportsTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch team" });
+    }
+  });
+
+  const createSportsTeamSchema = z.object({
+    name: z.string().min(1),
+    league: z.string().optional(),
+    conference: z.string().optional(),
+    division: z.string().optional(),
+    level: z.string().optional(),
+    sport: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    venue: z.string().optional(),
+    website: z.string().optional(),
+    logoUrl: z.string().optional(),
+    socialTwitter: z.string().optional(),
+    socialInstagram: z.string().optional(),
+    socialFacebook: z.string().optional(),
+    communityUrl: z.string().optional(),
+    ticketPartnerUrl: z.string().optional(),
+    estimatedAttendance: z.number().optional(),
+    notes: z.string().optional(),
+    outreachStatus: z.string().optional(),
+    outreachNotes: z.string().optional(),
+  });
+
+  app.post("/api/sports/teams", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const parsed = createSportsTeamSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+      const team = await storage.createSportsTeam({ ...parsed.data, clientId });
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create team" });
+    }
+  });
+
+  app.patch("/api/sports/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.updateSportsTeam(req.params.id, req.body);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      res.json(team);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update team" });
+    }
+  });
+
+  app.delete("/api/sports/teams/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteSportsTeam(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete team" });
+    }
+  });
+
+  app.post("/api/sports/teams/:id/research", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getSportsTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+
+      const { researchPoliticalEntity } = await import("./services/research-agent");
+      const teamType = team.level === "college" ? "college sports program" : "professional sports franchise";
+      const query = `${team.name} ${teamType}${team.league ? ` (${team.league})` : ""}${team.city ? `, ${team.city}` : ""}`;
+      const result = await researchPoliticalEntity(query, "sports organization");
+
+      if (result.content || result.summary) {
+        await storage.updateSportsTeam(team.id, {
+          aiResearch: result.content || result.summary,
+        });
+      }
+
+      res.json({ success: true, content: result.content, summary: result.summary, sources: result.sources });
+    } catch (error: any) {
+      console.error("[Sports Research] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to research team" });
+    }
+  });
+
+  app.post("/api/sports/teams/:id/scrape", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getSportsTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+      const url = req.body.url || team.website;
+      if (!url) return res.status(400).json({ message: "No URL provided or team website not set" });
+
+      const { extractContentFromUrl } = await import("./services/research-agent");
+      const result = await extractContentFromUrl(url);
+
+      await storage.updateSportsTeam(team.id, {
+        scrapedData: result as any,
+      });
+
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[Sports Scrape] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to scrape team website" });
+    }
+  });
+
+  app.post("/api/sports/teams/:id/find-people", isAuthenticated, async (req, res) => {
+    try {
+      const team = await storage.getSportsTeam(req.params.id);
+      if (!team) return res.status(404).json({ message: "Team not found" });
+
+      const { searchPeople } = await import("./services/linkedin-service");
+      const parsed = z.object({
+        jobTitle: z.string().optional(),
+        limit: z.number().min(1).max(50).optional().default(20),
+      }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+
+      const results = await searchPeople({
+        company: team.name,
+        jobTitle: parsed.data.jobTitle,
+        limit: parsed.data.limit,
+      });
+
+      res.json({ success: true, count: results.length, data: results });
+    } catch (error: any) {
+      console.error("[Sports Find People] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to find people" });
+    }
+  });
+
+  // Sports Contacts
+  app.get("/api/sports/teams/:teamId/contacts", isAuthenticated, async (req, res) => {
+    try {
+      const contacts = await storage.getSportsContacts(req.params.teamId);
+      res.json(contacts);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch contacts" });
+    }
+  });
+
+  app.get("/api/sports/contacts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const contacts = await storage.getSportsContactsByClient(clientId);
+      res.json(contacts);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to fetch contacts" });
+    }
+  });
+
+  const createSportsContactSchema = z.object({
+    teamId: z.string().optional(),
+    name: z.string().min(1),
+    title: z.string().optional(),
+    department: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+    roleType: z.string().optional(),
+    source: z.string().optional(),
+    notes: z.string().optional(),
+  });
+
+  app.post("/api/sports/contacts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const parsed = createSportsContactSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+      const contact = await storage.createSportsContact({ ...parsed.data, clientId });
+      res.json(contact);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create contact" });
+    }
+  });
+
+  app.patch("/api/sports/contacts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const contact = await storage.updateSportsContact(req.params.id, req.body);
+      if (!contact) return res.status(404).json({ message: "Contact not found" });
+      res.json(contact);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update contact" });
+    }
+  });
+
+  app.delete("/api/sports/contacts/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteSportsContact(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete contact" });
+    }
+  });
+
+  // Sports search - AI-powered team discovery
+  app.post("/api/sports/search", isAuthenticated, async (req, res) => {
+    try {
+      const parsed = z.object({
+        query: z.string().min(1),
+        sport: z.string().optional(),
+        level: z.string().optional(),
+      }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+
+      const { researchPoliticalEntity } = await import("./services/research-agent");
+      const sportContext = parsed.data.sport ? ` ${parsed.data.sport}` : "";
+      const levelContext = parsed.data.level === "college" ? " college" : " professional";
+      const searchQuery = `${parsed.data.query}${levelContext}${sportContext} sports teams`;
+      const result = await researchPoliticalEntity(searchQuery, "sports organizations");
+
+      res.json({ success: true, content: result.content, summary: result.summary, sources: result.sources });
+    } catch (error: any) {
+      console.error("[Sports Search] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to search sports teams" });
+    }
+  });
+
   return httpServer;
 }
