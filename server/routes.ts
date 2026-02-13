@@ -8170,8 +8170,10 @@ Respond in this exact JSON format only, including the ID field exactly as provid
   app.get("/api/modules", isAuthenticated, async (req, res) => {
     try {
       const modules = await storage.getModules();
+      console.log(`[modules] GET /api/modules returning ${modules.length} modules`);
       res.json(modules);
     } catch (error: any) {
+      console.error(`[modules] GET /api/modules error:`, error);
       res.status(500).json({ message: error?.message || "Failed to fetch modules" });
     }
   });
