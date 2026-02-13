@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Shield, Award } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Shield, Award, BookOpen } from "lucide-react";
+import { LegistormDirectory } from "@/components/legistorm-directory";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1571,6 +1572,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
             <Shield className="h-4 w-4 mr-2" />
             Veterans
           </TabsTrigger>
+          <TabsTrigger value="legistorm" data-testid="tab-legistorm">
+            <BookOpen className="h-4 w-4 mr-2" />
+            LegiStorm Directory
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="network" className="space-y-6 mt-4">
@@ -1938,6 +1943,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
 
         <TabsContent value="veterans" className="space-y-6 mt-4">
           <VeteransSearch />
+        </TabsContent>
+
+        <TabsContent value="legistorm" className="space-y-6 mt-4">
+          <LegistormDirectory />
         </TabsContent>
       </Tabs>
 
