@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, BookOpen, Puzzle, Check, X } from "lucide-react";
+import { Trophy, BookOpen, Puzzle, Check, X, RefreshCw } from "lucide-react";
 import type { PlatformModule, ClientModule } from "@shared/schema";
 
 interface UserRole {
@@ -38,11 +38,20 @@ export default function ModulesPage() {
     ? userRole.impersonatingClientId
     : userRole?.clientId;
 
-  const { data: allModules, isLoading: modulesLoading, error: modulesError } = useQuery<PlatformModule[]>({
+  const { data: allModules, isLoading: modulesLoading, error: modulesError, refetch: refetchModules } = useQuery<PlatformModule[]>({
     queryKey: ["/api/modules"],
+    queryFn: async () => {
+      const res = await fetch("/api/modules", { credentials: "include" });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`${res.status}: ${text}`);
+      }
+      const data = await res.json();
+      return data;
+    },
     enabled: !!user,
     staleTime: 0,
-    retry: 1,
+    retry: 2,
   });
 
   const { data: clientModules, isLoading: clientModulesLoading } = useQuery<(ClientModule & { module: PlatformModule })[]>({
@@ -78,6 +87,7 @@ export default function ModulesPage() {
   });
 
   const isLoading = modulesLoading || clientModulesLoading;
+  const activeModules = (allModules || []).filter(m => m.isActive);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -97,9 +107,9 @@ export default function ModulesPage() {
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
-      ) : (
+      ) : activeModules.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {(allModules || []).filter(m => m.isActive).map((mod) => {
+          {activeModules.map((mod) => {
             const isEnabled = enabledModuleIds.has(mod.id);
             const IconComponent = moduleIcons[mod.icon || "Puzzle"] || Puzzle;
 
@@ -134,18 +144,18 @@ export default function ModulesPage() {
             );
           })}
         </div>
-      )}
-
-      {!isLoading && modulesError && (
+      ) : modulesError ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <X className="h-12 w-12 text-destructive mb-3" />
-            <p className="text-muted-foreground">Failed to load modules. Please try refreshing the page.</p>
+          <CardContent className="flex flex-col items-center justify-center py-12 gap-3">
+            <X className="h-12 w-12 text-destructive" />
+            <p className="text-muted-foreground">Failed to load modules.</p>
+            <Button variant="outline" onClick={() => refetchModules()} data-testid="button-retry-modules">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
           </CardContent>
         </Card>
-      )}
-
-      {!isLoading && !modulesError && (!allModules || allModules.filter(m => m.isActive).length === 0) && (
+      ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Puzzle className="h-12 w-12 text-muted-foreground mb-3" />
