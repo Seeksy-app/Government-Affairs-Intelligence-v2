@@ -205,6 +205,8 @@ function VeteransSearch() {
   const [selectedVeteran, setSelectedVeteran] = useState<VeteranMemberRecord | null>(null);
   const [selectedStaffer, setSelectedStaffer] = useState<VeteranStaffer | null>(null);
   const [stafferSearch, setStafferSearch] = useState("");
+  const [memberResearchResult, setMemberResearchResult] = useState<string | null>(null);
+  const [stafferResearchResult, setStafferResearchResult] = useState<string | null>(null);
 
   const { data: veteranMembers, isLoading: veteranMembersLoading } = useQuery<VeteranMemberRecord[]>({
     queryKey: ["/api/veterans/members"],
@@ -294,6 +296,41 @@ function VeteransSearch() {
     },
     onError: (error: any) => {
       toast({ title: "Research Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const memberEntityResearchMutation = useMutation({
+    mutationFn: async (memberName: string) => {
+      const res = await apiRequest("POST", "/api/research/entity", {
+        entityName: memberName,
+        entityType: "person",
+      });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      setMemberResearchResult(data?.content || data?.summary || JSON.stringify(data, null, 2));
+    },
+    onError: (error: Error) => {
+      toast({ title: "Research failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const stafferEntityResearchMutation = useMutation({
+    mutationFn: async (staffer: VeteranStaffer) => {
+      const res = await apiRequest("POST", "/api/research/staffer", {
+        name: staffer.fullName,
+        title: staffer.currentTitle,
+        organization: staffer.currentOffice,
+        memberName: staffer.currentMemberName,
+      });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const content = data?.data?.rawContent || data?.rawContent || data?.content || "";
+      setStafferResearchResult(content || JSON.stringify(data, null, 2));
+    },
+    onError: (error: Error) => {
+      toast({ title: "Research failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -615,7 +652,7 @@ function VeteransSearch() {
         )}
       </Card>
 
-      <Sheet open={!!selectedVeteran} onOpenChange={(open) => !open && setSelectedVeteran(null)}>
+      <Sheet open={!!selectedVeteran} onOpenChange={(open) => { if (!open) { setSelectedVeteran(null); setMemberResearchResult(null); } }}>
         <SheetContent className="sm:max-w-[500px] overflow-y-auto">
           {selectedVeteran && (() => {
             const member = congressMembers?.find(m => m.bioguideId === selectedVeteran.bioguideId);
@@ -730,6 +767,59 @@ function VeteransSearch() {
                     </div>
                   )}
 
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      AI Research
+                    </h4>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => memberEntityResearchMutation.mutate(selectedVeteran.memberName)}
+                      disabled={memberEntityResearchMutation.isPending}
+                      data-testid="button-research-veteran-member"
+                    >
+                      {memberEntityResearchMutation.isPending ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
+                      ) : (
+                        <><Search className="h-4 w-4 mr-2" /> Research {selectedVeteran.memberName}</>
+                      )}
+                    </Button>
+                    {memberResearchResult && (
+                      <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
+                        {memberResearchResult.split(/\n{2,}/).map((block, bIdx) => {
+                          const trimmed = block.trim();
+                          if (!trimmed) return null;
+                          if (trimmed.startsWith("### ")) {
+                            return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "")}</h4>;
+                          }
+                          if (trimmed.startsWith("## ")) {
+                            return <h3 key={bIdx} className="font-semibold text-base mt-2 first:mt-0 text-foreground">{trimmed.replace(/^##\s*/, "").replace(/\*\*/g, "")}</h3>;
+                          }
+                          const lines = trimmed.split("\n");
+                          const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
+                          if (isList) {
+                            return (
+                              <ul key={bIdx} className="space-y-1 pl-1">
+                                {lines.filter(l => l.trim()).map((line, lIdx) => (
+                                  <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
+                                    <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+                                    <span>{line.replace(/^\s*[-*]\s*/, "").replace(/\[\d+\]/g, "")}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          }
+                          return <p key={bIdx} className="text-muted-foreground leading-relaxed">{trimmed.replace(/\[\d+\]/g, "")}</p>;
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
                   {selectedVeteran.researchedAt && (
                     <p className="text-xs text-muted-foreground">
                       Researched: {new Date(selectedVeteran.researchedAt).toLocaleDateString()}
@@ -764,7 +854,7 @@ function VeteransSearch() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={!!selectedStaffer} onOpenChange={(open) => !open && setSelectedStaffer(null)}>
+      <Sheet open={!!selectedStaffer} onOpenChange={(open) => { if (!open) { setSelectedStaffer(null); setStafferResearchResult(null); } }}>
         <SheetContent className="sm:max-w-[500px] overflow-y-auto">
           {selectedStaffer && (
             <>
@@ -836,18 +926,56 @@ function VeteransSearch() {
                   )}
                 </div>
 
-                {selectedStaffer.careerResearch && (
-                  <>
-                    <Separator />
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-medium flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Career Research
-                      </h4>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedStaffer.careerResearch}</p>
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    AI Research
+                  </h4>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => stafferEntityResearchMutation.mutate(selectedStaffer)}
+                    disabled={stafferEntityResearchMutation.isPending}
+                    data-testid="button-research-veteran-staffer"
+                  >
+                    {stafferEntityResearchMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
+                    ) : (
+                      <><Search className="h-4 w-4 mr-2" /> Research Career + Background</>
+                    )}
+                  </Button>
+                  {(stafferResearchResult || selectedStaffer.careerResearch) && (
+                    <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
+                      {(stafferResearchResult || selectedStaffer.careerResearch || "").split(/\n{2,}/).map((block, bIdx) => {
+                        const trimmed = block.trim();
+                        if (!trimmed) return null;
+                        if (trimmed.startsWith("### ")) {
+                          return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "")}</h4>;
+                        }
+                        if (trimmed.startsWith("## ")) {
+                          return <h3 key={bIdx} className="font-semibold text-base mt-2 first:mt-0 text-foreground">{trimmed.replace(/^##\s*/, "").replace(/\*\*/g, "")}</h3>;
+                        }
+                        const lines = trimmed.split("\n");
+                        const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
+                        if (isList) {
+                          return (
+                            <ul key={bIdx} className="space-y-1 pl-1">
+                              {lines.filter(l => l.trim()).map((line, lIdx) => (
+                                <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
+                                  <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+                                  <span>{line.replace(/^\s*[-*]\s*/, "").replace(/\[\d+\]/g, "")}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          );
+                        }
+                        return <p key={bIdx} className="text-muted-foreground leading-relaxed">{trimmed.replace(/\[\d+\]/g, "")}</p>;
+                      })}
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
               </div>
             </>
           )}
