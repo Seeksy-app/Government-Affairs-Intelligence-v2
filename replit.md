@@ -57,9 +57,22 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **SearchAPI.io**: For Google Rank Tracking API — monitors search result rankings with device/location targeting.
 - **LegiStorm API**: For congressional staff directory data — provides 12,000+ staffer profiles with position histories, contact information, and member associations. Supports full and incremental sync patterns.
 
+### Modular Feature System
+- **Module Management**: Admin page at `/modules` allows enabling/disabling add-on features per client firm via toggle switches. Schema: `modules`, `client_modules` tables.
+- **Module Gating**: Sidebar conditionally renders navigation items based on module enablement. Sports nav group only appears when sports module is enabled. Route-level gating redirects users to a disabled state if accessing module routes directly.
+- **API**: `GET /api/modules`, `POST /api/modules`, `GET/POST /api/clients/:clientId/modules/:moduleId/enable|disable`, `GET /api/modules/check/:moduleKey`.
+
+### Sports Intelligence Module
+- **Teams**: Search, track, and manage professional and college sports teams. Supports league/sport/level filtering. AI-powered team search via Perplexity. Schema: `sports_teams` table.
+- **Contacts**: Find and manage contacts at sports organizations. PDL People Search for discovering key personnel. Schema: `sports_contacts` table.
+- **AI Research**: Perplexity-powered research on teams. Firecrawl web scraping for team websites.
+- **Outreach Pipeline**: Track partnership outreach status (not_started → researching → targeted → contacted → meeting → partnered/declined).
+- Route: `/sports`. Gated by sports module enablement.
+
 ### Veterans Search Feature
-- **Veterans Tab** on Network page: Search for congressional members who are military veterans and staffers/liaisons with military backgrounds.
+- **Veterans Tab** on Network page: Search for congressional members who are military veterans.
+- **Veterans Tab** on Staffers page: Browse veteran staffers and military liaisons from LegiStorm directory with action menus (Add to Contacts, KB, Research Projects, or as Client).
 - **Veteran Members**: Uses Perplexity AI to research veteran status of Congress members. Results cached in `veteran_congress_members` table with service branch, rank, years of service, and confidence level.
-- **Veteran Staffers**: Keyword-searches LegiStorm staffer data for military-related titles (veteran, military liaison, defense, armed services, etc.).
+- **Veteran Staffers**: Keyword-searches LegiStorm staffer data for military-related titles (veteran, military liaison, defense, armed services, etc.). AI career research available per staffer.
 - **Batch Research**: Can research up to 20 members at a time via AI. Filters by chamber (House/Senate).
 - Routes: `/api/veterans/members`, `/api/veterans/research`, `/api/veterans/batch-research`, `/api/veterans/staffers`.

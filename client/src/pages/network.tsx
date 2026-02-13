@@ -247,18 +247,6 @@ interface VeteranMemberRecord {
   researchedAt: string | null;
 }
 
-interface VeteranStaffer {
-  id: string;
-  fullName: string;
-  currentTitle: string | null;
-  currentOffice: string | null;
-  currentMemberName: string | null;
-  chamber: string | null;
-  state: string | null;
-  email: string | null;
-  phone: string | null;
-  careerResearch: string | null;
-}
 
 function VeteransSearch() {
   const { toast } = useToast();
@@ -266,19 +254,11 @@ function VeteransSearch() {
   const [veteranChamberFilter, setVeteranChamberFilter] = useState("all");
   const [researchingMembers, setResearchingMembers] = useState(false);
   const [researchProgress, setResearchProgress] = useState({ done: 0, total: 0, veteransFound: 0 });
-  const [showStaffers, setShowStaffers] = useState(true);
   const [selectedVeteran, setSelectedVeteran] = useState<VeteranMemberRecord | null>(null);
-  const [selectedStaffer, setSelectedStaffer] = useState<VeteranStaffer | null>(null);
-  const [stafferSearch, setStafferSearch] = useState("");
   const [memberResearchResult, setMemberResearchResult] = useState<string | null>(null);
-  const [stafferResearchResult, setStafferResearchResult] = useState<string | null>(null);
 
   const { data: veteranMembers, isLoading: veteranMembersLoading } = useQuery<VeteranMemberRecord[]>({
     queryKey: ["/api/veterans/members"],
-  });
-
-  const { data: veteranStaffers, isLoading: veteranStaffersLoading } = useQuery<VeteranStaffer[]>({
-    queryKey: ["/api/veterans/staffers"],
   });
 
   const { data: congressMembers } = useQuery<CongressMember[]>({
@@ -380,37 +360,6 @@ function VeteransSearch() {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
     },
   });
-
-  const stafferEntityResearchMutation = useMutation({
-    mutationFn: async (staffer: VeteranStaffer) => {
-      const res = await apiRequest("POST", "/api/research/staffer", {
-        name: staffer.fullName,
-        title: staffer.currentTitle,
-        organization: staffer.currentOffice,
-        memberName: staffer.currentMemberName,
-      });
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      const content = data?.data?.rawContent || data?.data?.content || data?.rawContent || data?.content || data?.summary || "";
-      setStafferResearchResult(content || (typeof data === "string" ? data : "No research content available."));
-    },
-    onError: (error: Error) => {
-      toast({ title: "Research failed", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const filteredStaffers = useMemo(() => {
-    if (!veteranStaffers) return [];
-    if (!stafferSearch.trim()) return veteranStaffers;
-    const q = stafferSearch.toLowerCase();
-    return veteranStaffers.filter(s =>
-      s.fullName.toLowerCase().includes(q) ||
-      (s.currentTitle && s.currentTitle.toLowerCase().includes(q)) ||
-      (s.currentMemberName && s.currentMemberName.toLowerCase().includes(q)) ||
-      (s.state && s.state.toLowerCase().includes(q))
-    );
-  }, [veteranStaffers, stafferSearch]);
 
   const filteredVeterans = useMemo(() => {
     if (!veteranMembers) return [];
@@ -615,109 +564,6 @@ function VeteransSearch() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2" data-testid="text-veteran-staffers-title">
-                <Users className="h-5 w-5" />
-                Veteran Staffers & Military Liaisons
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Congressional staffers with military or veterans affairs backgrounds
-              </p>
-            </div>
-            <Button
-              variant={showStaffers ? "secondary" : "default"}
-              onClick={() => setShowStaffers(!showStaffers)}
-              data-testid="button-toggle-veteran-staffers"
-            >
-              {showStaffers ? "Hide Staffers" : "Show Staffers"}
-            </Button>
-          </div>
-        </CardHeader>
-        {showStaffers && (
-          <CardContent>
-            {veteranStaffersLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="p-3 rounded-lg border">
-                    <Skeleton className="h-4 w-48 mb-2" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                ))}
-              </div>
-            ) : veteranStaffers && veteranStaffers.length > 0 ? (
-              <>
-                <div className="flex items-center gap-3 mb-3 flex-wrap">
-                  <p className="text-sm text-muted-foreground" data-testid="text-veteran-staffer-count">
-                    {filteredStaffers.length} of {veteranStaffers.length} staffer{veteranStaffers.length !== 1 ? "s" : ""} with military/veterans-related roles
-                  </p>
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search staffers by name, title, office..."
-                      value={stafferSearch}
-                      onChange={(e) => setStafferSearch(e.target.value)}
-                      className="pl-9"
-                      data-testid="input-search-staffers"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {filteredStaffers.map((staffer) => (
-                    <div key={staffer.id} className="p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSelectedStaffer(staffer)} data-testid={`card-veteran-staffer-${staffer.id}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm" data-testid={`text-staffer-name-${staffer.id}`}>{staffer.fullName}</span>
-                            {staffer.currentTitle && (
-                              <Badge variant="secondary" className="text-xs">{staffer.currentTitle}</Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {staffer.currentMemberName && (
-                              <span className="text-xs text-muted-foreground">
-                                Office: {staffer.currentMemberName}
-                              </span>
-                            )}
-                            {staffer.currentOffice && !staffer.currentMemberName && (
-                              <span className="text-xs text-muted-foreground">
-                                {staffer.currentOffice}
-                              </span>
-                            )}
-                            {staffer.chamber && (
-                              <Badge variant="outline" className="text-xs">{staffer.chamber}</Badge>
-                            )}
-                            {staffer.state && (
-                              <span className="text-xs text-muted-foreground">{staffer.state}</span>
-                            )}
-                          </div>
-                          {staffer.email && (
-                            <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
-                              <Mail className="h-3 w-3" />
-                              {staffer.email}
-                            </a>
-                          )}
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-6">
-                <Users className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No staffers with military/veterans-related titles found in the directory.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
-
       <Sheet open={!!selectedVeteran} onOpenChange={(open) => { if (!open) { setSelectedVeteran(null); setMemberResearchResult(null); } }}>
         <SheetContent className="sm:max-w-[500px] overflow-y-auto">
           {selectedVeteran && (() => {
@@ -896,109 +742,6 @@ function VeteransSearch() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={!!selectedStaffer} onOpenChange={(open) => { if (!open) { setSelectedStaffer(null); setStafferResearchResult(null); } }}>
-        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
-          {selectedStaffer && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-3">
-                  <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
-                    <Users className="h-7 w-7 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <span className="text-lg">{selectedStaffer.fullName}</span>
-                    {selectedStaffer.currentTitle && (
-                      <div className="mt-1">
-                        <Badge variant="secondary" className="text-xs">{selectedStaffer.currentTitle}</Badge>
-                      </div>
-                    )}
-                  </div>
-                </SheetTitle>
-                <SheetDescription>Congressional Staffer Details</SheetDescription>
-              </SheetHeader>
-              <div className="space-y-4 mt-6">
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Briefcase className="h-4 w-4" />
-                    Current Position
-                  </h4>
-                  {selectedStaffer.currentMemberName && (
-                    <div className="flex items-center gap-2">
-                      <Landmark className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Office of {selectedStaffer.currentMemberName}</span>
-                    </div>
-                  )}
-                  {selectedStaffer.currentOffice && !selectedStaffer.currentMemberName && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedStaffer.currentOffice}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {selectedStaffer.chamber && (
-                      <Badge variant="outline" className="text-xs">{selectedStaffer.chamber}</Badge>
-                    )}
-                    {selectedStaffer.state && (
-                      <span className="text-sm text-muted-foreground">{selectedStaffer.state}</span>
-                    )}
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Contact
-                  </h4>
-                  {selectedStaffer.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${selectedStaffer.email}`} className="text-sm hover:text-primary">{selectedStaffer.email}</a>
-                    </div>
-                  )}
-                  {selectedStaffer.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${selectedStaffer.phone}`} className="text-sm hover:text-primary">{selectedStaffer.phone}</a>
-                    </div>
-                  )}
-                  {!selectedStaffer.email && !selectedStaffer.phone && (
-                    <p className="text-sm text-muted-foreground">No contact information available</p>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    AI Research
-                  </h4>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => stafferEntityResearchMutation.mutate(selectedStaffer)}
-                    disabled={stafferEntityResearchMutation.isPending}
-                    data-testid="button-research-veteran-staffer"
-                  >
-                    {stafferEntityResearchMutation.isPending ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
-                    ) : (
-                      <><Search className="h-4 w-4 mr-2" /> Research Career + Background</>
-                    )}
-                  </Button>
-                  {(stafferResearchResult || selectedStaffer.careerResearch) && (
-                    <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
-                      {renderMarkdownBlock(stafferResearchResult || selectedStaffer.careerResearch || "")}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

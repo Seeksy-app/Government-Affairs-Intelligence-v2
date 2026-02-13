@@ -1609,6 +1609,280 @@ export default function StaffersPage() {
             </DialogContent>
           </Dialog>
         </TabsContent>
+
+        <TabsContent value="veterans" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2" data-testid="text-veteran-staffers-title">
+                    <Shield className="h-5 w-5" />
+                    Veteran Staffers & Military Liaisons
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Congressional staffers with military or veterans affairs backgrounds
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {veteranStaffersLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="p-3 rounded-lg border">
+                      <Skeleton className="h-4 w-48 mb-2" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                  ))}
+                </div>
+              ) : veteranStaffers && veteranStaffers.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    <p className="text-sm text-muted-foreground" data-testid="text-veteran-staffer-count">
+                      {filteredVetStaffers.length} of {veteranStaffers.length} staffer{veteranStaffers.length !== 1 ? "s" : ""} with military/veterans-related roles
+                    </p>
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search staffers by name, title, office..."
+                        value={vetStafferSearch}
+                        onChange={(e) => setVetStafferSearch(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-search-vet-staffers"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {filteredVetStaffers.map((staffer) => (
+                      <div key={staffer.id} className="p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSelectedVetStaffer(staffer)} data-testid={`card-veteran-staffer-${staffer.id}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm" data-testid={`text-vet-staffer-name-${staffer.id}`}>{staffer.fullName}</span>
+                              {staffer.currentTitle && (
+                                <Badge variant="secondary" className="text-xs">{staffer.currentTitle}</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {staffer.currentMemberName && (
+                                <span className="text-xs text-muted-foreground">
+                                  Office: {staffer.currentMemberName}
+                                </span>
+                              )}
+                              {staffer.currentOffice && !staffer.currentMemberName && (
+                                <span className="text-xs text-muted-foreground">
+                                  {staffer.currentOffice}
+                                </span>
+                              )}
+                              {staffer.chamber && (
+                                <Badge variant="outline" className="text-xs">{staffer.chamber}</Badge>
+                              )}
+                              {staffer.state && (
+                                <span className="text-xs text-muted-foreground">{staffer.state}</span>
+                              )}
+                            </div>
+                            {staffer.email && (
+                              <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                                <Mail className="h-3 w-3" />
+                                {staffer.email}
+                              </a>
+                            )}
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    No staffers with military/veterans-related titles found in the directory.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Sheet open={!!selectedVetStaffer} onOpenChange={(open) => { if (!open) { setSelectedVetStaffer(null); setVetStafferResearchResult(null); } }}>
+            <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+              {selectedVetStaffer && (
+                <>
+                  <SheetHeader>
+                    <div className="flex items-center justify-between gap-2">
+                      <SheetTitle className="flex items-center gap-3">
+                        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                          <Shield className="h-7 w-7 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <span className="text-lg">{selectedVetStaffer.fullName}</span>
+                          {selectedVetStaffer.currentTitle && (
+                            <div className="mt-1">
+                              <Badge variant="secondary" className="text-xs">{selectedVetStaffer.currentTitle}</Badge>
+                            </div>
+                          )}
+                        </div>
+                      </SheetTitle>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" data-testid="button-vet-staffer-actions">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const parts = selectedVetStaffer.fullName.split(" ");
+                              const firstName = parts[0] || "";
+                              const lastName = parts.slice(1).join(" ") || "";
+                              navigate(`/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(selectedVetStaffer.email || "")}&title=${encodeURIComponent(selectedVetStaffer.currentTitle || "")}&organization=${encodeURIComponent(selectedVetStaffer.currentOffice || "")}`);
+                            }}
+                            data-testid="menu-vet-add-to-contacts"
+                          >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Add to Client Contacts
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const stafferContent = `Staffer: ${selectedVetStaffer.fullName}\nTitle: ${selectedVetStaffer.currentTitle || ""}\nOffice: ${selectedVetStaffer.currentOffice || ""}\nMember: ${selectedVetStaffer.currentMemberName || ""}\nEmail: ${selectedVetStaffer.email || ""}\nPhone: ${selectedVetStaffer.phone || ""}`;
+                              navigate(`/admin/kb?addArticle=true&title=${encodeURIComponent(selectedVetStaffer.fullName + " - Veteran Staffer Profile")}&content=${encodeURIComponent(stafferContent)}`);
+                            }}
+                            data-testid="menu-vet-add-to-kb"
+                          >
+                            <Book className="h-4 w-4 mr-2" />
+                            Knowledge Base
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const stafferContent = `Staffer: ${selectedVetStaffer.fullName}\nTitle: ${selectedVetStaffer.currentTitle || ""}\nOffice: ${selectedVetStaffer.currentOffice || ""}\nMember: ${selectedVetStaffer.currentMemberName || ""}\nEmail: ${selectedVetStaffer.email || ""}\nPhone: ${selectedVetStaffer.phone || ""}`;
+                              navigate(`/matters?addDoc=true&title=${encodeURIComponent(selectedVetStaffer.fullName + " - Veteran Staffer Profile")}&content=${encodeURIComponent(stafferContent)}`);
+                            }}
+                            data-testid="menu-vet-add-to-research"
+                          >
+                            <FolderOpen className="h-4 w-4 mr-2" />
+                            Research Project
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const parts = selectedVetStaffer.fullName.split(" ");
+                              const firstName = parts[0] || "";
+                              const lastName = parts.slice(1).join(" ") || "";
+                              navigate(`/admin/clients?addClient=true&name=${encodeURIComponent(selectedVetStaffer.fullName)}&contactName=${encodeURIComponent(firstName + " " + lastName)}&contactEmail=${encodeURIComponent(selectedVetStaffer.email || "")}`);
+                            }}
+                            data-testid="menu-vet-add-as-client"
+                          >
+                            <Building className="h-4 w-4 mr-2" />
+                            Add as Client
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const info = [
+                                selectedVetStaffer.fullName,
+                                selectedVetStaffer.currentTitle,
+                                selectedVetStaffer.currentOffice,
+                                selectedVetStaffer.currentMemberName ? "Office of " + selectedVetStaffer.currentMemberName : null,
+                                selectedVetStaffer.email,
+                                selectedVetStaffer.phone,
+                              ].filter(Boolean).join("\n");
+                              navigator.clipboard.writeText(info);
+                              toast({ title: "Copied", description: "Staffer info copied to clipboard" });
+                            }}
+                            data-testid="menu-vet-copy-info"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Info
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <SheetDescription>Veteran Staffer Details</SheetDescription>
+                  </SheetHeader>
+                  <div className="space-y-4 mt-6">
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Current Position
+                      </h4>
+                      {selectedVetStaffer.currentMemberName && (
+                        <div className="flex items-center gap-2">
+                          <Landmark className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Office of {selectedVetStaffer.currentMemberName}</span>
+                        </div>
+                      )}
+                      {selectedVetStaffer.currentOffice && !selectedVetStaffer.currentMemberName && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{selectedVetStaffer.currentOffice}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedVetStaffer.chamber && (
+                          <Badge variant="outline" className="text-xs">{selectedVetStaffer.chamber}</Badge>
+                        )}
+                        {selectedVetStaffer.state && (
+                          <span className="text-sm text-muted-foreground">{selectedVetStaffer.state}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Contact
+                      </h4>
+                      {selectedVetStaffer.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <a href={`mailto:${selectedVetStaffer.email}`} className="text-sm hover:text-primary">{selectedVetStaffer.email}</a>
+                        </div>
+                      )}
+                      {selectedVetStaffer.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a href={`tel:${selectedVetStaffer.phone}`} className="text-sm hover:text-primary">{selectedVetStaffer.phone}</a>
+                        </div>
+                      )}
+                      {!selectedVetStaffer.email && !selectedVetStaffer.phone && (
+                        <p className="text-sm text-muted-foreground">No contact information available</p>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        AI Research
+                      </h4>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => vetStafferResearchMutation.mutate(selectedVetStaffer)}
+                        disabled={vetStafferResearchMutation.isPending}
+                        data-testid="button-research-veteran-staffer"
+                      >
+                        {vetStafferResearchMutation.isPending ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching...</>
+                        ) : (
+                          <><Search className="h-4 w-4 mr-2" /> Research Career + Background</>
+                        )}
+                      </Button>
+                      {(vetStafferResearchResult || selectedVetStaffer.careerResearch) && (
+                        <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
+                          {renderMarkdownBlock(vetStafferResearchResult || selectedVetStaffer.careerResearch || "")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </SheetContent>
+          </Sheet>
+        </TabsContent>
       </Tabs>
     </div>
   );

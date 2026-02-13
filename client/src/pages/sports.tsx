@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import {
   Trophy, Search, Plus, Loader2, Globe, MapPin, Users, Building2,
-  ExternalLink, Phone, Mail, Linkedin, Brain, FileText, UserSearch,
+  ExternalLink, Phone, Mail, Brain, FileText, UserSearch, Link2,
   Trash2, Edit, ChevronRight, Target, Handshake, Clock, X, RefreshCw
 } from "lucide-react";
 import type { SportsTeam, SportsContact } from "@shared/schema";
@@ -66,6 +66,11 @@ function getStatusBadge(status: string) {
 export default function SportsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const { data: moduleCheck, isLoading: moduleCheckLoading } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/modules/check/sports"],
+  });
+
   const [activeTab, setActiveTab] = useState("teams");
   const [searchQuery, setSearchQuery] = useState("");
   const [leagueFilter, setLeagueFilter] = useState("all");
@@ -255,6 +260,24 @@ export default function SportsPage() {
       contacted: teams.filter(t => ["contacted", "meeting", "partnered"].includes(t.outreachStatus || "")).length,
     };
   }, [teams]);
+
+  if (moduleCheckLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!moduleCheck?.enabled) {
+    return (
+      <div className="p-6 space-y-4 text-center">
+        <Trophy className="h-12 w-12 text-muted-foreground mx-auto" />
+        <h2 className="text-xl font-semibold">Sports Intelligence Module</h2>
+        <p className="text-muted-foreground">This module is not enabled for your organization. Contact your administrator to enable it from the Modules page.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -567,7 +590,7 @@ export default function SportsPage() {
                         )}
                         {contact.linkedinUrl && (
                           <Button variant="ghost" size="icon" asChild>
-                            <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer"><Linkedin className="h-4 w-4" /></a>
+                            <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer"><Link2 className="h-4 w-4" /></a>
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" onClick={() => deleteContactMutation.mutate(contact.id)} data-testid={`button-delete-contact-${contact.id}`}>
@@ -820,7 +843,7 @@ export default function SportsPage() {
                             <div className="flex items-center gap-1">
                               {person.linkedin_url && (
                                 <Button variant="ghost" size="icon" asChild>
-                                  <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer"><Linkedin className="h-4 w-4" /></a>
+                                  <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer"><Link2 className="h-4 w-4" /></a>
                                 </Button>
                               )}
                               <Button
@@ -835,7 +858,6 @@ export default function SportsPage() {
                                     phone: person.phone_numbers?.[0] || "",
                                     linkedinUrl: person.linkedin_url || "",
                                     roleType: "pdl_discovered",
-                                    source: "pdl",
                                     department: "",
                                     notes: "",
                                   });
