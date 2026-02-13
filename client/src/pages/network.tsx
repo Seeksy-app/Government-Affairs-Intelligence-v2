@@ -22,6 +22,70 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StafferProfileDialog } from "@/components/staffer-profile-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 
+function renderInlineMarkdown(text: string) {
+  const parts = text.replace(/\[\d+\]/g, "").split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function renderMarkdownBlock(content: string) {
+  const normalized = content.replace(/\\n/g, "\n");
+  return normalized.split(/\n{2,}/).map((block, bIdx) => {
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("# ")) {
+      return <h2 key={bIdx} className="font-bold text-base mt-3 first:mt-0 text-foreground">{renderInlineMarkdown(trimmed.replace(/^#\s*/, ""))}</h2>;
+    }
+    if (trimmed.startsWith("## ")) {
+      return <h3 key={bIdx} className="font-semibold text-base mt-3 first:mt-0 text-foreground">{renderInlineMarkdown(trimmed.replace(/^##\s*/, ""))}</h3>;
+    }
+    if (trimmed.startsWith("### ")) {
+      return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{renderInlineMarkdown(trimmed.replace(/^###\s*/, ""))}</h4>;
+    }
+    const lines = trimmed.split("\n");
+    const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
+    if (isList) {
+      return (
+        <ul key={bIdx} className="space-y-1 pl-1">
+          {lines.filter(l => l.trim()).map((line, lIdx) => (
+            <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
+              <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+              <span>{renderInlineMarkdown(line.replace(/^\s*[-*]\s*/, ""))}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    const singleLines = trimmed.split("\n");
+    if (singleLines.length > 1) {
+      return (
+        <div key={bIdx} className="space-y-1">
+          {singleLines.map((line, lIdx) => {
+            const l = line.trim();
+            if (!l) return null;
+            if (l.startsWith("### ")) return <h4 key={lIdx} className="font-semibold text-sm mt-2 text-foreground">{renderInlineMarkdown(l.replace(/^###\s*/, ""))}</h4>;
+            if (l.startsWith("## ")) return <h3 key={lIdx} className="font-semibold text-base mt-2 text-foreground">{renderInlineMarkdown(l.replace(/^##\s*/, ""))}</h3>;
+            if (/^\s*[-*]\s/.test(l)) {
+              return (
+                <div key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed pl-1">
+                  <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+                  <span>{renderInlineMarkdown(l.replace(/^\s*[-*]\s*/, ""))}</span>
+                </div>
+              );
+            }
+            return <p key={lIdx} className="text-muted-foreground leading-relaxed">{renderInlineMarkdown(l)}</p>;
+          })}
+        </div>
+      );
+    }
+    return <p key={bIdx} className="text-muted-foreground leading-relaxed">{renderInlineMarkdown(trimmed)}</p>;
+  });
+}
+
 interface CongressMember {
   bioguideId: string;
   name: string;
@@ -309,7 +373,8 @@ function VeteransSearch() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      setMemberResearchResult(data?.content || data?.summary || JSON.stringify(data, null, 2));
+      const content = data?.data?.rawContent || data?.data?.content || data?.rawContent || data?.content || data?.summary || "";
+      setMemberResearchResult(content || (typeof data === "string" ? data : "No research content available."));
     },
     onError: (error: Error) => {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
@@ -327,8 +392,8 @@ function VeteransSearch() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      const content = data?.data?.rawContent || data?.rawContent || data?.content || "";
-      setStafferResearchResult(content || JSON.stringify(data, null, 2));
+      const content = data?.data?.rawContent || data?.data?.content || data?.rawContent || data?.content || data?.summary || "";
+      setStafferResearchResult(content || (typeof data === "string" ? data : "No research content available."));
     },
     onError: (error: Error) => {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
@@ -790,31 +855,7 @@ function VeteransSearch() {
                     </Button>
                     {memberResearchResult && (
                       <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
-                        {memberResearchResult.split(/\n{2,}/).map((block, bIdx) => {
-                          const trimmed = block.trim();
-                          if (!trimmed) return null;
-                          if (trimmed.startsWith("### ")) {
-                            return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "")}</h4>;
-                          }
-                          if (trimmed.startsWith("## ")) {
-                            return <h3 key={bIdx} className="font-semibold text-base mt-2 first:mt-0 text-foreground">{trimmed.replace(/^##\s*/, "").replace(/\*\*/g, "")}</h3>;
-                          }
-                          const lines = trimmed.split("\n");
-                          const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
-                          if (isList) {
-                            return (
-                              <ul key={bIdx} className="space-y-1 pl-1">
-                                {lines.filter(l => l.trim()).map((line, lIdx) => (
-                                  <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
-                                    <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
-                                    <span>{line.replace(/^\s*[-*]\s*/, "").replace(/\[\d+\]/g, "")}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            );
-                          }
-                          return <p key={bIdx} className="text-muted-foreground leading-relaxed">{trimmed.replace(/\[\d+\]/g, "")}</p>;
-                        })}
+                        {renderMarkdownBlock(memberResearchResult)}
                       </div>
                     )}
                   </div>
@@ -949,31 +990,7 @@ function VeteransSearch() {
                   </Button>
                   {(stafferResearchResult || selectedStaffer.careerResearch) && (
                     <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
-                      {(stafferResearchResult || selectedStaffer.careerResearch || "").split(/\n{2,}/).map((block, bIdx) => {
-                        const trimmed = block.trim();
-                        if (!trimmed) return null;
-                        if (trimmed.startsWith("### ")) {
-                          return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "")}</h4>;
-                        }
-                        if (trimmed.startsWith("## ")) {
-                          return <h3 key={bIdx} className="font-semibold text-base mt-2 first:mt-0 text-foreground">{trimmed.replace(/^##\s*/, "").replace(/\*\*/g, "")}</h3>;
-                        }
-                        const lines = trimmed.split("\n");
-                        const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
-                        if (isList) {
-                          return (
-                            <ul key={bIdx} className="space-y-1 pl-1">
-                              {lines.filter(l => l.trim()).map((line, lIdx) => (
-                                <li key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed">
-                                  <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
-                                  <span>{line.replace(/^\s*[-*]\s*/, "").replace(/\[\d+\]/g, "")}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          );
-                        }
-                        return <p key={bIdx} className="text-muted-foreground leading-relaxed">{trimmed.replace(/\[\d+\]/g, "")}</p>;
-                      })}
+                      {renderMarkdownBlock(stafferResearchResult || selectedStaffer.careerResearch || "")}
                     </div>
                   )}
                 </div>
