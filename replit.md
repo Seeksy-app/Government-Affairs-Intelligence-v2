@@ -69,6 +69,17 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Outreach Pipeline**: Track partnership outreach status (not_started → researching → targeted → contacted → meeting → partnered/declined).
 - Route: `/sports`. Gated by sports module enablement.
 
+### Marketing Intelligence Module
+- **Client-Specific**: Enabled exclusively for Adam Consulting Group (Vet Tix account). Gated by module system like Sports module.
+- **Dashboard**: Executive summary cards (tickets distributed, members served, signups, donated ad value) with Recharts visualizations.
+- **OOH ROI Analysis**: Airport advertising, billboard campaigns, bus shelter programs, and military installation signage with donated value and monthly impressions.
+- **Channel Performance**: Signup attribution by channel (email, social, NFL partnerships, OOH, organic) with conversion rates and cost per signup.
+- **Conversion Funnel**: 5-stage funnel from website visitors to active attendees with stage-by-stage conversion rates.
+- **Partnerships**: NFL team partnerships (Dallas Cowboys, Houston Texans, etc.) with tickets donated, activation events, and tier classification.
+- **Earned Media**: Media placements (Fox News, ESPN, Military Times) and Fox News pitch packages ($25K-$100K).
+- **AI Strategy**: Perplexity-powered marketing analyst with preset questions and persistent recommendation history.
+- Route: `/marketing`. Schema: `marketing_intelligence_data`, `marketing_ai_recommendations` tables. Module key: `marketing_intelligence`.
+
 ### Veterans Search Feature
 - **Veterans Tab** on Network page: Search for congressional members who are military veterans.
 - **Veterans Tab** on Staffers page: Browse veteran staffers and military liaisons from LegiStorm directory with action menus (Add to Contacts, KB, Research Projects, or as Client).

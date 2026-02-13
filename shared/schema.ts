@@ -1488,3 +1488,43 @@ export const insertSportsContactSchema = createInsertSchema(sportsContacts).omit
 
 export type InsertSportsContact = z.infer<typeof insertSportsContactSchema>;
 export type SportsContact = typeof sportsContacts.$inferSelect;
+
+export const marketingIntelligenceData = pgTable("marketing_intelligence_data", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  category: text("category").notNull(),
+  label: text("label").notNull(),
+  data: jsonb("data").notNull(),
+  notes: text("notes"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMarketingIntelligenceDataSchema = createInsertSchema(marketingIntelligenceData).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMarketingIntelligenceData = z.infer<typeof insertMarketingIntelligenceDataSchema>;
+export type MarketingIntelligenceData = typeof marketingIntelligenceData.$inferSelect;
+
+export const marketingAiRecommendations = pgTable("marketing_ai_recommendations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  category: text("category"),
+  priority: text("priority").default("medium"),
+  status: text("status").default("new"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMarketingAiRecommendationSchema = createInsertSchema(marketingAiRecommendations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMarketingAiRecommendation = z.infer<typeof insertMarketingAiRecommendationSchema>;
+export type MarketingAiRecommendation = typeof marketingAiRecommendations.$inferSelect;

@@ -27,6 +27,8 @@ import {
   legistormStaffers,
   stafferBillAssociations,
   veteranCongressMembers,
+  insertMarketingIntelligenceDataSchema,
+  insertMarketingAiRecommendationSchema,
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
@@ -8469,6 +8471,118 @@ Respond in this exact JSON format only, including the ID field exactly as provid
     } catch (error: any) {
       console.error("[Sports Search] ERROR:", error?.message || error);
       res.status(500).json({ message: error?.message || "Failed to search sports teams" });
+    }
+  });
+
+  // Marketing Intelligence Data
+  app.get("/api/marketing/data", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(400).json({ message: "No client context" });
+      const category = req.query.category as string | undefined;
+      const data = await storage.getMarketingData(clientId, category);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get marketing data" });
+    }
+  });
+
+  app.post("/api/marketing/data", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(400).json({ message: "No client context" });
+      const parsed = insertMarketingIntelligenceDataSchema.safeParse({ ...req.body, clientId });
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+      const result = await storage.createMarketingData(parsed.data);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create marketing data" });
+    }
+  });
+
+  app.patch("/api/marketing/data/:id", isAuthenticated, async (req, res) => {
+    try {
+      const result = await storage.updateMarketingData(req.params.id, req.body);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to update marketing data" });
+    }
+  });
+
+  app.delete("/api/marketing/data/:id", isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteMarketingData(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to delete marketing data" });
+    }
+  });
+
+  // Marketing AI Recommendations
+  app.get("/api/marketing/recommendations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(400).json({ message: "No client context" });
+      const recs = await storage.getMarketingRecommendations(clientId);
+      res.json(recs);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to get recommendations" });
+    }
+  });
+
+  app.post("/api/marketing/recommendations", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(400).json({ message: "No client context" });
+      const parsed = insertMarketingAiRecommendationSchema.safeParse({ ...req.body, clientId });
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+      const result = await storage.createMarketingRecommendation(parsed.data);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error?.message || "Failed to create recommendation" });
+    }
+  });
+
+  app.post("/api/marketing/ai-analyze", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(400).json({ message: "No client context" });
+
+      const parsed = z.object({
+        question: z.string().min(1),
+        context: z.string().optional(),
+      }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
+
+      const allData = await storage.getMarketingData(clientId);
+      const dataContext = allData.map(d => `[${d.category}] ${d.label}: ${JSON.stringify(d.data)}`).join("\n");
+
+      const { researchPoliticalEntity } = await import("./services/research-agent");
+      const prompt = `You are a marketing intelligence analyst for Vet Tix, a nonprofit that distributes tickets to veterans.
+
+Here is the current marketing data from their presentation deck:
+${dataContext}
+
+${parsed.data.context ? `Additional context: ${parsed.data.context}\n\n` : ""}
+User's question: ${parsed.data.question}
+
+Provide a detailed, data-driven analysis with specific recommendations. Reference the actual numbers and metrics from the data.`;
+
+      const result = await researchPoliticalEntity(prompt, "marketing analysis");
+
+      await storage.createMarketingRecommendation({
+        clientId,
+        title: parsed.data.question.length > 80 ? parsed.data.question.slice(0, 80) + "..." : parsed.data.question,
+        content: result.content || result.summary || "",
+        category: "ai_analysis",
+        priority: "medium",
+        status: "new",
+      });
+
+      res.json({ content: result.content, summary: result.summary, sources: result.sources });
+    } catch (error: any) {
+      console.error("[Marketing AI] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to analyze marketing data" });
     }
   });
 

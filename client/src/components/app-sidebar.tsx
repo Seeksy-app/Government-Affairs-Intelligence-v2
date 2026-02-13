@@ -62,6 +62,13 @@ export function AppSidebar() {
 
   const hasSportsModule = sportsModuleCheck?.enabled === true;
 
+  const { data: marketingModuleCheck } = useQuery<{ enabled: boolean }>({
+    queryKey: ["/api/modules/check/marketing_intelligence"],
+    enabled: !!user && !!effectiveClientId,
+  });
+
+  const hasMarketingModule = marketingModuleCheck?.enabled === true;
+
   const superAdminItems = [
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
     { title: "Business Dev", url: "/admin/business-dev", icon: Rocket, tourId: "admin-business-dev" },
@@ -150,6 +157,14 @@ export function AppSidebar() {
     ],
   };
 
+  const clientMarketingGroup = {
+    label: "Marketing Intel",
+    icon: TrendingUp,
+    items: [
+      { title: "Marketing Dashboard", url: "/marketing", icon: BarChart3, tourId: "marketing" },
+    ],
+  };
+
   const clientGroups = [
     clientDirectoryGroup,
     clientLegislativeGroup,
@@ -157,6 +172,7 @@ export function AppSidebar() {
     clientStrategyGroup,
     clientSocialGroup,
     ...(hasSportsModule ? [clientSportsGroup] : []),
+    ...(hasMarketingModule ? [clientMarketingGroup] : []),
     clientManageGroup,
   ];
 

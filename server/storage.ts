@@ -161,8 +161,14 @@ import {
   type RankTrackingResult,
   type InsertRankTrackingResult,
   stafferBillAssociations,
+  marketingIntelligenceData,
+  marketingAiRecommendations,
   type StafferBillAssociation,
   type InsertStafferBillAssociation,
+  type MarketingIntelligenceData,
+  type InsertMarketingIntelligenceData,
+  type MarketingAiRecommendation,
+  type InsertMarketingAiRecommendation,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -447,6 +453,16 @@ export interface IStorage {
   deleteStafferBillAssociation(id: string): Promise<void>;
   getStafferBillsByStaffer(clientId: string, stafferType: string, stafferId: string): Promise<StafferBillAssociation[]>;
   getStafferBillsByBill(clientId: string, trackedBillId: string): Promise<StafferBillAssociation[]>;
+
+  getMarketingData(clientId: string, category?: string): Promise<MarketingIntelligenceData[]>;
+  createMarketingData(data: InsertMarketingIntelligenceData): Promise<MarketingIntelligenceData>;
+  updateMarketingData(id: string, data: Partial<InsertMarketingIntelligenceData>): Promise<MarketingIntelligenceData | undefined>;
+  deleteMarketingData(id: string): Promise<void>;
+
+  getMarketingRecommendations(clientId: string): Promise<MarketingAiRecommendation[]>;
+  createMarketingRecommendation(data: InsertMarketingAiRecommendation): Promise<MarketingAiRecommendation>;
+  updateMarketingRecommendation(id: string, data: Partial<InsertMarketingAiRecommendation>): Promise<MarketingAiRecommendation | undefined>;
+  deleteMarketingRecommendation(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2081,6 +2097,57 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(stafferBillAssociations)
       .where(and(eq(stafferBillAssociations.clientId, clientId), eq(stafferBillAssociations.trackedBillId, trackedBillId)))
       .orderBy(stafferBillAssociations.stafferName);
+  }
+
+  async getMarketingData(clientId: string, category?: string): Promise<MarketingIntelligenceData[]> {
+    if (category) {
+      return db.select().from(marketingIntelligenceData)
+        .where(and(eq(marketingIntelligenceData.clientId, clientId), eq(marketingIntelligenceData.category, category)))
+        .orderBy(marketingIntelligenceData.sortOrder);
+    }
+    return db.select().from(marketingIntelligenceData)
+      .where(eq(marketingIntelligenceData.clientId, clientId))
+      .orderBy(marketingIntelligenceData.sortOrder);
+  }
+
+  async createMarketingData(data: InsertMarketingIntelligenceData): Promise<MarketingIntelligenceData> {
+    const [result] = await db.insert(marketingIntelligenceData).values(data).returning();
+    return result;
+  }
+
+  async updateMarketingData(id: string, data: Partial<InsertMarketingIntelligenceData>): Promise<MarketingIntelligenceData | undefined> {
+    const [result] = await db.update(marketingIntelligenceData)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(marketingIntelligenceData.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteMarketingData(id: string): Promise<void> {
+    await db.delete(marketingIntelligenceData).where(eq(marketingIntelligenceData.id, id));
+  }
+
+  async getMarketingRecommendations(clientId: string): Promise<MarketingAiRecommendation[]> {
+    return db.select().from(marketingAiRecommendations)
+      .where(eq(marketingAiRecommendations.clientId, clientId))
+      .orderBy(desc(marketingAiRecommendations.createdAt));
+  }
+
+  async createMarketingRecommendation(data: InsertMarketingAiRecommendation): Promise<MarketingAiRecommendation> {
+    const [result] = await db.insert(marketingAiRecommendations).values(data).returning();
+    return result;
+  }
+
+  async updateMarketingRecommendation(id: string, data: Partial<InsertMarketingAiRecommendation>): Promise<MarketingAiRecommendation | undefined> {
+    const [result] = await db.update(marketingAiRecommendations)
+      .set(data)
+      .where(eq(marketingAiRecommendations.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteMarketingRecommendation(id: string): Promise<void> {
+    await db.delete(marketingAiRecommendations).where(eq(marketingAiRecommendations.id, id));
   }
 }
 
