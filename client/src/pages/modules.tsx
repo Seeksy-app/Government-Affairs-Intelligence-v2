@@ -38,9 +38,11 @@ export default function ModulesPage() {
     ? userRole.impersonatingClientId
     : userRole?.clientId;
 
-  const { data: allModules, isLoading: modulesLoading } = useQuery<PlatformModule[]>({
+  const { data: allModules, isLoading: modulesLoading, error: modulesError } = useQuery<PlatformModule[]>({
     queryKey: ["/api/modules"],
     enabled: !!user,
+    staleTime: 0,
+    retry: 1,
   });
 
   const { data: clientModules, isLoading: clientModulesLoading } = useQuery<(ClientModule & { module: PlatformModule })[]>({
@@ -134,7 +136,16 @@ export default function ModulesPage() {
         </div>
       )}
 
-      {!isLoading && (!allModules || allModules.length === 0) && (
+      {!isLoading && modulesError && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <X className="h-12 w-12 text-destructive mb-3" />
+            <p className="text-muted-foreground">Failed to load modules. Please try refreshing the page.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !modulesError && (!allModules || allModules.filter(m => m.isActive).length === 0) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Puzzle className="h-12 w-12 text-muted-foreground mb-3" />

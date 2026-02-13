@@ -1960,10 +1960,8 @@ export async function registerRoutes(
 
   // Research a staffer using Perplexity API
   app.post("/api/research/staffer", isAuthenticated, async (req, res) => {
-    console.log("[Staffer Research] Request received:", JSON.stringify(req.body));
     try {
       const clientId = await getClientId(req);
-      console.log("[Staffer Research] Client ID:", clientId);
       if (!clientId) {
         return res.status(403).json({ message: "Not assigned to a client" });
       }
@@ -1973,11 +1971,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Staffer name is required" });
       }
 
-      console.log("[Staffer Research] Researching staffer:", name);
-      console.log("[Staffer Research] PERPLEXITY_API_KEY present:", !!process.env.PERPLEXITY_API_KEY, "length:", process.env.PERPLEXITY_API_KEY?.length || 0);
+      if (!process.env.PERPLEXITY_API_KEY) {
+        return res.status(500).json({ message: "Perplexity API key not configured. Please contact your administrator." });
+      }
+
       const { researchWithPerplexity } = await import("./services/research-agent");
       
-      // Build a detailed prompt to research the staffer using Perplexity
       const researchPrompt = `Research the Congressional or political staffer named "${name}".
 
 Current Position: ${title || 'Unknown'} at ${organization || 'Unknown'}
@@ -2093,8 +2092,12 @@ Format your response as a structured summary with clear sections.`;
       });
     } catch (error: any) {
       console.error("[Staffer Research] ERROR:", error?.message || error);
-      console.error("[Staffer Research] Stack:", error?.stack);
-      res.status(500).json({ message: error?.message || "Failed to research staffer" });
+      const errMsg = error?.message || "Failed to research staffer";
+      if (errMsg.includes("Perplexity")) {
+        res.status(502).json({ message: "AI research service temporarily unavailable. Please try again." });
+      } else {
+        res.status(500).json({ message: errMsg });
+      }
     }
   });
 
@@ -8170,8 +8173,10 @@ Respond in this exact JSON format only, including the ID field exactly as provid
   app.get("/api/modules", isAuthenticated, async (req, res) => {
     try {
       const modules = await storage.getModules();
+      console.log(`[Modules] GET /api/modules returning ${modules.length} modules:`, modules.map(m => m.key));
       res.json(modules);
     } catch (error: any) {
+      console.error("[Modules] GET /api/modules error:", error?.message || error);
       res.status(500).json({ message: error?.message || "Failed to fetch modules" });
     }
   });
