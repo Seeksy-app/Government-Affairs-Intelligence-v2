@@ -47,7 +47,12 @@ import {
   BookOpen,
   Copy,
   Book,
-  Building
+  Building,
+  Shield,
+  Award,
+  Loader2,
+  Landmark,
+  ArrowRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -56,6 +61,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import type { Staffer, LegistormStaffer } from "@shared/schema";
 
 const CHAMBERS = [
@@ -157,6 +164,59 @@ function getChamberColor(chamber: string | null): string {
   }
 }
 
+interface VeteranStaffer {
+  id: string;
+  fullName: string;
+  currentTitle: string | null;
+  currentOffice: string | null;
+  currentMemberName: string | null;
+  chamber: string | null;
+  state: string | null;
+  email: string | null;
+  phone: string | null;
+  careerResearch: string | null;
+}
+
+function renderMarkdownBlock(content: string) {
+  const normalized = content.replace(/\\n/g, "\n");
+  const renderInline = (text: string) => {
+    const parts = text.replace(/\[\d+\]/g, "").split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+  return normalized.split(/\n{2,}/).map((block, bIdx) => {
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("### ")) return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{renderInline(trimmed.replace(/^###\s*/, ""))}</h4>;
+    if (trimmed.startsWith("## ")) return <h3 key={bIdx} className="font-semibold text-base mt-3 first:mt-0 text-foreground">{renderInline(trimmed.replace(/^##\s*/, ""))}</h3>;
+    if (trimmed.startsWith("# ")) return <h2 key={bIdx} className="font-bold text-base mt-3 first:mt-0 text-foreground">{renderInline(trimmed.replace(/^#\s*/, ""))}</h2>;
+    const lines = trimmed.split("\n");
+    return (
+      <div key={bIdx} className="space-y-1">
+        {lines.map((line, lIdx) => {
+          const l = line.trim();
+          if (!l) return null;
+          if (l.startsWith("### ")) return <h4 key={lIdx} className="font-semibold text-sm mt-2 text-foreground">{renderInline(l.replace(/^###\s*/, ""))}</h4>;
+          if (l.startsWith("## ")) return <h3 key={lIdx} className="font-semibold text-base mt-2 text-foreground">{renderInline(l.replace(/^##\s*/, ""))}</h3>;
+          if (/^\s*[-*]\s/.test(l)) {
+            return (
+              <div key={lIdx} className="flex gap-2 text-muted-foreground leading-relaxed pl-1">
+                <span className="text-muted-foreground/60 mt-0.5 shrink-0">-</span>
+                <span>{renderInline(l.replace(/^\s*[-*]\s*/, ""))}</span>
+              </div>
+            );
+          }
+          return <p key={lIdx} className="text-muted-foreground leading-relaxed">{renderInline(l)}</p>;
+        })}
+      </div>
+    );
+  });
+}
+
 function renderFormattedText(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
@@ -191,6 +251,10 @@ export default function StaffersPage() {
   const [lsSelectedId, setLsSelectedId] = useState<number | null>(null);
   const [lsResearchResult, setLsResearchResult] = useState<string | null>(null);
   const [linkedinLookupLoading, setLinkedinLookupLoading] = useState(false);
+
+  const [vetStafferSearch, setVetStafferSearch] = useState("");
+  const [selectedVetStaffer, setSelectedVetStaffer] = useState<VeteranStaffer | null>(null);
+  const [vetStafferResearchResult, setVetStafferResearchResult] = useState<string | null>(null);
   
   const [newStaffer, setNewStaffer] = useState({
     name: "",
@@ -279,6 +343,39 @@ export default function StaffersPage() {
   const { data: lsStafferDetail } = useQuery<LegistormStaffer>({
     queryKey: [`/api/legistorm/staffers/${lsSelectedId}`],
     enabled: !!lsSelectedId,
+  });
+
+  const { data: veteranStaffers, isLoading: veteranStaffersLoading } = useQuery<VeteranStaffer[]>({
+    queryKey: ["/api/veterans/staffers"],
+    enabled: activeTab === "veterans",
+  });
+
+  const filteredVetStaffers = (veteranStaffers || []).filter(s => {
+    if (!vetStafferSearch.trim()) return true;
+    const q = vetStafferSearch.toLowerCase();
+    return s.fullName.toLowerCase().includes(q) ||
+      (s.currentTitle && s.currentTitle.toLowerCase().includes(q)) ||
+      (s.currentMemberName && s.currentMemberName.toLowerCase().includes(q)) ||
+      (s.state && s.state.toLowerCase().includes(q));
+  });
+
+  const vetStafferResearchMutation = useMutation({
+    mutationFn: async (staffer: VeteranStaffer) => {
+      const res = await apiRequest("POST", "/api/research/staffer", {
+        name: staffer.fullName,
+        title: staffer.currentTitle,
+        organization: staffer.currentOffice,
+        memberName: staffer.currentMemberName,
+      });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const content = data?.data?.rawContent || data?.data?.content || data?.rawContent || data?.content || data?.summary || "";
+      setVetStafferResearchResult(content || (typeof data === "string" ? data : "No research content available."));
+    },
+    onError: (error: Error) => {
+      toast({ title: "Research failed", description: error.message, variant: "destructive" });
+    },
   });
 
   useEffect(() => {
@@ -653,6 +750,10 @@ export default function StaffersPage() {
           <TabsTrigger value="legistorm" data-testid="tab-legistorm">
             <Database className="h-4 w-4 mr-2" />
             LegiStorm Directory
+          </TabsTrigger>
+          <TabsTrigger value="veterans" data-testid="tab-veterans">
+            <Shield className="h-4 w-4 mr-2" />
+            Veterans
           </TabsTrigger>
         </TabsList>
 
