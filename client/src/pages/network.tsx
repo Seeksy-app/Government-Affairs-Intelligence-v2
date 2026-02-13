@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Shield, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,10 +13,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, ClientPortal } from "@shared/schema";
+import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, ClientPortal, VeteranCongressMember, LegistormStaffer } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StafferProfileDialog } from "@/components/staffer-profile-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
 
@@ -164,9 +165,422 @@ function parseStafferInfo(text: string): { intro: string; staffers: ParsedStaffe
   return { intro: introLines.join(' '), staffers };
 }
 
+interface VeteranMemberRecord {
+  id: string;
+  bioguideId: string;
+  memberName: string;
+  chamber: string | null;
+  state: string | null;
+  party: string | null;
+  isVeteran: boolean;
+  serviceBranch: string | null;
+  serviceDetails: string | null;
+  yearsOfService: string | null;
+  rank: string | null;
+  source: string | null;
+  confidence: string | null;
+  researchedAt: string | null;
+}
+
+interface VeteranStaffer {
+  id: string;
+  fullName: string;
+  currentTitle: string | null;
+  currentOffice: string | null;
+  currentMemberName: string | null;
+  chamber: string | null;
+  state: string | null;
+  email: string | null;
+  phone: string | null;
+  careerResearch: string | null;
+}
+
+function VeteransSearch() {
+  const { toast } = useToast();
+  const [veteranMemberSearch, setVeteranMemberSearch] = useState("");
+  const [veteranChamberFilter, setVeteranChamberFilter] = useState("all");
+  const [researchingMembers, setResearchingMembers] = useState(false);
+  const [showStaffers, setShowStaffers] = useState(false);
+
+  const { data: veteranMembers, isLoading: veteranMembersLoading } = useQuery<VeteranMemberRecord[]>({
+    queryKey: ["/api/veterans/members"],
+  });
+
+  const { data: veteranStaffers, isLoading: veteranStaffersLoading } = useQuery<VeteranStaffer[]>({
+    queryKey: ["/api/veterans/staffers"],
+    enabled: showStaffers,
+  });
+
+  const { data: congressMembers } = useQuery<CongressMember[]>({
+    queryKey: ["congress-members-all"],
+    queryFn: async () => {
+      const res = await fetch("/api/congress/members", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch members");
+      return res.json();
+    },
+  });
+
+  const batchResearchMutation = useMutation({
+    mutationFn: async (members: { bioguideId: string; memberName: string; chamber: string; state: string; party: string }[]) => {
+      const res = await apiRequest("POST", "/api/veterans/batch-research", { members });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/veterans/members"] });
+      const veterans = data.results?.filter((r: any) => r.isVeteran) || [];
+      toast({
+        title: "Research Complete",
+        description: `Researched ${data.researched} members. Found ${veterans.length} veterans total.`,
+      });
+      setResearchingMembers(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Research Failed", description: error.message, variant: "destructive" });
+      setResearchingMembers(false);
+    },
+  });
+
+  const singleResearchMutation = useMutation({
+    mutationFn: async (member: { bioguideId: string; memberName: string; chamber: string; state: string; party: string }) => {
+      const res = await apiRequest("POST", "/api/veterans/research", member);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/veterans/members"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Research Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleBatchResearch = () => {
+    if (!congressMembers || congressMembers.length === 0) {
+      toast({ title: "No members loaded", description: "Wait for congress members to load first", variant: "destructive" });
+      return;
+    }
+    setResearchingMembers(true);
+
+    const alreadyResearched = new Set(veteranMembers?.map(v => v.bioguideId) || []);
+    let toResearch = congressMembers
+      .filter(m => !alreadyResearched.has(m.bioguideId))
+      .map(m => ({
+        bioguideId: m.bioguideId,
+        memberName: `${m.firstName} ${m.lastName}`,
+        chamber: m.chamber,
+        state: m.state,
+        party: m.party,
+      }));
+
+    if (veteranChamberFilter !== "all") {
+      toResearch = toResearch.filter(m => m.chamber.toLowerCase() === veteranChamberFilter.toLowerCase());
+    }
+
+    if (toResearch.length === 0) {
+      toast({ title: "All members already researched", description: "No new members to research for veteran status" });
+      setResearchingMembers(false);
+      return;
+    }
+
+    batchResearchMutation.mutate(toResearch.slice(0, 20));
+  };
+
+  const filteredVeterans = useMemo(() => {
+    if (!veteranMembers) return [];
+    let result = veteranMembers.filter(v => v.isVeteran);
+    if (veteranChamberFilter !== "all") {
+      result = result.filter(v => {
+        const member = congressMembers?.find(m => m.bioguideId === v.bioguideId);
+        const chamber = member?.chamber || v.chamber || "";
+        return chamber.toLowerCase() === veteranChamberFilter.toLowerCase();
+      });
+    }
+    if (veteranMemberSearch.trim()) {
+      const q = veteranMemberSearch.toLowerCase();
+      result = result.filter(v =>
+        v.memberName.toLowerCase().includes(q) ||
+        (v.serviceBranch && v.serviceBranch.toLowerCase().includes(q)) ||
+        (v.rank && v.rank.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [veteranMembers, veteranMemberSearch, veteranChamberFilter, congressMembers]);
+
+  const branchColors: Record<string, string> = {
+    "army": "border-green-600 text-green-700 dark:text-green-400",
+    "navy": "border-blue-700 text-blue-700 dark:text-blue-400",
+    "marine": "border-red-700 text-red-700 dark:text-red-400",
+    "marines": "border-red-700 text-red-700 dark:text-red-400",
+    "marine corps": "border-red-700 text-red-700 dark:text-red-400",
+    "air force": "border-sky-600 text-sky-700 dark:text-sky-400",
+    "coast guard": "border-orange-600 text-orange-700 dark:text-orange-400",
+    "space force": "border-indigo-600 text-indigo-700 dark:text-indigo-400",
+    "national guard": "border-yellow-600 text-yellow-700 dark:text-yellow-400",
+  };
+
+  const getBranchColor = (branch: string | null) => {
+    if (!branch) return "";
+    const lower = branch.toLowerCase();
+    for (const [key, cls] of Object.entries(branchColors)) {
+      if (lower.includes(key)) return cls;
+    }
+    return "";
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2" data-testid="text-veterans-title">
+                <Shield className="h-5 w-5" />
+                Veteran Members of Congress
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Find congressional leaders with military service backgrounds
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={veteranChamberFilter} onValueChange={setVeteranChamberFilter}>
+                <SelectTrigger className="w-[140px]" data-testid="select-veteran-chamber">
+                  <SelectValue placeholder="Chamber" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Chambers</SelectItem>
+                  <SelectItem value="house">House</SelectItem>
+                  <SelectItem value="senate">Senate</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleBatchResearch}
+                disabled={researchingMembers || batchResearchMutation.isPending}
+                data-testid="button-research-veterans"
+              >
+                {researchingMembers ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Researching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-2" />
+                    Discover Veterans
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search veterans by name, branch, or rank..."
+                value={veteranMemberSearch}
+                onChange={(e) => setVeteranMemberSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-veterans"
+              />
+            </div>
+          </div>
+
+          {veteranMembersLoading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="p-4 rounded-lg border">
+                  <Skeleton className="h-4 w-32 mb-2" />
+                  <Skeleton className="h-3 w-24 mt-1" />
+                  <Skeleton className="h-3 w-40 mt-1" />
+                </div>
+              ))}
+            </div>
+          ) : filteredVeterans.length > 0 ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-3" data-testid="text-veteran-count">
+                {filteredVeterans.length} veteran{filteredVeterans.length !== 1 ? "s" : ""} found
+              </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredVeterans.map((vet) => {
+                  const member = congressMembers?.find(m => m.bioguideId === vet.bioguideId);
+                  return (
+                    <Card key={vet.id} className="hover-elevate" data-testid={`card-veteran-${vet.bioguideId}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          {member?.imageUrl ? (
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={member.imageUrl} alt={vet.memberName} />
+                              <AvatarFallback>{vet.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                              <Shield className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate" data-testid={`text-veteran-name-${vet.bioguideId}`}>{vet.memberName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {vet.serviceBranch && (
+                                <Badge variant="outline" className={`text-xs ${getBranchColor(vet.serviceBranch)}`} data-testid={`badge-branch-${vet.bioguideId}`}>
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  {vet.serviceBranch}
+                                </Badge>
+                              )}
+                              {vet.rank && (
+                                <Badge variant="secondary" className="text-xs" data-testid={`badge-rank-${vet.bioguideId}`}>
+                                  <Award className="h-3 w-3 mr-1" />
+                                  {vet.rank}
+                                </Badge>
+                              )}
+                            </div>
+                            {vet.yearsOfService && (
+                              <p className="text-xs text-muted-foreground mt-1">{vet.yearsOfService}</p>
+                            )}
+                            {vet.serviceDetails && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{vet.serviceDetails}</p>
+                            )}
+                            {(() => {
+                              const p = member?.party || vet.party;
+                              const s = member?.state || vet.state;
+                              const ch = member?.chamber || vet.chamber;
+                              return (p || s || ch) ? (
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {p && (
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs ${p === "R" ? "border-red-500 text-red-600 dark:text-red-400" : p === "D" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}`}
+                                    >
+                                      {p === "R" ? "Republican" : p === "D" ? "Democrat" : "Independent"}
+                                    </Badge>
+                                  )}
+                                  {s && <span className="text-xs text-muted-foreground">{s}{member?.district ? `-${member.district}` : ""}</span>}
+                                  {ch && <span className="text-xs text-muted-foreground">{ch}</span>}
+                                </div>
+                              ) : null;
+                            })()}
+                            <div className="flex items-center gap-1 mt-1">
+                              <Badge variant="outline" className={`text-xs ${vet.confidence === 'high' ? 'border-green-500 text-green-600' : vet.confidence === 'medium' ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-500'}`}>
+                                {vet.confidence} confidence
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">
+                {veteranMembers && veteranMembers.length > 0
+                  ? "No veterans match your search"
+                  : "No veteran data yet. Click \"Discover Veterans\" to research members of Congress for military service."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2" data-testid="text-veteran-staffers-title">
+                <Users className="h-5 w-5" />
+                Veteran Staffers & Military Liaisons
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Congressional staffers with military or veterans affairs backgrounds
+              </p>
+            </div>
+            <Button
+              variant={showStaffers ? "secondary" : "default"}
+              onClick={() => setShowStaffers(!showStaffers)}
+              data-testid="button-toggle-veteran-staffers"
+            >
+              {showStaffers ? "Hide Staffers" : "Show Staffers"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showStaffers && (
+          <CardContent>
+            {veteranStaffersLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="p-3 rounded-lg border">
+                    <Skeleton className="h-4 w-48 mb-2" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ))}
+              </div>
+            ) : veteranStaffers && veteranStaffers.length > 0 ? (
+              <>
+                <p className="text-sm text-muted-foreground mb-3" data-testid="text-veteran-staffer-count">
+                  {veteranStaffers.length} staffer{veteranStaffers.length !== 1 ? "s" : ""} with military/veterans-related roles
+                </p>
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {veteranStaffers.map((staffer) => (
+                    <div key={staffer.id} className="p-3 rounded-lg border hover-elevate" data-testid={`card-veteran-staffer-${staffer.id}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm" data-testid={`text-staffer-name-${staffer.id}`}>{staffer.fullName}</span>
+                            {staffer.currentTitle && (
+                              <Badge variant="secondary" className="text-xs">{staffer.currentTitle}</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {staffer.currentMemberName && (
+                              <span className="text-xs text-muted-foreground">
+                                Office: {staffer.currentMemberName}
+                              </span>
+                            )}
+                            {staffer.currentOffice && !staffer.currentMemberName && (
+                              <span className="text-xs text-muted-foreground">
+                                {staffer.currentOffice}
+                              </span>
+                            )}
+                            {staffer.chamber && (
+                              <Badge variant="outline" className="text-xs">{staffer.chamber}</Badge>
+                            )}
+                            {staffer.state && (
+                              <span className="text-xs text-muted-foreground">{staffer.state}</span>
+                            )}
+                          </div>
+                          {staffer.email && (
+                            <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
+                              <Mail className="h-3 w-3" />
+                              {staffer.email}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <Users className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  No staffers with military/veterans-related titles found in the directory.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 export default function NetworkPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("network");
   
   // Congress Member filters
   const [memberSearch, setMemberSearch] = useState("");
@@ -737,29 +1151,44 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
             Visualize career paths and connections
           </p>
         </div>
-        
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search staffers by name, title, or org..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9"
-            data-testid="input-search-staffers"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearchQuery("")}
-              data-testid="button-clear-search"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="network" data-testid="tab-network">
+            <Users className="h-4 w-4 mr-2" />
+            Network
+          </TabsTrigger>
+          <TabsTrigger value="veterans" data-testid="tab-veterans">
+            <Shield className="h-4 w-4 mr-2" />
+            Veterans
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="network" className="space-y-6 mt-4">
+        <div className="flex justify-end">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search staffers by name, title, or org..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-search-staffers"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery("")}
+                data-testid="button-clear-search"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
 
       {/* Members Search Section */}
       <Card>
@@ -1096,6 +1525,13 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           </CardContent>
         </Card>
       )}
+
+      </TabsContent>
+
+        <TabsContent value="veterans" className="space-y-6 mt-4">
+          <VeteransSearch />
+        </TabsContent>
+      </Tabs>
 
       {/* Member Detail Sheet */}
       <Sheet open={!!selectedMember} onOpenChange={(open) => !open && handleSelectMember(null)}>

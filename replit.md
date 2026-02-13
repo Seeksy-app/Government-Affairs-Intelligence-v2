@@ -56,3 +56,10 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Influencers Club API**: For tracking and enriching data on social media influencers.
 - **SearchAPI.io**: For Google Rank Tracking API — monitors search result rankings with device/location targeting.
 - **LegiStorm API**: For congressional staff directory data — provides 12,000+ staffer profiles with position histories, contact information, and member associations. Supports full and incremental sync patterns.
+
+### Veterans Search Feature
+- **Veterans Tab** on Network page: Search for congressional members who are military veterans and staffers/liaisons with military backgrounds.
+- **Veteran Members**: Uses Perplexity AI to research veteran status of Congress members. Results cached in `veteran_congress_members` table with service branch, rank, years of service, and confidence level.
+- **Veteran Staffers**: Keyword-searches LegiStorm staffer data for military-related titles (veteran, military liaison, defense, armed services, etc.).
+- **Batch Research**: Can research up to 20 members at a time via AI. Filters by chamber (House/Senate).
+- Routes: `/api/veterans/members`, `/api/veterans/research`, `/api/veterans/batch-research`, `/api/veterans/staffers`.

@@ -26,6 +26,7 @@ import {
   insertStrategyCardSchema,
   legistormStaffers,
   stafferBillAssociations,
+  veteranCongressMembers,
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
 import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
@@ -7883,6 +7884,262 @@ Keep the response practical, actionable, and under 500 words.`;
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to delete card" });
+    }
+  });
+
+  // ========== Veterans Search ==========
+
+  app.get("/api/veterans/members", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(401).json({ message: "No client context" });
+      const { db } = await import("./db");
+      const { eq, and } = await import("drizzle-orm");
+
+      const records = await db.select().from(veteranCongressMembers)
+        .where(and(
+          eq(veteranCongressMembers.clientId, clientId),
+          eq(veteranCongressMembers.isVeteran, true)
+        ));
+      res.json(records);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch veteran members" });
+    }
+  });
+
+  app.post("/api/veterans/research", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(401).json({ message: "No client context" });
+      const { bioguideId, memberName, chamber, state, party } = req.body;
+      if (!bioguideId || !memberName) return res.status(400).json({ message: "bioguideId and memberName required" });
+
+      const { db } = await import("./db");
+      const { eq, and } = await import("drizzle-orm");
+
+      const existing = await db.select().from(veteranCongressMembers)
+        .where(and(
+          eq(veteranCongressMembers.clientId, clientId),
+          eq(veteranCongressMembers.bioguideId, bioguideId)
+        ));
+      if (existing.length > 0) {
+        return res.json(existing[0]);
+      }
+
+      const perplexityKey = process.env.PERPLEXITY_API_KEY;
+      if (!perplexityKey) {
+        return res.status(500).json({ message: "Perplexity API key not configured" });
+      }
+
+      const prompt = `Is ${memberName} (${chamber || "Congress"}, ${party || ""} - ${state || ""}) a military veteran? 
+
+Respond in this exact JSON format only, no other text:
+{
+  "isVeteran": true or false,
+  "serviceBranch": "branch name or null",
+  "serviceDetails": "brief description of military service or null",
+  "yearsOfService": "e.g. 1990-1995 or null",
+  "rank": "highest rank achieved or null",
+  "confidence": "high" or "medium" or "low"
+}`;
+
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 500,
+        }),
+      });
+
+      const data = await response.json();
+      const rawContent = data.choices?.[0]?.message?.content || "";
+      
+      let parsed: any = { isVeteran: false, confidence: "low" };
+      try {
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error("Failed to parse veteran research response:", rawContent);
+      }
+
+      const record = await db.insert(veteranCongressMembers).values({
+        clientId,
+        bioguideId,
+        memberName,
+        chamber: chamber || null,
+        state: state || null,
+        party: party || null,
+        isVeteran: !!parsed.isVeteran,
+        serviceBranch: parsed.serviceBranch || null,
+        serviceDetails: parsed.serviceDetails || null,
+        yearsOfService: parsed.yearsOfService || null,
+        rank: parsed.rank || null,
+        source: "ai_research",
+        confidence: parsed.confidence || "medium",
+      }).returning();
+
+      res.json(record[0]);
+    } catch (error: any) {
+      console.error("Error researching veteran status:", error);
+      res.status(500).json({ message: error.message || "Failed to research veteran status" });
+    }
+  });
+
+  app.post("/api/veterans/batch-research", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(401).json({ message: "No client context" });
+      const { members } = req.body;
+      if (!members || !Array.isArray(members) || members.length === 0) {
+        return res.status(400).json({ message: "members array required" });
+      }
+
+      const perplexityKey = process.env.PERPLEXITY_API_KEY;
+      if (!perplexityKey) {
+        return res.status(500).json({ message: "Perplexity API key not configured" });
+      }
+
+      const { db } = await import("./db");
+      const { eq, and, inArray } = await import("drizzle-orm");
+
+      const existingRecords = await db.select().from(veteranCongressMembers)
+        .where(and(
+          eq(veteranCongressMembers.clientId, clientId),
+          inArray(veteranCongressMembers.bioguideId, members.map((m: any) => m.bioguideId))
+        ));
+      const existingIds = new Set(existingRecords.map(r => r.bioguideId));
+      const toResearch = members.filter((m: any) => !existingIds.has(m.bioguideId)).slice(0, 20);
+
+      if (toResearch.length === 0) {
+        return res.json({ results: existingRecords, researched: 0 });
+      }
+
+      const memberList = toResearch.map((m: any) => 
+        `- ${m.memberName} (${m.chamber || "Congress"}, ${m.party || ""} - ${m.state || ""})`
+      ).join("\n");
+
+      const prompt = `For each of these Members of Congress, determine if they are a military veteran. Respond with a JSON array only, no other text.
+
+Members:
+${memberList}
+
+Respond in this exact JSON format only:
+[
+  {
+    "memberName": "Name",
+    "isVeteran": true or false,
+    "serviceBranch": "branch name or null",
+    "serviceDetails": "brief description or null",
+    "yearsOfService": "e.g. 1990-1995 or null",
+    "rank": "highest rank or null",
+    "confidence": "high" or "medium" or "low"
+  }
+]`;
+
+      const response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 3000,
+        }),
+      });
+
+      const data = await response.json();
+      const rawContent = data.choices?.[0]?.message?.content || "";
+
+      let parsedResults: any[] = [];
+      try {
+        const jsonMatch = rawContent.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          parsedResults = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        console.error("Failed to parse batch veteran research:", rawContent);
+      }
+
+      const newRecords = [];
+      for (const result of parsedResults) {
+        const member = toResearch.find((m: any) => 
+          m.memberName.toLowerCase() === result.memberName?.toLowerCase()
+        );
+        if (!member) continue;
+
+        try {
+          const record = await db.insert(veteranCongressMembers).values({
+            clientId,
+            bioguideId: member.bioguideId,
+            memberName: member.memberName,
+            chamber: member.chamber || null,
+            state: member.state || null,
+            party: member.party || null,
+            isVeteran: !!result.isVeteran,
+            serviceBranch: result.serviceBranch || null,
+            serviceDetails: result.serviceDetails || null,
+            yearsOfService: result.yearsOfService || null,
+            rank: result.rank || null,
+            source: "ai_research",
+            confidence: result.confidence || "medium",
+          }).returning();
+          newRecords.push(record[0]);
+        } catch (insertErr) {
+          console.error("Error inserting veteran record for", member.memberName, insertErr);
+        }
+      }
+
+      const allRecords = [...existingRecords, ...newRecords];
+      res.json({ results: allRecords, researched: newRecords.length });
+    } catch (error: any) {
+      console.error("Error batch researching veterans:", error);
+      res.status(500).json({ message: error.message || "Failed to batch research veterans" });
+    }
+  });
+
+  app.get("/api/veterans/staffers", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { or, ilike, sql } = await import("drizzle-orm");
+
+      const militaryKeywords = [
+        '%veteran%', '%military%', '%armed forces%', '%army%', '%navy%', '%marine%',
+        '%air force%', '%coast guard%', '%national guard%', '%defense%', '%DOD%',
+        '%pentagon%', '%VA %', '%veterans affairs%', '%military liaison%',
+        '%defense liaison%', '%armed services%', '%space force%'
+      ];
+
+      const titleConditions = militaryKeywords.map(kw => ilike(legistormStaffers.currentTitle, kw));
+      const careerConditions = militaryKeywords.map(kw => ilike(legistormStaffers.careerResearch, kw));
+
+      const staffers = await db.select().from(legistormStaffers)
+        .where(or(...titleConditions, ...careerConditions))
+        .limit(200);
+
+      res.json(staffers);
+    } catch (error: any) {
+      console.error("Error fetching veteran staffers:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch veteran staffers" });
+    }
+  });
+
+  app.delete("/api/veterans/members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+      await db.delete(veteranCongressMembers).where(eq(veteranCongressMembers.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete veteran record" });
     }
   });
 

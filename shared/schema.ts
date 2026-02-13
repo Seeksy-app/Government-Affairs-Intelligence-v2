@@ -1353,3 +1353,29 @@ export const insertStrategyCardSchema = createInsertSchema(strategyCards).omit({
 
 export type InsertStrategyCard = z.infer<typeof insertStrategyCardSchema>;
 export type StrategyCard = typeof strategyCards.$inferSelect;
+
+export const veteranCongressMembers = pgTable("veteran_congress_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  bioguideId: text("bioguide_id").notNull(),
+  memberName: text("member_name").notNull(),
+  chamber: text("chamber"),
+  state: text("state"),
+  party: text("party"),
+  isVeteran: boolean("is_veteran").default(false),
+  serviceBranch: text("service_branch"),
+  serviceDetails: text("service_details"),
+  yearsOfService: text("years_of_service"),
+  rank: text("rank"),
+  source: text("source").default("ai_research"),
+  confidence: text("confidence").default("medium"),
+  researchedAt: timestamp("researched_at").defaultNow(),
+});
+
+export const insertVeteranCongressMemberSchema = createInsertSchema(veteranCongressMembers).omit({
+  id: true,
+  researchedAt: true,
+});
+
+export type InsertVeteranCongressMember = z.infer<typeof insertVeteranCongressMemberSchema>;
+export type VeteranCongressMember = typeof veteranCongressMembers.$inferSelect;
