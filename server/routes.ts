@@ -8021,24 +8021,25 @@ Respond in this exact JSON format only, no other text:
         return res.json({ results: existingRecords, researched: 0 });
       }
 
-      const memberList = toResearch.map((m: any) => 
-        `- ${m.memberName} (${m.chamber || "Congress"}, ${m.party || ""} - ${m.state || ""})`
+      const memberList = toResearch.map((m: any, i: number) => 
+        `${i + 1}. ${m.memberName} [ID:${m.bioguideId}] (${m.chamber || "Congress"}, ${m.party || ""} - ${m.state || ""})`
       ).join("\n");
 
-      const prompt = `For each of these Members of Congress, determine if they are a military veteran. Respond with a JSON array only, no other text.
+      const prompt = `For each of these current Members of Congress, determine if they are a military veteran. Research their background thoroughly. Respond with a JSON array only, no other text.
 
 Members:
 ${memberList}
 
-Respond in this exact JSON format only:
+Respond in this exact JSON format only, including the ID field exactly as provided:
 [
   {
-    "memberName": "Name",
+    "id": "bioguideId from the list",
+    "memberName": "Name exactly as listed",
     "isVeteran": true or false,
     "serviceBranch": "branch name or null",
-    "serviceDetails": "brief description or null",
+    "serviceDetails": "brief description of service or null",
     "yearsOfService": "e.g. 1990-1995 or null",
-    "rank": "highest rank or null",
+    "rank": "highest rank achieved or null",
     "confidence": "high" or "medium" or "low"
   }
 ]`;
@@ -8069,12 +8070,33 @@ Respond in this exact JSON format only:
         console.error("Failed to parse batch veteran research:", rawContent);
       }
 
+      const matchedBioguides = new Set<string>();
       const newRecords = [];
       for (const result of parsedResults) {
-        const member = toResearch.find((m: any) => 
-          m.memberName.toLowerCase() === result.memberName?.toLowerCase()
-        );
-        if (!member) continue;
+        let member = result.id ? toResearch.find((m: any) => m.bioguideId === result.id && !matchedBioguides.has(m.bioguideId)) : null;
+
+        if (!member) {
+          const resultName = (result.memberName || "").toLowerCase().trim();
+          member = toResearch.find((m: any) => {
+            if (matchedBioguides.has(m.bioguideId)) return false;
+            const mName = m.memberName.toLowerCase().trim();
+            if (mName === resultName) return true;
+            if (resultName.includes(mName) || mName.includes(resultName)) return true;
+            const mParts = mName.split(/\s+/);
+            const rParts = resultName.split(/\s+/);
+            const mLast = mParts[mParts.length - 1];
+            const rLast = rParts[rParts.length - 1];
+            const mFirst = mParts[0] || "";
+            const rFirst = rParts[0] || "";
+            if (mLast === rLast && mFirst === rFirst) return true;
+            return false;
+          });
+        }
+        if (!member) {
+          console.warn("[Veterans] Could not match AI result:", result.id, result.memberName);
+          continue;
+        }
+        matchedBioguides.add(member.bioguideId);
 
         try {
           const record = await db.insert(veteranCongressMembers).values({
@@ -8123,7 +8145,7 @@ Respond in this exact JSON format only:
 
       const staffers = await db.select().from(legistormStaffers)
         .where(or(...titleConditions, ...careerConditions))
-        .limit(200);
+        .limit(1000);
 
       res.json(staffers);
     } catch (error: any) {

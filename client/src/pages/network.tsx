@@ -200,7 +200,11 @@ function VeteransSearch() {
   const [veteranMemberSearch, setVeteranMemberSearch] = useState("");
   const [veteranChamberFilter, setVeteranChamberFilter] = useState("all");
   const [researchingMembers, setResearchingMembers] = useState(false);
-  const [showStaffers, setShowStaffers] = useState(false);
+  const [researchProgress, setResearchProgress] = useState({ done: 0, total: 0, veteransFound: 0 });
+  const [showStaffers, setShowStaffers] = useState(true);
+  const [selectedVeteran, setSelectedVeteran] = useState<VeteranMemberRecord | null>(null);
+  const [selectedStaffer, setSelectedStaffer] = useState<VeteranStaffer | null>(null);
+  const [stafferSearch, setStafferSearch] = useState("");
 
   const { data: veteranMembers, isLoading: veteranMembersLoading } = useQuery<VeteranMemberRecord[]>({
     queryKey: ["/api/veterans/members"],
@@ -208,7 +212,6 @@ function VeteransSearch() {
 
   const { data: veteranStaffers, isLoading: veteranStaffersLoading } = useQuery<VeteranStaffer[]>({
     queryKey: ["/api/veterans/staffers"],
-    enabled: showStaffers,
   });
 
   const { data: congressMembers } = useQuery<CongressMember[]>({
@@ -220,25 +223,66 @@ function VeteransSearch() {
     },
   });
 
-  const batchResearchMutation = useMutation({
-    mutationFn: async (members: { bioguideId: string; memberName: string; chamber: string; state: string; party: string }[]) => {
-      const res = await apiRequest("POST", "/api/veterans/batch-research", { members });
-      return res.json();
-    },
-    onSuccess: (data) => {
+  const researchBatch = async (members: { bioguideId: string; memberName: string; chamber: string; state: string; party: string }[]) => {
+    const res = await apiRequest("POST", "/api/veterans/batch-research", { members });
+    return res.json();
+  };
+
+  const handleBatchResearch = async () => {
+    if (!congressMembers || congressMembers.length === 0) {
+      toast({ title: "No members loaded", description: "Wait for congress members to load first", variant: "destructive" });
+      return;
+    }
+    setResearchingMembers(true);
+
+    try {
+      const alreadyResearched = new Set(veteranMembers?.map(v => v.bioguideId) || []);
+      let toResearch = congressMembers
+        .filter(m => !alreadyResearched.has(m.bioguideId))
+        .map(m => ({
+          bioguideId: m.bioguideId,
+          memberName: `${m.firstName} ${m.lastName}`,
+          chamber: m.chamber,
+          state: m.state,
+          party: m.party,
+        }));
+
+      if (veteranChamberFilter !== "all") {
+        toResearch = toResearch.filter(m => m.chamber.toLowerCase() === veteranChamberFilter.toLowerCase());
+      }
+
+      if (toResearch.length === 0) {
+        toast({ title: "All members already researched", description: "No new members to research for veteran status" });
+        return;
+      }
+
+      setResearchProgress({ done: 0, total: toResearch.length, veteransFound: 0 });
+      let totalVeteransFound = 0;
+      const batchSize = 20;
+
+      for (let i = 0; i < toResearch.length; i += batchSize) {
+        const batch = toResearch.slice(i, i + batchSize);
+        try {
+          const data = await researchBatch(batch);
+          const batchVeterans = data.results?.filter((r: any) => r.isVeteran)?.length || 0;
+          totalVeteransFound += batchVeterans;
+          setResearchProgress({ done: Math.min(i + batchSize, toResearch.length), total: toResearch.length, veteransFound: totalVeteransFound });
+          queryClient.invalidateQueries({ queryKey: ["/api/veterans/members"] });
+        } catch (err: any) {
+          console.error("Batch research error:", err);
+          toast({ title: "Batch Error", description: `Error researching batch ${Math.floor(i/batchSize) + 1}: ${err.message}`, variant: "destructive" });
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/veterans/members"] });
-      const veterans = data.results?.filter((r: any) => r.isVeteran) || [];
       toast({
         title: "Research Complete",
-        description: `Researched ${data.researched} members. Found ${veterans.length} veterans total.`,
+        description: `Researched ${toResearch.length} members. Found ${totalVeteransFound} veterans.`,
       });
+    } finally {
       setResearchingMembers(false);
-    },
-    onError: (error: any) => {
-      toast({ title: "Research Failed", description: error.message, variant: "destructive" });
-      setResearchingMembers(false);
-    },
-  });
+    }
+  };
 
   const singleResearchMutation = useMutation({
     mutationFn: async (member: { bioguideId: string; memberName: string; chamber: string; state: string; party: string }) => {
@@ -253,36 +297,17 @@ function VeteransSearch() {
     },
   });
 
-  const handleBatchResearch = () => {
-    if (!congressMembers || congressMembers.length === 0) {
-      toast({ title: "No members loaded", description: "Wait for congress members to load first", variant: "destructive" });
-      return;
-    }
-    setResearchingMembers(true);
-
-    const alreadyResearched = new Set(veteranMembers?.map(v => v.bioguideId) || []);
-    let toResearch = congressMembers
-      .filter(m => !alreadyResearched.has(m.bioguideId))
-      .map(m => ({
-        bioguideId: m.bioguideId,
-        memberName: `${m.firstName} ${m.lastName}`,
-        chamber: m.chamber,
-        state: m.state,
-        party: m.party,
-      }));
-
-    if (veteranChamberFilter !== "all") {
-      toResearch = toResearch.filter(m => m.chamber.toLowerCase() === veteranChamberFilter.toLowerCase());
-    }
-
-    if (toResearch.length === 0) {
-      toast({ title: "All members already researched", description: "No new members to research for veteran status" });
-      setResearchingMembers(false);
-      return;
-    }
-
-    batchResearchMutation.mutate(toResearch.slice(0, 20));
-  };
+  const filteredStaffers = useMemo(() => {
+    if (!veteranStaffers) return [];
+    if (!stafferSearch.trim()) return veteranStaffers;
+    const q = stafferSearch.toLowerCase();
+    return veteranStaffers.filter(s =>
+      s.fullName.toLowerCase().includes(q) ||
+      (s.currentTitle && s.currentTitle.toLowerCase().includes(q)) ||
+      (s.currentMemberName && s.currentMemberName.toLowerCase().includes(q)) ||
+      (s.state && s.state.toLowerCase().includes(q))
+    );
+  }, [veteranStaffers, stafferSearch]);
 
   const filteredVeterans = useMemo(() => {
     if (!veteranMembers) return [];
@@ -353,13 +378,15 @@ function VeteransSearch() {
               </Select>
               <Button
                 onClick={handleBatchResearch}
-                disabled={researchingMembers || batchResearchMutation.isPending}
+                disabled={researchingMembers}
                 data-testid="button-research-veterans"
               >
                 {researchingMembers ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Researching...
+                    {researchProgress.total > 0 
+                      ? `${researchProgress.done}/${researchProgress.total} (${researchProgress.veteransFound} found)`
+                      : "Researching..."}
                   </>
                 ) : (
                   <>
@@ -404,7 +431,7 @@ function VeteransSearch() {
                 {filteredVeterans.map((vet) => {
                   const member = congressMembers?.find(m => m.bioguideId === vet.bioguideId);
                   return (
-                    <Card key={vet.id} className="hover-elevate" data-testid={`card-veteran-${vet.bioguideId}`}>
+                    <Card key={vet.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedVeteran(vet)} data-testid={`card-veteran-${vet.bioguideId}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
                           {member?.imageUrl ? (
@@ -464,6 +491,7 @@ function VeteransSearch() {
                               </Badge>
                             </div>
                           </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                         </div>
                       </CardContent>
                     </Card>
@@ -518,12 +546,24 @@ function VeteransSearch() {
               </div>
             ) : veteranStaffers && veteranStaffers.length > 0 ? (
               <>
-                <p className="text-sm text-muted-foreground mb-3" data-testid="text-veteran-staffer-count">
-                  {veteranStaffers.length} staffer{veteranStaffers.length !== 1 ? "s" : ""} with military/veterans-related roles
-                </p>
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <p className="text-sm text-muted-foreground" data-testid="text-veteran-staffer-count">
+                    {filteredStaffers.length} of {veteranStaffers.length} staffer{veteranStaffers.length !== 1 ? "s" : ""} with military/veterans-related roles
+                  </p>
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search staffers by name, title, office..."
+                      value={stafferSearch}
+                      onChange={(e) => setStafferSearch(e.target.value)}
+                      className="pl-9"
+                      data-testid="input-search-staffers"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {veteranStaffers.map((staffer) => (
-                    <div key={staffer.id} className="p-3 rounded-lg border hover-elevate" data-testid={`card-veteran-staffer-${staffer.id}`}>
+                  {filteredStaffers.map((staffer) => (
+                    <div key={staffer.id} className="p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSelectedStaffer(staffer)} data-testid={`card-veteran-staffer-${staffer.id}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -551,12 +591,13 @@ function VeteransSearch() {
                             )}
                           </div>
                           {staffer.email && (
-                            <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1">
+                            <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
                               <Mail className="h-3 w-3" />
                               {staffer.email}
                             </a>
                           )}
                         </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                       </div>
                     </div>
                   ))}
@@ -573,6 +614,245 @@ function VeteransSearch() {
           </CardContent>
         )}
       </Card>
+
+      <Sheet open={!!selectedVeteran} onOpenChange={(open) => !open && setSelectedVeteran(null)}>
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+          {selectedVeteran && (() => {
+            const member = congressMembers?.find(m => m.bioguideId === selectedVeteran.bioguideId);
+            const p = member?.party || selectedVeteran.party;
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-3">
+                    {member?.imageUrl ? (
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={member.imageUrl} alt={selectedVeteran.memberName} />
+                        <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                        <Shield className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-lg">{selectedVeteran.memberName}</span>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {p && (
+                          <Badge variant="outline" className={`text-xs ${p === "R" ? "border-red-500 text-red-600 dark:text-red-400" : p === "D" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}`}>
+                            {p === "R" ? "Republican" : p === "D" ? "Democrat" : "Independent"}
+                          </Badge>
+                        )}
+                        {(member?.state || selectedVeteran.state) && (
+                          <span className="text-sm text-muted-foreground">{member?.state || selectedVeteran.state}{member?.district ? `-${member.district}` : ""}</span>
+                        )}
+                        {(member?.chamber || selectedVeteran.chamber) && (
+                          <Badge variant="outline" className="text-xs">{member?.chamber || selectedVeteran.chamber}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </SheetTitle>
+                  <SheetDescription>Veteran Military Service Details</SheetDescription>
+                </SheetHeader>
+                <div className="space-y-4 mt-6">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Military Service
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedVeteran.serviceBranch && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Branch</p>
+                          <Badge variant="outline" className={`mt-1 ${getBranchColor(selectedVeteran.serviceBranch)}`}>
+                            <Shield className="h-3 w-3 mr-1" />
+                            {selectedVeteran.serviceBranch}
+                          </Badge>
+                        </div>
+                      )}
+                      {selectedVeteran.rank && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Rank</p>
+                          <Badge variant="secondary" className="mt-1">
+                            <Award className="h-3 w-3 mr-1" />
+                            {selectedVeteran.rank}
+                          </Badge>
+                        </div>
+                      )}
+                      {selectedVeteran.yearsOfService && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Years of Service</p>
+                          <p className="text-sm mt-1">{selectedVeteran.yearsOfService}</p>
+                        </div>
+                      )}
+                      {selectedVeteran.confidence && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Confidence</p>
+                          <Badge variant="outline" className={`mt-1 text-xs ${selectedVeteran.confidence === 'high' ? 'border-green-500 text-green-600' : selectedVeteran.confidence === 'medium' ? 'border-yellow-500 text-yellow-600' : 'border-gray-500'}`}>
+                            {selectedVeteran.confidence}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                    {selectedVeteran.serviceDetails && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Service Details</p>
+                        <p className="text-sm leading-relaxed">{selectedVeteran.serviceDetails}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {member && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Landmark className="h-4 w-4" />
+                        Congressional Info
+                      </h4>
+                      {member.officeAddress && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <span className="text-sm">{member.officeAddress}</span>
+                        </div>
+                      )}
+                      {member.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a href={`tel:${member.phone}`} className="text-sm hover:text-primary">{member.phone}</a>
+                        </div>
+                      )}
+                      {member.website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <a href={member.website} target="_blank" rel="noopener noreferrer" className="text-sm hover:text-primary truncate">{member.website}</a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedVeteran.researchedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Researched: {new Date(selectedVeteran.researchedAt).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      singleResearchMutation.mutate({
+                        bioguideId: selectedVeteran.bioguideId,
+                        memberName: selectedVeteran.memberName,
+                        chamber: member?.chamber || selectedVeteran.chamber || "",
+                        state: member?.state || selectedVeteran.state || "",
+                        party: member?.party || selectedVeteran.party || "",
+                      });
+                    }}
+                    disabled={singleResearchMutation.isPending}
+                    data-testid="button-re-research-veteran"
+                  >
+                    {singleResearchMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Re-researching...</>
+                    ) : (
+                      <><RefreshCw className="h-4 w-4 mr-2" /> Re-research Veteran Status</>
+                    )}
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!selectedStaffer} onOpenChange={(open) => !open && setSelectedStaffer(null)}>
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+          {selectedStaffer && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-3">
+                  <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                    <Users className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <span className="text-lg">{selectedStaffer.fullName}</span>
+                    {selectedStaffer.currentTitle && (
+                      <div className="mt-1">
+                        <Badge variant="secondary" className="text-xs">{selectedStaffer.currentTitle}</Badge>
+                      </div>
+                    )}
+                  </div>
+                </SheetTitle>
+                <SheetDescription>Congressional Staffer Details</SheetDescription>
+              </SheetHeader>
+              <div className="space-y-4 mt-6">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    Current Position
+                  </h4>
+                  {selectedStaffer.currentMemberName && (
+                    <div className="flex items-center gap-2">
+                      <Landmark className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Office of {selectedStaffer.currentMemberName}</span>
+                    </div>
+                  )}
+                  {selectedStaffer.currentOffice && !selectedStaffer.currentMemberName && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedStaffer.currentOffice}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedStaffer.chamber && (
+                      <Badge variant="outline" className="text-xs">{selectedStaffer.chamber}</Badge>
+                    )}
+                    {selectedStaffer.state && (
+                      <span className="text-sm text-muted-foreground">{selectedStaffer.state}</span>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Contact
+                  </h4>
+                  {selectedStaffer.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <a href={`mailto:${selectedStaffer.email}`} className="text-sm hover:text-primary">{selectedStaffer.email}</a>
+                    </div>
+                  )}
+                  {selectedStaffer.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <a href={`tel:${selectedStaffer.phone}`} className="text-sm hover:text-primary">{selectedStaffer.phone}</a>
+                    </div>
+                  )}
+                  {!selectedStaffer.email && !selectedStaffer.phone && (
+                    <p className="text-sm text-muted-foreground">No contact information available</p>
+                  )}
+                </div>
+
+                {selectedStaffer.careerResearch && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Career Research
+                      </h4>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedStaffer.careerResearch}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
