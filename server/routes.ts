@@ -823,10 +823,16 @@ export async function registerRoutes(
       req.session.impersonatingClientId = clientId;
       req.session.impersonatingClientName = client.name;
       
-      res.json({ 
-        success: true, 
-        impersonatingClientId: clientId,
-        impersonatingClientName: client.name,
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Error saving session after impersonation:", err);
+          return res.status(500).json({ message: "Failed to save session" });
+        }
+        res.json({ 
+          success: true, 
+          impersonatingClientId: clientId,
+          impersonatingClientName: client.name,
+        });
       });
     } catch (error) {
       console.error("Error impersonating client:", error);
@@ -8175,10 +8181,8 @@ Respond in this exact JSON format only, including the ID field exactly as provid
   app.get("/api/modules", isAuthenticated, async (req, res) => {
     try {
       const modules = await storage.getModules();
-      console.log(`[Modules] GET /api/modules returning ${modules.length} modules:`, modules.map(m => m.key));
       res.json(modules);
     } catch (error: any) {
-      console.error("[Modules] GET /api/modules error:", error?.message || error);
       res.status(500).json({ message: error?.message || "Failed to fetch modules" });
     }
   });

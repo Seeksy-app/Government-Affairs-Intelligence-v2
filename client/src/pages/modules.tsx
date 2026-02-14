@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, BookOpen, Puzzle, Check, X, RefreshCw } from "lucide-react";
+import { Trophy, BookOpen, Puzzle, Check, X, RefreshCw, BarChart3 } from "lucide-react";
 import type { PlatformModule, ClientModule } from "@shared/schema";
 
 interface UserRole {
@@ -23,6 +23,7 @@ const moduleIcons: Record<string, any> = {
   Trophy,
   BookOpen,
   Puzzle,
+  BarChart3,
 };
 
 export default function ModulesPage() {
@@ -79,6 +80,7 @@ export default function ModulesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", effectiveClientId, "modules"] });
       queryClient.invalidateQueries({ queryKey: ["/api/modules/check/sports"] });
       queryClient.invalidateQueries({ queryKey: ["/api/modules/check/legistorm"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/modules/check/marketing_intelligence"] });
       toast({ title: "Module updated" });
     },
     onError: (error: Error) => {

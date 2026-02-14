@@ -47,9 +47,11 @@ export default function MarketingIntelligencePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [aiQuestion, setAiQuestion] = useState("");
 
-  const { data: moduleCheck } = useQuery<{ enabled: boolean }>({
+  const { data: moduleCheck, isLoading: moduleCheckLoading } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/modules/check/marketing_intelligence"],
     enabled: !!user,
+    staleTime: 30000,
+    retry: 2,
   });
 
   const { data: marketingData = [], isLoading } = useQuery<MarketingIntelligenceData[]>({
@@ -75,6 +77,17 @@ export default function MarketingIntelligencePage() {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     },
   });
+
+  if (moduleCheckLoading) {
+    return (
+      <div className="p-6 space-y-4" data-testid="marketing-loading">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+      </div>
+    );
+  }
 
   if (moduleCheck?.enabled === false) {
     return (
