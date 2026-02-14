@@ -8286,6 +8286,7 @@ Respond in this exact JSON format only, including the ID field exactly as provid
     notes: z.string().optional(),
     outreachStatus: z.string().optional(),
     outreachNotes: z.string().optional(),
+    abbreviation: z.string().optional(),
   });
 
   app.post("/api/sports/teams", isAuthenticated, async (req, res) => {
