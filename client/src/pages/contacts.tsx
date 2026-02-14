@@ -402,6 +402,12 @@ export default function Contacts() {
               ))}
             </div>
           ) : filteredContacts && filteredContacts.length > 0 ? (
+            <>
+            <p className="text-sm text-muted-foreground mb-3" data-testid="text-contacts-count">
+              {filteredContacts.length === (contacts?.length || 0)
+                ? `${filteredContacts.length} contact${filteredContacts.length !== 1 ? "s" : ""} found`
+                : `${filteredContacts.length} of ${contacts?.length || 0} contacts found`}
+            </p>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredContacts.map((contact) => (
                 <Card key={contact.id} className="hover-elevate" data-testid={`contact-card-${contact.id}`}>
@@ -489,6 +495,7 @@ export default function Contacts() {
                 </Card>
               ))}
             </div>
+            </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />

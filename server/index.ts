@@ -8,7 +8,8 @@ import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClient
 import { syncHouseDirectoryToDb, getDirectoryStats } from "./services/house-directory-service";
 import { resumeInterruptedSync } from "./services/legistorm-service";
 import { db } from "./db";
-import { clients } from "@shared/schema";
+import { clients, platformModules } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 const app = express();
 const httpServer = createServer(app);
@@ -74,6 +75,40 @@ app.use((req, res, next) => {
     await seedDatabase();
   } catch (error) {
     console.error("Error seeding database:", error);
+  }
+
+  // Ensure platform modules exist (idempotent - runs every startup)
+  try {
+    const requiredModules = [
+      { key: "sports", name: "Sports Intelligence", description: "Research and track professional and college sports teams, franchises, and key contacts for partnership development.", category: "intelligence", icon: "Trophy" },
+      { key: "marketing_intelligence", name: "Marketing Intelligence", description: "Comprehensive marketing ROI analysis, channel performance tracking, and AI-powered GTM recommendations", category: "analytics", icon: "BarChart3" },
+      { key: "legistorm", name: "LegiStorm Directory", description: "Access the full LegiStorm Congressional Staff Directory with 17,900+ staffers, position histories, and career research.", category: "directory", icon: "BookOpen" },
+    ];
+    for (const mod of requiredModules) {
+      const [existing] = await db.select().from(platformModules).where(eq(platformModules.key, mod.key));
+      if (!existing) {
+        await db.insert(platformModules).values(mod);
+        console.log(`Created platform module: ${mod.name}`);
+      }
+    }
+
+    // Auto-enable modules for Adam Consulting Group
+    const { clientModules } = await import("@shared/schema");
+    const { and } = await import("drizzle-orm");
+    const [adamClient] = await db.select().from(clients).where(eq(clients.name, "Adam Consulting Group"));
+    if (adamClient) {
+      const allModules = await db.select().from(platformModules);
+      for (const mod of allModules) {
+        const [existing] = await db.select().from(clientModules)
+          .where(and(eq(clientModules.clientId, adamClient.id), eq(clientModules.moduleId, mod.id)));
+        if (!existing) {
+          await db.insert(clientModules).values({ clientId: adamClient.id, moduleId: mod.id, enabled: true });
+          console.log(`Enabled module "${mod.name}" for Adam Consulting Group`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error initializing platform modules:", error);
   }
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

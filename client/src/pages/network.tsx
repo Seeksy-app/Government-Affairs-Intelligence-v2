@@ -477,7 +477,9 @@ function VeteransSearch() {
           ) : filteredVeterans.length > 0 ? (
             <>
               <p className="text-sm text-muted-foreground mb-3" data-testid="text-veteran-count">
-                {filteredVeterans.length} veteran{filteredVeterans.length !== 1 ? "s" : ""} found
+                {filteredVeterans.length === (veteranMembers?.filter(v => v.isVeteran).length || 0)
+                  ? `${filteredVeterans.length} veteran${filteredVeterans.length !== 1 ? "s" : ""} found`
+                  : `${filteredVeterans.length} of ${veteranMembers?.filter(v => v.isVeteran).length || 0} veterans found`}
               </p>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredVeterans.map((vet) => {

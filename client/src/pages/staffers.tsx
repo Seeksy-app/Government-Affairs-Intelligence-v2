@@ -850,8 +850,10 @@ export default function StaffersPage() {
             </Card>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">
-                Found {searchResult?.total || staffers.length} staffer(s)
+              <p className="text-sm text-muted-foreground" data-testid="text-staffer-count">
+                {(search || chamber !== "all" || party !== "all") && stats?.totalStaffers
+                  ? `${searchResult?.total || staffers.length} of ${stats.totalStaffers} staffers found`
+                  : `${searchResult?.total || staffers.length} staffer${(searchResult?.total || staffers.length) !== 1 ? "s" : ""} found`}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {staffers.map((staffer) => (
