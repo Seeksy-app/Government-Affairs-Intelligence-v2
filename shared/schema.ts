@@ -1448,6 +1448,8 @@ export const sportsTeams = pgTable("sports_teams", {
   outreachNotes: text("outreach_notes"),
   lastContactedAt: timestamp("last_contacted_at"),
   isTracked: boolean("is_tracked").default(true),
+  isFavorite: boolean("is_favorite").default(false),
+  abbreviation: text("abbreviation"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
