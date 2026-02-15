@@ -64,7 +64,7 @@ The platform supports multiple client firms, each with isolated data, managed by
 
 ### Sports Intelligence Module
 - **Teams**: Search, track, and manage professional and college sports teams. Supports league/sport/level filtering. AI-powered team search via Perplexity. Schema: `sports_teams` table.
-- **Contacts**: Find and manage contacts at sports organizations. PDL People Search for discovering key personnel. Schema: `sports_contacts` table.
+- **Contacts**: Find and manage contacts at sports organizations. Multi-source people finder (`server/services/sports-people-finder.ts`) chains PDL People Search, Perplexity AI research, and Firecrawl web scraping with deduplication. Results show source attribution (PDL/AI/Web). Schema: `sports_contacts` table.
 - **AI Research**: Perplexity-powered research on teams. Firecrawl web scraping for team websites.
 - **Outreach Pipeline**: Track partnership outreach status (not_started → researching → targeted → contacted → meeting → partnered/declined).
 - Route: `/sports`. Gated by sports module enablement.

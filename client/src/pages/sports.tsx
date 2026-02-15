@@ -210,8 +210,8 @@ export default function SportsPage() {
   });
 
   const findPeopleMutation = useMutation({
-    mutationFn: async ({ id, jobTitle }: { id: string; jobTitle?: string }) => {
-      const res = await apiRequest("POST", `/api/sports/teams/${id}/find-people`, { jobTitle });
+    mutationFn: async ({ id, jobTitle, searchType }: { id: string; jobTitle?: string; searchType?: "people" | "leadership" }) => {
+      const res = await apiRequest("POST", `/api/sports/teams/${id}/find-people`, { jobTitle, searchType: searchType || "people" });
       return res.json();
     },
     onError: (error: Error) => toast({ title: "Search failed", description: error.message, variant: "destructive" }),
@@ -1082,12 +1082,13 @@ export default function SportsPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     <UserSearch className="h-4 w-4" />
-                    Find Key People (PDL)
+                    Find Key People
                   </h4>
+                  <p className="text-xs text-muted-foreground">Searches PDL, AI research, and team websites</p>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, jobTitle: "community relations OR partnerships OR ticket operations" })}
+                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, searchType: "people" })}
                       disabled={findPeopleMutation.isPending}
                       data-testid="button-find-people"
                     >
@@ -1095,27 +1096,40 @@ export default function SportsPage() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, jobTitle: "VP OR Director OR President" })}
+                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, searchType: "leadership" })}
                       disabled={findPeopleMutation.isPending}
                       data-testid="button-find-leadership"
                     >
-                      <Users className="h-4 w-4 mr-2" /> Find Leadership
+                      {findPeopleMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Searching...</> : <><Users className="h-4 w-4 mr-2" /> Find Leadership</>}
                     </Button>
                   </div>
+                  {findPeopleMutation.data?.sources && findPeopleMutation.data.sources.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Sources:</span>
+                      {findPeopleMutation.data.sources.map((source: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="text-xs">{source}</Badge>
+                      ))}
+                    </div>
+                  )}
                   {findPeopleMutation.data?.data && findPeopleMutation.data.data.length > 0 && (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {findPeopleMutation.data.data.map((person: any, idx: number) => (
                         <Card key={idx}>
                           <CardContent className="py-2 flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium">{person.full_name || person.name}</p>
-                              <p className="text-xs text-muted-foreground">{person.job_title || person.title}</p>
-                              {person.job_company_name && <p className="text-xs text-muted-foreground">{person.job_company_name}</p>}
+                              <p className="text-sm font-medium">{person.fullName || person.full_name || person.name}</p>
+                              <p className="text-xs text-muted-foreground">{person.title || person.job_title}</p>
+                              {person.department && <p className="text-xs text-muted-foreground">{person.department}</p>}
+                              {person.source && (
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {person.source === "pdl" ? "PDL" : person.source === "ai_research" ? "AI" : "Web"}
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-1">
-                              {person.linkedin_url && (
+                              {(person.linkedinUrl || person.linkedin_url) && (
                                 <Button variant="ghost" size="icon" asChild>
-                                  <a href={person.linkedin_url} target="_blank" rel="noopener noreferrer"><Link2 className="h-4 w-4" /></a>
+                                  <a href={person.linkedinUrl || person.linkedin_url} target="_blank" rel="noopener noreferrer"><Link2 className="h-4 w-4" /></a>
                                 </Button>
                               )}
                               <Button
@@ -1124,13 +1138,13 @@ export default function SportsPage() {
                                 onClick={() => {
                                   createContactMutation.mutate({
                                     teamId: selectedTeam.id,
-                                    name: person.full_name || person.name || "",
-                                    title: person.job_title || person.title || "",
-                                    email: person.work_email || person.email || "",
-                                    phone: person.phone_numbers?.[0] || "",
-                                    linkedinUrl: person.linkedin_url || "",
-                                    roleType: "pdl_discovered",
-                                    department: "",
+                                    name: person.fullName || person.full_name || person.name || "",
+                                    title: person.title || person.job_title || "",
+                                    email: person.email || person.work_email || "",
+                                    phone: person.phone || "",
+                                    linkedinUrl: person.linkedinUrl || person.linkedin_url || "",
+                                    roleType: person.source === "pdl" ? "pdl_discovered" : person.source === "ai_research" ? "ai_discovered" : "web_discovered",
+                                    department: person.department || "",
                                     notes: "",
                                   });
                                 }}

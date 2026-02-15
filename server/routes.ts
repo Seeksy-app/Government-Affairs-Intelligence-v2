@@ -8382,20 +8382,28 @@ Respond in this exact JSON format only, including the ID field exactly as provid
       const team = await storage.getSportsTeam(req.params.id);
       if (!team) return res.status(404).json({ message: "Team not found" });
 
-      const { searchPeople } = await import("./services/linkedin-service");
       const parsed = z.object({
         jobTitle: z.string().optional(),
+        searchType: z.enum(["people", "leadership"]).optional().default("people"),
         limit: z.number().min(1).max(50).optional().default(20),
       }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
 
-      const results = await searchPeople({
-        company: team.name,
-        jobTitle: parsed.data.jobTitle,
-        limit: parsed.data.limit,
-      });
+      const { findSportsTeamPeople } = await import("./services/sports-people-finder");
+      const { results, sources } = await findSportsTeamPeople(
+        {
+          name: team.name,
+          league: team.league,
+          sport: team.sport,
+          city: team.city,
+          state: team.state,
+          website: team.website,
+        },
+        parsed.data.searchType,
+        parsed.data.jobTitle,
+      );
 
-      res.json({ success: true, count: results.length, data: results });
+      res.json({ success: true, count: results.length, data: results, sources });
     } catch (error: any) {
       console.error("[Sports Find People] ERROR:", error?.message || error);
       res.status(500).json({ message: error?.message || "Failed to find people" });
