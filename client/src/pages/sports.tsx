@@ -182,38 +182,55 @@ export default function SportsPage() {
     onError: (error: Error) => toast({ title: "Failed", description: error.message, variant: "destructive" }),
   });
 
-  const researchTeamMutation = useMutation({
+  const searchTeamMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/sports/teams/${id}/research`);
-      return res.json();
+      let researchContent = "";
+      let scrapeContent = "";
+
+      const researchPromise = apiRequest("POST", `/api/sports/teams/${id}/research`)
+        .then(r => r.json())
+        .then((data: any) => {
+          let content = data.content || data.summary || "";
+          if (content && typeof content === "string") {
+            try {
+              const parsed = JSON.parse(content);
+              content = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || content;
+            } catch {}
+          }
+          researchContent = content;
+        })
+        .catch((e: Error) => console.error("Research failed:", e.message));
+
+      const team = selectedTeam;
+      const scrapePromise = team?.website
+        ? apiRequest("POST", `/api/sports/teams/${id}/scrape`)
+            .then(r => r.json())
+            .then((data: any) => {
+              if (data?.data?.content || data?.data?.markdown) {
+                scrapeContent = data.data.content || data.data.markdown || "";
+              }
+            })
+            .catch((e: Error) => console.error("Scrape failed:", e.message))
+        : Promise.resolve();
+
+      await Promise.all([researchPromise, scrapePromise]);
+
+      let combined = researchContent;
+      if (scrapeContent && researchContent) {
+        combined = researchContent + "\n\n---\n\n**Website Data:**\n" + scrapeContent.substring(0, 2000);
+      } else if (scrapeContent) {
+        combined = scrapeContent;
+      }
+      return combined;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (content: string) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sports/teams"] });
-      if (selectedTeam) {
-        let content = data.content || data.summary || "";
-        if (content && typeof content === "string") {
-          try {
-            const parsed = JSON.parse(content);
-            content = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || content;
-          } catch {}
-        }
+      if (selectedTeam && content) {
         setSelectedTeam({ ...selectedTeam, aiResearch: content });
       }
-      toast({ title: "Research complete" });
+      toast({ title: "Team research complete" });
     },
-    onError: (error: Error) => toast({ title: "Research failed", description: error.message, variant: "destructive" }),
-  });
-
-  const scrapeTeamMutation = useMutation({
-    mutationFn: async ({ id, url }: { id: string; url?: string }) => {
-      const res = await apiRequest("POST", `/api/sports/teams/${id}/scrape`, url ? { url } : {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sports/teams"] });
-      toast({ title: "Website scraped" });
-    },
-    onError: (error: Error) => toast({ title: "Scrape failed", description: error.message, variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Search failed", description: error.message, variant: "destructive" }),
   });
 
   const findPeopleMutation = useMutation({
@@ -1045,22 +1062,12 @@ export default function SportsPage() {
                   <div className="flex gap-2 flex-wrap">
                     <Button
                       variant="outline"
-                      onClick={() => researchTeamMutation.mutate(selectedTeam.id)}
-                      disabled={researchTeamMutation.isPending}
-                      data-testid="button-research-team"
+                      onClick={() => searchTeamMutation.mutate(selectedTeam.id)}
+                      disabled={searchTeamMutation.isPending}
+                      data-testid="button-search-team"
                     >
-                      {researchTeamMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Researching...</> : <><Brain className="h-4 w-4 mr-2" /> Research Team</>}
+                      {searchTeamMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Searching...</> : <><Search className="h-4 w-4 mr-2" /> Search Team</>}
                     </Button>
-                    {selectedTeam.website && (
-                      <Button
-                        variant="outline"
-                        onClick={() => scrapeTeamMutation.mutate({ id: selectedTeam.id })}
-                        disabled={scrapeTeamMutation.isPending}
-                        data-testid="button-scrape-team"
-                      >
-                        {scrapeTeamMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Scraping...</> : <><Globe className="h-4 w-4 mr-2" /> Scrape Website</>}
-                      </Button>
-                    )}
                   </div>
                   {selectedTeam.aiResearch && (() => {
                     let displayContent = selectedTeam.aiResearch;

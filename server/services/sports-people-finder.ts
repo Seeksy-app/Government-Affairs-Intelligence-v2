@@ -1,8 +1,5 @@
 import { researchWithPerplexity } from "./research-agent";
 import { searchPeople, type PersonSearchResult } from "./linkedin-service";
-import OpenAI from "openai";
-
-const openai = new OpenAI();
 
 export interface SportsPersonResult {
   fullName: string;
@@ -122,69 +119,60 @@ Only include people you are confident currently work for the ${team.name}. Do no
   }
 }
 
-async function parseAIResponseToPersons(
+function parseAIResponseToPersons(
   aiContent: string,
-  teamName: string
-): Promise<SportsPersonResult[]> {
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a data extraction assistant. Extract people's information from the provided text about ${teamName} staff/leadership. Return a JSON object with a "people" key containing an array of objects with these fields: fullName, title, department. Only include real people with real titles. If uncertain about a person, omit them.`,
-        },
-        {
-          role: "user",
-          content: `Extract all people mentioned in this text about ${teamName}. Return a JSON object with a "people" key containing an array of objects. Example: {"people": [{"fullName": "John Doe", "title": "VP of Operations", "department": "Operations"}]}.\n\nText:\n${aiContent}`,
-        },
-      ],
-      temperature: 0,
-      response_format: { type: "json_object" },
-    });
+  _teamName: string
+): SportsPersonResult[] {
+  const results: SportsPersonResult[] = [];
 
-    const rawJson = response.choices[0]?.message?.content || "{}";
-    const parsed = JSON.parse(rawJson);
-
-    const people: any[] = Array.isArray(parsed) ? parsed : parsed.people || parsed.persons || parsed.data || [];
-
-    if (!Array.isArray(people)) return [];
-
-    return people
-      .filter((p: any) => p.fullName || p.name || p.full_name)
-      .map((p: any) => ({
-        fullName: p.fullName || p.name || p.full_name || "",
-        title: p.title || p.jobTitle || p.job_title || p.position || undefined,
-        department: p.department || p.dept || undefined,
-        email: p.email || undefined,
-        phone: p.phone || undefined,
-        linkedinUrl: p.linkedinUrl || p.linkedin || p.linkedin_url || undefined,
-        source: "ai_research" as const,
-        confidence: "medium" as const,
-      }))
-      .filter((p) => p.fullName.trim().length > 0);
-  } catch (error) {
-    console.error("[Sports People] Failed to parse AI response:", (error as Error).message);
-
-    const results: SportsPersonResult[] = [];
-    const linePattern = /[-•*]\s*(?:NAME:\s*)?([^|]+?)(?:\s*\|\s*TITLE:\s*(.+?))?(?:\s*\|\s*DEPT:\s*(.+?))?$/gim;
-    let match;
-
-    while ((match = linePattern.exec(aiContent)) !== null) {
-      const name = match[1]?.trim();
-      if (name && name.length > 2 && name.length < 60) {
-        results.push({
-          fullName: name,
-          title: match[2]?.trim() || undefined,
-          department: match[3]?.trim() || undefined,
-          source: "ai_research",
-          confidence: "low",
-        });
-      }
+  const structuredPattern = /[-•*]\s*(?:NAME:\s*)?([^|]+?)(?:\s*\|\s*TITLE:\s*(.+?))?(?:\s*\|\s*DEPT:\s*(.+?))?$/gim;
+  let match;
+  while ((match = structuredPattern.exec(aiContent)) !== null) {
+    const name = match[1]?.trim();
+    if (name && name.length > 2 && name.length < 60) {
+      results.push({
+        fullName: name,
+        title: match[2]?.trim() || undefined,
+        department: match[3]?.trim() || undefined,
+        source: "ai_research",
+        confidence: "medium",
+      });
     }
-
-    return results;
   }
+
+  if (results.length > 0) return results;
+
+  const boldNamePattern = /\*\*([A-Z][a-z]+ (?:[A-Z]\.?\s?)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\*\*[:\s]*[-–]?\s*(.+?)(?:\n|$)/g;
+  while ((match = boldNamePattern.exec(aiContent)) !== null) {
+    const name = match[1]?.trim();
+    const titleText = match[2]?.trim().replace(/^\*\*|\*\*$/g, '');
+    if (name && name.length > 2 && name.length < 60 && !/^(the|a|an|this|that|for|and)\b/i.test(name)) {
+      results.push({
+        fullName: name,
+        title: titleText || undefined,
+        source: "ai_research",
+        confidence: "medium",
+      });
+    }
+  }
+
+  if (results.length > 0) return results;
+
+  const linePattern = /[-•*]\s+([A-Z][a-z]+ (?:[A-Z]\.?\s?)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s*[-–:,]\s*(.+?)(?:\n|$)/g;
+  while ((match = linePattern.exec(aiContent)) !== null) {
+    const name = match[1]?.trim();
+    const titleText = match[2]?.trim();
+    if (name && name.length > 2 && name.length < 60) {
+      results.push({
+        fullName: name,
+        title: titleText || undefined,
+        source: "ai_research",
+        confidence: "medium",
+      });
+    }
+  }
+
+  return results;
 }
 
 async function searchWithWebScrape(

@@ -175,6 +175,27 @@ interface VeteranStaffer {
   email: string | null;
   phone: string | null;
   careerResearch: string | null;
+  linkedinUrl: string | null;
+  photoUrl?: string | null;
+}
+
+function detectMilitaryBranch(title: string | null, research: string | null): string | null {
+  const text = ((title || "") + " " + (research || "")).toLowerCase();
+  if (/\b(marine corps|marines|usmc)\b/.test(text)) return "Marines";
+  if (/\b(air force|usaf)\b/.test(text)) return "Air Force";
+  if (/\b(space force|ussf)\b/.test(text)) return "Space Force";
+  if (/\b(coast guard|uscg)\b/.test(text)) return "Coast Guard";
+  if (/\b(national guard)\b/.test(text)) return "National Guard";
+  if (/\b(navy|usn|naval)\b/.test(text)) return "Navy";
+  if (/\b(army|usa soldier)\b/.test(text)) return "Army";
+  if (/\bveteran\b/.test(text) && /\baffairs\b/.test(text)) return null;
+  return null;
+}
+
+function getInitials(name: string): string {
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0]?.[0] || "?").toUpperCase();
 }
 
 function renderMarkdownBlock(content: string) {
@@ -370,7 +391,11 @@ export default function StaffersPage() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      let content = data?.content || data?.summary || "";
+      let content = data?.data?.rawContent || data?.data?.content || data?.data?.bio || data?.content || data?.summary || "";
+      if (!content && data?.data && typeof data.data === "object") {
+        const vals = Object.values(data.data).filter((v: any) => typeof v === "string" && v.length > 20);
+        if (vals.length > 0) content = vals.join("\n\n");
+      }
       if (content && typeof content === "string") {
         try {
           const parsed = JSON.parse(content);
@@ -1667,14 +1692,25 @@ export default function StaffersPage() {
                     </div>
                   </div>
                   <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                    {filteredVetStaffers.map((staffer) => (
+                    {filteredVetStaffers.map((staffer) => {
+                      const branch = detectMilitaryBranch(staffer.currentTitle, staffer.careerResearch);
+                      return (
                       <div key={staffer.id} className="p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSelectedVetStaffer(staffer)} data-testid={`card-veteran-staffer-${staffer.id}`}>
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
+                            <AvatarFallback className="text-xs">{getInitials(staffer.fullName)}</AvatarFallback>
+                          </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm" data-testid={`text-vet-staffer-name-${staffer.id}`}>{staffer.fullName}</span>
                               {staffer.currentTitle && (
                                 <Badge variant="secondary" className="text-xs">{staffer.currentTitle}</Badge>
+                              )}
+                              {branch && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  {branch}
+                                </Badge>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -1705,7 +1741,7 @@ export default function StaffersPage() {
                           <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                         </div>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 </>
               ) : (
@@ -1726,9 +1762,9 @@ export default function StaffersPage() {
                   <SheetHeader>
                     <div className="flex items-center justify-between gap-2">
                       <SheetTitle className="flex items-center gap-3">
-                        <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
-                          <Shield className="h-7 w-7 text-muted-foreground" />
-                        </div>
+                        <Avatar className="h-14 w-14">
+                          <AvatarFallback className="text-lg">{getInitials(selectedVetStaffer.fullName)}</AvatarFallback>
+                        </Avatar>
                         <div>
                           <span className="text-lg">{selectedVetStaffer.fullName}</span>
                           {selectedVetStaffer.currentTitle && (
@@ -1736,6 +1772,17 @@ export default function StaffersPage() {
                               <Badge variant="secondary" className="text-xs">{selectedVetStaffer.currentTitle}</Badge>
                             </div>
                           )}
+                          {(() => {
+                            const branch = detectMilitaryBranch(selectedVetStaffer.currentTitle, selectedVetStaffer.careerResearch);
+                            return branch ? (
+                              <div className="mt-1">
+                                <Badge variant="outline" className="text-xs">
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  {branch}
+                                </Badge>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                       </SheetTitle>
                       <DropdownMenu>
@@ -1860,7 +1907,13 @@ export default function StaffersPage() {
                           <a href={`tel:${selectedVetStaffer.phone}`} className="text-sm hover:text-primary">{selectedVetStaffer.phone}</a>
                         </div>
                       )}
-                      {!selectedVetStaffer.email && !selectedVetStaffer.phone && (
+                      {selectedVetStaffer.linkedinUrl && (
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <a href={selectedVetStaffer.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-sm hover:text-primary">LinkedIn Profile</a>
+                        </div>
+                      )}
+                      {!selectedVetStaffer.email && !selectedVetStaffer.phone && !selectedVetStaffer.linkedinUrl && (
                         <p className="text-sm text-muted-foreground">No contact information available</p>
                       )}
                     </div>
