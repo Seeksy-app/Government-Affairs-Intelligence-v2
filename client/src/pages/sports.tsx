@@ -108,6 +108,7 @@ export default function SportsPage() {
   const [selectedTeam, setSelectedTeam] = useState<SportsTeam | null>(null);
   const [showAddTeam, setShowAddTeam] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<SportsContact | null>(null);
   const [aiSearchQuery, setAiSearchQuery] = useState("");
 
   const [addTeamStep, setAddTeamStep] = useState<"select" | "confirm" | "manual">("select");
@@ -851,33 +852,43 @@ export default function SportsPage() {
               {allContacts.map(contact => {
                 const team = teams?.find(t => t.id === contact.teamId);
                 return (
-                  <Card key={contact.id} data-testid={`card-contact-${contact.id}`}>
+                  <Card key={contact.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedContact(contact)} data-testid={`card-contact-${contact.id}`}>
                     <CardContent className="flex items-center justify-between gap-4 py-3 flex-wrap">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         {team && <TeamLogo team={team} size="sm" testId={`img-team-logo-contact-${contact.id}`} />}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{contact.name}</span>
-                            {contact.roleType && <Badge variant="outline" className="text-xs">{contact.roleType}</Badge>}
+                            {contact.source && <Badge variant="outline" className="text-xs">{contact.source}</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                             {contact.title && <span>{contact.title}</span>}
                             {team && <span className="flex items-center gap-1"><Trophy className="h-3 w-3" />{team.name}</span>}
                           </div>
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            {contact.email && (
+                              <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-email-contact-${contact.id}`}>
+                                <Mail className="h-3 w-3" />
+                                <span className="truncate max-w-[180px]">{contact.email}</span>
+                              </a>
+                            )}
+                            {contact.phone && (
+                              <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-phone-contact-${contact.id}`}>
+                                <Phone className="h-3 w-3" />
+                                <span>{contact.phone}</span>
+                              </a>
+                            )}
+                            {contact.linkedinUrl && (
+                              <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-linkedin-contact-${contact.id}`}>
+                                <Link2 className="h-3 w-3" />
+                                <span>LinkedIn</span>
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {contact.email && (
-                          <Button variant="ghost" size="icon" asChild data-testid={`button-email-contact-${contact.id}`}>
-                            <a href={`mailto:${contact.email}`}><Mail className="h-4 w-4" /></a>
-                          </Button>
-                        )}
-                        {contact.linkedinUrl && (
-                          <Button variant="ghost" size="icon" asChild data-testid={`button-linkedin-contact-${contact.id}`}>
-                            <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer"><Link2 className="h-4 w-4" /></a>
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => deleteContactMutation.mutate(contact.id)} data-testid={`button-delete-contact-${contact.id}`}>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteContactMutation.mutate(contact.id); }} data-testid={`button-delete-contact-${contact.id}`}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
