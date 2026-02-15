@@ -368,6 +368,78 @@ class KalshiAPI {
     return imageMap;
   }
 
+  async searchMarketsByCategory(category: string, limit: number = 200): Promise<KalshiMarket[]> {
+    if (category === "Politics" || category === "Elections") {
+      return this.searchPoliticalMarkets(limit);
+    }
+
+    const allMarkets: KalshiMarket[] = [];
+    const seenTickers = new Set<string>();
+    const matchingEventTickers: string[] = [];
+
+    console.log(`[Kalshi] Searching markets for category: ${category} (limit: ${limit})`);
+
+    let eventCursor: string | undefined;
+    for (let page = 0; page < 5; page++) {
+      const eventsResult = await this.getEvents({ status: "open", limit: 100, cursor: eventCursor });
+      if (!eventsResult?.events?.length) break;
+
+      for (const event of eventsResult.events) {
+        if (event.category === category) {
+          matchingEventTickers.push(event.event_ticker);
+        }
+      }
+
+      eventCursor = eventsResult.cursor;
+      if (!eventCursor) break;
+    }
+
+    console.log(`[Kalshi] Found ${matchingEventTickers.length} event tickers for category: ${category}`);
+
+    for (const eventTicker of matchingEventTickers) {
+      if (allMarkets.length >= limit) break;
+
+      const marketsResult = await this.getMarkets({
+        eventTicker,
+        status: "open",
+        limit: 50,
+      });
+
+      if (marketsResult?.markets) {
+        for (const market of marketsResult.markets) {
+          if (!seenTickers.has(market.ticker)) {
+            seenTickers.add(market.ticker);
+            allMarkets.push({ ...market, category });
+          }
+        }
+      }
+    }
+
+    console.log(`[Kalshi] Total markets found for ${category}: ${allMarkets.length}`);
+    return allMarkets.slice(0, limit);
+  }
+
+  async getAvailableCategories(): Promise<string[]> {
+    const categories = new Set<string>();
+    let eventCursor: string | undefined;
+
+    for (let page = 0; page < 5; page++) {
+      const eventsResult = await this.getEvents({ status: "open", limit: 100, cursor: eventCursor });
+      if (!eventsResult?.events?.length) break;
+
+      for (const event of eventsResult.events) {
+        if (event.category) {
+          categories.add(event.category);
+        }
+      }
+
+      eventCursor = eventsResult.cursor;
+      if (!eventCursor) break;
+    }
+
+    return Array.from(categories).sort();
+  }
+
   async searchBillMarkets(billNumber: string): Promise<KalshiMarket[]> {
     const result = await this.getMarkets({ status: "open", limit: 100 });
     if (!result?.markets) return [];

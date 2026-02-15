@@ -5386,9 +5386,19 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
   });
 
   // Get all open markets (filtered for political content)
+  app.get("/api/kalshi/categories", isAuthenticated, async (_req, res) => {
+    try {
+      const categories = await kalshiApi.getAvailableCategories();
+      res.json({ categories });
+    } catch (error) {
+      console.error("Error fetching Kalshi categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
   app.get("/api/kalshi/markets", isAuthenticated, async (req, res) => {
     try {
-      const { series_ticker, event_ticker, limit } = req.query;
+      const { series_ticker, event_ticker, limit, category } = req.query;
       const requestLimit = limit ? parseInt(limit as string) : 200;
       let markets: any[];
       
@@ -5400,6 +5410,8 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
           limit: requestLimit,
         });
         markets = result?.markets || [];
+      } else if (category && typeof category === "string") {
+        markets = await kalshiApi.searchMarketsByCategory(category, requestLimit);
       } else {
         markets = await kalshiApi.searchPoliticalMarkets(requestLimit);
       }
