@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Shield, Award, BookOpen } from "lucide-react";
+import { Network, Users, Building2, ArrowRight, Search, X, Landmark, Phone, Globe, MapPin, FileText, ExternalLink, Mail, Calendar, UserSearch, Loader2, UserPlus, Map, Star, Briefcase, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Shield, Award, BookOpen, MoreHorizontal, Copy, FolderOpen, Book, Building } from "lucide-react";
 import { LegistormDirectory } from "@/components/legistorm-directory";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { Contact, CareerHistory, Matter, FavoriteCongressMember, Customer, ClientPortal, VeteranCongressMember, LegistormStaffer } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -250,6 +252,7 @@ interface VeteranMemberRecord {
 
 function VeteransSearch() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [veteranMemberSearch, setVeteranMemberSearch] = useState("");
   const [veteranChamberFilter, setVeteranChamberFilter] = useState("all");
   const [researchingMembers, setResearchingMembers] = useState(false);
@@ -552,7 +555,102 @@ function VeteransSearch() {
                               </Badge>
                             </div>
                           </div>
-                          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" data-testid={`button-veteran-actions-${vet.bioguideId}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const names = vet.memberName.split(" ");
+                                    const firstName = names[0] || "";
+                                    const lastName = names.slice(1).join(" ") || "";
+                                    navigate(`/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&title=${encodeURIComponent((member?.chamber || vet.chamber || "") + " Member")}&organization=${encodeURIComponent("U.S. Congress")}`);
+                                  }}
+                                  data-testid={`menu-veteran-add-contact-${vet.bioguideId}`}
+                                >
+                                  <UserPlus className="h-4 w-4 mr-2" />
+                                  Add to Contacts
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const content = [
+                                      `Name: ${vet.memberName}`,
+                                      member?.party ? `Party: ${member.party === "R" ? "Republican" : member.party === "D" ? "Democrat" : "Independent"}` : "",
+                                      member?.state ? `State: ${member.state}${member.district ? `-${member.district}` : ""}` : "",
+                                      member?.chamber ? `Chamber: ${member.chamber}` : "",
+                                      vet.serviceBranch ? `Branch: ${vet.serviceBranch}` : "",
+                                      vet.rank ? `Rank: ${vet.rank}` : "",
+                                      vet.yearsOfService ? `Years of Service: ${vet.yearsOfService}` : "",
+                                      vet.serviceDetails ? `Service Details: ${vet.serviceDetails}` : "",
+                                    ].filter(Boolean).join("\n");
+                                    navigate(`/admin/kb?addArticle=true&title=${encodeURIComponent(vet.memberName + " - Veteran Profile")}&content=${encodeURIComponent(content)}`);
+                                  }}
+                                  data-testid={`menu-veteran-add-kb-${vet.bioguideId}`}
+                                >
+                                  <Book className="h-4 w-4 mr-2" />
+                                  Knowledge Base
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const content = [
+                                      `Name: ${vet.memberName}`,
+                                      vet.serviceBranch ? `Branch: ${vet.serviceBranch}` : "",
+                                      vet.rank ? `Rank: ${vet.rank}` : "",
+                                      vet.yearsOfService ? `Years of Service: ${vet.yearsOfService}` : "",
+                                      vet.serviceDetails ? `Service Details: ${vet.serviceDetails}` : "",
+                                    ].filter(Boolean).join("\n");
+                                    navigate(`/matters?addDoc=true&title=${encodeURIComponent(vet.memberName + " - Veteran Profile")}&content=${encodeURIComponent(content)}`);
+                                  }}
+                                  data-testid={`menu-veteran-add-research-${vet.bioguideId}`}
+                                >
+                                  <FolderOpen className="h-4 w-4 mr-2" />
+                                  Research Project
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const names = vet.memberName.split(" ");
+                                    const firstName = names[0] || "";
+                                    const lastName = names.slice(1).join(" ") || "";
+                                    navigate(`/admin/clients?addClient=true&name=${encodeURIComponent(vet.memberName)}&contactName=${encodeURIComponent(firstName + " " + lastName)}`);
+                                  }}
+                                  data-testid={`menu-veteran-add-client-${vet.bioguideId}`}
+                                >
+                                  <Building className="h-4 w-4 mr-2" />
+                                  Add as Client
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const info = [
+                                      vet.memberName,
+                                      member?.party === "R" ? "Republican" : member?.party === "D" ? "Democrat" : member?.party || "",
+                                      member?.state ? `${member.state}${member.district ? `-${member.district}` : ""}` : "",
+                                      member?.chamber || vet.chamber || "",
+                                      vet.serviceBranch ? `Branch: ${vet.serviceBranch}` : "",
+                                      vet.rank ? `Rank: ${vet.rank}` : "",
+                                      vet.yearsOfService ? `Service: ${vet.yearsOfService}` : "",
+                                    ].filter(Boolean).join("\n");
+                                    navigator.clipboard.writeText(info);
+                                    toast({ title: "Copied", description: "Veteran info copied to clipboard" });
+                                  }}
+                                  data-testid={`menu-veteran-copy-${vet.bioguideId}`}
+                                >
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Copy Info
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground mt-1" />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -581,19 +679,20 @@ function VeteransSearch() {
             return (
               <>
                 <SheetHeader>
-                  <SheetTitle className="flex items-center gap-3">
-                    {member?.imageUrl ? (
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={member.imageUrl} alt={selectedVeteran.memberName} />
-                        <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                        <Shield className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div>
-                      <span className="text-lg">{selectedVeteran.memberName}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <SheetTitle className="flex items-center gap-3">
+                      {member?.imageUrl ? (
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={member.imageUrl} alt={selectedVeteran.memberName} />
+                          <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                          <Shield className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-lg">{selectedVeteran.memberName}</span>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {p && (
                           <Badge variant="outline" className={`text-xs ${p === "R" ? "border-red-500 text-red-600 dark:text-red-400" : p === "D" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}`}>
@@ -608,7 +707,96 @@ function VeteransSearch() {
                         )}
                       </div>
                     </div>
-                  </SheetTitle>
+                    </SheetTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" data-testid="button-veteran-detail-actions">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const names = selectedVeteran.memberName.split(" ");
+                            const firstName = names[0] || "";
+                            const lastName = names.slice(1).join(" ") || "";
+                            navigate(`/contacts?add=true&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}&title=${encodeURIComponent((member?.chamber || selectedVeteran.chamber || "") + " Member")}&organization=${encodeURIComponent("U.S. Congress")}`);
+                          }}
+                          data-testid="menu-detail-add-contact"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add to Contacts
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const content = [
+                              `Name: ${selectedVeteran.memberName}`,
+                              member?.party ? `Party: ${member.party === "R" ? "Republican" : member.party === "D" ? "Democrat" : "Independent"}` : "",
+                              member?.state ? `State: ${member.state}${member.district ? `-${member.district}` : ""}` : "",
+                              member?.chamber ? `Chamber: ${member.chamber}` : "",
+                              selectedVeteran.serviceBranch ? `Branch: ${selectedVeteran.serviceBranch}` : "",
+                              selectedVeteran.rank ? `Rank: ${selectedVeteran.rank}` : "",
+                              selectedVeteran.yearsOfService ? `Years of Service: ${selectedVeteran.yearsOfService}` : "",
+                              selectedVeteran.serviceDetails ? `Service Details: ${selectedVeteran.serviceDetails}` : "",
+                            ].filter(Boolean).join("\n");
+                            navigate(`/admin/kb?addArticle=true&title=${encodeURIComponent(selectedVeteran.memberName + " - Veteran Profile")}&content=${encodeURIComponent(content)}`);
+                          }}
+                          data-testid="menu-detail-add-kb"
+                        >
+                          <Book className="h-4 w-4 mr-2" />
+                          Knowledge Base
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const content = [
+                              `Name: ${selectedVeteran.memberName}`,
+                              selectedVeteran.serviceBranch ? `Branch: ${selectedVeteran.serviceBranch}` : "",
+                              selectedVeteran.rank ? `Rank: ${selectedVeteran.rank}` : "",
+                              selectedVeteran.yearsOfService ? `Years of Service: ${selectedVeteran.yearsOfService}` : "",
+                              selectedVeteran.serviceDetails ? `Service Details: ${selectedVeteran.serviceDetails}` : "",
+                            ].filter(Boolean).join("\n");
+                            navigate(`/matters?addDoc=true&title=${encodeURIComponent(selectedVeteran.memberName + " - Veteran Profile")}&content=${encodeURIComponent(content)}`);
+                          }}
+                          data-testid="menu-detail-add-research"
+                        >
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          Research Project
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const names = selectedVeteran.memberName.split(" ");
+                            const firstName = names[0] || "";
+                            const lastName = names.slice(1).join(" ") || "";
+                            navigate(`/admin/clients?addClient=true&name=${encodeURIComponent(selectedVeteran.memberName)}&contactName=${encodeURIComponent(firstName + " " + lastName)}`);
+                          }}
+                          data-testid="menu-detail-add-client"
+                        >
+                          <Building className="h-4 w-4 mr-2" />
+                          Add as Client
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const info = [
+                              selectedVeteran.memberName,
+                              member?.party === "R" ? "Republican" : member?.party === "D" ? "Democrat" : member?.party || "",
+                              member?.state ? `${member.state}${member.district ? `-${member.district}` : ""}` : "",
+                              member?.chamber || selectedVeteran.chamber || "",
+                              selectedVeteran.serviceBranch ? `Branch: ${selectedVeteran.serviceBranch}` : "",
+                              selectedVeteran.rank ? `Rank: ${selectedVeteran.rank}` : "",
+                              selectedVeteran.yearsOfService ? `Service: ${selectedVeteran.yearsOfService}` : "",
+                            ].filter(Boolean).join("\n");
+                            navigator.clipboard.writeText(info);
+                            toast({ title: "Copied", description: "Veteran info copied to clipboard" });
+                          }}
+                          data-testid="menu-detail-copy"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Info
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   <SheetDescription>Veteran Military Service Details</SheetDescription>
                 </SheetHeader>
                 <div className="space-y-4 mt-6">
