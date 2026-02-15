@@ -10,7 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import { useToast } from "@/hooks/use-toast";
 import {
   Building2, Search, Plus, Trash2, Globe, Users, MapPin,
@@ -305,6 +306,7 @@ export default function OrganizationsPage() {
                       >
                         <div className="flex items-start gap-2">
                           <Avatar className="h-8 w-8 mt-0.5">
+                            <AvatarImage src={getAvatarUrl(org.name)} alt={org.name} />
                             <AvatarFallback className="text-xs">
                               {getOrgTypeIcon(org)}
                             </AvatarFallback>
@@ -574,6 +576,7 @@ export default function OrganizationsPage() {
                             {peopleResults.map((person, idx) => (
                               <div key={idx} className="flex items-center gap-3 p-2 rounded-md hover-elevate" data-testid={`card-person-${idx}`}>
                                 <Avatar className="h-8 w-8">
+                                  <AvatarImage src={getAvatarUrl(person.fullName)} alt={person.fullName} />
                                   <AvatarFallback className="text-xs">
                                     {person.firstName?.[0] || ""}{person.lastName?.[0] || ""}
                                   </AvatarFallback>

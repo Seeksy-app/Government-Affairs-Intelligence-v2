@@ -21,6 +21,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { PoliticalOrganization, Client, KbCategory } from "@shared/schema";
 
 interface CompanyEnrichResult {
@@ -561,9 +562,7 @@ export default function PowerSearchPage() {
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
                             <Avatar className="h-10 w-10 shrink-0">
-                              {person.profilePicUrl && (
-                                <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
-                              )}
+                              <AvatarImage src={getAvatarUrl(person.fullName, person.profilePicUrl)} alt={person.fullName} />
                               <AvatarFallback className="text-xs">
                                 {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
                               </AvatarFallback>
@@ -712,6 +711,7 @@ export default function PowerSearchPage() {
                           >
                             <div className="flex items-start gap-2">
                               <Avatar className="h-8 w-8 mt-0.5">
+                                <AvatarImage src={getAvatarUrl(org.name)} alt={org.name} />
                                 <AvatarFallback className="text-xs">
                                   {getOrgTypeIcon(org)}
                                 </AvatarFallback>
@@ -981,9 +981,7 @@ export default function PowerSearchPage() {
                                 {peopleResults.map((person, idx) => (
                                   <div key={person.id || idx} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`org-person-${idx}`}>
                                     <Avatar className="h-8 w-8">
-                                      {person.profilePicUrl && (
-                                        <AvatarImage src={person.profilePicUrl} alt={person.fullName} />
-                                      )}
+                                      <AvatarImage src={getAvatarUrl(person.fullName, person.profilePicUrl)} alt={person.fullName} />
                                       <AvatarFallback className="text-xs">
                                         {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
                                       </AvatarFallback>
@@ -1052,9 +1050,7 @@ export default function PowerSearchPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
                 <Avatar className="h-10 w-10">
-                  {contactDialogPerson.profilePicUrl && (
-                    <AvatarImage src={contactDialogPerson.profilePicUrl} alt={contactDialogPerson.fullName} />
-                  )}
+                  <AvatarImage src={getAvatarUrl(contactDialogPerson.fullName, contactDialogPerson.profilePicUrl)} alt={contactDialogPerson.fullName} />
                   <AvatarFallback className="text-xs">
                     {contactDialogPerson.firstName?.[0]}{contactDialogPerson.lastName?.[0]}
                   </AvatarFallback>

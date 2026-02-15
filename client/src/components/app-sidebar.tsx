@@ -85,16 +85,25 @@ export function AppSidebar() {
   const clientTopItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tourId: "dashboard" },
     { title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" },
+    { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
   ];
 
   const clientDirectoryGroup = {
     label: "Gov Affairs",
     icon: Landmark,
     items: [
-      { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
-      { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
+      { title: "Contacts", url: "/contacts", icon: Users, tourId: "gov-contacts" },
       { title: "Members", url: "/network", icon: Landmark, tourId: "network" },
       { title: "Power Search", url: "/power-search", icon: Zap, tourId: "power-search" },
+    ],
+  };
+
+  const clientStaffersGroup = {
+    label: "Staffers",
+    icon: Briefcase,
+    items: [
+      { title: "Contacts", url: "/contacts", icon: Users, tourId: "staffer-contacts" },
+      { title: "Directory", url: "/staffers", icon: Briefcase, tourId: "staffers" },
     ],
   };
 
@@ -166,6 +175,7 @@ export function AppSidebar() {
 
   const clientGroups = [
     clientDirectoryGroup,
+    clientStaffersGroup,
     clientLegislativeGroup,
     clientNewsGroup,
     clientStrategyGroup,
@@ -260,14 +270,14 @@ export function AppSidebar() {
                         <CollapsibleContent>
                           <SidebarMenuSub>
                             {group.items.map((item) => (
-                              <SidebarMenuSubItem key={item.title}>
+                              <SidebarMenuSubItem key={item.tourId}>
                                 <SidebarMenuSubButton
                                   asChild
                                   isActive={location === item.url || location.startsWith(item.url + "/")}
                                 >
                                   <Link 
                                     href={item.url}
-                                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                                    data-testid={`nav-${item.tourId}`}
                                     data-tour={item.tourId}
                                   >
                                     <item.icon className="w-4 h-4" />

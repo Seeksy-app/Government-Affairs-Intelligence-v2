@@ -11,6 +11,7 @@ import { LegistormDirectory } from "@/components/legistorm-directory";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -498,16 +499,10 @@ function VeteransSearch() {
                     <Card key={vet.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedVeteran(vet)} data-testid={`card-veteran-${vet.bioguideId}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          {member?.imageUrl ? (
-                            <Avatar className="h-12 w-12">
-                              <AvatarImage src={member.imageUrl} alt={vet.memberName} />
-                              <AvatarFallback>{vet.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                              <Shield className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                          )}
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={getAvatarUrl(vet.memberName, member?.imageUrl)} alt={vet.memberName} />
+                            <AvatarFallback>{vet.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                          </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate" data-testid={`text-veteran-name-${vet.bioguideId}`}>{vet.memberName}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -681,16 +676,10 @@ function VeteransSearch() {
                 <SheetHeader>
                   <div className="flex items-start justify-between gap-2">
                     <SheetTitle className="flex items-center gap-3">
-                      {member?.imageUrl ? (
-                        <Avatar className="h-16 w-16">
-                          <AvatarImage src={member.imageUrl} alt={selectedVeteran.memberName} />
-                          <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                          <Shield className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={getAvatarUrl(selectedVeteran.memberName, member?.imageUrl)} alt={selectedVeteran.memberName} />
+                        <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                      </Avatar>
                       <div>
                         <span className="text-lg">{selectedVeteran.memberName}</span>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -1685,7 +1674,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                       >
                         <div className="flex items-start gap-3">
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={member.imageUrl} alt={member.name} />
+                            <AvatarImage src={getAvatarUrl(member.name, member.imageUrl)} alt={member.name} />
                             <AvatarFallback>
                               {member.firstName?.[0]}{member.lastName?.[0]}
                             </AvatarFallback>
@@ -1799,7 +1788,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 >
                   <div className="flex items-center gap-2">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={fav.imageUrl || undefined} alt={fav.name} />
+                      <AvatarImage src={getAvatarUrl(fav.name, fav.imageUrl)} alt={fav.name} />
                       <AvatarFallback>{fav.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -1914,7 +1903,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           <SheetHeader className="pb-4">
             <SheetTitle className="flex items-center gap-3">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={memberDetails?.imageUrl || selectedMember?.imageUrl} alt={selectedMember?.name || ""} />
+                <AvatarImage src={getAvatarUrl(selectedMember?.name || "", memberDetails?.imageUrl || selectedMember?.imageUrl)} alt={selectedMember?.name || ""} />
                 <AvatarFallback className="text-lg">
                   {selectedMember?.firstName?.[0]}{selectedMember?.lastName?.[0]}
                 </AvatarFallback>

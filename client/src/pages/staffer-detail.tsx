@@ -31,6 +31,7 @@ import {
   Users,
   ExternalLink
 } from "lucide-react";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { Staffer, StafferCareerPosition, StafferConnection } from "@shared/schema";
 
 const ORG_TYPE_COLORS: Record<string, string> = {
@@ -355,9 +356,7 @@ export default function StafferDetailPage() {
         <CardContent className="p-6">
           <div className="flex flex-wrap items-start gap-6">
             <Avatar className="h-24 w-24">
-              {staffer.photoUrl ? (
-                <AvatarImage src={staffer.photoUrl} alt={staffer.name} />
-              ) : null}
+              <AvatarImage src={getAvatarUrl(staffer.name, staffer.photoUrl)} alt={staffer.name} />
               <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                 {staffer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </AvatarFallback>

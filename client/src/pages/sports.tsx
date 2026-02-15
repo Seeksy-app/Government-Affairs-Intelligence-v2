@@ -19,6 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import {
   Trophy, Search, Plus, Loader2, Globe, MapPin, Users, Building2,
   ExternalLink, Phone, Mail, Brain, FileText, UserSearch, Link2,
@@ -877,7 +878,7 @@ export default function SportsPage() {
                     <CardContent className="flex items-center justify-between gap-4 py-3 flex-wrap">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Avatar className="h-9 w-9 shrink-0">
-                          {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={contact.name} />}
+                          <AvatarImage src={getAvatarUrl(contact.name, contact.imageUrl)} alt={contact.name} />
                           <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                             {contact.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
@@ -1178,7 +1179,7 @@ export default function SportsPage() {
                           <CardContent className="py-2 flex items-center justify-between gap-3 flex-wrap">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <Avatar className="h-8 w-8 shrink-0">
-                                {(person.imageUrl || person.profilePicUrl) && <AvatarImage src={person.imageUrl || person.profilePicUrl} alt={person.fullName || person.name} />}
+                                <AvatarImage src={getAvatarUrl(person.fullName || person.full_name || person.name || "", person.imageUrl || person.profilePicUrl)} alt={person.fullName || person.name} />
                                 <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
                                   {(person.fullName || person.full_name || person.name || "").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                                 </AvatarFallback>
@@ -1262,7 +1263,7 @@ export default function SportsPage() {
                         <div key={contact.id} className="flex items-center justify-between gap-2 text-sm p-2 rounded-md bg-muted/30">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <Avatar className="h-7 w-7 shrink-0">
-                              {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={contact.name} />}
+                              <AvatarImage src={getAvatarUrl(contact.name, contact.imageUrl)} alt={contact.name} />
                               <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
                                 {contact.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                               </AvatarFallback>
@@ -1385,7 +1386,7 @@ export default function SportsPage() {
           <SheetHeader>
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                {selectedContact?.imageUrl && <AvatarImage src={selectedContact.imageUrl} alt={selectedContact.name} />}
+                <AvatarImage src={getAvatarUrl(selectedContact?.name || "", selectedContact?.imageUrl)} alt={selectedContact?.name} />
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                   {selectedContact?.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                 </AvatarFallback>

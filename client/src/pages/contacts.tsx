@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, Plus, Search, MoreHorizontal, Edit, Trash2, Star, Mail, Phone, Building2 } from "lucide-react";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -416,7 +417,7 @@ export default function Contacts() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12">
-                          {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={`${contact.firstName} ${contact.lastName}`} />}
+                          <AvatarImage src={getAvatarUrl(`${contact.firstName} ${contact.lastName}`, contact.imageUrl)} alt={`${contact.firstName} ${contact.lastName}`} />
                           <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                             {contact.firstName[0]}{contact.lastName[0]}
                           </AvatarFallback>

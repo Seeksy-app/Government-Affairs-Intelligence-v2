@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -903,9 +904,7 @@ export default function StaffersPage() {
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         <Avatar className="h-12 w-12">
-                          {staffer.photoUrl ? (
-                            <AvatarImage src={staffer.photoUrl} alt={staffer.name} />
-                          ) : null}
+                          <AvatarImage src={getAvatarUrl(staffer.name, staffer.photoUrl)} alt={staffer.name} />
                           <AvatarFallback className="bg-primary/10 text-primary">
                             {staffer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
@@ -1209,6 +1208,7 @@ export default function StaffersPage() {
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         <Avatar className="h-12 w-12">
+                          <AvatarImage src={getAvatarUrl(staffer.fullName)} alt={staffer.fullName} />
                           <AvatarFallback className="bg-primary/10 text-primary">
                             {staffer.fullName.split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
@@ -1698,6 +1698,7 @@ export default function StaffersPage() {
                       <div key={staffer.id} className="p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSelectedVetStaffer(staffer)} data-testid={`card-veteran-staffer-${staffer.id}`}>
                         <div className="flex items-start gap-3">
                           <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
+                            <AvatarImage src={getAvatarUrl(staffer.fullName)} alt={staffer.fullName} />
                             <AvatarFallback className="text-xs">{getInitials(staffer.fullName)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
@@ -1763,6 +1764,7 @@ export default function StaffersPage() {
                     <div className="flex items-center justify-between gap-2">
                       <SheetTitle className="flex items-center gap-3">
                         <Avatar className="h-14 w-14">
+                          <AvatarImage src={getAvatarUrl(selectedVetStaffer.fullName)} alt={selectedVetStaffer.fullName} />
                           <AvatarFallback className="text-lg">{getInitials(selectedVetStaffer.fullName)}</AvatarFallback>
                         </Avatar>
                         <div>
