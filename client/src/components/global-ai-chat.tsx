@@ -35,6 +35,10 @@ const AI_PROVIDERS = [
   { value: "anthropic", label: "Anthropic Claude" },
 ];
 
+export function openAIChat(prefillMessage?: string) {
+  window.dispatchEvent(new CustomEvent("open-ai-chat", { detail: { message: prefillMessage } }));
+}
+
 export function GlobalAIChat() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +52,18 @@ export function GlobalAIChat() {
     const saved = localStorage.getItem("ai-agent-recent-searches");
     return saved ? JSON.parse(saved) : [];
   });
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsOpen(true);
+      if (detail?.message) {
+        setChatInput(detail.message);
+      }
+    };
+    window.addEventListener("open-ai-chat", handler);
+    return () => window.removeEventListener("open-ai-chat", handler);
+  }, []);
 
   const { data: portals = [] } = useQuery<ClientPortal[]>({
     queryKey: ["/api/portals"],

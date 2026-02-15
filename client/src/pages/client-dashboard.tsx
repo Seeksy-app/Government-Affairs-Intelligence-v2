@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Newspaper, BarChart3, FileText, Clock, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, Star, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Newspaper, BarChart3, FileText, Clock, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, Star, ChevronRight, Sparkles, Send, Search, Scale, UserSearch } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
+import { openAIChat } from "@/components/global-ai-chat";
 
 const PREDICTION_CATEGORIES = [
   { id: "politics", label: "Politics", icon: Landmark, apiCategory: "Politics" },
@@ -171,8 +173,11 @@ export default function ClientDashboard() {
 
   const selectedCategory = PREDICTION_CATEGORIES.find(c => c.id === marketCategory) || PREDICTION_CATEGORIES[0];
 
+  const [aiPromptInput, setAiPromptInput] = useState("");
+
   const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
     queryKey: ["/api/stats"],
+    refetchInterval: 30000,
   });
 
   const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
@@ -183,6 +188,7 @@ export default function ClientDashboard() {
       const data = await res.json();
       return data.markets || data || [];
     },
+    refetchInterval: 60000,
   });
 
   const displayName = user?.firstName || user?.email?.split("@")[0] || "there";
@@ -215,6 +221,63 @@ export default function ClientDashboard() {
           <p className="text-muted-foreground" data-testid="text-dashboard-subtitle">
             Here's what's happening across your political intelligence
           </p>
+        </div>
+
+        {/* AI Agent Prompt */}
+        <div className="max-w-2xl mx-auto w-full" data-testid="section-ai-prompt">
+          <div className="text-center mb-4">
+            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              What can I help you with?
+            </div>
+          </div>
+          <div className="relative">
+            <Input
+              value={aiPromptInput}
+              onChange={(e) => setAiPromptInput(e.target.value)}
+              placeholder="Ask about legislation, staffers, news, lobbying activity..."
+              className="pr-24 h-12 text-base"
+              data-testid="input-dashboard-ai-prompt"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && aiPromptInput.trim()) {
+                  openAIChat(aiPromptInput.trim());
+                  setAiPromptInput("");
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2"
+              disabled={!aiPromptInput.trim()}
+              onClick={() => {
+                openAIChat(aiPromptInput.trim());
+                setAiPromptInput("");
+              }}
+              data-testid="button-dashboard-ai-send"
+            >
+              <Send className="h-4 w-4 mr-1.5" />
+              Ask AI
+            </Button>
+          </div>
+          <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+            {[
+              { label: "Research staffers", icon: UserSearch },
+              { label: "Track legislation", icon: Scale },
+              { label: "Find lobbyists", icon: Search },
+              { label: "Analyze news", icon: Newspaper },
+            ].map((chip) => (
+              <Button
+                key={chip.label}
+                variant="outline"
+                size="sm"
+                onClick={() => openAIChat(chip.label)}
+                data-testid={`chip-ai-${chip.label.toLowerCase().replace(/\s/g, '-')}`}
+              >
+                <chip.icon className="h-3.5 w-3.5 mr-1.5" />
+                {chip.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Quick nav cards */}
