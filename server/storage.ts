@@ -412,6 +412,7 @@ export interface IStorage {
   deleteSportsTeam(id: string): Promise<void>;
 
   // Sports Contacts
+  getSportsContact(id: string): Promise<SportsContact | undefined>;
   getSportsContacts(teamId: string): Promise<SportsContact[]>;
   getSportsContactsByClient(clientId: string): Promise<SportsContact[]>;
   createSportsContact(contact: InsertSportsContact): Promise<SportsContact>;
@@ -1701,6 +1702,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Sports Contacts
+  async getSportsContact(id: string): Promise<SportsContact | undefined> {
+    const [contact] = await db.select().from(sportsContacts).where(eq(sportsContacts.id, id));
+    return contact;
+  }
+
   async getSportsContacts(teamId: string): Promise<SportsContact[]> {
     return db.select().from(sportsContacts)
       .where(eq(sportsContacts.teamId, teamId))

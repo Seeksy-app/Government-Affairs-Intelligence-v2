@@ -275,6 +275,139 @@ async function searchWithWebScrape(
   return [];
 }
 
+async function enrichAIContactsWithPDL(
+  contacts: SportsPersonResult[],
+  team: TeamInfo,
+): Promise<{ enriched: number }> {
+  if (!process.env.PDL_API_KEY) return { enriched: 0 };
+
+  const unenriched = contacts.filter(
+    (c) => c.source !== "pdl" && !c.email && !c.phone && !c.linkedinUrl,
+  );
+  if (unenriched.length === 0) return { enriched: 0 };
+
+  const companyVariations = getCompanyNameVariations(team);
+  const companyQuery = companyVariations
+    .map((c) => `job_company_name='${c.replace(/'/g, "''")}'`)
+    .join(" OR ");
+
+  let enriched = 0;
+  const batch = unenriched.slice(0, 10);
+
+  for (const contact of batch) {
+    try {
+      const nameParts = contact.fullName.trim().split(/\s+/);
+      if (nameParts.length < 2) continue;
+
+      const firstName = nameParts[0].replace(/'/g, "''");
+      const lastName = nameParts[nameParts.length - 1].replace(/'/g, "''");
+
+      const query = `first_name='${firstName}' AND last_name='${lastName}' AND (${companyQuery})`;
+
+      const response = await fetch("https://api.peopledatalabs.com/v5/person/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": process.env.PDL_API_KEY,
+        },
+        body: JSON.stringify({
+          sql: `SELECT * FROM person WHERE ${query}`,
+          size: 1,
+          dataset: "all",
+        }),
+      });
+
+      if (!response.ok) continue;
+
+      const result = await response.json();
+      const person = result.data?.[0];
+      if (!person) continue;
+
+      const workEmail =
+        person.work_email ||
+        (person.emails || []).find((e: any) => e?.type === "current_professional")?.address;
+      const personalEmail =
+        (person.emails || []).find((e: any) => e?.type === "personal")?.address;
+      const mobilePhone =
+        person.mobile_phone ||
+        (person.phone_numbers || [])
+          .map((p: any) => (typeof p === "string" ? p : p?.number))
+          .find(Boolean);
+
+      if (workEmail || personalEmail || mobilePhone || person.linkedin_url) {
+        contact.email = workEmail || personalEmail || undefined;
+        contact.phone = mobilePhone || undefined;
+        contact.linkedinUrl = person.linkedin_url || undefined;
+        enriched++;
+        console.log(`[Sports People] PDL enriched ${contact.fullName}: email=${!!contact.email}, phone=${!!contact.phone}, linkedin=${!!contact.linkedinUrl}`);
+      }
+    } catch (error) {
+      console.log(`[Sports People] PDL enrich failed for ${contact.fullName}:`, (error as Error).message);
+    }
+  }
+
+  return { enriched };
+}
+
+export async function enrichSingleContact(
+  name: string,
+  companyName: string,
+): Promise<{ email?: string; phone?: string; linkedinUrl?: string } | null> {
+  if (!process.env.PDL_API_KEY) return null;
+
+  const nameParts = name.trim().split(/\s+/);
+  if (nameParts.length < 2) return null;
+
+  const firstName = nameParts[0].replace(/'/g, "''");
+  const lastName = nameParts[nameParts.length - 1].replace(/'/g, "''");
+  const escaped = companyName.replace(/'/g, "''");
+
+  const query = `first_name='${firstName}' AND last_name='${lastName}' AND job_company_name LIKE '%${escaped}%'`;
+
+  try {
+    const response = await fetch("https://api.peopledatalabs.com/v5/person/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": process.env.PDL_API_KEY,
+      },
+      body: JSON.stringify({
+        sql: `SELECT * FROM person WHERE ${query}`,
+        size: 1,
+        dataset: "all",
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const result = await response.json();
+    const person = result.data?.[0];
+    if (!person) return null;
+
+    const workEmail =
+      person.work_email ||
+      (person.emails || []).find((e: any) => e?.type === "current_professional")?.address;
+    const personalEmail =
+      (person.emails || []).find((e: any) => e?.type === "personal")?.address;
+    const mobilePhone =
+      person.mobile_phone ||
+      (person.phone_numbers || [])
+        .map((p: any) => (typeof p === "string" ? p : p?.number))
+        .find(Boolean);
+
+    if (!workEmail && !personalEmail && !mobilePhone && !person.linkedin_url) return null;
+
+    return {
+      email: workEmail || personalEmail || undefined,
+      phone: mobilePhone || undefined,
+      linkedinUrl: person.linkedin_url || undefined,
+    };
+  } catch (error) {
+    console.error(`[Sports People] Enrich single contact failed for ${name}:`, (error as Error).message);
+    return null;
+  }
+}
+
 export async function findSportsTeamPeople(
   team: TeamInfo,
   searchType: "people" | "leadership",
@@ -331,6 +464,18 @@ export async function findSportsTeamPeople(
       console.log(`[Sports People] Web scrape returned ${scrapeCount} people for ${team.name}`);
     } catch (error) {
       console.log(`[Sports People] Web scrape failed for ${team.name}:`, (error as Error).message);
+    }
+  }
+
+  const unenrichedCount = allResults.filter(
+    (c) => c.source !== "pdl" && !c.email && !c.phone && !c.linkedinUrl,
+  ).length;
+  if (unenrichedCount > 0) {
+    console.log(`[Sports People] Attempting PDL enrichment for ${unenrichedCount} AI/web contacts...`);
+    const { enriched } = await enrichAIContactsWithPDL(allResults, team);
+    if (enriched > 0) {
+      sourcesUsed.push("PDL Enrichment");
+      console.log(`[Sports People] PDL enriched ${enriched}/${unenrichedCount} contacts`);
     }
   }
 

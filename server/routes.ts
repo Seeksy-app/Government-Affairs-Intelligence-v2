@@ -8458,7 +8458,29 @@ Respond in this exact JSON format only, including the ID field exactly as provid
       if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
       const parsed = createSportsContactSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message });
-      const contact = await storage.createSportsContact({ ...parsed.data, clientId });
+
+      const cleanContactField = (val: string | undefined): string | undefined => {
+        if (!val) return undefined;
+        let cleaned = val
+          .replace(/\*\*/g, '')
+          .replace(/\[\d+\]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (/^TITLE:\s*/i.test(cleaned)) {
+          cleaned = cleaned.replace(/^TITLE:\s*/i, '').trim();
+        }
+        cleaned = cleaned.replace(/\|\s*DEPT:.*$/i, '').replace(/\|\s*TITLE:.*$/i, '').trim();
+        return cleaned || undefined;
+      };
+
+      const cleanedData = {
+        ...parsed.data,
+        title: cleanContactField(parsed.data.title),
+        department: cleanContactField(parsed.data.department),
+        name: parsed.data.name.replace(/\*\*/g, '').replace(/\[\d+\]/g, '').trim(),
+      };
+
+      const contact = await storage.createSportsContact({ ...cleanedData, clientId });
       res.json(contact);
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to create contact" });
@@ -8481,6 +8503,41 @@ Respond in this exact JSON format only, including the ID field exactly as provid
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error?.message || "Failed to delete contact" });
+    }
+  });
+
+  app.post("/api/sports/contacts/:id/enrich", isAuthenticated, async (req, res) => {
+    try {
+      const contact = await storage.getSportsContact(req.params.id);
+      if (!contact) return res.status(404).json({ message: "Contact not found" });
+
+      let teamName = "Unknown";
+      if (contact.teamId) {
+        const team = await storage.getSportsTeam(contact.teamId);
+        if (team) teamName = team.name;
+      }
+
+      const { enrichSingleContact } = await import("./services/sports-people-finder");
+      const result = await enrichSingleContact(contact.name, teamName);
+
+      if (!result) {
+        return res.json({ success: false, message: "No contact information found in People Data Labs" });
+      }
+
+      const updates: Record<string, string> = {};
+      if (result.email && !contact.email) updates.email = result.email;
+      if (result.phone && !contact.phone) updates.phone = result.phone;
+      if (result.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = result.linkedinUrl;
+
+      if (Object.keys(updates).length === 0) {
+        return res.json({ success: false, message: "No new contact information found" });
+      }
+
+      const updated = await storage.updateSportsContact(req.params.id, updates);
+      res.json({ success: true, contact: updated, fieldsUpdated: Object.keys(updates) });
+    } catch (error: any) {
+      console.error("[Sports Enrich] ERROR:", error?.message || error);
+      res.status(500).json({ message: error?.message || "Failed to enrich contact" });
     }
   });
 

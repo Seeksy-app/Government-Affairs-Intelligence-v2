@@ -22,7 +22,7 @@ import {
   Trophy, Search, Plus, Loader2, Globe, MapPin, Users, Building2,
   ExternalLink, Phone, Mail, Brain, FileText, UserSearch, Link2,
   Trash2, Edit, ChevronRight, Target, Handshake, Clock, X, RefreshCw,
-  Star, Check, ChevronsUpDown
+  Star, Check, ChevronsUpDown, Zap
 } from "lucide-react";
 import type { SportsTeam, SportsContact } from "@shared/schema";
 import { PROFESSIONAL_TEAMS, getTeamLogoUrl, type ProfessionalTeam } from "@/lib/professional-teams";
@@ -268,6 +268,26 @@ export default function SportsPage() {
       toast({ title: "Contact removed" });
     },
     onError: (error: Error) => toast({ title: "Failed", description: error.message, variant: "destructive" }),
+  });
+
+  const enrichContactMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/sports/contacts/${id}/enrich`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: ["/api/sports/contacts"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/sports/teams", selectedTeam?.id, "contacts"] });
+        if (data.contact && selectedContact) {
+          setSelectedContact(data.contact);
+        }
+        toast({ title: "Contact enriched", description: `Found: ${data.fieldsUpdated?.join(", ") || "contact info"}` });
+      } else {
+        toast({ title: "No results", description: data.message || "Could not find contact information", variant: "destructive" });
+      }
+    },
+    onError: (error: Error) => toast({ title: "Enrichment failed", description: error.message, variant: "destructive" }),
   });
 
   const aiSearchMutation = useMutation({
@@ -1432,6 +1452,23 @@ export default function SportsPage() {
                 )}
 
                 <Separator />
+
+                {(!selectedContact.email || !selectedContact.phone || !selectedContact.linkedinUrl) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => enrichContactMutation.mutate(selectedContact.id)}
+                    disabled={enrichContactMutation.isPending}
+                    data-testid="button-enrich-contact"
+                  >
+                    {enrichContactMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    {enrichContactMutation.isPending ? "Searching..." : "Find Contact Info"}
+                  </Button>
+                )}
 
                 <Button
                   variant="destructive"
