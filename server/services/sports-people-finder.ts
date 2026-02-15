@@ -94,24 +94,34 @@ async function searchWithPerplexityAI(
   team: TeamInfo,
   searchType: "people" | "leadership"
 ): Promise<SportsPersonResult[]> {
-  const typePrompt =
-    searchType === "leadership"
-      ? `Find the current executive leadership, front office executives, and senior management of the ${team.name}${team.league ? ` (${team.league})` : ""}. Include the owner, president, CEO, general manager, chief operating officer, chief revenue officer, VP of operations, VP of partnerships, VP of community relations, VP of ticket sales, and other senior executives. For each person, provide their full name, exact title/position, and department if known.`
-      : `Find current staff and key personnel at the ${team.name}${team.league ? ` (${team.league})` : ""}. Include people in community relations, partnerships, corporate sales, ticket operations, marketing, communications, and government affairs. For each person, provide their full name, exact title/position, and department if known.`;
+  const teamDesc = `${team.name}${team.league ? ` (${team.league})` : ""}`;
+  const prompt = searchType === "leadership"
+    ? `List ALL current front office executives and senior leadership of the ${teamDesc}. Include: owner, president, CEO, general manager, assistant GM, COO, CFO, CLO, chief people officer, all VPs (operations, partnerships, community relations, ticket sales, marketing, communications, corporate sales, government affairs), directors, and other senior staff.
 
-  const prompt = `${typePrompt}
-
-IMPORTANT: Format your response as a structured list. For each person, use this exact format:
+For each person use EXACTLY this format on its own line:
 - NAME: [Full Name] | TITLE: [Job Title] | DEPT: [Department]
 
-Only include people you are confident currently work for the ${team.name}. Do not make up names.`;
+Be comprehensive. List every executive and senior leader you can find. Only include people you are confident currently work for the ${team.name}.`
+    : `List ALL current staff and personnel of the ${teamDesc}. Include ALL of the following categories:
+1. Coaching staff (head coach, coordinators, position coaches, quality control, assistants)
+2. Front office (owner, GM, assistant GM, all VPs, directors)
+3. Player personnel & scouting (scouts, coordinators, assistants)
+4. Football/basketball/baseball operations staff
+5. Strength & conditioning staff
+6. Analytics & systems staff
+7. Marketing, communications, community relations, partnerships, corporate sales, government affairs staff
+
+For each person use EXACTLY this format on its own line:
+- NAME: [Full Name] | TITLE: [Job Title] | DEPT: [Department]
+
+Be as comprehensive as possible. List every staff member you can find from the team's official website and public sources. Only include people you are confident currently work for the ${team.name}.`;
 
   try {
     const result = await researchWithPerplexity(prompt);
 
     if (!result.content) return [];
 
-    const parsed = await parseAIResponseToPersons(result.content, team.name);
+    const parsed = parseAIResponseToPersons(result.content, team.name);
     return parsed;
   } catch (error) {
     console.error(`[Sports People] Perplexity research failed for ${team.name}:`, (error as Error).message);
@@ -119,56 +129,73 @@ Only include people you are confident currently work for the ${team.name}. Do no
   }
 }
 
+function isLikelyName(str: string): boolean {
+  const trimmed = str.trim();
+  if (trimmed.length < 3 || trimmed.length > 60) return false;
+  if (/^(the|a|an|this|that|for|and|or|but|in|on|at|to|of|is|are|was|were|head|assistant|director|vice|senior|chief|manager)\b/i.test(trimmed)) return false;
+  if (/^\d/.test(trimmed)) return false;
+  const words = trimmed.split(/\s+/);
+  if (words.length < 2 || words.length > 5) return false;
+  return words.every(w => /^[A-Z]/.test(w) || /^(de|del|la|le|von|van|mc|o'|d')$/i.test(w) || w === "J." || w === "Jr." || w === "Sr." || w === "III" || w === "II" || /^[A-Z]\.$/.test(w));
+}
+
+function addPerson(results: SportsPersonResult[], name: string, title?: string, dept?: string) {
+  const cleanName = name.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+  const cleanTitle = title?.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+  if (!isLikelyName(cleanName)) return;
+  if (results.some(r => r.fullName.toLowerCase() === cleanName.toLowerCase())) return;
+  results.push({
+    fullName: cleanName,
+    title: cleanTitle || undefined,
+    department: dept?.replace(/\*\*/g, '').trim() || undefined,
+    source: "ai_research",
+    confidence: "medium",
+  });
+}
+
 function parseAIResponseToPersons(
   aiContent: string,
   _teamName: string
 ): SportsPersonResult[] {
   const results: SportsPersonResult[] = [];
-
-  const structuredPattern = /[-•*]\s*(?:NAME:\s*)?([^|]+?)(?:\s*\|\s*TITLE:\s*(.+?))?(?:\s*\|\s*DEPT:\s*(.+?))?$/gim;
   let match;
+
+  const structuredPattern = /[-•*]\s*NAME:\s*([^|]+?)\s*\|\s*TITLE:\s*([^|]+?)(?:\s*\|\s*DEPT:\s*(.+?))?$/gim;
   while ((match = structuredPattern.exec(aiContent)) !== null) {
-    const name = match[1]?.trim();
-    if (name && name.length > 2 && name.length < 60) {
-      results.push({
-        fullName: name,
-        title: match[2]?.trim() || undefined,
-        department: match[3]?.trim() || undefined,
-        source: "ai_research",
-        confidence: "medium",
-      });
+    addPerson(results, match[1], match[2], match[3]);
+  }
+  if (results.length > 5) return results;
+
+  const dashTitleName = /[-•*]\s*\*?\*?([^:*\n]+?)\*?\*?\s*[-–—:]\s*(.+?)(?:\n|$)/g;
+  while ((match = dashTitleName.exec(aiContent)) !== null) {
+    const left = match[1]?.trim();
+    const right = match[2]?.trim();
+    if (isLikelyName(left.replace(/\*\*/g, ''))) {
+      addPerson(results, left, right);
+    } else if (isLikelyName(right.replace(/\*\*/g, ''))) {
+      addPerson(results, right, left);
     }
   }
+  if (results.length > 5) return results;
 
-  if (results.length > 0) return results;
-
-  const boldNamePattern = /\*\*([A-Z][a-z]+ (?:[A-Z]\.?\s?)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\*\*[:\s]*[-–]?\s*(.+?)(?:\n|$)/g;
-  while ((match = boldNamePattern.exec(aiContent)) !== null) {
-    const name = match[1]?.trim();
-    const titleText = match[2]?.trim().replace(/^\*\*|\*\*$/g, '');
-    if (name && name.length > 2 && name.length < 60 && !/^(the|a|an|this|that|for|and)\b/i.test(name)) {
-      results.push({
-        fullName: name,
-        title: titleText || undefined,
-        source: "ai_research",
-        confidence: "medium",
-      });
+  const boldPattern = /\*\*([^*]+?)\*\*\s*[-–—:,]?\s*([^\n*]+)/g;
+  while ((match = boldPattern.exec(aiContent)) !== null) {
+    const bold = match[1]?.trim();
+    const rest = match[2]?.trim();
+    if (isLikelyName(bold)) {
+      addPerson(results, bold, rest);
+    } else if (isLikelyName(rest?.split(/[-–—:,]/)[0]?.trim() || '')) {
+      addPerson(results, rest.split(/[-–—:,]/)[0].trim(), bold);
     }
   }
+  if (results.length > 5) return results;
 
-  if (results.length > 0) return results;
-
-  const linePattern = /[-•*]\s+([A-Z][a-z]+ (?:[A-Z]\.?\s?)?[A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s*[-–:,]\s*(.+?)(?:\n|$)/g;
-  while ((match = linePattern.exec(aiContent)) !== null) {
-    const name = match[1]?.trim();
-    const titleText = match[2]?.trim();
-    if (name && name.length > 2 && name.length < 60) {
-      results.push({
-        fullName: name,
-        title: titleText || undefined,
-        source: "ai_research",
-        confidence: "medium",
-      });
+  const titleColonName = /(?:^|\n)\s*([A-Za-z\s&]+?):\s*([A-Z][a-z]+ (?:[A-Z]\.?\s?)?[A-Z][a-z]+(?:\s[A-Z][a-z]+(?:\s(?:Jr\.|Sr\.|III|II))?)?)\s*(?:\n|$)/g;
+  while ((match = titleColonName.exec(aiContent)) !== null) {
+    const possibleTitle = match[1]?.trim();
+    const possibleName = match[2]?.trim();
+    if (isLikelyName(possibleName) && possibleTitle.length < 80) {
+      addPerson(results, possibleName, possibleTitle);
     }
   }
 
