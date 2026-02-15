@@ -143,7 +143,6 @@ export function AppSidebar() {
     items: [
       { title: "Research Projects", url: "/matters", icon: FolderOpen, tourId: "matters" },
       { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
-      { title: "Modules", url: "/modules", icon: Puzzle, tourId: "modules" },
       { title: "Security", url: "/security", icon: Lock, tourId: "security" },
       { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
     ],
@@ -283,6 +282,22 @@ export function AppSidebar() {
                     </Collapsible>
                   );
                 })}
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === "/modules" || location.startsWith("/modules/")}
+                  >
+                    <Link
+                      href="/modules"
+                      data-testid="nav-modules"
+                      data-tour="modules"
+                    >
+                      <Puzzle className="w-4 h-4" />
+                      <span>Modules</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             ) : (
               <SidebarMenu>
