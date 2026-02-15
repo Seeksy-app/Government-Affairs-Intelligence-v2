@@ -1,13 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { Users, Newspaper, Activity, Star, BarChart3, FileText, Sparkles, Clock, TrendingUp, AlertCircle, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, ArrowUpRight, ArrowDownRight, Minus, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import type { Contact, NewsArticle } from "@shared/schema";
+
+const PREDICTION_CATEGORIES = [
+  { id: "politics", label: "Politics", icon: Landmark, apiCategory: "Politics" },
+  { id: "sports", label: "Sports", icon: Trophy, apiCategory: "Sports" },
+  { id: "economics", label: "Economics", icon: DollarSign, apiCategory: "Economics" },
+  { id: "financials", label: "Financials", icon: TrendingUp, apiCategory: "Financials" },
+  { id: "climate", label: "Climate", icon: Cloud, apiCategory: "Climate and Weather" },
+  { id: "tech", label: "Tech", icon: Beaker, apiCategory: "Tech" },
+  { id: "culture", label: "Culture", icon: Film, apiCategory: "Culture" },
+  { id: "health", label: "Health", icon: Heart, apiCategory: "Health" },
+  { id: "world", label: "World", icon: Globe, apiCategory: "World" },
+];
 
 function getWeatherIcon(code: number) {
   if (code === 0 || code === 1) return Sun;
@@ -162,6 +174,9 @@ export default function ClientDashboard() {
   const { user } = useAuth();
   const { weather, loading: weatherLoading, failed: weatherFailed } = useWeather();
   const currentTime = useCurrentTime();
+  const [marketCategory, setMarketCategory] = useState("politics");
+
+  const selectedCategory = PREDICTION_CATEGORIES.find(c => c.id === marketCategory) || PREDICTION_CATEGORIES[0];
 
   const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
     queryKey: ["/api/stats"],
@@ -176,7 +191,13 @@ export default function ClientDashboard() {
   });
 
   const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
-    queryKey: ["/api/kalshi/political-markets"],
+    queryKey: ["/api/kalshi/markets", marketCategory],
+    queryFn: async () => {
+      const res = await fetch(`/api/kalshi/markets?category=${encodeURIComponent(selectedCategory.apiCategory)}&limit=4`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch markets");
+      const data = await res.json();
+      return data.markets || data || [];
+    },
   });
 
   const displayName = user?.firstName || user?.email?.split("@")[0] || "there";
@@ -250,6 +271,23 @@ export default function ClientDashboard() {
             <Link href="/predictions" data-testid="link-view-all-predictions">View All</Link>
           </Button>
         </div>
+        <div className="flex gap-1.5 mb-3 flex-wrap">
+          {PREDICTION_CATEGORIES.map((cat) => {
+            const CatIcon = cat.icon;
+            return (
+              <Button
+                key={cat.id}
+                variant={marketCategory === cat.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setMarketCategory(cat.id)}
+                data-testid={`btn-category-${cat.id}`}
+              >
+                <CatIcon className="h-3.5 w-3.5 mr-1.5" />
+                {cat.label}
+              </Button>
+            );
+          })}
+        </div>
         {marketsLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
@@ -264,7 +302,7 @@ export default function ClientDashboard() {
           </div>
         ) : predictionMarkets && predictionMarkets.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {predictionMarkets.slice(0, 8).map((market) => (
+            {predictionMarkets.slice(0, 4).map((market) => (
               <Card
                 key={market.ticker}
                 className="cursor-pointer hover-elevate overflow-visible"
