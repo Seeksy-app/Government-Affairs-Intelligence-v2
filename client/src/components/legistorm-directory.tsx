@@ -234,8 +234,14 @@ export function LegistormDirectory() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      const content = data?.data?.rawContent || data?.rawContent || data?.content || "";
-      setLsResearchResult(content || JSON.stringify(data, null, 2));
+      let content = data?.content || data?.summary || "";
+      if (content && typeof content === "string") {
+        try {
+          const parsed = JSON.parse(content);
+          content = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || content;
+        } catch {}
+      }
+      setLsResearchResult(content || "No research content available.");
       const foundLinkedin = data?.data?.linkedinUrl;
       if (foundLinkedin) {
         toast({ title: "Research Complete", description: "Career research done and LinkedIn profile found." });

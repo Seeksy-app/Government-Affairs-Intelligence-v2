@@ -353,7 +353,14 @@ function VeteransSearch() {
       return await res.json();
     },
     onSuccess: (data: any) => {
-      const content = data?.data?.rawContent || data?.data?.content || data?.rawContent || data?.content || data?.summary || "";
+      let content = data?.content || data?.summary || "";
+      if (content && typeof content === "string") {
+        try {
+          const parsed = JSON.parse(content);
+          content = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || content;
+        } catch {
+        }
+      }
       setMemberResearchResult(content || (typeof data === "string" ? data : "No research content available."));
     },
     onError: (error: Error) => {
