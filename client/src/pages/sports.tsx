@@ -859,7 +859,7 @@ export default function SportsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{contact.name}</span>
-                            {contact.source && <Badge variant="outline" className="text-xs">{contact.source}</Badge>}
+                            {contact.roleType && <Badge variant="outline" className="text-xs">{contact.roleType}</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                             {contact.title && <span>{contact.title}</span>}
@@ -867,19 +867,19 @@ export default function SportsPage() {
                           </div>
                           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                             {contact.email && (
-                              <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-email-contact-${contact.id}`}>
+                              <a href={`mailto:${contact.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-email-${contact.id}`}>
                                 <Mail className="h-3 w-3" />
                                 <span className="truncate max-w-[180px]">{contact.email}</span>
                               </a>
                             )}
                             {contact.phone && (
-                              <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-phone-contact-${contact.id}`}>
+                              <a href={`tel:${contact.phone}`} onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-phone-${contact.id}`}>
                                 <Phone className="h-3 w-3" />
                                 <span>{contact.phone}</span>
                               </a>
                             )}
                             {contact.linkedinUrl && (
-                              <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-linkedin-contact-${contact.id}`}>
+                              <a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-linkedin-${contact.id}`}>
                                 <Link2 className="h-3 w-3" />
                                 <span>LinkedIn</span>
                               </a>
@@ -1154,11 +1154,18 @@ export default function SportsPage() {
                               <p className="text-sm font-medium">{person.fullName || person.full_name || person.name}</p>
                               <p className="text-xs text-muted-foreground">{person.title || person.job_title}</p>
                               {person.department && <p className="text-xs text-muted-foreground">{person.department}</p>}
-                              {person.source && (
-                                <Badge variant="outline" className="mt-1 text-xs">
-                                  {person.source === "pdl" ? "PDL" : person.source === "ai_research" ? "AI" : "Web"}
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                {person.email && (
+                                  <a href={`mailto:${person.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-email-person-${idx}`}>
+                                    <Mail className="h-3 w-3" /><span className="truncate max-w-[160px]">{person.email}</span>
+                                  </a>
+                                )}
+                                {person.phone && (
+                                  <a href={`tel:${person.phone}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid={`link-phone-person-${idx}`}>
+                                    <Phone className="h-3 w-3" /><span>{person.phone}</span>
+                                  </a>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-1">
                               {(person.linkedinUrl || person.linkedin_url) && (
@@ -1328,6 +1335,121 @@ export default function SportsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Contact Detail Sheet */}
+      <Sheet open={!!selectedContact} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
+        <SheetContent className="overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle data-testid="text-contact-detail-name">{selectedContact?.name}</SheetTitle>
+            <SheetDescription>{selectedContact?.title || "Contact"}</SheetDescription>
+          </SheetHeader>
+          {selectedContact && (() => {
+            const contactTeam = teams?.find(t => t.id === selectedContact.teamId);
+            return (
+              <div className="space-y-6 mt-6">
+                {contactTeam && (
+                  <div className="flex items-center gap-3">
+                    <TeamLogo team={contactTeam} size="sm" testId="img-contact-detail-team" />
+                    <div>
+                      <p className="text-sm font-medium">{contactTeam.name}</p>
+                      {contactTeam.league && <p className="text-xs text-muted-foreground">{contactTeam.league}</p>}
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Contact Information</h4>
+                  {selectedContact.email ? (
+                    <a href={`mailto:${selectedContact.email}`} className="flex items-center gap-3 text-sm hover:text-foreground text-muted-foreground" data-testid="link-contact-detail-email">
+                      <Mail className="h-4 w-4 shrink-0" />
+                      <span>{selectedContact.email}</span>
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground/50">
+                      <Mail className="h-4 w-4 shrink-0" />
+                      <span>No email on file</span>
+                    </div>
+                  )}
+                  {selectedContact.phone ? (
+                    <a href={`tel:${selectedContact.phone}`} className="flex items-center gap-3 text-sm hover:text-foreground text-muted-foreground" data-testid="link-contact-detail-phone">
+                      <Phone className="h-4 w-4 shrink-0" />
+                      <span>{selectedContact.phone}</span>
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground/50">
+                      <Phone className="h-4 w-4 shrink-0" />
+                      <span>No phone on file</span>
+                    </div>
+                  )}
+                  {selectedContact.linkedinUrl ? (
+                    <a href={selectedContact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm hover:text-foreground text-muted-foreground" data-testid="link-contact-detail-linkedin">
+                      <Link2 className="h-4 w-4 shrink-0" />
+                      <span>LinkedIn Profile</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground/50">
+                      <Link2 className="h-4 w-4 shrink-0" />
+                      <span>No LinkedIn on file</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">Details</h4>
+                  {selectedContact.department && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span>{selectedContact.department}</span>
+                    </div>
+                  )}
+                  {selectedContact.roleType && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Target className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="capitalize">{selectedContact.roleType.replace(/_/g, ' ')}</span>
+                    </div>
+                  )}
+                  {selectedContact.source && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span>Source: {selectedContact.source === "manual" ? "Manual" : selectedContact.source === "pdl" ? "People Data Labs" : selectedContact.source === "ai_research" ? "AI Research" : selectedContact.source}</span>
+                    </div>
+                  )}
+                </div>
+
+                {selectedContact.notes && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Notes</h4>
+                      <p className="text-sm text-muted-foreground">{selectedContact.notes}</p>
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => {
+                    deleteContactMutation.mutate(selectedContact.id);
+                    setSelectedContact(null);
+                  }}
+                  data-testid="button-delete-contact-detail"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Contact
+                </Button>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

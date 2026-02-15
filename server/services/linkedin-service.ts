@@ -686,6 +686,9 @@ export interface PersonSearchResult {
   industry?: string;
   skills?: string[];
   matchScore?: number;
+  workEmail?: string;
+  personalEmail?: string;
+  mobilePhone?: string;
 }
 
 export interface PersonSearchParams {
@@ -798,6 +801,9 @@ export async function searchPeople(
       industry: titleCase(person.industry),
       skills: (person.skills || []).filter((s: any) => typeof s === "string").map((s: string) => titleCase(s) || s),
       matchScore: person.match_score,
+      workEmail: person.work_email || (person.emails || []).find((e: any) => e?.type === "current_professional")?.address || undefined,
+      personalEmail: (person.emails || []).find((e: any) => e?.type === "personal")?.address || undefined,
+      mobilePhone: person.mobile_phone || (person.phone_numbers || []).find((p: any) => p)?.number || undefined,
     }));
   } catch (error) {
     console.error("PDL person search error:", error);

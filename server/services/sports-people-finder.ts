@@ -82,8 +82,8 @@ async function searchPDLWithVariations(
     fullName: p.fullName || "",
     title: p.jobTitle || undefined,
     department: p.industry || undefined,
-    email: undefined,
-    phone: undefined,
+    email: p.workEmail || p.personalEmail || undefined,
+    phone: p.mobilePhone || undefined,
     linkedinUrl: p.linkedinUrl || undefined,
     source: "pdl" as const,
     confidence: "high" as const,
@@ -139,15 +139,41 @@ function isLikelyName(str: string): boolean {
   return words.every(w => /^[A-Z]/.test(w) || /^(de|del|la|le|von|van|mc|o'|d')$/i.test(w) || w === "J." || w === "Jr." || w === "Sr." || w === "III" || w === "II" || /^[A-Z]\.$/.test(w));
 }
 
+function cleanField(val: string | undefined): string | undefined {
+  if (!val) return undefined;
+  let cleaned = val
+    .replace(/\*\*/g, '')
+    .replace(/\[\d+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (/^TITLE:\s*/i.test(cleaned)) {
+    const parts = cleaned.split(/\s*\|\s*/);
+    const titlePart = parts.find(p => /^TITLE:/i.test(p));
+    cleaned = titlePart ? titlePart.replace(/^TITLE:\s*/i, '').trim() : cleaned.replace(/^TITLE:\s*/i, '').trim();
+  }
+  cleaned = cleaned.replace(/\|\s*DEPT:.*$/i, '').trim();
+  cleaned = cleaned.replace(/\|\s*TITLE:.*$/i, '').trim();
+  return cleaned || undefined;
+}
+
+function extractDeptFromRaw(title: string | undefined, dept: string | undefined): string | undefined {
+  if (dept) return cleanField(dept);
+  if (!title) return undefined;
+  const deptMatch = title.match(/\|\s*DEPT:\s*(.+?)(?:\||$)/i);
+  if (deptMatch) return cleanField(deptMatch[1]);
+  return undefined;
+}
+
 function addPerson(results: SportsPersonResult[], name: string, title?: string, dept?: string) {
-  const cleanName = name.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
-  const cleanTitle = title?.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+  const cleanName = name.replace(/\*\*/g, '').replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim();
+  const extractedDept = extractDeptFromRaw(title, dept);
+  const cleanTitle = cleanField(title);
   if (!isLikelyName(cleanName)) return;
   if (results.some(r => r.fullName.toLowerCase() === cleanName.toLowerCase())) return;
   results.push({
     fullName: cleanName,
     title: cleanTitle || undefined,
-    department: dept?.replace(/\*\*/g, '').trim() || undefined,
+    department: extractedDept || undefined,
     source: "ai_research",
     confidence: "medium",
   });
