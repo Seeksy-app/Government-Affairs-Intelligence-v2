@@ -1476,6 +1476,7 @@ export const sportsContacts = pgTable("sports_contacts", {
   email: text("email"),
   phone: text("phone"),
   linkedinUrl: text("linkedin_url"),
+  imageUrl: text("image_url"),
   roleType: text("role_type"),
   source: text("source").default("manual"),
   notes: text("notes"),

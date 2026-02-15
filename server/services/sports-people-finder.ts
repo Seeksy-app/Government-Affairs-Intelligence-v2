@@ -8,6 +8,7 @@ export interface SportsPersonResult {
   email?: string;
   phone?: string;
   linkedinUrl?: string;
+  imageUrl?: string;
   source: "pdl" | "ai_research" | "web_scrape";
   confidence: "high" | "medium" | "low";
 }
@@ -85,6 +86,7 @@ async function searchPDLWithVariations(
     email: p.workEmail || p.personalEmail || undefined,
     phone: p.mobilePhone || undefined,
     linkedinUrl: p.linkedinUrl || undefined,
+    imageUrl: p.profilePicUrl || undefined,
     source: "pdl" as const,
     confidence: "high" as const,
   }));
@@ -334,12 +336,13 @@ async function enrichAIContactsWithPDL(
           .map((p: any) => (typeof p === "string" ? p : p?.number))
           .find(Boolean);
 
-      if (workEmail || personalEmail || mobilePhone || person.linkedin_url) {
-        contact.email = workEmail || personalEmail || undefined;
-        contact.phone = mobilePhone || undefined;
-        contact.linkedinUrl = person.linkedin_url || undefined;
+      if (workEmail || personalEmail || mobilePhone || person.linkedin_url || person.profile_pic_url) {
+        contact.email = workEmail || personalEmail || contact.email;
+        contact.phone = mobilePhone || contact.phone;
+        contact.linkedinUrl = person.linkedin_url || contact.linkedinUrl;
+        contact.imageUrl = person.profile_pic_url || contact.imageUrl;
         enriched++;
-        console.log(`[Sports People] PDL enriched ${contact.fullName}: email=${!!contact.email}, phone=${!!contact.phone}, linkedin=${!!contact.linkedinUrl}`);
+        console.log(`[Sports People] PDL enriched ${contact.fullName}: email=${!!contact.email}, phone=${!!contact.phone}, linkedin=${!!contact.linkedinUrl}, photo=${!!contact.imageUrl}`);
       }
     } catch (error) {
       console.log(`[Sports People] PDL enrich failed for ${contact.fullName}:`, (error as Error).message);
@@ -352,7 +355,7 @@ async function enrichAIContactsWithPDL(
 export async function enrichSingleContact(
   name: string,
   companyName: string,
-): Promise<{ email?: string; phone?: string; linkedinUrl?: string } | null> {
+): Promise<{ email?: string; phone?: string; linkedinUrl?: string; imageUrl?: string } | null> {
   if (!process.env.PDL_API_KEY) return null;
 
   const nameParts = name.trim().split(/\s+/);
@@ -395,12 +398,13 @@ export async function enrichSingleContact(
         .map((p: any) => (typeof p === "string" ? p : p?.number))
         .find(Boolean);
 
-    if (!workEmail && !personalEmail && !mobilePhone && !person.linkedin_url) return null;
+    if (!workEmail && !personalEmail && !mobilePhone && !person.linkedin_url && !person.profile_pic_url) return null;
 
     return {
       email: workEmail || personalEmail || undefined,
       phone: mobilePhone || undefined,
       linkedinUrl: person.linkedin_url || undefined,
+      imageUrl: person.profile_pic_url || undefined,
     };
   } catch (error) {
     console.error(`[Sports People] Enrich single contact failed for ${name}:`, (error as Error).message);

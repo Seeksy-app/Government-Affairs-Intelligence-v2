@@ -8447,6 +8447,7 @@ Respond in this exact JSON format only, including the ID field exactly as provid
     email: z.string().optional(),
     phone: z.string().optional(),
     linkedinUrl: z.string().optional(),
+    imageUrl: z.string().optional(),
     roleType: z.string().optional(),
     source: z.string().optional(),
     notes: z.string().optional(),
@@ -8528,6 +8529,7 @@ Respond in this exact JSON format only, including the ID field exactly as provid
       if (result.email && !contact.email) updates.email = result.email;
       if (result.phone && !contact.phone) updates.phone = result.phone;
       if (result.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = result.linkedinUrl;
+      if (result.imageUrl && !contact.imageUrl) updates.imageUrl = result.imageUrl;
 
       if (Object.keys(updates).length === 0) {
         return res.json({ success: false, message: "No new contact information found" });

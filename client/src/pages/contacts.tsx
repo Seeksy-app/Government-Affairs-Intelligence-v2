@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Users, Plus, Search, MoreHorizontal, Edit, Trash2, Star, Mail, Phone, Building2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -414,9 +415,12 @@ export default function Contacts() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                          {contact.firstName[0]}{contact.lastName[0]}
-                        </div>
+                        <Avatar className="h-12 w-12">
+                          {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={`${contact.firstName} ${contact.lastName}`} />}
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                            {contact.firstName[0]}{contact.lastName[0]}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium truncate">

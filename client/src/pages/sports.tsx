@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Trophy, Search, Plus, Loader2, Globe, MapPin, Users, Building2,
   ExternalLink, Phone, Mail, Brain, FileText, UserSearch, Link2,
@@ -243,7 +244,7 @@ export default function SportsPage() {
   });
 
   const createContactMutation = useMutation({
-    mutationFn: async (data: typeof newContact) => {
+    mutationFn: async (data: Record<string, string>) => {
       const res = await apiRequest("POST", "/api/sports/contacts", data);
       return res.json();
     },
@@ -875,7 +876,12 @@ export default function SportsPage() {
                   <Card key={contact.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedContact(contact)} data-testid={`card-contact-${contact.id}`}>
                     <CardContent className="flex items-center justify-between gap-4 py-3 flex-wrap">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {team && <TeamLogo team={team} size="sm" testId={`img-team-logo-contact-${contact.id}`} />}
+                        <Avatar className="h-9 w-9 shrink-0">
+                          {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={contact.name} />}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                            {contact.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{contact.name}</span>
@@ -1170,7 +1176,14 @@ export default function SportsPage() {
                       {findPeopleMutation.data.data.map((person: any, idx: number) => (
                         <Card key={idx}>
                           <CardContent className="py-2 flex items-center justify-between gap-3 flex-wrap">
-                            <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <Avatar className="h-8 w-8 shrink-0">
+                                {(person.imageUrl || person.profilePicUrl) && <AvatarImage src={person.imageUrl || person.profilePicUrl} alt={person.fullName || person.name} />}
+                                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
+                                  {(person.fullName || person.full_name || person.name || "").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium">{person.fullName || person.full_name || person.name}</p>
                               <p className="text-xs text-muted-foreground">{person.title || person.job_title}</p>
                               {person.department && <p className="text-xs text-muted-foreground">{person.department}</p>}
@@ -1185,6 +1198,7 @@ export default function SportsPage() {
                                     <Phone className="h-3 w-3" /><span>{person.phone}</span>
                                   </a>
                                 )}
+                              </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -1204,6 +1218,7 @@ export default function SportsPage() {
                                     email: person.email || person.work_email || "",
                                     phone: person.phone || "",
                                     linkedinUrl: person.linkedinUrl || person.linkedin_url || "",
+                                    imageUrl: person.imageUrl || person.image_url || person.profilePicUrl || "",
                                     roleType: person.source === "pdl" ? "pdl_discovered" : person.source === "ai_research" ? "ai_discovered" : "web_discovered",
                                     department: person.department || "",
                                     notes: "",
@@ -1245,9 +1260,17 @@ export default function SportsPage() {
                     <div className="space-y-2">
                       {teamContacts.map(contact => (
                         <div key={contact.id} className="flex items-center justify-between gap-2 text-sm p-2 rounded-md bg-muted/30">
-                          <div>
-                            <p className="font-medium">{contact.name}</p>
-                            {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Avatar className="h-7 w-7 shrink-0">
+                              {contact.imageUrl && <AvatarImage src={contact.imageUrl} alt={contact.name} />}
+                              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
+                                {contact.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium">{contact.name}</p>
+                              {contact.title && <p className="text-xs text-muted-foreground truncate">{contact.title}</p>}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1">
                             {contact.email && (
@@ -1360,8 +1383,18 @@ export default function SportsPage() {
       <Sheet open={!!selectedContact} onOpenChange={(open) => { if (!open) setSelectedContact(null); }}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>
-            <SheetTitle data-testid="text-contact-detail-name">{selectedContact?.name}</SheetTitle>
-            <SheetDescription>{selectedContact?.title || "Contact"}</SheetDescription>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                {selectedContact?.imageUrl && <AvatarImage src={selectedContact.imageUrl} alt={selectedContact.name} />}
+                <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                  {selectedContact?.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <SheetTitle data-testid="text-contact-detail-name">{selectedContact?.name}</SheetTitle>
+                <SheetDescription>{selectedContact?.title || "Contact"}</SheetDescription>
+              </div>
+            </div>
           </SheetHeader>
           {selectedContact && (() => {
             const contactTeam = teams?.find(t => t.id === selectedContact.teamId);

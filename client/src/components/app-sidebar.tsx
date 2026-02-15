@@ -88,8 +88,8 @@ export function AppSidebar() {
   ];
 
   const clientDirectoryGroup = {
-    label: "Directory",
-    icon: Users,
+    label: "Gov Affairs",
+    icon: Landmark,
     items: [
       { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
       { title: "Staffers", url: "/staffers", icon: Briefcase, tourId: "staffers" },
