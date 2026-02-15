@@ -190,7 +190,14 @@ export default function SportsPage() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sports/teams"] });
       if (selectedTeam) {
-        setSelectedTeam({ ...selectedTeam, aiResearch: data.content || data.summary });
+        let content = data.content || data.summary || "";
+        if (content && typeof content === "string") {
+          try {
+            const parsed = JSON.parse(content);
+            content = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || content;
+          } catch {}
+        }
+        setSelectedTeam({ ...selectedTeam, aiResearch: content });
       }
       toast({ title: "Research complete" });
     },
@@ -743,9 +750,17 @@ export default function SportsPage() {
                         </span>
                       )}
                     </div>
-                    {team.aiResearch && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{team.aiResearch.substring(0, 120)}...</p>
-                    )}
+                    {team.aiResearch && (() => {
+                      let preview = team.aiResearch;
+                      if (preview.trimStart().startsWith("{")) {
+                        try {
+                          const p = JSON.parse(preview);
+                          preview = p?.rawContent || p?.content || preview;
+                        } catch {}
+                      }
+                      preview = preview.replace(/\\n/g, " ").replace(/\*\*/g, "").replace(/#+\s*/g, "");
+                      return <p className="text-xs text-muted-foreground line-clamp-2">{preview.substring(0, 120)}...</p>;
+                    })()}
                   </CardContent>
                 </Card>
               ))}
@@ -1047,9 +1062,18 @@ export default function SportsPage() {
                       </Button>
                     )}
                   </div>
-                  {selectedTeam.aiResearch && (
+                  {selectedTeam.aiResearch && (() => {
+                    let displayContent = selectedTeam.aiResearch;
+                    if (displayContent.trimStart().startsWith("{")) {
+                      try {
+                        const parsed = JSON.parse(displayContent);
+                        displayContent = parsed?.rawContent || parsed?.content || parsed?.bio || Object.values(parsed).filter((v: any) => typeof v === "string" && v.length > 20).join("\n\n") || displayContent;
+                      } catch {}
+                    }
+                    displayContent = displayContent.replace(/\\n/g, "\n");
+                    return (
                     <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[300px] overflow-y-auto space-y-2">
-                      {selectedTeam.aiResearch.split(/\n{2,}/).map((block, bIdx) => {
+                      {displayContent.split(/\n{2,}/).map((block: string, bIdx: number) => {
                         const trimmed = block.trim();
                         if (!trimmed) return null;
                         if (trimmed.startsWith("### ")) return <h4 key={bIdx} className="font-semibold text-sm mt-2 first:mt-0 text-foreground">{trimmed.replace(/^###\s*/, "").replace(/\*\*/g, "")}</h4>;
@@ -1071,7 +1095,8 @@ export default function SportsPage() {
                         return <p key={bIdx} className="text-muted-foreground leading-relaxed">{trimmed.replace(/\[\d+\]/g, "")}</p>;
                       })}
                     </div>
-                  )}
+                    );
+                  })()}
                   {selectedTeam.aiResearchedAt && (
                     <p className="text-xs text-muted-foreground">Last researched: {new Date(selectedTeam.aiResearchedAt).toLocaleDateString()}</p>
                   )}
@@ -1082,27 +1107,18 @@ export default function SportsPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     <UserSearch className="h-4 w-4" />
-                    Find Key People
+                    Find Staff
                   </h4>
                   <p className="text-xs text-muted-foreground">Searches PDL, AI research, and team websites</p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, searchType: "people" })}
-                      disabled={findPeopleMutation.isPending}
-                      data-testid="button-find-people"
-                    >
-                      {findPeopleMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Searching...</> : <><UserSearch className="h-4 w-4 mr-2" /> Find People</>}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id, searchType: "leadership" })}
-                      disabled={findPeopleMutation.isPending}
-                      data-testid="button-find-leadership"
-                    >
-                      {findPeopleMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Searching...</> : <><Users className="h-4 w-4 mr-2" /> Find Leadership</>}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => findPeopleMutation.mutate({ id: selectedTeam.id })}
+                    disabled={findPeopleMutation.isPending}
+                    data-testid="button-find-staff"
+                  >
+                    {findPeopleMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Searching...</> : <><UserSearch className="h-4 w-4 mr-2" /> Find Staff</>}
+                  </Button>
                   {findPeopleMutation.data?.sources && findPeopleMutation.data.sources.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs text-muted-foreground">Sources:</span>

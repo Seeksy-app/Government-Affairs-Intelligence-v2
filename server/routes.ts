@@ -8341,15 +8341,23 @@ Respond in this exact JSON format only, including the ID field exactly as provid
       const { researchPoliticalEntity } = await import("./services/research-agent");
       const teamType = team.level === "college" ? "college sports program" : "professional sports franchise";
       const query = `${team.name} ${teamType}${team.league ? ` (${team.league})` : ""}${team.city ? `, ${team.city}` : ""}`;
-      const result = await researchPoliticalEntity(query, "sports organization");
+      const result = await researchPoliticalEntity(query, "organization");
 
-      if (result.content || result.summary) {
+      let cleanContent = result.content || result.summary || "";
+      if (cleanContent && typeof cleanContent === "string") {
+        try {
+          const parsed = JSON.parse(cleanContent);
+          cleanContent = parsed?.rawContent || parsed?.content || parsed?.bio || 
+            Object.values(parsed).filter((v: any) => typeof v === "string" && (v as string).length > 20).join("\n\n") || cleanContent;
+        } catch {}
+      }
+      if (cleanContent) {
         await storage.updateSportsTeam(team.id, {
-          aiResearch: result.content || result.summary,
+          aiResearch: cleanContent,
         });
       }
 
-      res.json({ success: true, content: result.content, summary: result.summary, sources: result.sources });
+      res.json({ success: true, content: cleanContent, summary: result.summary, sources: result.sources });
     } catch (error: any) {
       console.error("[Sports Research] ERROR:", error?.message || error);
       res.status(500).json({ message: error?.message || "Failed to research team" });
