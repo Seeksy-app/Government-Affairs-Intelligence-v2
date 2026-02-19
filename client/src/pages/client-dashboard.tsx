@@ -236,7 +236,7 @@ export default function ClientDashboard() {
               value={aiPromptInput}
               onChange={(e) => setAiPromptInput(e.target.value)}
               placeholder="Ask about legislation, staffers, news, lobbying activity..."
-              className="pr-24 h-12 text-base"
+              className="pr-12 h-12 text-base"
               data-testid="input-dashboard-ai-prompt"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && aiPromptInput.trim()) {
@@ -246,8 +246,9 @@ export default function ClientDashboard() {
               }}
             />
             <Button
-              size="sm"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2"
+              size="icon"
+              variant="ghost"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground"
               disabled={!aiPromptInput.trim()}
               onClick={() => {
                 openAIChat(aiPromptInput.trim());
@@ -255,8 +256,7 @@ export default function ClientDashboard() {
               }}
               data-testid="button-dashboard-ai-send"
             >
-              <Send className="h-4 w-4 mr-1.5" />
-              Ask AI
+              <Send className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">

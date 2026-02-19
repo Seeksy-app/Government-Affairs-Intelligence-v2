@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings, User, Shield, LogOut, Mail, Link2, CheckCircle2, ExternalLink } from "lucide-react";
+import { Settings, User, Shield, LogOut, Mail, Link2, CheckCircle2, ExternalLink, Copy, Share2 } from "lucide-react";
+import { useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -206,6 +207,47 @@ export default function SettingsPage() {
               </Badge>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Invite & Share Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Share2 className="h-5 w-5" />
+            Invite & Share
+          </CardTitle>
+          <CardDescription>Share this link so others can sign up for an account</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Input
+              readOnly
+              value={`${window.location.origin}/signup`}
+              className="text-sm"
+              data-testid="input-signup-link"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              data-testid="button-copy-signup-link"
+              onClick={() => {
+                const url = `${window.location.origin}/signup`;
+                navigator.clipboard.writeText(url).then(() => {
+                  toast({ title: "Link copied", description: "Signup link copied to clipboard" });
+                }).catch(() => {
+                  toast({ title: "Copy failed", description: "Please select and copy the link manually", variant: "destructive" });
+                });
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1.5" />
+              Copy
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Anyone with this link can apply to join the platform. Applications will appear in your admin panel for approval.
+          </p>
         </CardContent>
       </Card>
 
