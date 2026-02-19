@@ -227,7 +227,7 @@ export function LandingPage() {
               Simple, Transparent Pricing
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that fits your firm's needs. All plans include a 14-day free trial.
+              Choose the plan that fits your firm's needs. All plans are free during our early access period.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -237,8 +237,7 @@ export function LandingPage() {
                 <CardTitle className="text-xl">Starter</CardTitle>
                 <CardDescription>For small firms getting started</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold">$299</span>
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-4xl font-bold">Free</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
@@ -281,8 +280,7 @@ export function LandingPage() {
                 <CardTitle className="text-xl">Professional</CardTitle>
                 <CardDescription>For growing advocacy practices</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold">$799</span>
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-4xl font-bold">Free</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
@@ -324,8 +322,7 @@ export function LandingPage() {
                 <CardTitle className="text-xl">Enterprise</CardTitle>
                 <CardDescription>For large firms and organizations</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold">$1,999</span>
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-4xl font-bold">Free</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
