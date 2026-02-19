@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Shield, Lock, Server, Database, Eye, FileCheck, Globe, Key, Users, RefreshCw } from "lucide-react";
+import { ArrowLeft, Shield, Lock, Server, Database, Eye, FileCheck, Globe, Key, Users, RefreshCw, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 
 const infrastructure = [
@@ -102,6 +102,57 @@ const dataHandling = [
     icon: Shield,
     title: "Secrets Management",
     description: "All API keys, tokens, and sensitive configuration values are stored using Replit's encrypted secrets management system, separate from application code.",
+  },
+];
+
+const thirdPartyProcessors = [
+  {
+    name: "LegiStorm",
+    purpose: "Congressional staff directory data. API requests include staffer names and search queries to retrieve directory information.",
+    privacyUrl: "https://www.legistorm.com/index/privacy.html",
+    privacyLabel: "LegiStorm Privacy Policy",
+  },
+  {
+    name: "People Data Labs (PDL)",
+    purpose: "Contact enrichment and career data. Search queries include names, emails, or company names to retrieve professional profiles and career histories.",
+    privacyUrl: "https://www.peopledatalabs.com/privacy-policy",
+    privacyLabel: "PDL Privacy Policy",
+  },
+  {
+    name: "Perplexity AI",
+    purpose: "AI-powered research and analysis. Research questions and staffer names are sent as prompts to generate intelligence reports and career research.",
+    privacyUrl: "https://www.perplexity.ai/hub/legal/privacy-policy",
+    privacyLabel: "Perplexity Privacy Policy",
+  },
+  {
+    name: "OpenAI",
+    purpose: "AI chat and research capabilities. Queries are processed via the API platform. OpenAI does not train on API data by default and offers zero data retention for qualifying organizations.",
+    privacyUrl: "https://openai.com/enterprise-privacy/",
+    privacyLabel: "OpenAI Enterprise Privacy",
+  },
+  {
+    name: "Firecrawl",
+    purpose: "Web scraping and content extraction. URLs submitted for scraping are sent to Firecrawl's service for processing. SOC 2 Type II certified.",
+    privacyUrl: "https://www.firecrawl.dev/privacy-policy",
+    privacyLabel: "Firecrawl Privacy Policy",
+  },
+  {
+    name: "Congress.gov API",
+    purpose: "Public government data on Members of Congress, bills, and legislative activity. This is a publicly available government service.",
+    privacyUrl: "https://www.congress.gov/privacy-policy",
+    privacyLabel: "Congress.gov Privacy Policy",
+  },
+  {
+    name: "Kalshi",
+    purpose: "Prediction market data for political event forecasting. Market queries and event data are retrieved through their API.",
+    privacyUrl: "https://kalshi.com/privacy-policy",
+    privacyLabel: "Kalshi Privacy Policy",
+  },
+  {
+    name: "Resend",
+    purpose: "Transactional email delivery for account notifications, verification emails, and daily briefs. Recipient email addresses are shared for delivery.",
+    privacyUrl: "https://resend.com/legal/privacy-policy",
+    privacyLabel: "Resend Privacy Policy",
   },
 ];
 
@@ -249,6 +300,40 @@ export default function SecurityPrivacyPage() {
                       <p className="font-medium text-sm">{item.title}</p>
                       <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ExternalLink className="w-5 h-5" />
+                Third-Party Data Processors
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Our platform integrates with the following third-party services to provide its features. When you use these features, certain data (such as search queries, names, or URLs) is transmitted to these providers. Each provider has their own privacy policy governing how they handle that data.
+              </p>
+              <div className="grid gap-4">
+                {thirdPartyProcessors.map((processor) => (
+                  <div key={processor.name} className="p-3 border rounded-md" data-testid={`processor-${processor.name.toLowerCase().replace(/[\s()]/g, "-")}`}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="font-medium text-sm">{processor.name}</p>
+                      <a
+                        href={processor.privacyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                        data-testid={`link-privacy-${processor.name.toLowerCase().replace(/[\s()]/g, "-")}`}
+                      >
+                        {processor.privacyLabel}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{processor.purpose}</p>
                   </div>
                 ))}
               </div>
