@@ -535,6 +535,7 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
   const [stafferSource, setStafferSource] = useState<"manual" | "contact" | "legistorm">("manual");
   const [stafferName, setStafferName] = useState("");
   const [stafferId, setStafferId] = useState("");
+  const [selectedStaffers, setSelectedStaffers] = useState<Array<{ id: string; name: string; title?: string; org?: string; member?: string }>>([]);
   const [billSource, setBillSource] = useState<"tracked" | "manual">("tracked");
   const [selectedBillId, setSelectedBillId] = useState("");
   const [manualBillTitle, setManualBillTitle] = useState("");
@@ -549,92 +550,127 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
   const [yearEnd, setYearEnd] = useState("");
   const [notes, setNotes] = useState("");
   const [lsSearch, setLsSearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: lsResults } = useQuery<{ staffers: LegistormStaffer[]; total: number }>({
     queryKey: [`/api/legistorm/staffers?q=${encodeURIComponent(lsSearch)}&limit=10`],
     enabled: stafferSource === "legistorm" && lsSearch.length >= 2,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/staffer-bills", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/staffer-bills"] });
-      toast({ title: "Connection created" });
-      onOpenChange(false);
-      resetForm();
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to create", description: error.message, variant: "destructive" });
-    },
-  });
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch || contactSearch.length < 2) return [];
+    const q = contactSearch.toLowerCase();
+    return contacts.filter(c => {
+      const name = `${c.firstName} ${c.lastName}`.toLowerCase();
+      return name.includes(q) || (c.title && c.title.toLowerCase().includes(q));
+    }).slice(0, 10);
+  }, [contacts, contactSearch]);
+
+  function addStaffer(staffer: { id: string; name: string; title?: string; org?: string; member?: string }) {
+    if (selectedStaffers.some(s => s.id === staffer.id && s.name === staffer.name)) return;
+    setSelectedStaffers(prev => [...prev, staffer]);
+  }
+
+  function removeStaffer(index: number) {
+    setSelectedStaffers(prev => prev.filter((_, i) => i !== index));
+  }
 
   function resetForm() {
-    setStafferName(""); setStafferId(""); setSelectedBillId("");
+    setStafferName(""); setStafferId(""); setSelectedStaffers([]); setSelectedBillId("");
     setManualBillTitle(""); setManualBillType(""); setManualBillNumber("");
     setRole(""); setPositionTitle(""); setPositionOrg(""); setPositionMember("");
-    setYearStart(""); setYearEnd(""); setNotes(""); setLsSearch("");
+    setYearStart(""); setYearEnd(""); setNotes(""); setLsSearch(""); setContactSearch("");
     setStafferSource("manual"); setBillSource("tracked");
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const selectedBill = trackedBills.find(b => b.id === selectedBillId);
-    const data: any = {
-      stafferType: stafferSource === "legistorm" ? "legistorm" : "contact",
-      stafferId: stafferId || "manual",
-      stafferName: stafferName,
-      role: role || null,
-      positionTitle: positionTitle || null,
-      positionOrganization: positionOrg || null,
-      positionMemberName: positionMember || null,
-      yearStart: yearStart ? parseInt(yearStart) : null,
-      yearEnd: yearEnd ? parseInt(yearEnd) : null,
-      notes: notes || null,
-      source: "manual",
-      confidence: "confirmed",
-    };
 
-    if (billSource === "tracked" && selectedBill) {
-      data.trackedBillId = selectedBill.id;
-      data.billTitle = selectedBill.title;
-      data.billType = selectedBill.billType;
-      data.billNumber = selectedBill.billNumber;
-      data.congress = selectedBill.congress;
-    } else {
-      data.billTitle = manualBillTitle;
-      data.billType = manualBillType || null;
-      data.billNumber = manualBillNumber ? parseInt(manualBillNumber) : null;
-      data.congress = manualCongress ? parseInt(manualCongress) : null;
-    }
+    const staffersToLink = stafferSource === "manual"
+      ? (stafferName ? [{ id: "manual", name: stafferName, title: positionTitle, org: positionOrg, member: positionMember }] : [])
+      : selectedStaffers;
 
-    if (!data.stafferName) {
-      toast({ title: "Staffer name required", variant: "destructive" });
+    if (staffersToLink.length === 0) {
+      toast({ title: "At least one staffer is required", variant: "destructive" });
       return;
     }
-    if (!data.billTitle && !data.trackedBillId) {
+
+    const billData: any = {};
+    if (billSource === "tracked" && selectedBill) {
+      billData.trackedBillId = selectedBill.id;
+      billData.billTitle = selectedBill.title;
+      billData.billType = selectedBill.billType;
+      billData.billNumber = selectedBill.billNumber;
+      billData.congress = selectedBill.congress;
+    } else {
+      billData.billTitle = manualBillTitle;
+      billData.billType = manualBillType || null;
+      billData.billNumber = manualBillNumber ? parseInt(manualBillNumber) : null;
+      billData.congress = manualCongress ? parseInt(manualCongress) : null;
+    }
+
+    if (!billData.billTitle && !billData.trackedBillId) {
       toast({ title: "Bill information required", variant: "destructive" });
       return;
     }
 
-    createMutation.mutate(data);
+    setSubmitting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const staffer of staffersToLink) {
+      const data: any = {
+        stafferType: stafferSource === "legistorm" ? "legistorm" : "contact",
+        stafferId: staffer.id || "manual",
+        stafferName: staffer.name,
+        role: role || null,
+        positionTitle: staffer.title || positionTitle || null,
+        positionOrganization: staffer.org || positionOrg || null,
+        positionMemberName: staffer.member || positionMember || null,
+        yearStart: yearStart ? parseInt(yearStart) : null,
+        yearEnd: yearEnd ? parseInt(yearEnd) : null,
+        notes: notes || null,
+        source: "manual",
+        confidence: "confirmed",
+        ...billData,
+      };
+      try {
+        await apiRequest("POST", "/api/staffer-bills", data);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setSubmitting(false);
+    queryClient.invalidateQueries({ queryKey: ["/api/staffer-bills"] });
+
+    if (successCount > 0) {
+      toast({ title: `${successCount} connection${successCount > 1 ? "s" : ""} created${failCount > 0 ? ` (${failCount} failed)` : ""}` });
+    } else {
+      toast({ title: "Failed to create connections", variant: "destructive" });
+    }
+
+    onOpenChange(false);
+    resetForm();
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Link Staffer to Bill</DialogTitle>
-          <DialogDescription>Create a connection between a political staffer and legislation they worked on.</DialogDescription>
+          <DialogTitle>Link Staffers to Bill</DialogTitle>
+          <DialogDescription>Create connections between political staffers and legislation they worked on. Select multiple staffers from LegiStorm or Contacts.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium mb-2 block">Staffer Source</Label>
             <div className="flex gap-2">
-              <Button size="sm" variant={stafferSource === "manual" ? "default" : "outline"} onClick={() => setStafferSource("manual")} data-testid="button-source-manual">Manual</Button>
-              <Button size="sm" variant={stafferSource === "contact" ? "default" : "outline"} onClick={() => setStafferSource("contact")} data-testid="button-source-contact">From Contacts</Button>
-              <Button size="sm" variant={stafferSource === "legistorm" ? "default" : "outline"} onClick={() => setStafferSource("legistorm")} data-testid="button-source-legistorm">LegiStorm</Button>
+              <Button size="sm" variant={stafferSource === "manual" ? "default" : "outline"} onClick={() => { setStafferSource("manual"); setSelectedStaffers([]); }} data-testid="button-source-manual">Manual</Button>
+              <Button size="sm" variant={stafferSource === "contact" ? "default" : "outline"} onClick={() => { setStafferSource("contact"); setSelectedStaffers([]); setStafferName(""); }} data-testid="button-source-contact">From Contacts</Button>
+              <Button size="sm" variant={stafferSource === "legistorm" ? "default" : "outline"} onClick={() => { setStafferSource("legistorm"); setSelectedStaffers([]); setStafferName(""); }} data-testid="button-source-legistorm">LegiStorm</Button>
             </div>
           </div>
 
@@ -647,21 +683,42 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
 
           {stafferSource === "contact" && (
             <div>
-              <Label>Select Contact</Label>
-              <Select value={stafferId} onValueChange={(v) => {
-                setStafferId(v);
-                const c = contacts.find(c => c.id === v);
-                if (c) setStafferName(`${c.firstName} ${c.lastName}`);
-              }}>
-                <SelectTrigger data-testid="select-contact">
-                  <SelectValue placeholder="Choose a contact" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.firstName} {c.lastName}{c.title ? ` - ${c.title}` : ""}</SelectItem>
+              <Label>Search Contacts</Label>
+              <Input value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="Search by name..." data-testid="input-contact-search" />
+              {filteredContacts.length > 0 && (
+                <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
+                  {filteredContacts.map(c => {
+                    const name = `${c.firstName} ${c.lastName}`;
+                    const alreadySelected = selectedStaffers.some(s => s.id === c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        className={`w-full text-left px-3 py-2 text-sm hover-elevate ${alreadySelected ? "opacity-50" : ""}`}
+                        disabled={alreadySelected}
+                        onClick={() => {
+                          addStaffer({ id: c.id, name, title: c.title || undefined });
+                          setContactSearch("");
+                        }}
+                      >
+                        <div className="font-medium">{name}</div>
+                        {c.title && <div className="text-xs text-muted-foreground">{c.title}</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedStaffers.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {selectedStaffers.map((s, i) => (
+                    <Badge key={`${s.id}-${i}`} variant="secondary" className="gap-1">
+                      {s.name}
+                      <button onClick={() => removeStaffer(i)} className="ml-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
           )}
 
@@ -671,31 +728,41 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
               <Input value={lsSearch} onChange={e => setLsSearch(e.target.value)} placeholder="Search by name..." data-testid="input-ls-search" />
               {lsResults?.staffers && lsResults.staffers.length > 0 && (
                 <div className="mt-2 border rounded-md max-h-40 overflow-y-auto">
-                  {lsResults.staffers.map(s => (
-                    <button
-                      key={s.id}
-                      className="w-full text-left px-3 py-2 text-sm hover-elevate"
-                      onClick={() => {
-                        setStafferId(s.id);
-                        setStafferName(s.fullName);
-                        if (s.currentTitle) setPositionTitle(s.currentTitle);
-                        if (s.currentOffice) setPositionOrg(s.currentOffice);
-                        if (s.currentMemberName) setPositionMember(s.currentMemberName);
-                        setLsSearch("");
-                      }}
-                    >
-                      <div className="font-medium">{s.fullName}</div>
-                      <div className="text-xs text-muted-foreground">{s.currentTitle} - {s.currentMemberName || s.currentOffice}</div>
-                    </button>
-                  ))}
+                  {lsResults.staffers.map(s => {
+                    const alreadySelected = selectedStaffers.some(sel => sel.id === s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        className={`w-full text-left px-3 py-2 text-sm hover-elevate ${alreadySelected ? "opacity-50" : ""}`}
+                        disabled={alreadySelected}
+                        onClick={() => {
+                          addStaffer({
+                            id: s.id,
+                            name: s.fullName,
+                            title: s.currentTitle || undefined,
+                            org: s.currentOffice || undefined,
+                            member: s.currentMemberName || undefined,
+                          });
+                          setLsSearch("");
+                        }}
+                      >
+                        <div className="font-medium">{s.fullName}</div>
+                        <div className="text-xs text-muted-foreground">{s.currentTitle} - {s.currentMemberName || s.currentOffice}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-              {stafferName && stafferSource === "legistorm" && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge variant="secondary">{stafferName}</Badge>
-                  <Button size="icon" variant="ghost" onClick={() => { setStafferName(""); setStafferId(""); }}>
-                    <X className="w-3 h-3" />
-                  </Button>
+              {selectedStaffers.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {selectedStaffers.map((s, i) => (
+                    <Badge key={`${s.id}-${i}`} variant="secondary" className="gap-1">
+                      {s.name}
+                      <button onClick={() => removeStaffer(i)} className="ml-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
@@ -807,9 +874,11 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-submit-association">
-            {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Create Link
+          <Button onClick={handleSubmit} disabled={submitting} data-testid="button-submit-association">
+            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {stafferSource !== "manual" && selectedStaffers.length > 1
+              ? `Link ${selectedStaffers.length} Staffers`
+              : "Create Link"}
           </Button>
         </DialogFooter>
       </DialogContent>
