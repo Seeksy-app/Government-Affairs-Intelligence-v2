@@ -59,6 +59,7 @@ import ModulesPage from "@/pages/modules";
 import MarketingIntelligencePage from "@/pages/marketing-intelligence";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
+import SecurityPrivacyPage from "@/pages/security-privacy";
 
 function AuthenticatedRouter() {
   return (
@@ -262,12 +263,13 @@ function AppContent() {
   }, []);
 
   // Public routes - accessible without authentication
-  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy") {
+  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy" || location === "/security-privacy") {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/security-privacy" component={SecurityPrivacyPage} />
         <Route component={NotFound} />
       </Switch>
     );
@@ -296,6 +298,7 @@ function AppContent() {
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/security-privacy" component={SecurityPrivacyPage} />
         <Route component={LandingPage} />
       </Switch>
     );

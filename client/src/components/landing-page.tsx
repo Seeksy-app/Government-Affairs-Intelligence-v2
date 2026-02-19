@@ -391,7 +391,12 @@ export function LandingPage() {
             </div>
             <span className="text-sm text-muted-foreground">governmentaffairs.co</span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-wrap">
+            <Link href="/security-privacy">
+              <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer" data-testid="link-security-privacy">
+                Privacy & Security
+              </span>
+            </Link>
             <Link href="/terms">
               <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer" data-testid="link-terms">
                 Terms & Conditions
