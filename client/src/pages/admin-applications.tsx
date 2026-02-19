@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { CheckCircle2, XCircle, Clock, Mail, Building2, User, Phone, Globe, Calendar, Loader2, Trash2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { CheckCircle2, XCircle, Clock, Mail, Building2, User, Phone, Globe, Calendar, Loader2, Trash2, Target, Wrench, Zap, Users } from "lucide-react";
 
 interface ClientApplication {
   id: string;
@@ -22,6 +23,13 @@ interface ClientApplication {
   status: string;
   emailVerified: boolean;
   createdAt: string;
+  primaryGoals: string[] | null;
+  firmSize: string | null;
+  howHeardAboutUs: string | null;
+  referralSource: string | null;
+  currentTools: string | null;
+  expectedUsers: string | null;
+  urgency: string | null;
 }
 
 export default function AdminApplications() {
@@ -274,9 +282,10 @@ export default function AdminApplications() {
       )}
 
       <Dialog open={!!selectedApp && !showRejectDialog} onOpenChange={() => setSelectedApp(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Application Details</DialogTitle>
+            <DialogTitle>Application Profile</DialogTitle>
+            <DialogDescription>Full onboarding details for {selectedApp?.companyName}</DialogDescription>
           </DialogHeader>
           {selectedApp && (
             <div className="space-y-4">
@@ -284,6 +293,7 @@ export default function AdminApplications() {
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{selectedApp.companyName}</span>
+                  {getStatusBadge(selectedApp.status, selectedApp.emailVerified)}
                 </div>
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground" />
@@ -310,25 +320,99 @@ export default function AdminApplications() {
                     </a>
                   </div>
                 )}
-                {selectedApp.industry && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="w-3 h-3" /> Applied {formatDate(selectedApp.createdAt)}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  About the Firm
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-sm text-muted-foreground">Industry:</span>
-                    <span className="ml-2">{selectedApp.industry}</span>
+                    <span className="text-muted-foreground block text-xs">Industry</span>
+                    <span>{selectedApp.industry || "Not specified"}</span>
                   </div>
-                )}
-                {selectedApp.companySize && (
                   <div>
-                    <span className="text-sm text-muted-foreground">Size:</span>
-                    <span className="ml-2">{selectedApp.companySize}</span>
+                    <span className="text-muted-foreground block text-xs">Firm Size</span>
+                    <span>{selectedApp.firmSize || selectedApp.companySize || "Not specified"}</span>
                   </div>
-                )}
-                {selectedApp.message && (
                   <div>
-                    <span className="text-sm text-muted-foreground block mb-1">Message:</span>
-                    <p className="text-sm bg-muted p-3 rounded-md">{selectedApp.message}</p>
+                    <span className="text-muted-foreground block text-xs">Expected Users</span>
+                    <span>{selectedApp.expectedUsers || "Not specified"}</span>
                   </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Goals
+                </h4>
+                {selectedApp.primaryGoals && selectedApp.primaryGoals.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedApp.primaryGoals.map((goal) => (
+                      <Badge key={goal} variant="secondary" className="text-xs">
+                        {goal.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No goals specified</p>
                 )}
               </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Current Tools
+                </h4>
+                <p className="text-sm">{selectedApp.currentTools || "None specified"}</p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Readiness & Source
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Urgency</span>
+                    <span>{selectedApp.urgency ? selectedApp.urgency.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "Not specified"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">How They Found Us</span>
+                    <span>{selectedApp.howHeardAboutUs ? selectedApp.howHeardAboutUs.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "Not specified"}</span>
+                  </div>
+                  {selectedApp.referralSource && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground block text-xs">Referral Details</span>
+                      <span>{selectedApp.referralSource}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedApp.message && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Additional Message</h4>
+                    <p className="text-sm bg-muted p-3 rounded-md">{selectedApp.message}</p>
+                  </div>
+                </>
+              )}
+
               {selectedApp.status === "pending" && selectedApp.emailVerified && (
                 <DialogFooter>
                   <Button

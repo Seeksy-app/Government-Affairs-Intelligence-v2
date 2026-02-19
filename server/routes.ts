@@ -346,6 +346,45 @@ export async function registerRoutes(
         `,
       });
 
+      // Send alert email to all super admins
+      try {
+        const superAdmins = await storage.getSuperAdmins();
+        const adminEmails: string[] = [];
+        for (const sa of superAdmins) {
+          const adminUser = await authStorage.getUser(sa.userId);
+          if (adminUser?.email) adminEmails.push(adminUser.email);
+        }
+        if (adminEmails.length > 0) {
+          const goalsLabel = (parsed.data.primaryGoals || []).join(", ") || "Not specified";
+          const toolsLabel = parsed.data.currentTools || "Not specified";
+          const appUrl = `${protocol}://${host}/admin/applications`;
+          await sendEmail({
+            to: adminEmails,
+            subject: `New Client Signup: ${parsed.data.companyName}`,
+            html: `
+              <h2>New Client Application Received</h2>
+              <table style="border-collapse:collapse;width:100%;max-width:500px;">
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Company</td><td style="padding:8px;">${parsed.data.companyName}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Contact</td><td style="padding:8px;">${parsed.data.contactName}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Email</td><td style="padding:8px;">${parsed.data.email}</td></tr>
+                ${parsed.data.phone ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Phone</td><td style="padding:8px;">${parsed.data.phone}</td></tr>` : ""}
+                ${parsed.data.firmSize ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Firm Size</td><td style="padding:8px;">${parsed.data.firmSize}</td></tr>` : ""}
+                ${parsed.data.industry ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Industry</td><td style="padding:8px;">${parsed.data.industry}</td></tr>` : ""}
+                ${parsed.data.website ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Website</td><td style="padding:8px;">${parsed.data.website}</td></tr>` : ""}
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Goals</td><td style="padding:8px;">${goalsLabel}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Current Tools</td><td style="padding:8px;">${toolsLabel}</td></tr>
+                ${parsed.data.urgency ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Urgency</td><td style="padding:8px;">${parsed.data.urgency}</td></tr>` : ""}
+                ${parsed.data.howHeardAboutUs ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">How They Found Us</td><td style="padding:8px;">${parsed.data.howHeardAboutUs}</td></tr>` : ""}
+                ${parsed.data.message ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Message</td><td style="padding:8px;">${parsed.data.message}</td></tr>` : ""}
+              </table>
+              <p style="margin-top:20px;"><a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Review Application</a></p>
+            `,
+          });
+        }
+      } catch (alertErr) {
+        console.error("Failed to send admin alert email:", alertErr);
+      }
+
       res.status(201).json({ success: true, message: "Application submitted. Please check your email to verify." });
     } catch (error) {
       console.error("Error creating client application:", error);
