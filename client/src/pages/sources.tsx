@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Database, Globe, Youtube, FileText, Bot, Radio, Building2, Newspaper } from "lucide-react";
+import { ExternalLink, Database, Globe, Bot, Radio, Building2, Users, BarChart3, Mail, Search } from "lucide-react";
 
 interface DataSource {
   name: string;
-  category: "government" | "media" | "research" | "internal";
+  category: "government" | "media" | "research" | "data" | "internal";
   description: string;
   url?: string;
   apiRequired?: boolean;
@@ -12,7 +12,6 @@ interface DataSource {
 }
 
 const DATA_SOURCES: DataSource[] = [
-  // Government Sources
   {
     name: "Congress.gov API",
     category: "government",
@@ -20,6 +19,13 @@ const DATA_SOURCES: DataSource[] = [
     url: "https://api.congress.gov",
     apiRequired: true,
     status: "configured",
+  },
+  {
+    name: "House Telephone Directory",
+    category: "government",
+    description: "Official House of Representatives staff directory (directory.house.gov). Scraped for 9,400+ employee records with office and position data.",
+    url: "https://directory.house.gov",
+    status: "active",
   },
   {
     name: "C-SPAN Video Library",
@@ -56,7 +62,6 @@ const DATA_SOURCES: DataSource[] = [
     url: "https://www.federalregister.gov/",
     status: "available",
   },
-  // Media Sources
   {
     name: "YouTube Transcripts",
     category: "media",
@@ -65,28 +70,75 @@ const DATA_SOURCES: DataSource[] = [
     status: "active",
   },
   {
-    name: "Firecrawl Web Scraping",
-    category: "research",
-    description: "AI-powered web content extraction for research documents, news articles, and online sources.",
+    name: "LegiStorm API",
+    category: "data",
+    description: "Congressional staff directory with 12,000+ staffer profiles including position histories, contact information, salary data, and member associations. Supports full and incremental sync.",
+    url: "https://www.legistorm.com",
     apiRequired: true,
-    status: "configured",
+    status: "active",
   },
-  // Research Sources
+  {
+    name: "People Data Labs (PDL)",
+    category: "data",
+    description: "Professional profile enrichment with career histories, skills, education, and company data. Powers contact enrichment, company search, and LinkedIn career mapping.",
+    url: "https://www.peopledatalabs.com",
+    apiRequired: true,
+    status: "active",
+  },
+  {
+    name: "Influencers Club API",
+    category: "data",
+    description: "Social media influencer tracking across Instagram, YouTube, TikTok, Twitter, Twitch, and OnlyFans. Profile enrichment and post monitoring.",
+    apiRequired: true,
+    status: "active",
+  },
+  {
+    name: "Kalshi API",
+    category: "data",
+    description: "Prediction market data for political event forecasting. Provides real-time market prices, event contracts, and settlement data for political outcomes.",
+    url: "https://kalshi.com",
+    apiRequired: true,
+    status: "active",
+  },
+  {
+    name: "SearchAPI.io",
+    category: "data",
+    description: "Google Rank Tracking API for monitoring search result rankings. Supports device targeting (desktop/mobile/tablet) and location-specific tracking.",
+    url: "https://www.searchapi.io",
+    apiRequired: true,
+    status: "active",
+  },
+  {
+    name: "Perplexity AI",
+    category: "research",
+    description: "AI-powered research using the Sonar model. Powers staffer career research, entity research, veteran status analysis, bill-mapping discovery, and marketing intelligence.",
+    url: "https://www.perplexity.ai",
+    apiRequired: true,
+    status: "active",
+  },
   {
     name: "OpenAI GPT-4",
     category: "research",
-    description: "AI-powered research assistant for analyzing documents, answering questions, and generating insights.",
+    description: "AI chat and research assistant for document analysis, Q&A, content generation, and structured data extraction. Integrated via Replit AI.",
     apiRequired: true,
     status: "active",
   },
   {
-    name: "Entity Research Agent",
+    name: "Firecrawl",
     category: "research",
-    description: "Automated research on people, organizations, and companies using web search and AI analysis.",
+    description: "AI-powered web content extraction and scraping. Used for research documents, news articles, team websites, and structured data extraction from URLs. SOC 2 Type II certified.",
+    url: "https://www.firecrawl.dev",
     apiRequired: true,
     status: "active",
   },
-  // Internal Sources
+  {
+    name: "Resend",
+    category: "research",
+    description: "Transactional email delivery for account notifications, daily briefs, research updates, and admin alerts.",
+    url: "https://resend.com",
+    apiRequired: true,
+    status: "active",
+  },
   {
     name: "Contact Database",
     category: "internal",
@@ -105,12 +157,19 @@ const DATA_SOURCES: DataSource[] = [
     description: "Curated political news articles with filtering and tracking capabilities.",
     status: "active",
   },
+  {
+    name: "Social Media Tracker",
+    category: "internal",
+    description: "X/Twitter account monitoring with keyword matching, alerts, and engagement metrics.",
+    status: "active",
+  },
 ];
 
 const categoryIcons = {
   government: Building2,
   media: Radio,
   research: Bot,
+  data: Search,
   internal: Database,
 };
 
@@ -118,7 +177,24 @@ const categoryLabels = {
   government: "Government",
   media: "Media",
   research: "AI & Research",
+  data: "Data & Enrichment",
   internal: "Internal",
+};
+
+const categoryDescriptions = {
+  government: "Official government data and legislative sources",
+  media: "Video, audio, and media content sources",
+  research: "AI-powered research, analysis, and communication tools",
+  data: "Third-party APIs for data enrichment, directories, and market intelligence",
+  internal: "Platform data and user-generated content",
+};
+
+const categoryColors = {
+  government: "text-blue-500",
+  media: "text-purple-500",
+  research: "text-green-500",
+  data: "text-amber-500",
+  internal: "text-orange-500",
 };
 
 export default function SourcesPage() {
@@ -130,62 +206,34 @@ export default function SourcesPage() {
     return acc;
   }, {} as Record<string, DataSource[]>);
 
-  const categories = ["government", "media", "research", "internal"] as const;
+  const categories = ["government", "data", "research", "media", "internal"] as const;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Data Sources</h1>
+        <h1 className="text-3xl font-bold" data-testid="text-sources-title">Data Sources</h1>
         <p className="text-muted-foreground mt-1">
-          Master list of all data sources powering the platform
+          Master list of all data sources and APIs powering the platform
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === "government").length}</p>
-                <p className="text-sm text-muted-foreground">Government Sources</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Radio className="w-5 h-5 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === "media").length}</p>
-                <p className="text-sm text-muted-foreground">Media Sources</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-green-500" />
-              <div>
-                <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === "research").length}</p>
-                <p className="text-sm text-muted-foreground">AI & Research</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-orange-500" />
-              <div>
-                <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === "internal").length}</p>
-                <p className="text-sm text-muted-foreground">Internal Sources</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-5">
+        {categories.map((category) => {
+          const Icon = categoryIcons[category];
+          return (
+            <Card key={category}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <Icon className={`w-5 h-5 ${categoryColors[category]}`} />
+                  <div>
+                    <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === category).length}</p>
+                    <p className="text-sm text-muted-foreground">{categoryLabels[category]}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {categories.map((category) => {
@@ -200,10 +248,7 @@ export default function SourcesPage() {
                 {categoryLabels[category]}
               </CardTitle>
               <CardDescription>
-                {category === "government" && "Official government data and legislative sources"}
-                {category === "media" && "Video, audio, and media content sources"}
-                {category === "research" && "AI-powered research and analysis tools"}
-                {category === "internal" && "Platform data and user-generated content"}
+                {categoryDescriptions[category]}
               </CardDescription>
             </CardHeader>
             <CardContent>
