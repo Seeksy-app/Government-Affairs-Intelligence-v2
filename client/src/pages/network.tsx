@@ -961,6 +961,8 @@ export default function NetworkPage() {
     }
   });
   const [stafferLoading, setStafferLoading] = useState(false);
+  const [schedulerResults, setSchedulerResults] = useState<any[] | null>(null);
+  const [schedulerLoading, setSchedulerLoading] = useState(false);
   const [showNetworkDialog, setShowNetworkDialog] = useState(false);
   const [networkDialogData, setNetworkDialogData] = useState<{
     memberName: string;
@@ -1322,6 +1324,29 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
     setStafferInfo(null);
     setStafferLoading(true);
     stafferMutation.mutate(member);
+  };
+
+  const handleFindScheduler = async (member: CongressMember) => {
+    setSchedulerLoading(true);
+    setSchedulerResults(null);
+    try {
+      const lastName = member.lastName;
+      const res = await fetch(
+        `/api/legistorm/scheduler?memberName=${encodeURIComponent(lastName)}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error("Failed to search");
+      const data = await res.json();
+      setSchedulerResults(data.schedulers || []);
+      if (data.schedulers.length === 0) {
+        toast({ title: "No scheduler found", description: `No scheduler or director of operations found in LegiStorm for ${member.firstName} ${member.lastName}. Try the full staff search instead.` });
+      }
+    } catch (error: any) {
+      toast({ title: "Search failed", description: error.message, variant: "destructive" });
+      setSchedulerResults([]);
+    } finally {
+      setSchedulerLoading(false);
+    }
   };
 
   const handleShowNetworkMap = async (member: CongressMember, staffers: ParsedStaffer[]) => {

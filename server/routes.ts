@@ -7074,6 +7074,21 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
     }
   });
 
+  app.get("/api/legistorm/scheduler", isAuthenticated, async (req, res) => {
+    try {
+      const memberName = req.query.memberName as string;
+      if (!memberName) {
+        return res.status(400).json({ message: "memberName query parameter is required" });
+      }
+      const { findSchedulerForMember } = await import("./services/legistorm-service");
+      const results = await findSchedulerForMember(memberName);
+      res.json({ schedulers: results, total: results.length });
+    } catch (error: any) {
+      console.error("Error finding scheduler:", error);
+      res.status(500).json({ message: error.message || "Failed to find scheduler" });
+    }
+  });
+
   // LinkedIn lookup for LegiStorm staffers using PDL
   app.post("/api/legistorm/staffers/:legistormId/linkedin", isAuthenticated, async (req, res) => {
     try {

@@ -519,6 +519,36 @@ export async function getLegistormStaffer(legistormId: number) {
   return staffer || null;
 }
 
+export async function findSchedulerForMember(memberName: string) {
+  const schedulerTitles = [
+    '%scheduler%',
+    '%scheduling%',
+    '%director of operations%',
+    '%office manager%',
+    '%executive assistant%',
+    '%personal assistant%',
+    '%special assistant%',
+    '%director of administration%',
+  ];
+
+  const titleConditions = schedulerTitles.map(t => ilike(legistormStaffers.currentTitle, t));
+
+  const memberSearchTerm = `%${memberName.trim()}%`;
+
+  const results = await db.select().from(legistormStaffers)
+    .where(
+      and(
+        ilike(legistormStaffers.currentMemberName, memberSearchTerm),
+        eq(legistormStaffers.isCurrentStaff, true),
+        or(...titleConditions)
+      )
+    )
+    .orderBy(legistormStaffers.currentTitle)
+    .limit(10);
+
+  return results;
+}
+
 export async function cleanupStaleSyncs() {
   const staleThreshold = new Date(Date.now() - 10 * 60 * 1000);
   await db.update(legistormSyncLog)
