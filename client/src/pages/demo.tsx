@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Play, MonitorPlay, Mail, Lock } from "lucide-react";
+import { ArrowLeft, Play, MonitorPlay, Mail, Lock, Shield, Cpu } from "lucide-react";
 import { Link } from "wouter";
 import type { DemoVideo } from "@shared/schema";
 
@@ -224,6 +224,20 @@ export default function DemoPage() {
           <p className="text-muted-foreground max-w-2xl mx-auto">
             See Government Affairs Intelligence in action. Watch walkthroughs of our key features and capabilities.
           </p>
+          <div className="flex items-center justify-center gap-3 mt-5">
+            <a href="/admin/tech" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm" className="rounded-full gap-2" data-testid="button-demo-tech-stack">
+                <Cpu className="w-4 h-4" />
+                Tech Stack
+              </Button>
+            </a>
+            <a href="/security-privacy" target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm" className="rounded-full gap-2" data-testid="button-demo-security">
+                <Shield className="w-4 h-4" />
+                Security & Privacy
+              </Button>
+            </a>
+          </div>
         </div>
 
         {isLoading && (
