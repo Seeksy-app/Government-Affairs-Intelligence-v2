@@ -62,10 +62,10 @@ function AccessMappingBoard() {
   const { toast } = useToast();
 
   const { data: memberResults, isLoading: searchingMembers } = useQuery<any[]>({
-    queryKey: ["/api/congress/search", targetQuery],
+    queryKey: ["/api/congress/members", targetQuery],
     queryFn: async () => {
       if (!targetQuery || targetQuery.length < 2) return [];
-      const res = await fetch(`/api/congress/search?q=${encodeURIComponent(targetQuery)}`, { credentials: "include" });
+      const res = await fetch(`/api/congress/members?search=${encodeURIComponent(targetQuery)}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },

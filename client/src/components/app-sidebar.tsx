@@ -135,7 +135,6 @@ export function AppSidebar() {
     items: [
       { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
       { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
-      { title: "AI Agent", url: "/ai-agent", icon: Bot, tourId: "ai-agent" },
     ],
   };
 
