@@ -25,36 +25,45 @@ import type { StrategyBoard, StrategyCard, LegistormStaffer } from "@shared/sche
 
 type ActiveView = "access" | "kanban" | "bill-influence" | "pathfinder" | "power-grid";
 
-const INFLUENCE_TIERS: Record<string, { score: number; label: string; color: string }> = {
-  "Chief of Staff": { score: 95, label: "Critical", color: "destructive" },
-  "Legislative Director": { score: 90, label: "Critical", color: "destructive" },
-  "Deputy Chief of Staff": { score: 88, label: "Very High", color: "destructive" },
-  "Policy Director": { score: 85, label: "Very High", color: "destructive" },
-  "Communications Director": { score: 80, label: "High", color: "default" },
-  "Senior Policy Advisor": { score: 78, label: "High", color: "default" },
-  "Senior Advisor": { score: 78, label: "High", color: "default" },
-  "Counsel": { score: 75, label: "High", color: "default" },
-  "General Counsel": { score: 75, label: "High", color: "default" },
-  "Press Secretary": { score: 72, label: "High", color: "default" },
-  "Scheduler": { score: 70, label: "Moderate", color: "secondary" },
-  "Legislative Assistant": { score: 65, label: "Moderate", color: "secondary" },
-  "Legislative Aide": { score: 60, label: "Moderate", color: "secondary" },
-  "Legislative Correspondent": { score: 55, label: "Moderate", color: "secondary" },
-  "Staff Assistant": { score: 40, label: "Entry", color: "outline" },
-  "Intern": { score: 20, label: "Entry", color: "outline" },
+const INFLUENCE_TIERS: Record<string, { score: number; label: string; color: string; pillClass: string }> = {
+  "Chief of Staff": { score: 95, label: "Critical", color: "destructive", pillClass: "bg-red-500 text-white" },
+  "Legislative Director": { score: 90, label: "Critical", color: "destructive", pillClass: "bg-red-500 text-white" },
+  "Deputy Chief of Staff": { score: 88, label: "Very High", color: "destructive", pillClass: "bg-orange-500 text-white" },
+  "Policy Director": { score: 85, label: "Very High", color: "destructive", pillClass: "bg-orange-500 text-white" },
+  "Communications Director": { score: 80, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "Senior Policy Advisor": { score: 78, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "Senior Advisor": { score: 78, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "Counsel": { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "General Counsel": { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "Press Secretary": { score: 72, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
+  "Scheduler": { score: 70, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
+  "Legislative Assistant": { score: 65, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
+  "Legislative Aide": { score: 60, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
+  "Legislative Correspondent": { score: 55, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
+  "Staff Assistant": { score: 40, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" },
+  "Intern": { score: 20, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" },
 };
 
-function getInfluenceScore(title: string): { score: number; label: string; color: string } {
+function getInfluenceScore(title: string): { score: number; label: string; color: string; pillClass: string } {
   const normalizedTitle = title?.toLowerCase() || "";
   for (const [key, value] of Object.entries(INFLUENCE_TIERS)) {
     if (normalizedTitle.includes(key.toLowerCase())) return value;
   }
-  if (normalizedTitle.includes("director")) return { score: 80, label: "High", color: "default" };
-  if (normalizedTitle.includes("senior")) return { score: 75, label: "High", color: "default" };
-  if (normalizedTitle.includes("advisor") || normalizedTitle.includes("adviser")) return { score: 70, label: "Moderate", color: "secondary" };
-  if (normalizedTitle.includes("manager")) return { score: 65, label: "Moderate", color: "secondary" };
-  if (normalizedTitle.includes("assistant")) return { score: 45, label: "Entry", color: "outline" };
-  return { score: 50, label: "Moderate", color: "secondary" };
+  if (normalizedTitle.includes("director")) return { score: 80, label: "High", color: "default", pillClass: "bg-blue-500 text-white" };
+  if (normalizedTitle.includes("senior")) return { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" };
+  if (normalizedTitle.includes("advisor") || normalizedTitle.includes("adviser")) return { score: 70, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
+  if (normalizedTitle.includes("manager")) return { score: 65, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
+  if (normalizedTitle.includes("assistant")) return { score: 45, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" };
+  return { score: 50, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
+}
+
+function renderMarkdown(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
 }
 
 function AccessMappingBoard() {
@@ -246,10 +255,10 @@ function AccessMappingBoard() {
                         </div>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="flex flex-col items-end gap-1 shrink-0 cursor-help">
-                              <Badge variant={influence.color as any} className="text-xs">
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${influence.pillClass}`}>
                                 {influence.label}
-                              </Badge>
+                              </span>
                               <span className="text-xs text-muted-foreground">{influence.score}/100</span>
                             </div>
                           </TooltipTrigger>
@@ -817,6 +826,26 @@ function NetworkPathFinder() {
 
       {pathResult && !loading && (
         <div className="space-y-4">
+          {pathResult.aiRecommendation && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-4 w-4" /> AI-Recommended Strategy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm whitespace-pre-wrap" data-testid="text-path-ai-recommendation">
+                  {pathResult.aiRecommendation.split("\n").map((line: string, lineIdx: number) => (
+                    <span key={lineIdx}>
+                      {renderMarkdown(line)}
+                      {lineIdx < pathResult.aiRecommendation.split("\n").length - 1 && "\n"}
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {pathResult.directStaffers && pathResult.directStaffers.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
@@ -832,7 +861,7 @@ function NetworkPathFinder() {
                       <div key={idx} className="flex items-center gap-3 p-3 border rounded-md" data-testid={`path-staffer-${idx}`}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0 cursor-help">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
                               {influence.score}
                             </div>
                           </TooltipTrigger>
@@ -846,14 +875,7 @@ function NetworkPathFinder() {
                           <p className="text-xs text-muted-foreground truncate">{s.currentTitle}</p>
                           {s.email && <p className="text-xs text-muted-foreground">{s.email}</p>}
                         </div>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant={influence.color as any} className="shrink-0 text-xs cursor-help">{influence.label}</Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Influence tier based on staff role seniority</p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <span className={`shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-full ${influence.pillClass}`}>{influence.label}</span>
                       </div>
                     );
                   })}
@@ -883,25 +905,11 @@ function NetworkPathFinder() {
             </Card>
           )}
 
-          {pathResult.aiRecommendation && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Brain className="h-4 w-4" /> AI-Recommended Strategy
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm whitespace-pre-wrap" data-testid="text-path-ai-recommendation">{pathResult.aiRecommendation}</div>
-              </CardContent>
-            </Card>
-          )}
-
-          {(!pathResult.directStaffers?.length && !pathResult.committeeConnections?.length) && (
+          {(!pathResult.directStaffers?.length && !pathResult.committeeConnections?.length && !pathResult.aiRecommendation) && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8">
                 <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground">No direct paths found</p>
-                {pathResult.aiRecommendation && <p className="text-xs text-muted-foreground mt-1">See AI recommendations above for alternative approaches</p>}
               </CardContent>
             </Card>
           )}
@@ -1015,7 +1023,7 @@ function PowerGridDashboard() {
                     </div>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="text-right shrink-0 cursor-help">
+                        <div className="text-right shrink-0">
                           <p className="text-lg font-bold text-primary">{member.staffCount}</p>
                           <p className="text-xs text-muted-foreground">staff</p>
                         </div>
