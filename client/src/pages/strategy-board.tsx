@@ -19,6 +19,8 @@ import {
   Mail, Phone, ExternalLink, Crown, Shield, AlertCircle,
   Sparkles, MapPin, Loader2,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { StrategyBoard, StrategyCard, LegistormStaffer } from "@shared/schema";
 
 type ActiveView = "access" | "kanban" | "bill-influence" | "pathfinder" | "power-grid";
@@ -61,7 +63,7 @@ function AccessMappingBoard() {
   const [selectedMemberName, setSelectedMemberName] = useState("");
   const { toast } = useToast();
 
-  const { data: memberResults, isLoading: searchingMembers } = useQuery<any[]>({
+  const { data: memberResultsRaw, isLoading: searchingMembers } = useQuery<any[]>({
     queryKey: ["/api/congress/members", targetQuery],
     queryFn: async () => {
       if (!targetQuery || targetQuery.length < 2) return [];
@@ -72,6 +74,31 @@ function AccessMappingBoard() {
     enabled: targetQuery.length >= 2,
     staleTime: 30000,
   });
+
+  const memberResults = useMemo(() => {
+    if (!memberResultsRaw || memberResultsRaw.length === 0) return memberResultsRaw;
+    const q = targetQuery.toLowerCase().trim();
+    const qWords = q.split(/\s+/);
+    return [...memberResultsRaw].sort((a, b) => {
+      const aName = (a.name || "").toLowerCase();
+      const bName = (b.name || "").toLowerCase();
+      const aFirst = (a.firstName || "").toLowerCase();
+      const aLast = (a.lastName || "").toLowerCase();
+      const bFirst = (b.firstName || "").toLowerCase();
+      const bLast = (b.lastName || "").toLowerCase();
+
+      const scoreMatch = (name: string, first: string, last: string) => {
+        if (name === q) return 100;
+        if (qWords.length >= 2 && qWords.every(w => name.includes(w))) return 90;
+        if (qWords.length >= 2 && qWords.some(w => last === w) && qWords.some(w => first.startsWith(w))) return 85;
+        if (last === qWords[qWords.length - 1]) return 70;
+        if (name.startsWith(q)) return 60;
+        return 0;
+      };
+
+      return scoreMatch(bName, bFirst, bLast) - scoreMatch(aName, aFirst, aLast);
+    });
+  }, [memberResultsRaw, targetQuery]);
 
   const { data: staffersForMember, isLoading: loadingStaffers } = useQuery<{
     staffers: LegistormStaffer[];
@@ -128,11 +155,11 @@ function AccessMappingBoard() {
             </div>
             {searchingMembers && <Skeleton className="h-10 w-full" />}
             {memberResults && memberResults.length > 0 && !selectedMember && (
-              <div className="border rounded-md max-h-60 overflow-auto">
+              <div className="border rounded-md max-h-96 overflow-auto">
                 {memberResults.map((m: any) => (
                   <button
                     key={m.bioguideId || m.name}
-                    className="w-full text-left px-4 py-3 hover-elevate flex items-center gap-3 border-b last:border-b-0"
+                    className="w-full text-left px-4 py-3 hover:bg-muted/50 flex items-center gap-3 border-b last:border-b-0 transition-colors"
                     onClick={() => {
                       setSelectedMember(m.bioguideId || m.name);
                       setSelectedMemberName(m.name || m.directoryName || "");
@@ -140,13 +167,19 @@ function AccessMappingBoard() {
                     }}
                     data-testid={`button-select-member-${m.bioguideId}`}
                   >
-                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarImage src={getAvatarUrl(m.name, m.imageUrl)} alt={m.name} />
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        {(m.firstName?.[0] || "") + (m.lastName?.[0] || "")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm">{m.name || m.directoryName}</p>
                       <p className="text-xs text-muted-foreground">
                         {m.partyName} - {m.state} {m.district ? `District ${m.district}` : ""} ({m.terms?.[0]?.chamber || "Congress"})
                       </p>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   </button>
                 ))}
               </div>
