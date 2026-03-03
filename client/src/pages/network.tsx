@@ -2181,7 +2181,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         <div className="space-y-2">
                           {staffers.map((staffer, idx) => (
                             <div key={idx} className="p-3 rounded-lg border bg-card">
-                              <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium text-sm">{staffer.name}</span>
@@ -2206,18 +2206,18 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                     </a>
                                   )}
                                 </div>
-                                <div className="flex gap-1 shrink-0">
+                                <div className="flex gap-2 pt-1">
                                   <Button
-                                    variant="outline"
+                                    variant="default"
                                     size="sm"
                                     onClick={() => selectedMember && handleShowNetworkMap(selectedMember, [staffer])}
                                     data-testid={`button-view-staffer-${idx}`}
                                   >
-                                    <Users className="h-4 w-4 mr-1" />
-                                    Profile
+                                    <Search className="h-3.5 w-3.5 mr-1.5" />
+                                    Research
                                   </Button>
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => {
                                       const nameParts = staffer.name.split(' ');
@@ -2227,8 +2227,8 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                                     }}
                                     data-testid={`button-add-staffer-contact-${idx}`}
                                   >
-                                    <UserPlus className="h-4 w-4 mr-1" />
-                                    Contact
+                                    <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                    Add to Contacts
                                   </Button>
                                 </div>
                               </div>
