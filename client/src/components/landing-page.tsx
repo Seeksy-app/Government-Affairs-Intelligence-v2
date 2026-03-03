@@ -58,8 +58,8 @@ export function LandingPage() {
                   <Button size="lg" asChild data-testid="button-get-started">
                     <a href="/signup">Get Started</a>
                   </Button>
-                  <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur-sm" asChild data-testid="button-learn-more">
-                    <a href="#features">Learn More</a>
+                  <Button size="lg" variant="outline" className="bg-background/50 backdrop-blur-sm" asChild data-testid="button-watch-demo">
+                    <a href="/demo">Watch Demo</a>
                   </Button>
                 </div>
               </div>

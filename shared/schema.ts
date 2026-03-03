@@ -1531,3 +1531,24 @@ export const insertMarketingAiRecommendationSchema = createInsertSchema(marketin
 
 export type InsertMarketingAiRecommendation = z.infer<typeof insertMarketingAiRecommendationSchema>;
 export type MarketingAiRecommendation = typeof marketingAiRecommendations.$inferSelect;
+
+export const demoVideos = pgTable("demo_videos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  videoUrl: text("video_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  sortOrder: integer("sort_order").default(0),
+  isPublished: boolean("is_published").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDemoVideoSchema = createInsertSchema(demoVideos).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDemoVideo = z.infer<typeof insertDemoVideoSchema>;
+export type DemoVideo = typeof demoVideos.$inferSelect;

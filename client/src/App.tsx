@@ -60,6 +60,8 @@ import MarketingIntelligencePage from "@/pages/marketing-intelligence";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 import SecurityPrivacyPage from "@/pages/security-privacy";
+import DemoPage from "@/pages/demo";
+import AdminDemos from "@/pages/admin-demos";
 
 function AuthenticatedRouter() {
   return (
@@ -73,6 +75,7 @@ function AuthenticatedRouter() {
       <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/admin/business-dev" component={AdminBusinessDev} />
       <Route path="/admin/tech" component={AdminTech} />
+      <Route path="/admin/demos" component={AdminDemos} />
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}
@@ -263,13 +266,14 @@ function AppContent() {
   }, []);
 
   // Public routes - accessible without authentication
-  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy" || location === "/security-privacy") {
+  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy" || location === "/security-privacy" || location === "/demo") {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />
+        <Route path="/demo" component={DemoPage} />
         <Route component={NotFound} />
       </Switch>
     );
@@ -299,6 +303,7 @@ function AppContent() {
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />
+        <Route path="/demo" component={DemoPage} />
         <Route component={LandingPage} />
       </Switch>
     );

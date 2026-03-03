@@ -8732,5 +8732,68 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
     }
   });
 
+  app.get("/api/demo-videos", async (_req, res) => {
+    try {
+      const { demoVideos } = await import("@shared/schema");
+      const results = await db.select().from(demoVideos).orderBy(demoVideos.sortOrder);
+      res.json(results.filter(v => v.isPublished));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch demo videos" });
+    }
+  });
+
+  app.get("/api/admin/demo-videos", isAuthenticated, async (req, res) => {
+    try {
+      const { demoVideos } = await import("@shared/schema");
+      const results = await db.select().from(demoVideos).orderBy(demoVideos.sortOrder);
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch demo videos" });
+    }
+  });
+
+  app.post("/api/admin/demo-videos", isAuthenticated, async (req, res) => {
+    try {
+      const { demoVideos } = await import("@shared/schema");
+      const [video] = await db.insert(demoVideos).values({
+        title: req.body.title,
+        description: req.body.description || null,
+        videoUrl: req.body.videoUrl,
+        sortOrder: req.body.sortOrder || 0,
+        isPublished: true,
+      }).returning();
+      res.json(video);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to add demo video" });
+    }
+  });
+
+  app.patch("/api/admin/demo-videos/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { demoVideos } = await import("@shared/schema");
+      const [video] = await db.update(demoVideos)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(demoVideos.id, req.params.id))
+        .returning();
+      if (!video) return res.status(404).json({ message: "Video not found" });
+      res.json(video);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update demo video" });
+    }
+  });
+
+  app.delete("/api/admin/demo-videos/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { demoVideos } = await import("@shared/schema");
+      const [deleted] = await db.delete(demoVideos)
+        .where(eq(demoVideos.id, req.params.id))
+        .returning();
+      if (!deleted) return res.status(404).json({ message: "Video not found" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete demo video" });
+    }
+  });
+
   return httpServer;
 }

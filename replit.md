@@ -87,3 +87,9 @@ The platform supports multiple client firms, each with isolated data, managed by
 - **Veteran Staffers**: Keyword-searches LegiStorm staffer data for military-related titles (veteran, military liaison, defense, armed services, etc.). AI career research available per staffer.
 - **Batch Research**: Can research up to 20 members at a time via AI. Filters by chamber (House/Senate).
 - Routes: `/api/veterans/members`, `/api/veterans/research`, `/api/veterans/batch-research`, `/api/veterans/staffers`.
+
+### Demo Videos
+- **Public Demo Page**: Public route at `/demo` displays published demo videos with embedded players (YouTube, Vimeo, Loom supported). Scrolls to top on load.
+- **Admin Management**: Super admins manage videos at `/admin/demos` — add, edit, delete, reorder, and toggle publish status. Schema: `demo_videos` table.
+- **Landing Page**: "Watch Demo" button in hero section links to `/demo`.
+- **Scheduler Finder**: LegiStorm-powered scheduler lookup for Congress members. Searches by title keywords (scheduler, director of operations, office manager, etc.). API: `GET /api/legistorm/scheduler?memberName=`. Service: `findSchedulerForMember()` in `legistorm-service.ts`.

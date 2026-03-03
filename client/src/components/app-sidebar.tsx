@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -78,6 +78,7 @@ export function AppSidebar() {
     { title: "Sources", url: "/sources", icon: Database, tourId: "admin-sources" },
     { title: "Knowledge Base", url: "/admin/kb", icon: Book, tourId: "admin-kb" },
     { title: "Tech Stack", url: "/admin/tech", icon: Zap, tourId: "admin-tech" },
+    { title: "Demo Videos", url: "/admin/demos", icon: MonitorPlay, tourId: "admin-demos" },
     { title: "Security", url: "/admin/security", icon: Lock, tourId: "admin-security" },
     { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
   ];
