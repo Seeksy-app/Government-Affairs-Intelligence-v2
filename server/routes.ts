@@ -7610,11 +7610,24 @@ Focus on bills that align with the staffer's position title, the committee juris
       const memberName = req.query.memberName as string;
       if (!memberName) return res.status(400).json({ message: "memberName is required" });
 
-      const { ilike } = await import("drizzle-orm");
+      const { ilike, or } = await import("drizzle-orm");
       const { db } = await import("./db");
 
+      const nameVariants: string[] = [memberName];
+      if (memberName.includes(",")) {
+        const parts = memberName.split(",").map(p => p.trim());
+        nameVariants.push(`${parts[1]} ${parts[0]}`);
+        nameVariants.push(parts[0]);
+      } else {
+        const parts = memberName.split(/\s+/);
+        if (parts.length >= 2) {
+          nameVariants.push(parts[parts.length - 1]);
+          nameVariants.push(`${parts[parts.length - 1]}, ${parts[0]}`);
+        }
+      }
+
       const staffers = await db.select().from(legistormStaffers)
-        .where(ilike(legistormStaffers.currentMemberName, `%${memberName}%`))
+        .where(or(...nameVariants.map(v => ilike(legistormStaffers.currentMemberName, `%${v}%`))))
         .limit(50);
 
       res.json({ staffers, total: staffers.length });
@@ -7630,11 +7643,24 @@ Focus on bills that align with the staffer's position title, the committee juris
       const memberName = req.query.memberName as string;
       if (!memberName) return res.status(400).json({ message: "memberName is required" });
 
-      const { ilike } = await import("drizzle-orm");
+      const { ilike, or } = await import("drizzle-orm");
       const { db } = await import("./db");
 
+      const nameVariants: string[] = [memberName];
+      if (memberName.includes(",")) {
+        const parts = memberName.split(",").map(p => p.trim());
+        nameVariants.push(`${parts[1]} ${parts[0]}`);
+        nameVariants.push(parts[0]);
+      } else {
+        const parts = memberName.split(/\s+/);
+        if (parts.length >= 2) {
+          nameVariants.push(parts[parts.length - 1]);
+          nameVariants.push(`${parts[parts.length - 1]}, ${parts[0]}`);
+        }
+      }
+
       const staffers = await db.select().from(legistormStaffers)
-        .where(ilike(legistormStaffers.currentMemberName, `%${memberName}%`))
+        .where(or(...nameVariants.map(v => ilike(legistormStaffers.currentMemberName, `%${v}%`))))
         .limit(20);
 
       const stafferSummary = staffers.map(s => `${s.fullName} - ${s.currentTitle} (${s.email || 'no email'})`).join("\n");
