@@ -7709,8 +7709,11 @@ Keep the response practical, actionable, and under 500 words.`;
       const q = req.query.q as string;
       if (!q) return res.json([]);
 
-      const congressApi = new CongressAPI();
-      const results = await congressApi.searchBills(q, 10);
+      const apiKey = process.env.CONGRESS_API_KEY;
+      if (!apiKey) return res.status(500).json({ message: "Congress API key not configured" });
+
+      const congressApi = new CongressAPI(apiKey);
+      const results = await congressApi.searchByKeyword(q, 119, 20);
       res.json(results || []);
     } catch (error: any) {
       console.error("Error searching bills:", error);

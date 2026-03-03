@@ -310,6 +310,7 @@ function StrategyKanbanBoard() {
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
   const [newBoardDesc, setNewBoardDesc] = useState("");
+  const [newBoardKeywords, setNewBoardKeywords] = useState("");
   const [addCardStage, setAddCardStage] = useState<string | null>(null);
   const [addCardSearch, setAddCardSearch] = useState("");
   const [dragCard, setDragCard] = useState<string | null>(null);
@@ -348,7 +349,10 @@ function StrategyKanbanBoard() {
 
   const createBoardMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/strategy/boards", { name: newBoardName, description: newBoardDesc });
+      const desc = newBoardKeywords
+        ? `${newBoardDesc}\n\nKeywords: ${newBoardKeywords}`.trim()
+        : newBoardDesc;
+      return apiRequest("POST", "/api/strategy/boards", { name: newBoardName, description: desc });
     },
     onSuccess: async (res) => {
       const board = await res.json();
@@ -357,6 +361,7 @@ function StrategyKanbanBoard() {
       setShowNewBoard(false);
       setNewBoardName("");
       setNewBoardDesc("");
+      setNewBoardKeywords("");
       toast({ title: "Board created" });
     },
   });
@@ -432,18 +437,34 @@ function StrategyKanbanBoard() {
             <DialogTitle>Create Strategy Board</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Board name (e.g., Senate Outreach Q1)"
-              value={newBoardName}
-              onChange={(e) => setNewBoardName(e.target.value)}
-              data-testid="input-board-name"
-            />
-            <Textarea
-              placeholder="Description (optional)"
-              value={newBoardDesc}
-              onChange={(e) => setNewBoardDesc(e.target.value)}
-              data-testid="input-board-desc"
-            />
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Board Name</label>
+              <Input
+                placeholder="e.g., Senate Outreach Q1, Veteran Affairs Strategy"
+                value={newBoardName}
+                onChange={(e) => setNewBoardName(e.target.value)}
+                data-testid="input-board-name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Description</label>
+              <Textarea
+                placeholder="What is this board for? (optional)"
+                value={newBoardDesc}
+                onChange={(e) => setNewBoardDesc(e.target.value)}
+                data-testid="input-board-desc"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Keywords</label>
+              <Input
+                placeholder="e.g., veterans, defense, healthcare, infrastructure"
+                value={newBoardKeywords}
+                onChange={(e) => setNewBoardKeywords(e.target.value)}
+                data-testid="input-board-keywords"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Comma-separated keywords to help find related bills and staffers</p>
+            </div>
             <Button onClick={() => createBoardMutation.mutate()} disabled={!newBoardName || createBoardMutation.isPending} data-testid="button-create-board">
               Create Board
             </Button>
@@ -462,6 +483,21 @@ function StrategyKanbanBoard() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {selectedBoard && selectedBoard.description?.includes("Keywords:") && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground">Keywords:</span>
+          {selectedBoard.description
+            .split("Keywords:")[1]
+            .split(",")
+            .map(k => k.trim())
+            .filter(Boolean)
+            .map((keyword, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">{keyword}</Badge>
+            ))
+          }
+        </div>
       )}
 
       {selectedBoard && (
