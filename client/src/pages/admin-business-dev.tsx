@@ -147,31 +147,28 @@ export default function AdminBusinessDev() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
-                    <p className="font-semibold">Starter</p>
-                    <p className="text-sm text-muted-foreground">Up to 5 users</p>
+                    <p className="font-semibold">Federal Research</p>
+                    <p className="text-sm text-muted-foreground">Federal-level only, min 2 users</p>
                   </div>
-                  <span className="font-bold text-lg">$499/mo</span>
+                  <span className="font-bold text-lg">$2,500/mo</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
                   <div>
-                    <p className="font-semibold">Professional</p>
-                    <p className="text-sm text-muted-foreground">Up to 25 users</p>
+                    <p className="font-semibold">Full Platform License</p>
+                    <p className="text-sm text-muted-foreground">Per user/year, min 2 users</p>
                   </div>
-                  <span className="font-bold text-lg">$1,499/mo</span>
+                  <span className="font-bold text-lg">$25,000/yr</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div>
                     <p className="font-semibold">Enterprise</p>
-                    <p className="text-sm text-muted-foreground">Unlimited users + API</p>
+                    <p className="text-sm text-muted-foreground">Unlimited users + API + custom</p>
                   </div>
                   <Badge variant="secondary">Custom</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-semibold">Municipal</p>
-                    <p className="text-sm text-muted-foreground">Cities & Counties</p>
-                  </div>
-                  <span className="font-bold text-lg">$2,499/mo</span>
+                <div className="p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Minimum Contract</p>
+                  <p>2 users x $25,000/yr = $50,000/yr per firm</p>
                 </div>
               </CardContent>
             </Card>
@@ -255,70 +252,62 @@ export default function AdminBusinessDev() {
                   </thead>
                   <tbody className="divide-y">
                     <tr>
-                      <td className="py-3 px-4">Lobbying Firm Customers</td>
-                      <td className="text-right py-3 px-4">15</td>
-                      <td className="text-right py-3 px-4">50</td>
-                      <td className="text-right py-3 px-4">150</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4">Municipal Customers</td>
-                      <td className="text-right py-3 px-4">5</td>
+                      <td className="py-3 px-4">Full Platform Firms ($25K/yr/user)</td>
+                      <td className="text-right py-3 px-4">8</td>
                       <td className="text-right py-3 px-4">25</td>
-                      <td className="text-right py-3 px-4">75</td>
+                      <td className="text-right py-3 px-4">60</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4">Avg. Users per Customer</td>
-                      <td className="text-right py-3 px-4">6</td>
-                      <td className="text-right py-3 px-4">10</td>
-                      <td className="text-right py-3 px-4">12</td>
+                      <td className="py-3 px-4">Federal Research Firms ($2.5K/mo/user)</td>
+                      <td className="text-right py-3 px-4">5</td>
+                      <td className="text-right py-3 px-4">20</td>
+                      <td className="text-right py-3 px-4">50</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4">Blended Monthly ARPU</td>
-                      <td className="text-right py-3 px-4">$850</td>
-                      <td className="text-right py-3 px-4">$1,100</td>
-                      <td className="text-right py-3 px-4">$1,350</td>
+                      <td className="py-3 px-4">Avg. Users per Firm</td>
+                      <td className="text-right py-3 px-4">3</td>
+                      <td className="text-right py-3 px-4">4</td>
+                      <td className="text-right py-3 px-4">5</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4">Min Contract (2 users x $25K)</td>
+                      <td className="text-right py-3 px-4" colSpan={3}>$50,000/yr per firm</td>
                     </tr>
                     <tr className="bg-muted/50">
-                      <td className="py-3 px-4 font-semibold">Annual Recurring Revenue</td>
-                      <td className="text-right py-3 px-4 font-semibold">$204K</td>
-                      <td className="text-right py-3 px-4 font-semibold">$990K</td>
-                      <td className="text-right py-3 px-4 font-semibold">$3.65M</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4">AI Research Queries (Monthly)</td>
-                      <td className="text-right py-3 px-4">5,000</td>
-                      <td className="text-right py-3 px-4">35,000</td>
-                      <td className="text-right py-3 px-4">150,000</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4">Usage Revenue (Annual)</td>
-                      <td className="text-right py-3 px-4">$15K</td>
-                      <td className="text-right py-3 px-4">$85K</td>
-                      <td className="text-right py-3 px-4">$280K</td>
+                      <td className="py-3 px-4 font-semibold">Full Platform ARR</td>
+                      <td className="text-right py-3 px-4 font-semibold">$600K</td>
+                      <td className="text-right py-3 px-4 font-semibold">$2.5M</td>
+                      <td className="text-right py-3 px-4 font-semibold">$7.5M</td>
                     </tr>
                     <tr className="bg-muted/50">
-                      <td className="py-3 px-4 font-semibold">Total Revenue</td>
-                      <td className="text-right py-3 px-4 font-semibold">$219K</td>
-                      <td className="text-right py-3 px-4 font-semibold">$1.08M</td>
-                      <td className="text-right py-3 px-4 font-semibold">$3.93M</td>
+                      <td className="py-3 px-4 font-semibold">Federal Research ARR</td>
+                      <td className="text-right py-3 px-4 font-semibold">$450K</td>
+                      <td className="text-right py-3 px-4 font-semibold">$2.4M</td>
+                      <td className="text-right py-3 px-4 font-semibold">$7.5M</td>
+                    </tr>
+                    <tr className="bg-primary/5">
+                      <td className="py-3 px-4 font-bold">Total ARR</td>
+                      <td className="text-right py-3 px-4 font-bold">$1.05M</td>
+                      <td className="text-right py-3 px-4 font-bold">$4.9M</td>
+                      <td className="text-right py-3 px-4 font-bold">$15M</td>
                     </tr>
                     <tr>
                       <td className="py-3 px-4">Gross Margin</td>
-                      <td className="text-right py-3 px-4">62%</td>
-                      <td className="text-right py-3 px-4">70%</td>
-                      <td className="text-right py-3 px-4">76%</td>
+                      <td className="text-right py-3 px-4">68%</td>
+                      <td className="text-right py-3 px-4">75%</td>
+                      <td className="text-right py-3 px-4">82%</td>
                     </tr>
                     <tr>
                       <td className="py-3 px-4">Customer Churn Rate</td>
-                      <td className="text-right py-3 px-4">10%</td>
-                      <td className="text-right py-3 px-4">7%</td>
-                      <td className="text-right py-3 px-4">4%</td>
+                      <td className="text-right py-3 px-4">8%</td>
+                      <td className="text-right py-3 px-4">5%</td>
+                      <td className="text-right py-3 px-4">3%</td>
                     </tr>
                     <tr>
                       <td className="py-3 px-4">Net Revenue Retention</td>
-                      <td className="text-right py-3 px-4">108%</td>
-                      <td className="text-right py-3 px-4">118%</td>
-                      <td className="text-right py-3 px-4">128%</td>
+                      <td className="text-right py-3 px-4">115%</td>
+                      <td className="text-right py-3 px-4">125%</td>
+                      <td className="text-right py-3 px-4">135%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -360,15 +349,15 @@ export default function AdminBusinessDev() {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>3.3x customer growth Y1→Y2</span>
+                  <span>Min 2 users per firm ($50K+ floor)</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>3.0x customer growth Y2→Y3</span>
+                  <span>3.5x firm growth Y1→Y2</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>20% annual price increase capability</span>
+                  <span>Avg users per firm grows 3→4→5</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
@@ -419,7 +408,7 @@ export default function AdminBusinessDev() {
                 <p className="text-sm text-muted-foreground ml-11">Build credibility and early adopters</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="font-semibold">Target: 8-12 pilot customers</p>
+                <p className="font-semibold">Target: 5-8 founding firms ($50K+ contracts)</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -431,15 +420,15 @@ export default function AdminBusinessDev() {
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Free pilot program (3 months)</span>
+                    <span className="text-sm">Free 30-day trial with white-glove onboarding</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Case study development with early customers</span>
+                    <span className="text-sm">Case study development with founding customers</span>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground pt-2">
-                  Budget: $60K | CAC Target: $5,000
+                  Budget: $80K | CAC Target: $8,000
                 </p>
               </CardContent>
             </Card>
@@ -456,7 +445,7 @@ export default function AdminBusinessDev() {
                 <p className="text-sm text-muted-foreground ml-11">Accelerate with proven playbook</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="font-semibold">Target: 20+ paying customers</p>
+                <p className="font-semibold">Target: 15-25 licensed firms</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -493,7 +482,7 @@ export default function AdminBusinessDev() {
                 <p className="text-sm text-muted-foreground ml-11">Multi-channel growth engine</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="font-semibold">Target: 75+ customers, $1M ARR</p>
+                <p className="font-semibold">Target: 45+ firms, $5M ARR</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -530,7 +519,7 @@ export default function AdminBusinessDev() {
                 <p className="text-sm text-muted-foreground ml-11">Category leadership</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="font-semibold">Target: 225+ customers, $4M ARR</p>
+                <p className="font-semibold">Target: 110+ firms, $15M ARR</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />

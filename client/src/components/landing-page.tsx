@@ -224,78 +224,32 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">
-              Simple, Transparent Pricing
+              Enterprise-Grade Pricing
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that fits your firm's needs. All plans are free during our early access period.
+              Built for serious government affairs firms. Annual licensing with per-seat pricing. Minimum 2 users per firm.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Starter Plan */}
+            {/* Federal Research */}
             <Card className="relative">
               <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">Starter</CardTitle>
-                <CardDescription>For small firms getting started</CardDescription>
+                <CardTitle className="text-xl">Federal Research</CardTitle>
+                <CardDescription>Federal-level intelligence only</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold">Free</span>
+                  <span className="text-4xl font-bold">$2,500</span>
+                  <span className="text-muted-foreground">/mo per user</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Up to 3 team members</span>
+                    <span>Federal-level research & tracking</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>500 contact records</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>5 active matters</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Basic news monitoring</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Email support</span>
-                  </li>
-                </ul>
-                <Button className="w-full mt-6" variant="outline" asChild>
-                  <a href="/signup">Start Free Trial</a>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Professional Plan */}
-            <Card className="relative border-primary">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
-                  Most Popular
-                </span>
-              </div>
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">Professional</CardTitle>
-                <CardDescription>For growing advocacy practices</CardDescription>
-                <div className="pt-4">
-                  <span className="text-4xl font-bold">Free</span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Up to 10 team members</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Unlimited contacts</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>25 active matters</span>
+                    <span>Congressional staff directory</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
@@ -303,49 +257,93 @@ export function LandingPage() {
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Bill tracking with alerts</span>
+                    <span>News monitoring & alerts</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Priority support</span>
+                    <span>Minimum 2 users</span>
                   </li>
                 </ul>
-                <Button className="w-full mt-6" asChild>
-                  <a href="/signup">Start Free Trial</a>
+                <Button className="w-full mt-6" variant="outline" asChild>
+                  <a href="/signup">Request Access</a>
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Enterprise Plan */}
-            <Card className="relative">
+            {/* Full Platform License */}
+            <Card className="relative border-primary">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
+                  Recommended
+                </span>
+              </div>
               <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">Enterprise</CardTitle>
-                <CardDescription>For large firms and organizations</CardDescription>
+                <CardTitle className="text-xl">Full Platform</CardTitle>
+                <CardDescription>Complete government affairs suite</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold">Free</span>
+                  <span className="text-4xl font-bold">$25,000</span>
+                  <span className="text-muted-foreground">/yr per user</span>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Unlimited team members</span>
+                    <span>Everything in Federal Research</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Unlimited contacts</span>
+                    <span>Unlimited contacts & matters</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Unlimited matters</span>
+                    <span>Client portals & reporting</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Advanced AI research</span>
+                    <span>Bill tracking & staffer mapping</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Client portals</span>
+                    <span>Career enrichment (LinkedIn/PDL)</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Minimum 2 users</span>
+                  </li>
+                </ul>
+                <Button className="w-full mt-6" asChild>
+                  <a href="/signup">Request Access</a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Enterprise */}
+            <Card className="relative">
+              <CardHeader className="text-center pb-2">
+                <CardTitle className="text-xl">Enterprise</CardTitle>
+                <CardDescription>For large firms & custom needs</CardDescription>
+                <div className="pt-4">
+                  <span className="text-4xl font-bold">Custom</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Everything in Full Platform</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Unlimited users</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>API access & integrations</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                    <span>Custom modules & add-ons</span>
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
@@ -353,7 +351,7 @@ export function LandingPage() {
                   </li>
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary shrink-0" />
-                    <span>Custom integrations</span>
+                    <span>Volume licensing discounts</span>
                   </li>
                 </ul>
                 <Button className="w-full mt-6" variant="outline" asChild>
@@ -377,7 +375,7 @@ export function LandingPage() {
             enhance your intelligence gathering, and give you the competitive edge you need.
           </p>
           <Button size="lg" asChild data-testid="button-cta-bottom">
-            <a href="/signup">Start Your Free Trial</a>
+            <a href="/signup">Request Access</a>
           </Button>
         </div>
       </section>
