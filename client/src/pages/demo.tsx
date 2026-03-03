@@ -81,7 +81,20 @@ export default function DemoPage() {
             return (
               <Card key={video.id} className="overflow-hidden" data-testid={`demo-video-${video.id}`}>
                 <CardContent className="p-0">
-                  {embedUrl ? (
+                  {video.videoUrl.startsWith("/objects/") ? (
+                    <div className="aspect-video w-full bg-black">
+                      <video
+                        src={video.videoUrl}
+                        className="w-full h-full"
+                        controls
+                        preload="metadata"
+                        playsInline
+                        data-testid={`video-player-${video.id}`}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  ) : embedUrl ? (
                     <div className="aspect-video w-full">
                       <iframe
                         src={embedUrl}
