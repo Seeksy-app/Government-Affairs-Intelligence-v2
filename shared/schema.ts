@@ -1552,3 +1552,22 @@ export const insertDemoVideoSchema = createInsertSchema(demoVideos).omit({
 
 export type InsertDemoVideo = z.infer<typeof insertDemoVideoSchema>;
 export type DemoVideo = typeof demoVideos.$inferSelect;
+
+export const demoAccessLogs = pgTable("demo_access_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  sessionStart: timestamp("session_start").defaultNow(),
+  timeSpentSeconds: integer("time_spent_seconds").default(0),
+  videosViewed: integer("videos_viewed").default(0),
+  videosCompleted: integer("videos_completed").default(0),
+  lastActivity: timestamp("last_activity").defaultNow(),
+});
+
+export const insertDemoAccessLogSchema = createInsertSchema(demoAccessLogs).omit({
+  id: true,
+  sessionStart: true,
+  lastActivity: true,
+});
+
+export type InsertDemoAccessLog = z.infer<typeof insertDemoAccessLogSchema>;
+export type DemoAccessLog = typeof demoAccessLogs.$inferSelect;

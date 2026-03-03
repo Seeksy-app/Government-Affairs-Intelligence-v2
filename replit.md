@@ -89,7 +89,9 @@ The platform supports multiple client firms, each with isolated data, managed by
 - Routes: `/api/veterans/members`, `/api/veterans/research`, `/api/veterans/batch-research`, `/api/veterans/staffers`.
 
 ### Demo Videos
-- **Public Demo Page**: Public route at `/demo` displays published demo videos with embedded players (YouTube, Vimeo, Loom supported). Scrolls to top on load.
-- **Admin Management**: Super admins manage videos at `/admin/demos` — add, edit, delete, reorder, and toggle publish status. Schema: `demo_videos` table.
+- **Public Demo Page**: Public route at `/demo` with email gate — visitors must enter email before viewing. Supports YouTube, Vimeo, Loom embeds and direct video uploads via object storage. Tracks time spent, videos viewed, and videos completed per session (updates every 10s and on page unload).
+- **Video Upload**: Admin can upload video files (MP4, WebM, MOV, AVI, MKV up to 500MB) directly via presigned URL upload to object storage, or paste embed URLs. Uploaded videos served via `/objects/` paths with HTML5 video player.
+- **Admin Management**: Super admins manage videos at `/admin/demos` — add (URL or upload), edit, delete, reorder, and toggle publish status. Schema: `demo_videos` table.
+- **Demo Access Log**: Admin page at `/admin/demo-access` shows all demo viewing sessions with email, date/time, time spent, videos viewed, and videos completed. Sortable columns, email search, summary stats. Schema: `demo_access_logs` table.
 - **Landing Page**: "Watch Demo" button in hero section links to `/demo`.
 - **Scheduler Finder**: LegiStorm-powered scheduler lookup for Congress members. Searches by title keywords (scheduler, director of operations, office manager, etc.). API: `GET /api/legistorm/scheduler?memberName=`. Service: `findSchedulerForMember()` in `legistorm-service.ts`.

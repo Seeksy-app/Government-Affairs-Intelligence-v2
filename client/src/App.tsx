@@ -62,6 +62,7 @@ import PrivacyPage from "@/pages/privacy";
 import SecurityPrivacyPage from "@/pages/security-privacy";
 import DemoPage from "@/pages/demo";
 import AdminDemos from "@/pages/admin-demos";
+import AdminDemoAccess from "@/pages/admin-demo-access";
 
 function AuthenticatedRouter() {
   return (
@@ -76,6 +77,7 @@ function AuthenticatedRouter() {
       <Route path="/admin/business-dev" component={AdminBusinessDev} />
       <Route path="/admin/tech" component={AdminTech} />
       <Route path="/admin/demos" component={AdminDemos} />
+      <Route path="/admin/demo-access" component={AdminDemoAccess} />
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}

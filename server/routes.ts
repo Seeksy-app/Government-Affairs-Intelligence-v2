@@ -8739,6 +8739,7 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
   app.get("/api/demo-videos", async (_req, res) => {
     try {
       const { demoVideos } = await import("@shared/schema");
+      const { db } = await import("./db");
       const results = await db.select().from(demoVideos).orderBy(demoVideos.sortOrder);
       res.json(results.filter(v => v.isPublished));
     } catch (error: any) {
@@ -8748,7 +8749,11 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
 
   app.get("/api/admin/demo-videos", isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) return res.status(403).json({ message: "Forbidden" });
       const { demoVideos } = await import("@shared/schema");
+      const { db } = await import("./db");
       const results = await db.select().from(demoVideos).orderBy(demoVideos.sortOrder);
       res.json(results);
     } catch (error: any) {
@@ -8759,6 +8764,7 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
   app.post("/api/admin/demo-videos", isAuthenticated, async (req, res) => {
     try {
       const { demoVideos } = await import("@shared/schema");
+      const { db } = await import("./db");
       const [video] = await db.insert(demoVideos).values({
         title: req.body.title,
         description: req.body.description || null,
@@ -8775,6 +8781,8 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
   app.patch("/api/admin/demo-videos/:id", isAuthenticated, async (req, res) => {
     try {
       const { demoVideos } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
       const [video] = await db.update(demoVideos)
         .set({ ...req.body, updatedAt: new Date() })
         .where(eq(demoVideos.id, req.params.id))
@@ -8789,6 +8797,8 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
   app.delete("/api/admin/demo-videos/:id", isAuthenticated, async (req, res) => {
     try {
       const { demoVideos } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
       const [deleted] = await db.delete(demoVideos)
         .where(eq(demoVideos.id, req.params.id))
         .returning();
@@ -8796,6 +8806,70 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to delete demo video" });
+    }
+  });
+
+  app.post("/api/demo-access", async (req, res) => {
+    try {
+      const { demoAccessLogs } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { email } = req.body;
+      if (!email || typeof email !== "string" || !email.includes("@")) {
+        return res.status(400).json({ message: "Valid email is required" });
+      }
+      const [session] = await db.insert(demoAccessLogs).values({
+        email: email.toLowerCase().trim(),
+        timeSpentSeconds: 0,
+        videosViewed: 0,
+        videosCompleted: 0,
+      }).returning();
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create session" });
+    }
+  });
+
+  app.patch("/api/demo-access/:id", async (req, res) => {
+    try {
+      const { demoAccessLogs } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+      const { timeSpentSeconds, videosViewed, videosCompleted } = req.body;
+      const updates: any = { lastActivity: new Date() };
+      if (typeof timeSpentSeconds === "number") updates.timeSpentSeconds = timeSpentSeconds;
+      if (typeof videosViewed === "number") updates.videosViewed = videosViewed;
+      if (typeof videosCompleted === "number") updates.videosCompleted = videosCompleted;
+      const [session] = await db.update(demoAccessLogs)
+        .set(updates)
+        .where(eq(demoAccessLogs.id, req.params.id))
+        .returning();
+      if (!session) return res.status(404).json({ message: "Session not found" });
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update session" });
+    }
+  });
+
+  app.get("/api/admin/demo-access-logs", isAuthenticated, async (_req, res) => {
+    try {
+      const { demoAccessLogs } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { desc } = await import("drizzle-orm");
+      const results = await db.select().from(demoAccessLogs).orderBy(desc(demoAccessLogs.sessionStart));
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to fetch access logs" });
+    }
+  });
+
+  app.delete("/api/admin/demo-access-logs", isAuthenticated, async (_req, res) => {
+    try {
+      const { demoAccessLogs } = await import("@shared/schema");
+      const { db } = await import("./db");
+      await db.delete(demoAccessLogs);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to clear access logs" });
     }
   });
 
