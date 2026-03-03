@@ -92,18 +92,18 @@ app.use((req, res, next) => {
       }
     }
 
-    // Auto-enable modules for Adam Consulting Group
+    // Auto-enable all modules for all clients
     const { clientModules } = await import("@shared/schema");
     const { and } = await import("drizzle-orm");
-    const [adamClient] = await db.select().from(clients).where(eq(clients.name, "Adam Consulting Group"));
-    if (adamClient) {
-      const allModules = await db.select().from(platformModules);
+    const allClients = await db.select().from(clients);
+    const allModules = await db.select().from(platformModules);
+    for (const client of allClients) {
       for (const mod of allModules) {
         const [existing] = await db.select().from(clientModules)
-          .where(and(eq(clientModules.clientId, adamClient.id), eq(clientModules.moduleId, mod.id)));
+          .where(and(eq(clientModules.clientId, client.id), eq(clientModules.moduleId, mod.id)));
         if (!existing) {
-          await db.insert(clientModules).values({ clientId: adamClient.id, moduleId: mod.id, enabled: true });
-          console.log(`Enabled module "${mod.name}" for Adam Consulting Group`);
+          await db.insert(clientModules).values({ clientId: client.id, moduleId: mod.id, enabled: true });
+          console.log(`Enabled module "${mod.name}" for ${client.name}`);
         }
       }
     }

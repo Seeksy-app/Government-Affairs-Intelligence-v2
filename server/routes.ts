@@ -192,6 +192,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.message });
       }
       const client = await storage.createClient(parsed.data);
+
+      // Auto-enable all modules for new client
+      try {
+        const allModules = await storage.getModules();
+        for (const mod of allModules) {
+          await storage.enableClientModule(client.id, mod.id);
+        }
+      } catch (modErr) {
+        console.error("Failed to auto-enable modules for new client:", modErr);
+      }
+
       res.status(201).json(client);
     } catch (error) {
       console.error("Error creating client:", error);
@@ -447,6 +458,16 @@ export async function registerRoutes(
         clientId: client.id,
         role: "admin",
       });
+
+      // Auto-enable all modules for new client
+      try {
+        const allModules = await storage.getModules();
+        for (const mod of allModules) {
+          await storage.enableClientModule(client.id, mod.id);
+        }
+      } catch (modErr) {
+        console.error("Failed to auto-enable modules for new client:", modErr);
+      }
 
       await storage.updateClientApplication(application.id, {
         emailVerified: true,
@@ -750,6 +771,16 @@ export async function registerRoutes(
         industry: application.industry || undefined,
         isActive: true,
       });
+
+      // Auto-enable all modules for new client
+      try {
+        const allModules = await storage.getModules();
+        for (const mod of allModules) {
+          await storage.enableClientModule(client.id, mod.id);
+        }
+      } catch (modErr) {
+        console.error("Failed to auto-enable modules for approved client:", modErr);
+      }
 
       // Update application
       await storage.updateClientApplication(application.id, {

@@ -257,7 +257,7 @@ export function AppSidebar() {
                     <Collapsible 
                       key={group.label} 
                       defaultOpen={isGroupActive}
-                      className="group/collapsible"
+                      className="group/collapsible mt-2"
                     >
                       <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
@@ -295,7 +295,7 @@ export function AppSidebar() {
                   );
                 })}
 
-                <SidebarMenuItem>
+                <SidebarMenuItem className="mt-2">
                   <SidebarMenuButton
                     asChild
                     isActive={location === "/modules" || location.startsWith("/modules/")}
