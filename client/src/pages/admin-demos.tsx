@@ -144,7 +144,14 @@ export default function AdminDemos() {
         }),
       });
 
-      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      if (!urlRes.ok) {
+        let errorMsg = "Failed to get upload URL";
+        try {
+          const errData = await urlRes.json();
+          errorMsg = errData.message || errData.error || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+      }
       const { uploadURL, objectPath } = await urlRes.json();
 
       setUploadProgress(`Uploading ${(file.size / (1024 * 1024)).toFixed(1)}MB...`);
@@ -155,7 +162,7 @@ export default function AdminDemos() {
         body: file,
       });
 
-      if (!uploadRes.ok) throw new Error("Upload failed");
+      if (!uploadRes.ok) throw new Error("Upload to storage failed. Please try again.");
 
       setUploadProgress("Upload complete!");
       setVideoUrl(objectPath);
