@@ -25,7 +25,7 @@ import {
   Loader2,
   Sparkles
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -863,6 +863,12 @@ export function StafferProfileDialog({
   const [selectedStaffer, setSelectedStaffer] = useState<Staffer | null>(null);
   const [enrichedData, setEnrichedData] = useState<Record<number, Partial<Staffer>>>({});
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (open && staffers.length === 1 && !selectedStaffer) {
+      setSelectedStaffer(staffers[0]);
+    }
+  }, [open, staffers]);
   
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -933,7 +939,7 @@ export function StafferProfileDialog({
           <StafferProfile 
             staffer={selectedStaffer} 
             memberName={memberName}
-            onBack={() => setSelectedStaffer(null)}
+            onBack={() => staffers.length === 1 ? handleOpenChange(false) : setSelectedStaffer(null)}
             onNavigate={handleNavigate}
             onEnrichData={handleEnrichData}
           />
