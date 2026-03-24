@@ -87,137 +87,180 @@ function parseStrategy(raw: string): StrategySection[] {
   return sections;
 }
 
-// Relationship map with fullscreen toggle
+// Relationship map — clickable nodes, detail popup, no summary strip
 function RelationshipMap({ sections, stafferName, memberName }: { sections: StrategySection[]; stafferName: string; memberName: string }) {
-  const [expanded, setExpanded] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<number | null>(null);
   const pathways = sections.find(s => s.title === "RELATIONSHIP PATHWAYS");
   const nodes = pathways?.bullets.slice(0, 5) || [];
 
   if (!nodes.length) return null;
 
   const colors = ["#3b82f6", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444"];
+  const lightColors = ["#eff6ff", "#f5f3ff", "#f0fdf4", "#fffbeb", "#fef2f2"];
+  const darkBorders = ["#93c5fd", "#c4b5fd", "#86efac", "#fcd34d", "#fca5a5"];
 
-  const MapSVG = ({ size }: { size: 'normal' | 'large' }) => {
-    const vw = 900, vh = size === 'large' ? 560 : 440;
-    const cx = vw / 2, cy = vh / 2;
-    const r = size === 'large' ? 210 : 165;
-    const centerR = size === 'large' ? 58 : 46;
-    const nodeR = size === 'large' ? 48 : 36;
-    const fs = size === 'large' ? { label: 12, sub: 10, num: 20, center: 15, cSub: 11 } : { label: 10, sub: 8, num: 16, center: 13, cSub: 9 };
+  // Parse each node into a short label and full detail
+  const parsed = nodes.map(node => {
+    const colonIdx = node.indexOf(':');
+    const label = (colonIdx > -1 ? node.slice(0, colonIdx) : node).replace(/\[.*?\]/g, '').replace(/\*\*/g, '').trim();
+    const detail = (colonIdx > -1 ? node.slice(colonIdx + 1) : '').trim().replace(/\[.*?\]/g, '').replace(/\*\*/g, '').trim();
+    return { label, detail, full: node.replace(/\[.*?\]/g, '').replace(/\*\*/g, '').trim() };
+  });
 
-    return (
-      <svg viewBox={`0 0 ${vw} ${vh}`} className="w-full" style={{ minWidth: size === 'large' ? 640 : 400 }}>
-        {/* Subtle radial background */}
-        <defs>
-          <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f8fafc" stopOpacity="1" />
-            <stop offset="100%" stopColor="#f1f5f9" stopOpacity="1" />
-          </radialGradient>
-        </defs>
-        <rect width={vw} height={vh} fill="url(#bgGrad)" rx="16" />
+  const vw = 960, vh = 540;
+  const cx = vw / 2, cy = vh / 2;
+  const orbitalR = 195;
+  const centerR = 52;
+  const nodeRx = 82, nodeRy = 42; // ellipse for more text space
 
-        {/* Center node - staffer */}
-        <circle cx={cx} cy={cy} r={centerR} fill="#0f172a" />
-        <text x={cx} y={cy - fs.cSub} textAnchor="middle" fill="white" fontSize={fs.center} fontWeight="bold">
-          {stafferName.split(' ')[0]}
-        </text>
-        <text x={cx} y={cy + fs.cSub + 1} textAnchor="middle" fill="#94a3b8" fontSize={fs.cSub}>
-          {stafferName.split(' ').slice(1).join(' ')}
-        </text>
-
-        {nodes.map((node, i) => {
-          const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
-          const nx = cx + r * Math.cos(angle);
-          const ny = cy + r * Math.sin(angle);
-          const color = colors[i % colors.length];
-          const rawLabel = node.split(':')[0].replace(/\[.*?\]/g, '').trim();
-          const rawSub = (node.split(':')[1] || '').trim().replace(/\[.*?\]/g, '');
-          const maxLabelLen = size === 'large' ? 22 : 17;
-          const maxSubLen = size === 'large' ? 28 : 20;
-          const label = rawLabel.length > maxLabelLen ? rawLabel.slice(0, maxLabelLen - 1) + '…' : rawLabel;
-          const sub = rawSub.length > maxSubLen ? rawSub.slice(0, maxSubLen - 1) + '…' : rawSub;
-
-          return (
-            <g key={i}>
-              {/* Animated connection line */}
-              <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={color} strokeWidth="2" strokeDasharray="6,4" opacity="0.45" />
-              {/* Midpoint dot */}
-              <circle cx={(cx + nx) / 2} cy={(cy + ny) / 2} r={4} fill={color} opacity="0.6" />
-              {/* Outer glow */}
-              <circle cx={nx} cy={ny} r={nodeR + 8} fill={color} opacity="0.08" />
-              {/* Node bubble */}
-              <circle cx={nx} cy={ny} r={nodeR} fill="white" stroke={color} strokeWidth="2" />
-              {/* Number badge */}
-              <circle cx={nx - nodeR + 8} cy={ny - nodeR + 8} r={fs.num / 2 + 2} fill={color} />
-              <text x={nx - nodeR + 8} y={ny - nodeR + 10} textAnchor="middle" fill="white" fontSize={fs.num / 2 + 2} fontWeight="bold">{i + 1}</text>
-              {/* Label */}
-              <text x={nx} y={ny - 4} textAnchor="middle" fill={color} fontSize={fs.label} fontWeight="600">{label}</text>
-              {sub && <text x={nx} y={ny + fs.label + 2} textAnchor="middle" fill="#64748b" fontSize={fs.sub}>{sub}</text>}
-            </g>
-          );
-        })}
-      </svg>
-    );
+  // Wrap text into lines
+  const wrapText = (text: string, maxChars: number): string[] => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      if ((current + ' ' + word).trim().length > maxChars) {
+        if (current) lines.push(current.trim());
+        current = word;
+      } else {
+        current = (current + ' ' + word).trim();
+      }
+    }
+    if (current) lines.push(current.trim());
+    return lines;
   };
 
   return (
     <>
-      {/* Fullscreen overlay */}
-      {expanded && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={() => setExpanded(false)}>
-          <div className="bg-background rounded-2xl w-full max-w-4xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg flex items-center gap-2"><Users className="h-5 w-5" /> Connection Map</h3>
-              <button onClick={() => setExpanded(false)} className="text-muted-foreground hover:text-foreground text-2xl leading-none">×</button>
+      {/* Node detail popup */}
+      {selectedNode !== null && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSelectedNode(null)}>
+          <div
+            className="bg-background rounded-2xl w-full max-w-lg p-6 shadow-2xl border-t-4"
+            style={{ borderTopColor: colors[selectedNode] }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <span
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+                style={{ background: colors[selectedNode] }}
+              >
+                {selectedNode + 1}
+              </span>
+              <div>
+                <h3 className="font-bold text-lg leading-tight" style={{ color: colors[selectedNode] }}>
+                  {parsed[selectedNode].label}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Pathway to {memberName.split(' ').slice(-1)[0]}'s office</p>
+              </div>
+              <button onClick={() => setSelectedNode(null)} className="ml-auto text-muted-foreground hover:text-foreground text-2xl leading-none shrink-0">×</button>
             </div>
-            <MapSVG size="large" />
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {nodes.map((node, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm">
-                  <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5" style={{ background: colors[i % colors.length] }}>{i + 1}</span>
-                  <span className="text-muted-foreground text-xs leading-relaxed">{node.replace(/\[.*?\]/g, '').replace(/\*\*/g, '').trim()}</span>
-                </div>
-              ))}
+            <div className="rounded-xl p-4 text-sm leading-relaxed" style={{ background: lightColors[selectedNode], borderLeft: `3px solid ${colors[selectedNode]}` }}>
+              {parsed[selectedNode].detail || parsed[selectedNode].full}
             </div>
+            <p className="text-xs text-muted-foreground mt-4 text-center">Click anywhere outside to close</p>
           </div>
         </div>
       )}
 
       <div className="rounded-2xl border bg-card overflow-hidden">
-        {/* Pathway summary strip */}
-        <div className="px-5 pt-5 pb-3 border-b bg-slate-50 dark:bg-slate-900/50">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              {nodes.length} Relationship Pathways to {memberName.split(' ').slice(-1)[0]}'s Office
-            </h3>
-            <button
-              onClick={() => setExpanded(true)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors font-medium text-muted-foreground"
-            >
-              <span>⛶</span> Expand Map
-            </button>
-          </div>
-          <div className="flex flex-col gap-2">
-            {nodes.map((node, i) => {
-              const label = node.split(':')[0].replace(/\[.*?\]/g, '').trim();
-              const detail = (node.split(':')[1] || '').trim().replace(/\[.*?\]/g, '').replace(/\*\*/g, '');
-              return (
-                <div key={i} className="flex items-start gap-2.5">
-                  <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white mt-0.5" style={{ background: colors[i % colors.length] }}>{i + 1}</span>
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-foreground">{label}</span>
-                    {detail && <span className="text-xs text-muted-foreground"> — {detail.length > 100 ? detail.slice(0, 98) + '…' : detail}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            {nodes.length} Relationship Pathways — click any node to explore
+          </h3>
         </div>
 
-        {/* Map */}
-        <div className="p-2">
-          <MapSVG size="normal" />
+        <div className="px-2 pb-3">
+          <svg viewBox={`0 0 ${vw} ${vh}`} className="w-full" style={{ minHeight: 320 }}>
+            <defs>
+              <radialGradient id="bgG" cx="50%" cy="50%" r="55%">
+                <stop offset="0%" stopColor="#f8fafc" />
+                <stop offset="100%" stopColor="#e2e8f0" />
+              </radialGradient>
+              {colors.map((c, i) => (
+                <radialGradient key={i} id={`ng${i}`} cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="white" />
+                  <stop offset="100%" stopColor={lightColors[i]} />
+                </radialGradient>
+              ))}
+            </defs>
+            <rect width={vw} height={vh} fill="url(#bgG)" rx="12" />
+
+            {/* Orbital ring hint */}
+            <circle cx={cx} cy={cy} r={orbitalR} fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4,8" />
+
+            {/* Center node */}
+            <circle cx={cx} cy={cy} r={centerR} fill="#1e40af" opacity="0.12" />
+            <circle cx={cx} cy={cy} r={centerR - 6} fill="#1e40af" opacity="0.9" />
+            <text x={cx} y={cy - 7} textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
+              {stafferName.split(' ')[0]}
+            </text>
+            <text x={cx} y={cy + 9} textAnchor="middle" fill="#bfdbfe" fontSize="10">
+              {stafferName.split(' ').slice(1).join(' ')}
+            </text>
+            <text x={cx} y={cy + 22} textAnchor="middle" fill="#93c5fd" fontSize="9">
+              {memberName.split(' ').slice(-1)[0]}'s Office
+            </text>
+
+            {parsed.map((node, i) => {
+              const angle = (i / parsed.length) * 2 * Math.PI - Math.PI / 2;
+              const nx = cx + orbitalR * Math.cos(angle);
+              const ny = cy + orbitalR * Math.sin(angle);
+              const color = colors[i];
+              const lines = wrapText(node.label, 14);
+
+              return (
+                <g
+                  key={i}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedNode(i)}
+                >
+                  {/* Connection line */}
+                  <line x1={cx} y1={cy} x2={nx} y2={ny} stroke={color} strokeWidth="1.5" strokeDasharray="5,4" opacity="0.4" />
+                  {/* Midpoint pulse */}
+                  <circle cx={(cx + nx) / 2} cy={(cy + ny) / 2} r={4.5} fill={color} opacity="0.55" />
+
+                  {/* Outer glow ring */}
+                  <ellipse cx={nx} cy={ny} rx={nodeRx + 10} ry={nodeRy + 10} fill={color} opacity="0.07" />
+                  {/* Main node ellipse */}
+                  <ellipse cx={nx} cy={ny} rx={nodeRx} ry={nodeRy} fill={`url(#ng${i})`} stroke={color} strokeWidth="2" />
+
+                  {/* Number badge */}
+                  <circle cx={nx - nodeRx + 12} cy={ny - nodeRy + 12} r={10} fill={color} />
+                  <text x={nx - nodeRx + 12} y={ny - nodeRy + 16} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">{i + 1}</text>
+
+                  {/* Wrapped label text */}
+                  {lines.map((line, li) => {
+                    const totalH = lines.length * 14;
+                    const startY = ny - totalH / 2 + 7 + li * 14;
+                    return (
+                      <text key={li} x={nx} y={startY} textAnchor="middle" fill={color} fontSize="12" fontWeight="600">
+                        {line}
+                      </text>
+                    );
+                  })}
+
+                  {/* "tap" hint on hover via opacity trick */}
+                  <ellipse cx={nx} cy={ny} rx={nodeRx} ry={nodeRy} fill="transparent" stroke="transparent" />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Compact legend */}
+        <div className="px-5 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {parsed.map((node, i) => (
+            <button
+              key={i}
+              onClick={() => setSelectedNode(i)}
+              className="flex items-center gap-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg px-2 py-1.5 transition-colors"
+            >
+              <span className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: colors[i] }}>{i + 1}</span>
+              <span className="text-sm font-medium truncate" style={{ color: colors[i] }}>{node.label}</span>
+            </button>
+          ))}
         </div>
       </div>
     </>
