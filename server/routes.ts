@@ -9049,15 +9049,16 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
     try {
       const { recipient = "", state = "" } = req.query as Record<string, string>;
 
+      // USASpending valid award_type_codes: grants only (02=Block Grant, 03=Formula Grant, 04=Project Grant, 05=Cooperative Agreement)
       const filters: any = {
         time_period: [{ start_date: "2023-01-01", end_date: "2025-12-31" }],
-        award_type_codes: ["A", "B", "C", "D", "02", "03", "04", "05"],
+        award_type_codes: ["02", "03", "04", "05"],
       };
 
       if (recipient) {
         filters.recipient_search_text = [recipient];
       }
-      if (state) {
+      if (state && state !== "all") {
         filters.place_of_performance_locations = [{ country: "USA", state: state.toUpperCase() }];
       }
 
@@ -9182,7 +9183,7 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
         const spendingBody = {
           filters: {
             time_period: [{ start_date: "2023-01-01", end_date: "2025-12-31" }],
-            award_type_codes: ["A", "B", "C", "D", "02", "03", "04", "05"],
+            award_type_codes: ["02", "03", "04", "05"],
             keyword: [industry],
             place_of_performance_locations: [{ country: "USA", state: state.toUpperCase() }],
           },

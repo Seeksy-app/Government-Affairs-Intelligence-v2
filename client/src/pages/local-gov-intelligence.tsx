@@ -67,7 +67,7 @@ function GrantsFinder() {
   const { toast } = useToast();
   const [keyword, setKeyword] = useState("broadband");
   const [state, setState] = useState("");
-  const [eligibility, setEligibility] = useState("");
+  const [eligibility, setEligibility] = useState("all");
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -107,7 +107,7 @@ function GrantsFinder() {
             <SelectValue placeholder="Eligibility filter" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All entities</SelectItem>
+            <SelectItem value="all">All entities</SelectItem>
             <SelectItem value="city">City/Municipal</SelectItem>
             <SelectItem value="county">County</SelectItem>
             <SelectItem value="state">State government</SelectItem>
