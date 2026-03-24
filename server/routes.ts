@@ -8952,5 +8952,324 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
     }
   });
 
+  // ============================================================
+  // LOCAL GOVERNMENT INTELLIGENCE ROUTES
+  // ============================================================
+
+  // GET /api/local-gov/grants?keyword=broadband&state=CO&eligibility=city
+  app.get("/api/local-gov/grants", isAuthenticated, async (req, res) => {
+    try {
+      const { keyword = "infrastructure", state = "", eligibility = "" } = req.query as Record<string, string>;
+
+      // Try grants.gov search API
+      const searchBody: any = {
+        keyword: keyword,
+        rows: 20,
+        status: "posted",
+      };
+      if (state) searchBody.agencyCode = state;
+
+      let grants: any[] = [];
+
+      try {
+        const grantsRes = await fetch(
+          `https://apply07.grants.gov/grantsws/rest/opportunities/search/?keyword=${encodeURIComponent(keyword)}&rows=20&oppStatuses=posted`,
+          {
+            headers: { "Accept": "application/json" },
+          }
+        );
+        if (grantsRes.ok) {
+          const data = await grantsRes.json();
+          grants = (data.oppHits || data.opportunities || []).slice(0, 20);
+        }
+      } catch (e) {
+        console.log("grants.gov fetch failed, trying simpler API", e);
+      }
+
+      // Fallback: simpler.grants.gov
+      if (grants.length === 0) {
+        try {
+          const simpleRes = await fetch("https://api.simpler.grants.gov/v1/opportunities/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: keyword, pagination: { page_size: 20, page_offset: 1 } }),
+          });
+          if (simpleRes.ok) {
+            const data = await simpleRes.json();
+            grants = (data.data || []).map((g: any) => ({
+              id: g.opportunity_id,
+              title: g.opportunity_title,
+              agency: g.agency_name || g.agency,
+              deadline: g.close_date,
+              maxAward: g.award_ceiling,
+              description: g.summary?.description,
+              url: `https://grants.gov/search-results-detail/${g.opportunity_id}`,
+              status: g.opportunity_status,
+              category: g.category_of_funding_activity,
+            }));
+          }
+        } catch (e2) {
+          console.log("simpler.grants.gov also failed", e2);
+        }
+      }
+
+      // Normalize grants.gov format
+      if (grants.length > 0 && grants[0].oppNumber !== undefined) {
+        grants = grants.map((g: any) => ({
+          id: g.id || g.oppNumber,
+          title: g.title || g.oppTitle,
+          agency: g.agencyName || g.agencyCode,
+          deadline: g.closeDate || g.deadline,
+          maxAward: g.awardCeiling || g.maxAward,
+          description: g.synopsis || g.description,
+          url: `https://grants.gov/search-results-detail/${g.id || g.oppNumber}`,
+          status: g.oppStatus || "posted",
+          category: g.fundingCategory || "",
+          eligibility: g.eligibleApplicants || [],
+        }));
+      }
+
+      // Filter by eligibility if provided
+      if (eligibility && grants.length > 0) {
+        grants = grants.filter((g: any) => {
+          const elig = JSON.stringify(g.eligibility || "").toLowerCase();
+          return elig.includes(eligibility.toLowerCase()) || elig === "";
+        });
+      }
+
+      res.json({ grants, total: grants.length, keyword, state });
+    } catch (error: any) {
+      console.error("Local gov grants error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch grants" });
+    }
+  });
+
+  // GET /api/local-gov/spending?recipient=Denver&state=CO
+  app.get("/api/local-gov/spending", isAuthenticated, async (req, res) => {
+    try {
+      const { recipient = "", state = "" } = req.query as Record<string, string>;
+
+      const filters: any = {
+        time_period: [{ start_date: "2023-01-01", end_date: "2025-12-31" }],
+        award_type_codes: ["A", "B", "C", "D", "02", "03", "04", "05"],
+      };
+
+      if (recipient) {
+        filters.recipient_search_text = [recipient];
+      }
+      if (state) {
+        filters.place_of_performance_locations = [{ country: "USA", state: state.toUpperCase() }];
+      }
+
+      const body = {
+        filters,
+        fields: [
+          "Award ID", "Recipient Name", "Award Amount", "Awarding Agency",
+          "Awarding Sub Agency", "Award Type", "Start Date", "End Date",
+          "Place of Performance State Code", "Place of Performance City Name",
+          "Description"
+        ],
+        sort: "Award Amount",
+        order: "desc",
+        limit: 20,
+        page: 1,
+      };
+
+      const spendingRes = await fetch(
+        "https://api.usaspending.gov/api/v2/search/spending_by_award/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (!spendingRes.ok) {
+        const errText = await spendingRes.text();
+        throw new Error(`USASpending API error: ${spendingRes.status} ${errText}`);
+      }
+
+      const data = await spendingRes.json();
+      const awards = (data.results || []).map((a: any) => ({
+        id: a["Award ID"],
+        recipient: a["Recipient Name"],
+        amount: a["Award Amount"],
+        awardingAgency: a["Awarding Agency"],
+        subAgency: a["Awarding Sub Agency"],
+        awardType: a["Award Type"],
+        startDate: a["Start Date"],
+        endDate: a["End Date"],
+        state: a["Place of Performance State Code"],
+        city: a["Place of Performance City Name"],
+        description: a["Description"],
+      }));
+
+      res.json({ awards, total: data.page_metadata?.total || awards.length, recipient, state });
+    } catch (error: any) {
+      console.error("Local gov spending error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch spending data" });
+    }
+  });
+
+  // GET /api/local-gov/bills?state=co&keyword=infrastructure
+  app.get("/api/local-gov/bills", isAuthenticated, async (req, res) => {
+    try {
+      const { state = "co", keyword = "infrastructure" } = req.query as Record<string, string>;
+
+      // Map state abbreviation to OpenStates jurisdiction format
+      const stateMap: Record<string, string> = {
+        al: "us_al", ak: "us_ak", az: "us_az", ar: "us_ar", ca: "us_ca",
+        co: "us_co", ct: "us_ct", de: "us_de", fl: "us_fl", ga: "us_ga",
+        hi: "us_hi", id: "us_id", il: "us_il", in: "us_in", ia: "us_ia",
+        ks: "us_ks", ky: "us_ky", la: "us_la", me: "us_me", md: "us_md",
+        ma: "us_ma", mi: "us_mi", mn: "us_mn", ms: "us_ms", mo: "us_mo",
+        mt: "us_mt", ne: "us_ne", nv: "us_nv", nh: "us_nh", nj: "us_nj",
+        nm: "us_nm", ny: "us_ny", nc: "us_nc", nd: "us_nd", oh: "us_oh",
+        ok: "us_ok", or: "us_or", pa: "us_pa", ri: "us_ri", sc: "us_sc",
+        sd: "us_sd", tn: "us_tn", tx: "us_tx", ut: "us_ut", vt: "us_vt",
+        va: "us_va", wa: "us_wa", wv: "us_wv", wi: "us_wi", wy: "us_wy",
+        dc: "us_dc",
+      };
+
+      const jurisdiction = stateMap[state.toLowerCase()] || `us_${state.toLowerCase()}`;
+
+      const url = `https://v3.openstates.org/bills?jurisdiction=${jurisdiction}&q=${encodeURIComponent(keyword)}&per_page=15&sort=updated_desc&include=abstracts&include=sponsorships`;
+
+      const billsRes = await fetch(url, {
+        headers: { "Accept": "application/json" },
+      });
+
+      let bills: any[] = [];
+      if (billsRes.ok) {
+        const data = await billsRes.json();
+        bills = (data.results || []).map((b: any) => ({
+          id: b.id,
+          identifier: b.identifier,
+          title: b.title,
+          abstract: b.abstracts?.[0]?.abstract || "",
+          status: b.latest_action_description || b.status,
+          lastAction: b.latest_action_date,
+          sponsor: b.sponsorships?.[0]?.name || "Unknown",
+          session: b.session,
+          jurisdiction: b.jurisdiction?.name || state.toUpperCase(),
+          url: b.openstates_url,
+        }));
+      } else {
+        // If unauthenticated gets rate-limited, return informative message
+        console.log("OpenStates API response:", billsRes.status);
+      }
+
+      res.json({ bills, total: bills.length, state, keyword });
+    } catch (error: any) {
+      console.error("Local gov bills error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch bills" });
+    }
+  });
+
+  // POST /api/local-gov/gap-analysis { industry: string, state: string }
+  app.post("/api/local-gov/gap-analysis", isAuthenticated, async (req, res) => {
+    try {
+      const { industry, state } = req.body as { industry: string; state: string };
+      if (!industry || !state) {
+        return res.status(400).json({ message: "industry and state are required" });
+      }
+
+      const { researchWithPerplexity } = await import("./services/research-agent");
+
+      // Fetch recent federal spending in that state for industry
+      let spendingContext = "";
+      try {
+        const spendingBody = {
+          filters: {
+            time_period: [{ start_date: "2023-01-01", end_date: "2025-12-31" }],
+            award_type_codes: ["A", "B", "C", "D", "02", "03", "04", "05"],
+            keyword: [industry],
+            place_of_performance_locations: [{ country: "USA", state: state.toUpperCase() }],
+          },
+          fields: ["Award ID", "Recipient Name", "Award Amount", "Awarding Agency", "Description"],
+          sort: "Award Amount",
+          order: "desc",
+          limit: 10,
+          page: 1,
+        };
+        const spendRes = await fetch("https://api.usaspending.gov/api/v2/search/spending_by_award/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(spendingBody),
+        });
+        if (spendRes.ok) {
+          const spendData = await spendRes.json();
+          const awards = spendData.results || [];
+          if (awards.length > 0) {
+            spendingContext = `Recent federal spending in ${state} related to ${industry}:\n` +
+              awards.slice(0, 5).map((a: any) =>
+                `- ${a["Recipient Name"]}: $${(a["Award Amount"] || 0).toLocaleString()} from ${a["Awarding Agency"]} (${a["Description"] || ""})`
+              ).join("\n");
+          } else {
+            spendingContext = `No recent federal spending found in ${state} for ${industry} sector.`;
+          }
+        }
+      } catch (e) {
+        spendingContext = `Could not fetch spending data for ${state}.`;
+      }
+
+      // Fetch open grants for that industry
+      let grantsContext = "";
+      try {
+        const grantsRes = await fetch(
+          `https://apply07.grants.gov/grantsws/rest/opportunities/search/?keyword=${encodeURIComponent(industry)}&rows=10&oppStatuses=posted`,
+          { headers: { "Accept": "application/json" } }
+        );
+        if (grantsRes.ok) {
+          const grantsData = await grantsRes.json();
+          const opportunities = grantsData.oppHits || grantsData.opportunities || [];
+          if (opportunities.length > 0) {
+            grantsContext = `Currently open federal grants related to ${industry}:\n` +
+              opportunities.slice(0, 5).map((g: any) =>
+                `- ${g.title || g.oppTitle}: up to $${(g.awardCeiling || g.maxAward || 0).toLocaleString()} from ${g.agencyName || g.agencyCode || "Federal Agency"} (deadline: ${g.closeDate || g.deadline || "TBD"})`
+              ).join("\n");
+          }
+        }
+      } catch (e) {
+        grantsContext = "";
+      }
+
+      const prompt = `You are a government affairs strategist helping lobbyists identify unmet federal funding opportunities for their clients.
+
+Industry/Sector: ${industry}
+State: ${state}
+
+DATA:
+${spendingContext || "No spending data available."}
+
+${grantsContext || "No grant data available."}
+
+Please provide a strategic briefing (400-600 words) covering:
+1. **Current Federal Investment**: What federal money is currently flowing to ${state} in the ${industry} sector, and which local governments or agencies are receiving it?
+2. **Funding Gaps**: Based on the spending patterns and available grants, where are the unmet opportunities? Which cities, counties, or state agencies appear underserved?
+3. **Open Grant Opportunities**: Which of the currently open federal grants are most relevant for local governments in ${state} pursuing ${industry} initiatives?
+4. **Strategic Recommendations**: Specific, actionable steps a lobbyist could take to help clients in ${state} capture these federal dollars — including which grant programs to pursue, which local government decision-makers to engage, and what legislative or regulatory angles to pursue.
+5. **Competitive Landscape**: Which neighboring states are winning more federal ${industry} funding, and what can ${state} learn from them?
+
+Format your response with clear headers and bullet points. Be specific and data-driven.`;
+
+      const result = await researchWithPerplexity(prompt);
+
+      res.json({
+        briefing: result.content,
+        citations: result.citations,
+        industry,
+        state,
+        dataUsed: {
+          spending: spendingContext ? true : false,
+          grants: grantsContext ? true : false,
+        },
+      });
+    } catch (error: any) {
+      console.error("Local gov gap analysis error:", error);
+      res.status(500).json({ message: error.message || "Failed to run gap analysis" });
+    }
+  });
+
   return httpServer;
 }

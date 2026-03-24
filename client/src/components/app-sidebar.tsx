@@ -174,6 +174,14 @@ export function AppSidebar() {
     ],
   };
 
+  const clientLocalGovGroup = {
+    label: "Local Gov Intel",
+    icon: Building2,
+    items: [
+      { title: "Local Gov Intelligence", url: "/local-gov", icon: Building2, tourId: "local-gov" },
+    ],
+  };
+
   const clientGroups = [
     clientDirectoryGroup,
     clientStaffersGroup,
@@ -183,6 +191,7 @@ export function AppSidebar() {
     clientSocialGroup,
     ...(hasSportsModule ? [clientSportsGroup] : []),
     ...(hasMarketingModule ? [clientMarketingGroup] : []),
+    clientLocalGovGroup,
     clientManageGroup,
   ];
 

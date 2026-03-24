@@ -58,6 +58,7 @@ import StrategyBoardPage from "@/pages/strategy-board";
 import SportsPage from "@/pages/sports";
 import ModulesPage from "@/pages/modules";
 import MarketingIntelligencePage from "@/pages/marketing-intelligence";
+import LocalGovIntelligencePage from "@/pages/local-gov-intelligence";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 import SecurityPrivacyPage from "@/pages/security-privacy";
@@ -110,6 +111,7 @@ function AuthenticatedRouter() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/sports" component={SportsPage} />
       <Route path="/marketing" component={MarketingIntelligencePage} />
+      <Route path="/local-gov" component={LocalGovIntelligencePage} />
       <Route path="/modules" component={ModulesPage} />
       
       {/* Default redirect based on role */}
