@@ -8960,6 +8960,8 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
   app.get("/api/local-gov/grants", isAuthenticated, async (req, res) => {
     try {
       const { keyword = "infrastructure", state = "", eligibility = "" } = req.query as Record<string, string>;
+      const stateFilter = (state && state !== "all") ? state : "";
+      const eligibilityFilter = (eligibility && eligibility !== "all") ? eligibility : "";
 
       // Try grants.gov search API
       const searchBody: any = {
@@ -8967,7 +8969,6 @@ Provide a detailed, data-driven analysis with specific recommendations. Referenc
         rows: 20,
         status: "posted",
       };
-      if (state) searchBody.agencyCode = state;
 
       let grants: any[] = [];
 

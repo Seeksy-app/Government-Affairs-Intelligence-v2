@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const US_STATES = [
-  { value: "", label: "All States" },
+  { value: "all", label: "All States" },
   { value: "AL", label: "Alabama" }, { value: "AK", label: "Alaska" },
   { value: "AZ", label: "Arizona" }, { value: "AR", label: "Arkansas" },
   { value: "CA", label: "California" }, { value: "CO", label: "Colorado" },
@@ -66,14 +66,14 @@ function formatDate(d: string | undefined | null): string {
 function GrantsFinder() {
   const { toast } = useToast();
   const [keyword, setKeyword] = useState("broadband");
-  const [state, setState] = useState("");
+  const [state, setState] = useState("all");
   const [eligibility, setEligibility] = useState("all");
 
   const mutation = useMutation({
     mutationFn: async () => {
       const params = new URLSearchParams({ keyword });
-      if (state) params.set("state", state);
-      if (eligibility) params.set("eligibility", eligibility);
+      if (state && state !== "all") params.set("state", state);
+      if (eligibility && eligibility !== "all") params.set("eligibility", eligibility);
       const res = await apiRequest("GET", `/api/local-gov/grants?${params}`);
       return res.json();
     },
@@ -189,7 +189,7 @@ function SpendingLookup() {
     mutationFn: async () => {
       const params = new URLSearchParams();
       if (recipient) params.set("recipient", recipient);
-      if (state) params.set("state", state);
+      if (state && state !== "all") params.set("state", state);
       const res = await apiRequest("GET", `/api/local-gov/spending?${params}`);
       return res.json();
     },
@@ -469,11 +469,48 @@ function GapAnalysis() {
             </div>
           </CardHeader>
           <CardContent>
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap"
-              style={{ fontFamily: "inherit" }}
-            >
-              {result.briefing}
+            <div className="space-y-3 text-sm leading-relaxed">
+              {result.briefing.split('\n').map((line: string, i: number) => {
+                const cleaned = line.trim();
+                if (!cleaned) return null;
+                // ## or ### headers
+                if (cleaned.startsWith('### ') || cleaned.startsWith('## ')) {
+                  const text = cleaned.replace(/^#{2,3}\s+/, '').replace(/\*\*/g, '');
+                  return <h4 key={i} className="font-bold text-base mt-4 mb-1 text-foreground border-b pb-1">{text}</h4>;
+                }
+                // **bold** only lines (section headers)
+                if (cleaned.startsWith('**') && cleaned.endsWith('**')) {
+                  return <p key={i} className="font-bold text-sm mt-3 text-foreground">{cleaned.replace(/\*\*/g, '')}</p>;
+                }
+                // Bullet points
+                if (cleaned.startsWith('- ') || cleaned.startsWith('* ')) {
+                  const text = cleaned.slice(2).replace(/\*\*(.*?)\*\*/g, '$1');
+                  return (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      <p className="text-muted-foreground">{text}</p>
+                    </div>
+                  );
+                }
+                // Numbered lists
+                if (/^\d+\.\s/.test(cleaned)) {
+                  const [num, ...rest] = cleaned.split(/\.\s/);
+                  const text = rest.join('. ').replace(/\*\*(.*?)\*\*/g, '$1');
+                  return (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center mt-0.5">{num}</span>
+                      <p className="text-muted-foreground">{text}</p>
+                    </div>
+                  );
+                }
+                // Regular paragraph — inline bold
+                const parts = cleaned.split(/\*\*(.*?)\*\*/g);
+                return (
+                  <p key={i} className="text-muted-foreground">
+                    {parts.map((part, j) => j % 2 === 1 ? <strong key={j} className="text-foreground font-semibold">{part}</strong> : part)}
+                  </p>
+                );
+              }).filter(Boolean)}
             </div>
             {result.citations && result.citations.length > 0 && (
               <div className="mt-4 pt-4 border-t">
