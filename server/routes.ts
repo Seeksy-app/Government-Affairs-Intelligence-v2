@@ -81,12 +81,12 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Setup authentication
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // await setupAuth(app);
+  // registerAuthRoutes(app);
 
   // Register object storage routes for file serving
-  const { registerObjectStorageRoutes } = await import("./replit_integrations/object_storage");
-  registerObjectStorageRoutes(app);
+  // const { registerObjectStorageRoutes } = await import("./replit_integrations/object_storage");
+  // registerObjectStorageRoutes(app);
 
   // Helper to get user ID from request
   const getUserId = (req: any): string | undefined => {
