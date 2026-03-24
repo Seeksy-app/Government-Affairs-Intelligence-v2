@@ -25,7 +25,7 @@ export function getSession() {
     conString: process.env.DATABASE_URL,
     createTableIfMissing: false,
     ttl: sessionTtl,
-    tableName: "sessions",
+    tableName: "app_sessions",
   });
   
   // In production, always use secure cookies; in development, allow non-HTTPS

@@ -80,9 +80,18 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup authentication
-  // await setupAuth(app);
-  // registerAuthRoutes(app);
+  // Setup session + passport (replaces Replit OIDC setupAuth for VPS deployment)
+  const { getSession } = await import("./replit_integrations/auth/replitAuth");
+  app.use(getSession());
+
+  // Minimal passport setup so req.login works for password-based auth
+  const passport = (await import("passport")).default;
+  passport.serializeUser((user: any, done) => done(null, user));
+  passport.deserializeUser((user: any, done) => done(null, user));
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  registerAuthRoutes(app);
 
   // Register object storage routes for file serving
   // const { registerObjectStorageRoutes } = await import("./replit_integrations/object_storage");

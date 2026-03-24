@@ -14,6 +14,9 @@ import { eq } from "drizzle-orm";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust nginx reverse proxy so secure cookies work over HTTPS
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
