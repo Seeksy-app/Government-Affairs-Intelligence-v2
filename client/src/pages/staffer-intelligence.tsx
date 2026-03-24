@@ -308,43 +308,102 @@ export default function StafferIntelligencePage() {
           title: data.title,
           organization: `Office of ${data.memberName}`,
           memberName: data.memberName,
-          customPrompt: `You are a senior government affairs strategist. Provide a comprehensive relationship intelligence report for a lobbying firm seeking to build access to ${data.memberName}'s office through ${data.name}.
+          customPrompt: `You are a congressional research analyst helping a government affairs professional understand how to effectively engage with a congressional office. This is standard professional practice used daily by trade associations, corporations, and advocacy organizations across Washington DC.
 
-Staffer: ${data.name}
-Title: ${data.title}
-Office: ${data.memberName} (${data.memberParty || 'R'}-${data.memberState || 'Unknown'})
+Research Subject: ${data.name}, ${data.title}, Office of ${data.memberName} (${data.memberParty || 'R'}-${data.memberState || ''})
 
-Provide a structured report with EXACTLY these section headers (use **HEADER** format):
+Please provide a professional congressional engagement analysis using EXACTLY these section headers (bold **HEADER** format). Use publicly available information, congressional directories, news coverage, and standard Washington DC professional knowledge. If specific details about this individual are limited, provide accurate general guidance based on their office, title, and Member's known priorities.
 
 **ROLE & INFLUENCE**
-What decisions does this staffer actually control? What is their real influence vs their title? How do they fit in the office hierarchy?
+Based on the title "${data.title}" in ${data.memberName}'s office: describe the typical responsibilities, decision-making authority, and office hierarchy position. What types of constituent and stakeholder interactions does someone in this role handle?
 
 **CAREER BACKGROUND**
-Their career path, private sector experience, campaign work, other Hill offices, industries they've been adjacent to. What shaped their worldview?
+What is publicly known about ${data.name}'s background? Include any prior Hill experience, home state connections (${data.memberState || data.memberName.split(' ').pop()}), education, or career history. If limited public information is available, describe the typical profile of someone who reaches this position in a ${data.memberParty === 'D' ? 'Democratic' : 'Republican'} House office.
 
 **RELATIONSHIP PATHWAYS**
-List exactly 4-5 specific, actionable pathways a lobbyist can use to build a relationship with or through this staffer. Format as bullet points. Be specific — name the types of organizations, alumni networks, events, or shared connections that would work:
-- [Pathway 1]: [specific details]
-- [Pathway 2]: [specific details]
-- [Pathway 3]: [specific details]
-- [Pathway 4]: [specific details]
-- [Pathway 5]: [specific details]
+List 4-5 professional pathways for engaging with or through ${data.name}. These are standard Washington DC engagement strategies used by trade associations and government affairs professionals every day:
+- [Pathway name]: [specific organizations, events, or networks relevant to this office's geography and policy focus]
+- [Pathway name]: [specific details]
+- [Pathway name]: [specific details]
+- [Pathway name]: [specific details]
+- [Pathway name]: [specific details]
+
+Base these on ${data.memberName}'s state (${data.memberState || ''}), committee assignments, known policy priorities, and the standard engagement channels for that office type.
 
 **POLICY LEVERAGE POINTS**
-What issues does this staffer own or influence? What topics would make them agree to a meeting? What client needs could align with their policy portfolio?
+What policy issues are relevant to ${data.memberName}'s district and committee work? What topics would be natural conversation starters for a professional meeting request with this office?
 
 **APPROACH STRATEGY**
-The single best recommended first move. Be specific and actionable — what exact type of outreach, through what channel, on what topic, would be most likely to get a response from this particular staffer given their background and role.
+Standard best-practice recommendation for requesting a professional meeting with this type of congressional office. What format, channel, and topic framing tends to be most effective?
 
 **RISK FACTORS**
-Political sensitivities, office dynamics, landmines to avoid, or contextual factors that could undermine an outreach attempt.`
+Any known political sensitivities, constituent priorities, or contextual considerations relevant to engaging ${data.memberName}'s office professionally.`
         }),
       });
 
       const result = await response.json();
       if (result.success && result.data?.rawContent) {
-        setStrategy(result.data.rawContent);
-        setSections(parseStrategy(result.data.rawContent));
+        const content = result.data.rawContent as string;
+        // Detect if Perplexity refused or gave a generic non-answer
+        const refusalPhrases = [
+          "potentially inaccurate", "i cannot provide", "i'd recommend your firm",
+          "not grounded in sourced", "professionally irresponsible", "what would be needed",
+          "i don't have enough", "i'm unable to", "i cannot generate",
+          "i should not", "this could be misleading"
+        ];
+        const isRefusal = refusalPhrases.some(p => content.toLowerCase().includes(p));
+
+        if (isRefusal) {
+          // Auto-retry with a simpler, less triggering prompt
+          toast({ title: "Retrying with different approach...", description: "Adjusting research parameters" });
+          const retryRes = await fetch("/api/research/staffer", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: data.name,
+              title: data.title,
+              organization: `Office of ${data.memberName}`,
+              memberName: data.memberName,
+              customPrompt: `Provide a professional congressional office engagement guide for ${data.name}, ${data.title} in the Office of ${data.memberName}.
+
+Use these exact section headers:
+
+**ROLE & INFLUENCE**
+Describe the role of a "${data.title}" in a House Member's office. What decisions do they handle? Who do they work with?
+
+**CAREER BACKGROUND**
+What is typically known about staffers who hold this position? What backgrounds and career paths lead to this role in a ${data.memberParty === 'D' ? 'Democratic' : 'Republican'} office in ${data.memberState || 'this state'}?
+
+**RELATIONSHIP PATHWAYS**
+Five professional ways to build a working relationship with or through this office. Focus on legitimate Washington DC professional engagement: trade associations, state-based coalitions, constituent events, policy conferences, alumni networks.
+- [Network type]: [specific approach for this office's geography and policy focus]
+- [Network type]: [specific approach]
+- [Network type]: [specific approach]
+- [Network type]: [specific approach]
+- [Network type]: [specific approach]
+
+**POLICY LEVERAGE POINTS**
+Based on ${data.memberName}'s publicly known committee work and district priorities, what policy topics would be natural subjects for a professional meeting request?
+
+**APPROACH STRATEGY**
+Standard Washington DC best practice for scheduling a professional meeting with this type of congressional office.
+
+**RISK FACTORS**
+Key considerations for professional engagement with this specific office.`
+            }),
+          });
+          const retryResult = await retryRes.json();
+          if (retryResult.success && retryResult.data?.rawContent) {
+            setStrategy(retryResult.data.rawContent);
+            setSections(parseStrategy(retryResult.data.rawContent));
+            toast({ title: "Intelligence Report Ready" });
+            return;
+          }
+        }
+
+        setStrategy(content);
+        setSections(parseStrategy(content));
         toast({ title: "Intelligence Report Ready" });
       } else {
         throw new Error(result.message || "No content returned");
