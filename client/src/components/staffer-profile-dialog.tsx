@@ -182,6 +182,8 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
   const [showLinkedInInput, setShowLinkedInInput] = useState(false);
   const [linkedInUrl, setLinkedInUrl] = useState("");
   const [isFindingLinkedIn, setIsFindingLinkedIn] = useState(false);
+  const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
+  const [accessStrategy, setAccessStrategy] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFindLinkedIn = async () => {
@@ -311,6 +313,61 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
       });
     } finally {
       setIsResearching(false);
+    }
+  };
+
+  const handleGenerateStrategy = async () => {
+    setIsGeneratingStrategy(true);
+    try {
+      const careerContext = staffer.careerHistory?.map(p =>
+        `${p.title} at ${p.organization}${p.startYear ? ` (${p.startYear}${p.endYear ? `–${p.endYear}` : '–present'})` : ''}`
+      ).join('; ') || 'No prior career history recorded';
+
+      const response = await apiRequest("POST", "/api/research/staffer", {
+        name: staffer.name,
+        title: staffer.title,
+        organization: `Office of ${memberName}`,
+        memberName: memberName,
+        customPrompt: `You are a government affairs strategist advising a lobbying firm. Analyze ${staffer.name}, ${staffer.title} in the Office of ${memberName}, and provide a detailed relationship intelligence report for a lobbyist seeking to build access to ${memberName}'s office.
+
+Career context: ${careerContext}
+
+Provide a structured intelligence report with these sections:
+
+**ROLE & INFLUENCE**
+What decisions does this staffer influence? What is their actual power in the office vs. their title?
+
+**CAREER BACKGROUND**
+What private sector, campaign, or other Hill experience do they have? What industries have they been adjacent to?
+
+**RELATIONSHIP PATHWAYS**
+List 3–5 specific, realistic ways a lobbyist could build a relationship with or through this staffer:
+- Former colleagues now in industry who may know them
+- Trade associations or organizations they're likely connected to
+- Events, conferences, or caucus meetings where they'd be present
+- Alumni networks (schools, previous offices)
+
+**POLICY LEVERAGE POINTS**
+What issues does this staffer likely own or influence? What would make them take a meeting?
+
+**APPROACH STRATEGY**
+Recommended first move for a lobbyist wanting access to ${memberName}'s office through this staffer. Be specific and actionable.
+
+**RISK FACTORS**
+Any sensitivities, political dynamics, or relationship landmines to be aware of.`
+      });
+
+      const result = await response.json();
+      if (result.success && result.data?.rawContent) {
+        setAccessStrategy(result.data.rawContent);
+        toast({ title: "Intelligence Report Generated", description: `Access strategy ready for ${staffer.name}` });
+      } else {
+        throw new Error("No content returned");
+      }
+    } catch (error: any) {
+      toast({ title: "Strategy Generation Failed", description: error?.message || "Could not generate strategy", variant: "destructive" });
+    } finally {
+      setIsGeneratingStrategy(false);
     }
   };
 
@@ -827,6 +884,82 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
             </>
           )}
           
+          {/* ── Relationship Intelligence ── */}
+          <Separator />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <span>🎯</span>
+                Relationship Intelligence
+              </h3>
+              {!accessStrategy && (
+                <button
+                  onClick={handleGenerateStrategy}
+                  disabled={isGeneratingStrategy}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: "#f59e0b", color: "#fff", border: "none" }}
+                >
+                  {isGeneratingStrategy ? (
+                    <><span className="animate-spin">⟳</span> Generating...</>
+                  ) : (
+                    <>⚡ Generate Access Strategy</>
+                  )}
+                </button>
+              )}
+              {accessStrategy && (
+                <button
+                  onClick={handleGenerateStrategy}
+                  disabled={isGeneratingStrategy}
+                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {isGeneratingStrategy ? "Refreshing..." : "↺ Refresh"}
+                </button>
+              )}
+            </div>
+
+            {!accessStrategy && !isGeneratingStrategy && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-4">
+                <p className="text-sm text-amber-800 dark:text-amber-300 font-medium mb-1">AI-Powered Access Strategy</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Generate a relationship intelligence report showing connection pathways, policy leverage points,
+                  and a recommended approach strategy for reaching {memberName}'s office through this staffer.
+                </p>
+              </div>
+            )}
+
+            {isGeneratingStrategy && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-center gap-3">
+                <span className="text-amber-600 animate-spin text-lg">⟳</span>
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Analyzing {staffer.name}...</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Researching career background, connections, and policy leverage points</p>
+                </div>
+              </div>
+            )}
+
+            {accessStrategy && (
+              <div className="rounded-xl border bg-card p-4">
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  {accessStrategy.split('\n').map((line, i) => {
+                    if (line.startsWith('**') && line.endsWith('**')) {
+                      return <p key={i} className="font-bold text-sm mt-3 mb-1 text-foreground">{line.replace(/\*\*/g, '')}</p>;
+                    }
+                    if (line.startsWith('- ') || line.startsWith('• ')) {
+                      return <p key={i} className="text-xs text-muted-foreground ml-3 mb-0.5">• {line.slice(2)}</p>;
+                    }
+                    if (line.trim()) {
+                      return <p key={i} className="text-xs text-muted-foreground mb-1">{line}</p>;
+                    }
+                    return null;
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t">
+                  ⚡ Generated by AI — verify key facts before using in outreach
+                </p>
+              </div>
+            )}
+          </div>
+
           {staffer.previousMembers && staffer.previousMembers.length > 0 && (
             <>
               <Separator />

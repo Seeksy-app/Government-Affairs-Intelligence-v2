@@ -2057,7 +2057,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not assigned to a client" });
       }
 
-      const { name, title, organization, memberName, legistormId } = req.body;
+      const { name, title, organization, memberName, legistormId, customPrompt } = req.body;
       if (!name) {
         return res.status(400).json({ message: "Staffer name is required" });
       }
@@ -2067,6 +2067,16 @@ export async function registerRoutes(
       }
 
       const { researchWithPerplexity } = await import("./services/research-agent");
+      
+      // Support custom prompts (e.g. for relationship intelligence / access strategy)
+      if (customPrompt) {
+        const result = await researchWithPerplexity(customPrompt);
+        return res.json({
+          success: true,
+          data: { rawContent: result.content, bio: "", education: [], careerHistory: [], policyAreas: [], linkedinUrl: "" },
+          sources: result.citations || []
+        });
+      }
       
       const researchPrompt = `Research the Congressional or political staffer named "${name}".
 
