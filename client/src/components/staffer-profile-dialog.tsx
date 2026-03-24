@@ -184,7 +184,22 @@ function StafferProfile({ staffer, memberName, onBack, onNavigate, onEnrichData 
   const [isFindingLinkedIn, setIsFindingLinkedIn] = useState(false);
   const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
   const [accessStrategy, setAccessStrategy] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  const handleOpenIntelPage = () => {
+    const data = {
+      name: staffer.name,
+      title: staffer.title,
+      memberName,
+      email: staffer.email || undefined,
+      phone: staffer.phone || undefined,
+      pathwayType: staffer.pathwayType || undefined,
+      initials: staffer.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
+    };
+    sessionStorage.setItem("staffer-intel-data", JSON.stringify(data));
+    setLocation("/staffer-intelligence");
+  };
 
   const handleFindLinkedIn = async () => {
     setIsFindingLinkedIn(true);
@@ -884,80 +899,28 @@ Any sensitivities, political dynamics, or relationship landmines to be aware of.
             </>
           )}
           
-          {/* ── Relationship Intelligence ── */}
+          {/* ── Relationship Intelligence CTA ── */}
           <Separator />
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                <span>🎯</span>
-                Relationship Intelligence
-              </h3>
-              {!accessStrategy && (
+          <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 dark:border-amber-800 p-5">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl shrink-0">🎯</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1">Relationship Intelligence</h3>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-4 leading-relaxed">
+                  AI-powered access strategy — connection pathways, policy leverage points, career intelligence,
+                  and a recommended approach for reaching {memberName}'s office through {staffer.name}.
+                </p>
                 <button
-                  onClick={handleGenerateStrategy}
-                  disabled={isGeneratingStrategy}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-50"
-                  style={{ background: "#f59e0b", color: "#fff", border: "none" }}
+                  onClick={handleOpenIntelPage}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)" }}
                 >
-                  {isGeneratingStrategy ? (
-                    <><span className="animate-spin">⟳</span> Generating...</>
-                  ) : (
-                    <>⚡ Generate Access Strategy</>
-                  )}
+                  <span>⚡</span>
+                  Open Full Intelligence Report
+                  <span className="ml-1">→</span>
                 </button>
-              )}
-              {accessStrategy && (
-                <button
-                  onClick={handleGenerateStrategy}
-                  disabled={isGeneratingStrategy}
-                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                >
-                  {isGeneratingStrategy ? "Refreshing..." : "↺ Refresh"}
-                </button>
-              )}
+              </div>
             </div>
-
-            {!accessStrategy && !isGeneratingStrategy && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-4">
-                <p className="text-sm text-amber-800 dark:text-amber-300 font-medium mb-1">AI-Powered Access Strategy</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  Generate a relationship intelligence report showing connection pathways, policy leverage points,
-                  and a recommended approach strategy for reaching {memberName}'s office through this staffer.
-                </p>
-              </div>
-            )}
-
-            {isGeneratingStrategy && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-center gap-3">
-                <span className="text-amber-600 animate-spin text-lg">⟳</span>
-                <div>
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Analyzing {staffer.name}...</p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400">Researching career background, connections, and policy leverage points</p>
-                </div>
-              </div>
-            )}
-
-            {accessStrategy && (
-              <div className="rounded-xl border bg-card p-4">
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {accessStrategy.split('\n').map((line, i) => {
-                    if (line.startsWith('**') && line.endsWith('**')) {
-                      return <p key={i} className="font-bold text-sm mt-3 mb-1 text-foreground">{line.replace(/\*\*/g, '')}</p>;
-                    }
-                    if (line.startsWith('- ') || line.startsWith('• ')) {
-                      return <p key={i} className="text-xs text-muted-foreground ml-3 mb-0.5">• {line.slice(2)}</p>;
-                    }
-                    if (line.trim()) {
-                      return <p key={i} className="text-xs text-muted-foreground mb-1">{line}</p>;
-                    }
-                    return null;
-                  })}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-3 pt-2 border-t">
-                  ⚡ Generated by AI — verify key facts before using in outreach
-                </p>
-              </div>
-            )}
           </div>
 
           {staffer.previousMembers && staffer.previousMembers.length > 0 && (

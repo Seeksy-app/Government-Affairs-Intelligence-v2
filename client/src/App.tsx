@@ -49,6 +49,7 @@ import SocialTrackingPage from "@/pages/social-tracking";
 import InfluencerTrackingPage from "@/pages/influencer-tracking";
 import StaffersPage from "@/pages/staffers";
 import StafferDetailPage from "@/pages/staffer-detail";
+import StafferIntelligencePage from "@/pages/staffer-intelligence";
 import CongressionalSchedulesPage from "@/pages/congressional-schedules";
 import PowerSearchPage from "@/pages/power-search";
 import RankTrackingPage from "@/pages/rank-tracking";
@@ -94,6 +95,7 @@ function AuthenticatedRouter() {
       <Route path="/influencers" component={InfluencerTrackingPage} />
       <Route path="/staffers" component={StaffersPage} />
       <Route path="/staffers/:id" component={StafferDetailPage} />
+      <Route path="/staffer-intelligence" component={StafferIntelligencePage} />
       <Route path="/schedules" component={CongressionalSchedulesPage} />
       <Route path="/power-search" component={PowerSearchPage} />
       <Route path="/organizations" component={PowerSearchPage} />
