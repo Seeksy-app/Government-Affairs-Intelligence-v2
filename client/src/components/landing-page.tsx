@@ -12,10 +12,10 @@ import meetingImage from "@/assets/images/meeting.jpg";
 import dcMonumentsImage from "@/assets/images/dc-monuments.jpg";
 
 const STATS = [
-  { value: "12,000+", label: "Congressional Staffers" },
-  { value: "9,400+", label: "House Directory Entries" },
-  { value: "535", label: "Members Tracked" },
-  { value: "AI-First", label: "Research Engine" },
+  { value: "16,253", label: "Congressional Staffers" },
+  { value: "9,387", label: "House Directory Entries" },
+  { value: "8,074", label: "Articles Indexed" },
+  { value: "6", label: "Practice Areas" },
 ];
 
 const CORE_FEATURES = [
@@ -172,16 +172,15 @@ export function LandingPage() {
             </Badge>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight leading-[1.05]">
-              The Intelligence
+              Decisions happen
               <br />
-              <span className="text-primary">Engine for</span>
+              <span className="text-primary">in offices,</span>
               <br />
-              Government Affairs
+              not on floors.
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-xl">
-              A complete political intelligence platform purpose-built for lobbying firms. 
-              Map access, research staffers, track legislation, and execute strategy — all in one place.
+              Map the staff, brief the topics, and find the fastest path to the people behind every bill, hearing, and grant award — across federal policy and state funding.
             </p>
 
             <div className="flex flex-wrap gap-4 pt-2">
@@ -205,6 +204,28 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Practice Areas */}
+      <div className="bg-card/30 border-t border-border/40 py-7">
+        <div className="max-w-7xl mx-auto px-6 space-y-2.5">
+          <div className="flex items-center justify-center gap-x-4 gap-y-2 flex-wrap text-sm">
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Federal Policy</span>
+            <span className="text-foreground">AI</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-foreground">Defense & Security</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-foreground">Sports</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-foreground">Crypto</span>
+            <span className="text-muted-foreground/30">·</span>
+            <span className="text-foreground">Healthcare</span>
+          </div>
+          <div className="flex items-center justify-center gap-x-4 gap-y-2 flex-wrap text-sm">
+            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Grants</span>
+            <span className="text-foreground">State, county & federal procurement</span>
+          </div>
+        </div>
+      </div>
 
       {/* Marquee trust bar */}
       <div className="bg-card/80 border-y border-border/50 py-4 overflow-hidden">
