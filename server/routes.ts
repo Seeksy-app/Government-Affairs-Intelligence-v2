@@ -9273,5 +9273,341 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Decision Briefs ────────────────────────────────────────────────────────
+
+  const createBriefSchema = z.object({
+    title: z.string().min(1).max(500),
+    clientContext: z.string().max(2000).nullable().optional(),
+    sensitivity: z.enum(["internal", "shareable"]).default("internal"),
+    sourceUrls: z.array(z.string().url()).min(1).max(5),
+  });
+
+  const updateBriefSchema = z.object({
+    title: z.string().min(1).max(500).optional(),
+    clientContext: z.string().max(2000).nullable().optional(),
+    sensitivity: z.enum(["internal", "shareable"]).optional(),
+    sourceUrls: z.array(z.string().url()).min(1).max(5).optional(),
+  });
+
+  // POST /api/briefs — create brief + sources
+  app.post("/api/briefs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const parsed = createBriefSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+
+      const { title, clientContext, sensitivity, sourceUrls } = parsed.data;
+
+      const { db } = await import("./db");
+      const { briefs, briefSources } = await import("@shared/schema");
+      const { randomUUID } = await import("crypto");
+
+      const [brief] = await db
+        .insert(briefs)
+        .values({
+          clientId,
+          createdByUserId: userId,
+          publicUuid: randomUUID(),
+          title,
+          clientContext: clientContext ?? null,
+          sensitivity,
+        })
+        .returning();
+
+      if (sourceUrls.length > 0) {
+        await db.insert(briefSources).values(
+          sourceUrls.map((url, i) => ({
+            briefId: brief.id,
+            citationNumber: i + 1,
+            url,
+            tier: 3,
+          })),
+        );
+      }
+
+      const sources = await db.select().from(briefSources).where(
+        (await import("drizzle-orm")).eq(briefSources.briefId, brief.id),
+      );
+
+      res.status(201).json({ ...brief, sources });
+    } catch (err: any) {
+      console.error("POST /api/briefs error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to create brief" });
+    }
+  });
+
+  // GET /api/briefs — list briefs for client
+  app.get("/api/briefs", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const { db } = await import("./db");
+      const { briefs } = await import("@shared/schema");
+      const { eq, desc } = await import("drizzle-orm");
+
+      const rows = await db
+        .select()
+        .from(briefs)
+        .where(eq(briefs.clientId, clientId))
+        .orderBy(desc(briefs.createdAt));
+
+      res.json(rows);
+    } catch (err: any) {
+      console.error("GET /api/briefs error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to list briefs" });
+    }
+  });
+
+  // GET /api/briefs/:id — single brief with sources
+  app.get("/api/briefs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const { db } = await import("./db");
+      const { briefs, briefSources } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [brief] = await db
+        .select()
+        .from(briefs)
+        .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
+        .limit(1);
+
+      if (!brief) return res.status(404).json({ message: "Brief not found" });
+
+      const sources = await db
+        .select()
+        .from(briefSources)
+        .where(eq(briefSources.briefId, brief.id))
+        .orderBy(briefSources.citationNumber);
+
+      res.json({ ...brief, sources });
+    } catch (err: any) {
+      console.error("GET /api/briefs/:id error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to get brief" });
+    }
+  });
+
+  // PATCH /api/briefs/:id — update metadata and/or replace sources
+  app.patch("/api/briefs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const parsed = updateBriefSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid input", errors: parsed.error.flatten() });
+
+      const { db } = await import("./db");
+      const { briefs, briefSources } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [existing] = await db
+        .select({ id: briefs.id, status: briefs.status })
+        .from(briefs)
+        .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
+        .limit(1);
+
+      if (!existing) return res.status(404).json({ message: "Brief not found" });
+      if (existing.status === "generating") {
+        return res.status(409).json({ message: "Cannot edit a brief that is currently generating" });
+      }
+
+      const { sourceUrls, ...briefFields } = parsed.data;
+
+      if (Object.keys(briefFields).length > 0) {
+        await db
+          .update(briefs)
+          .set({ ...briefFields, updatedAt: new Date() })
+          .where(eq(briefs.id, existing.id));
+      }
+
+      if (sourceUrls) {
+        await db.delete(briefSources).where(eq(briefSources.briefId, existing.id));
+        await db.insert(briefSources).values(
+          sourceUrls.map((url, i) => ({
+            briefId: existing.id,
+            citationNumber: i + 1,
+            url,
+            tier: 3,
+          })),
+        );
+      }
+
+      const [updated] = await db.select().from(briefs).where(eq(briefs.id, existing.id)).limit(1);
+      const sources = await db.select().from(briefSources).where(eq(briefSources.briefId, existing.id)).orderBy(briefSources.citationNumber);
+
+      res.json({ ...updated, sources });
+    } catch (err: any) {
+      console.error("PATCH /api/briefs/:id error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to update brief" });
+    }
+  });
+
+  // DELETE /api/briefs/:id
+  app.delete("/api/briefs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const { db } = await import("./db");
+      const { briefs, briefSources, briefViews } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [existing] = await db
+        .select({ id: briefs.id })
+        .from(briefs)
+        .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
+        .limit(1);
+
+      if (!existing) return res.status(404).json({ message: "Brief not found" });
+
+      await db.delete(briefViews).where(eq(briefViews.briefId, existing.id));
+      await db.delete(briefSources).where(eq(briefSources.briefId, existing.id));
+      await db.delete(briefs).where(eq(briefs.id, existing.id));
+
+      res.status(204).end();
+    } catch (err: any) {
+      console.error("DELETE /api/briefs/:id error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to delete brief" });
+    }
+  });
+
+  // POST /api/briefs/:id/generate — kick off async generation
+  app.post("/api/briefs/:id/generate", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const { db } = await import("./db");
+      const { briefs } = await import("@shared/schema");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [existing] = await db
+        .select({ id: briefs.id, status: briefs.status })
+        .from(briefs)
+        .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
+        .limit(1);
+
+      if (!existing) return res.status(404).json({ message: "Brief not found" });
+      if (existing.status === "generating") {
+        return res.status(409).json({ message: "Brief is already generating" });
+      }
+
+      // Fire and forget — client polls GET /api/briefs/:id for status
+      const { generateBrief } = await import("./services/brief-service");
+      generateBrief(existing.id).catch((err) =>
+        console.error(`generateBrief(${existing.id}) failed:`, err),
+      );
+
+      res.status(202).json({ message: "Generation started", briefId: existing.id });
+    } catch (err: any) {
+      console.error("POST /api/briefs/:id/generate error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to start generation" });
+    }
+  });
+
+  // GET /api/briefs/public/:publicUuid — public magic-link view (no auth)
+  app.get("/api/briefs/public/:publicUuid", async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { briefs, briefSources } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const [brief] = await db
+        .select()
+        .from(briefs)
+        .where(eq(briefs.publicUuid, req.params.publicUuid))
+        .limit(1);
+
+      if (!brief || brief.status !== "ready") {
+        return res.status(404).json({ message: "Brief not found or not ready" });
+      }
+
+      const sources = await db
+        .select()
+        .from(briefSources)
+        .where(eq(briefSources.briefId, brief.id))
+        .orderBy(briefSources.citationNumber);
+
+      // Strip internal fields before returning
+      const { clientId, createdByUserId, generationError, ...publicBrief } = brief as any;
+
+      res.json({ ...publicBrief, sources });
+    } catch (err: any) {
+      console.error("GET /api/briefs/public/:publicUuid error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to get brief" });
+    }
+  });
+
+  // POST /api/briefs/public/:publicUuid/view — log an email-gated view
+  app.post("/api/briefs/public/:publicUuid/view", async (req, res) => {
+    try {
+      const emailSchema = z.object({ email: z.string().email() });
+      const parsed = emailSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Valid email required" });
+
+      const { db } = await import("./db");
+      const { briefs, briefViews } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const [brief] = await db
+        .select({ id: briefs.id })
+        .from(briefs)
+        .where(eq(briefs.publicUuid, req.params.publicUuid))
+        .limit(1);
+
+      if (!brief) return res.status(404).json({ message: "Brief not found" });
+
+      await db.insert(briefViews).values({
+        briefId: brief.id,
+        email: parsed.data.email,
+        ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() ?? req.socket.remoteAddress ?? null,
+        userAgent: req.headers["user-agent"] ?? null,
+      });
+
+      res.status(201).json({ message: "View logged" });
+    } catch (err: any) {
+      console.error("POST /api/briefs/public/:publicUuid/view error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to log view" });
+    }
+  });
+
+  // GET /api/briefs/:id/views — view analytics for a brief (authenticated)
+  app.get("/api/briefs/:id/views", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const { db } = await import("./db");
+      const { briefs, briefViews } = await import("@shared/schema");
+      const { eq, and, desc } = await import("drizzle-orm");
+
+      const [existing] = await db
+        .select({ id: briefs.id })
+        .from(briefs)
+        .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
+        .limit(1);
+
+      if (!existing) return res.status(404).json({ message: "Brief not found" });
+
+      const views = await db
+        .select()
+        .from(briefViews)
+        .where(eq(briefViews.briefId, existing.id))
+        .orderBy(desc(briefViews.viewedAt));
+
+      res.json(views);
+    } catch (err: any) {
+      console.error("GET /api/briefs/:id/views error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to get views" });
+    }
+  });
+
   return httpServer;
 }

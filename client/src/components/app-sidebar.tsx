@@ -133,6 +133,7 @@ export function AppSidebar() {
     label: "Strategy",
     icon: Crosshair,
     items: [
+      { title: "Decision Briefs", url: "/briefs", icon: FileText, tourId: "briefs" },
       { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
       { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
     ],

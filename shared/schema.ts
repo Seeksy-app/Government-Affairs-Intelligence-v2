@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1571,3 +1571,98 @@ export const insertDemoAccessLogSchema = createInsertSchema(demoAccessLogs).omit
 
 export type InsertDemoAccessLog = z.infer<typeof insertDemoAccessLogSchema>;
 export type DemoAccessLog = typeof demoAccessLogs.$inferSelect;
+
+// ─── Decision Briefs ──────────────────────────────────────────────────────────
+
+// BriefContent: the 5 enforced sections stored as JSONB on the brief row.
+// [n] citation markers live inline in the strings; they map to brief_sources.citationNumber.
+export interface BriefContent {
+  situation: string;                                          // 2-3 sentences
+  whyItMatters: string;                                      // 3-4 sentences
+  stakes: { business: string; reputational: string; values: string };
+  questions: string[];                                        // 3-5 items
+  responses: { cautious: string; moderate: string; aggressive: string };
+}
+
+export const briefs = pgTable("briefs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  createdByUserId: varchar("created_by_user_id").notNull(),
+  // publicUuid is the magic-link token — separate from id so the internal PK is never exposed
+  publicUuid: varchar("public_uuid").notNull().unique(),
+  title: text("title").notNull(),
+  clientContext: text("client_context"),
+  sensitivity: text("sensitivity").notNull().default("internal"), // 'internal' | 'shareable'
+  status: text("status").notNull().default("draft"),              // draft | generating | ready | failed
+  content: jsonb("content").$type<BriefContent>(),
+  modelUsed: text("model_used"),
+  generationError: text("generation_error"),
+  generatedAt: timestamp("generated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBriefSchema = createInsertSchema(briefs).omit({
+  id: true,
+  publicUuid: true,
+  status: true,
+  content: true,
+  modelUsed: true,
+  generationError: true,
+  generatedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBrief = z.infer<typeof insertBriefSchema>;
+export type Brief = typeof briefs.$inferSelect;
+
+// One row per source URL the lobbyist provided.
+// citationNumber is the [n] index referenced inline in BriefContent strings.
+export const briefSources = pgTable("brief_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  briefId: varchar("brief_id").notNull(),
+  citationNumber: integer("citation_number").notNull(),
+  url: text("url").notNull(),
+  title: text("title"),
+  publication: text("publication"),       // human-readable outlet name (derived from domain)
+  publishDate: text("publish_date"),      // YYYY-MM-DD from Extract/Search response
+  tier: integer("tier").notNull(),        // 1 | 2 | 3 — hardcoded domain map
+  excerpts: jsonb("excerpts").$type<string[]>(),          // Search API excerpts
+  extractedContent: text("extracted_content"),            // Extract API full markdown (cached)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBriefSourceSchema = createInsertSchema(briefSources).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBriefSource = z.infer<typeof insertBriefSourceSchema>;
+export type BriefSource = typeof briefSources.$inferSelect;
+
+// Express session store — managed by connect-pg-simple, not Drizzle mutations.
+// Defined here so Drizzle sees it and does not attempt to drop it during db:push.
+export const appSessions = pgTable("app_sessions", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6, mode: "date" }).notNull(),
+});
+
+// One row per public-view visit. email is self-asserted (soft-capture gate).
+export const briefViews = pgTable("brief_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  briefId: varchar("brief_id").notNull(),
+  email: text("email").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  viewedAt: timestamp("viewed_at").defaultNow(),
+});
+
+export const insertBriefViewSchema = createInsertSchema(briefViews).omit({
+  id: true,
+  viewedAt: true,
+});
+
+export type InsertBriefView = z.infer<typeof insertBriefViewSchema>;
+export type BriefView = typeof briefViews.$inferSelect;

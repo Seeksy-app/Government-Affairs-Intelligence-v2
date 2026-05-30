@@ -65,6 +65,10 @@ import SecurityPrivacyPage from "@/pages/security-privacy";
 import DemoPage from "@/pages/demo";
 import AdminDemos from "@/pages/admin-demos";
 import AdminDemoAccess from "@/pages/admin-demo-access";
+import BriefsListPage from "@/pages/briefs-list";
+import BriefsNewPage from "@/pages/briefs-new";
+import BriefDetailPage from "@/pages/briefs-detail";
+import BriefPublicPage from "@/pages/brief-public";
 
 function AuthenticatedRouter() {
   return (
@@ -83,6 +87,9 @@ function AuthenticatedRouter() {
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}
+      <Route path="/briefs/new" component={BriefsNewPage} />
+      <Route path="/briefs/:id" component={BriefDetailPage} />
+      <Route path="/briefs" component={BriefsListPage} />
       <Route path="/dashboard" component={ClientDashboard} />
       <Route path="/contacts" component={Contacts} />
       <Route path="/news" component={News} />
@@ -272,10 +279,11 @@ function AppContent() {
   }, []);
 
   // Public routes - accessible without authentication
-  if (location.startsWith("/portal/") || location === "/terms" || location === "/privacy" || location === "/security-privacy" || location === "/demo") {
+  if (location.startsWith("/portal/") || location.startsWith("/brief/") || location === "/terms" || location === "/privacy" || location === "/security-privacy" || location === "/demo") {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route path="/brief/:uuid" component={BriefPublicPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />
@@ -306,6 +314,7 @@ function AppContent() {
         <Route path="/reset-password" component={ResetPasswordPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
+        <Route path="/brief/:uuid" component={BriefPublicPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />
