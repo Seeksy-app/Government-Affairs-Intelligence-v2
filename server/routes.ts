@@ -9609,5 +9609,34 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Government Press Release Sync ────────────────────────────────────────
+  // POST /api/admin/government-press/sync
+  // Body (optional): { department_slug: string }
+  // Syncs one source (if department_slug provided) or all active sources.
+  app.post("/api/admin/government-press/sync", isAuthenticated, async (req, res) => {
+    try {
+      const { syncAllSources } = await import("./services/government-press-service");
+      const departmentSlug: string | undefined = req.body?.department_slug || undefined;
+      const results = await syncAllSources(departmentSlug);
+
+      const totalInserted = results.reduce((s, r) => s + r.releasesInserted, 0);
+      const totalUpdated = results.reduce((s, r) => s + r.releasesUpdated, 0);
+      const totalFound = results.reduce((s, r) => s + r.releasesFound, 0);
+      const hasErrors = results.some((r) => r.status === "error");
+
+      res.json({
+        sources: results.length,
+        releasesFound: totalFound,
+        releasesInserted: totalInserted,
+        releasesUpdated: totalUpdated,
+        overallStatus: hasErrors ? "partial" : "success",
+        details: results,
+      });
+    } catch (err: any) {
+      console.error("POST /api/admin/government-press/sync error:", err);
+      res.status(500).json({ message: err.message ?? "Sync failed" });
+    }
+  });
+
   return httpServer;
 }

@@ -1666,3 +1666,73 @@ export const insertBriefViewSchema = createInsertSchema(briefViews).omit({
 
 export type InsertBriefView = z.infer<typeof insertBriefViewSchema>;
 export type BriefView = typeof briefViews.$inferSelect;
+
+// ─── Government Press Release Ingestion ──────────────────────────────────────
+
+// One row per agency source. fetch_type drives which parser is used.
+export const governmentPressSources = pgTable("government_press_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departmentSlug: text("department_slug").notNull().unique(), // 'dol', 'epa', etc.
+  departmentName: text("department_name").notNull(),
+  feedUrl: text("feed_url").notNull(),
+  fetchType: text("fetch_type").notNull().default("rss"), // 'rss' | 'html'
+  isActive: boolean("is_active").default(true),
+  lastSyncedAt: timestamp("last_synced_at"),
+  lastSyncStatus: text("last_sync_status"), // 'success' | 'error' | 'partial'
+  lastSyncError: text("last_sync_error"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGovernmentPressSourceSchema = createInsertSchema(governmentPressSources).omit({
+  id: true,
+  lastSyncedAt: true,
+  lastSyncStatus: true,
+  lastSyncError: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertGovernmentPressSource = z.infer<typeof insertGovernmentPressSourceSchema>;
+export type GovernmentPressSource = typeof governmentPressSources.$inferSelect;
+
+// One row per press release. content_hash deduplicates on re-sync.
+export const governmentPressReleases = pgTable("government_press_releases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceId: varchar("source_id").notNull(),
+  departmentSlug: text("department_slug").notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull().unique(),
+  contentHash: text("content_hash").notNull(), // sha256(title + url + publishedAt)
+  publishedAt: timestamp("published_at"),
+  summary: text("summary"),
+  fullText: text("full_text"),
+  rawMetadata: jsonb("raw_metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGovernmentPressReleaseSchema = createInsertSchema(governmentPressReleases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertGovernmentPressRelease = z.infer<typeof insertGovernmentPressReleaseSchema>;
+export type GovernmentPressRelease = typeof governmentPressReleases.$inferSelect;
+
+// One row per sync run — tracks what happened when we polled a source.
+export const governmentPressSyncRuns = pgTable("government_press_sync_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceId: varchar("source_id").notNull(),
+  departmentSlug: text("department_slug").notNull(),
+  status: text("status").notNull().default("running"), // 'running' | 'success' | 'error' | 'partial'
+  releasesFound: integer("releases_found").default(0),
+  releasesInserted: integer("releases_inserted").default(0),
+  releasesUpdated: integer("releases_updated").default(0),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export type GovernmentPressSyncRun = typeof governmentPressSyncRuns.$inferSelect;

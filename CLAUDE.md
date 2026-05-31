@@ -68,3 +68,12 @@ clients needing DC intel.
 - Dev: npm run dev (check package.json scripts)
 - Build: npm run build
 - SQL always in Supabase Dashboard
+
+## Known Env Var Pitfall
+GOV_PRESS_USER_AGENT contains parentheses:
+  NewsBlur Feed Fetcher - 1 subscriber (http://www.newsblur.com/)
+This breaks shell variable expansion in inline -e scripts (source .env hangs
+or errors). For DB queries: use Supabase Dashboard SQL, not inline tsx via
+xargs/env-substitution. For script files: use
+  node --env-file=.env --import tsx/esm script/name.ts
+which loads .env natively without shell interpolation.
