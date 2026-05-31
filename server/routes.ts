@@ -9609,6 +9609,26 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Government Press Releases — List ────────────────────────────────────
+  // GET /api/government-press/releases
+  app.get("/api/government-press/releases", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { governmentPressReleases } = await import("@shared/schema");
+      const { desc, isNotNull } = await import("drizzle-orm");
+      const releases = await db
+        .select()
+        .from(governmentPressReleases)
+        .where(isNotNull(governmentPressReleases.publishedAt))
+        .orderBy(desc(governmentPressReleases.publishedAt))
+        .limit(50);
+      res.json(releases);
+    } catch (err: any) {
+      console.error("GET /api/government-press/releases error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to fetch press releases" });
+    }
+  });
+
   // ─── Government Press Release Sync ────────────────────────────────────────
   // POST /api/admin/government-press/sync
   // Body (optional): { department_slug: string }

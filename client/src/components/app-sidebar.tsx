@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay, Eye } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay, Eye, Radio } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -129,6 +129,14 @@ export function AppSidebar() {
     ],
   };
 
+  const clientIntelligenceGroup = {
+    label: "Intelligence",
+    icon: Radio,
+    items: [
+      { title: "Press Releases", url: "/press-releases", icon: Newspaper, tourId: "press-releases" },
+    ],
+  };
+
   const clientStrategyGroup = {
     label: "Strategy",
     icon: Crosshair,
@@ -188,6 +196,7 @@ export function AppSidebar() {
     clientStaffersGroup,
     clientLegislativeGroup,
     clientNewsGroup,
+    clientIntelligenceGroup,
     clientStrategyGroup,
     clientSocialGroup,
     ...(hasSportsModule ? [clientSportsGroup] : []),
