@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -333,6 +333,22 @@ export default function MorningBriefPage() {
     setSelectedItem(item);
     setPanelOpen(true);
   }
+
+  // Auto-open item from ?openItem= query param (deep-link from dashboard)
+  useEffect(() => {
+    if (!brief) return;
+    const params = new URLSearchParams(window.location.search);
+    const openItemId = params.get("openItem");
+    if (!openItemId) return;
+
+    const allItems = [...brief.highRelevance, ...brief.worthWatching];
+    const item = allItems.find((i) => i.id === openItemId);
+    if (item) {
+      setSelectedItem(item);
+      setPanelOpen(true);
+      window.history.replaceState(null, "", "/morning-brief");
+    }
+  }, [brief]);
 
   function handleCreateBrief(item: RankedItem) {
     const params = new URLSearchParams();

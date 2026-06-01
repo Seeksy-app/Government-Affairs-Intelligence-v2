@@ -1,14 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Users, Newspaper, BarChart3, FileText, Clock, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudDrizzle, CloudFog, MapPin, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, Star, ChevronRight, Sparkles, Send, Search, Scale, UserSearch } from "lucide-react";
+import { Newspaper, BarChart3, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, ChevronRight, Users, Sunrise, Cloud } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
-import { useState, useEffect } from "react";
-import { openAIChat } from "@/components/global-ai-chat";
+import { useState } from "react";
 
 const PREDICTION_CATEGORIES = [
   { id: "politics", label: "Politics", icon: Landmark, apiCategory: "Politics" },
@@ -22,37 +20,6 @@ const PREDICTION_CATEGORIES = [
   { id: "world", label: "World", icon: Globe, apiCategory: "World" },
 ];
 
-function getWeatherIcon(code: number) {
-  if (code === 0 || code === 1) return Sun;
-  if (code === 2 || code === 3) return Cloud;
-  if (code >= 51 && code <= 57) return CloudDrizzle;
-  if (code >= 61 && code <= 67) return CloudRain;
-  if (code >= 71 && code <= 77) return CloudSnow;
-  if (code >= 80 && code <= 82) return CloudRain;
-  if (code >= 85 && code <= 86) return CloudSnow;
-  if (code >= 95 && code <= 99) return CloudLightning;
-  if (code === 45 || code === 48) return CloudFog;
-  return Cloud;
-}
-
-function getWeatherLabel(code: number) {
-  if (code === 0) return "Clear sky";
-  if (code === 1) return "Mainly clear";
-  if (code === 2) return "Partly cloudy";
-  if (code === 3) return "Overcast";
-  if (code === 45 || code === 48) return "Foggy";
-  if (code >= 51 && code <= 55) return "Drizzle";
-  if (code >= 56 && code <= 57) return "Freezing drizzle";
-  if (code >= 61 && code <= 65) return "Rain";
-  if (code >= 66 && code <= 67) return "Freezing rain";
-  if (code >= 71 && code <= 75) return "Snow";
-  if (code === 77) return "Snow grains";
-  if (code >= 80 && code <= 82) return "Rain showers";
-  if (code >= 85 && code <= 86) return "Snow showers";
-  if (code >= 95 && code <= 99) return "Thunderstorm";
-  return "Unknown";
-}
-
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -60,80 +27,22 @@ function getGreeting() {
   return "Good evening";
 }
 
-interface WeatherData {
-  temperature: number;
-  weatherCode: number;
-  city: string;
+interface RankedItem {
+  id: string;
+  title: string;
+  source: string;
+  score: number;
+  whyItMatters: string;
 }
 
-function useWeather() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    async function fetchWeatherForCoords(lat: number, lon: number, cityName?: string) {
-      const weatherRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,
-        { signal: controller.signal }
-      );
-      const weatherData = await weatherRes.json();
-
-      let city = cityName || "Your area";
-      if (!cityName) {
-        try {
-          const geoRes = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-            { signal: controller.signal, headers: { "User-Agent": "GovernmentAffairsPlatform/1.0" } }
-          );
-          const geoData = await geoRes.json();
-          city = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || "Your area";
-        } catch {}
-      }
-
-      return {
-        temperature: Math.round(weatherData.current.temperature_2m),
-        weatherCode: weatherData.current.weather_code,
-        city,
-      };
-    }
-
-    async function fetchWeather() {
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        const result = await fetchWeatherForCoords(pos.coords.latitude, pos.coords.longitude);
-        if (!cancelled) setWeather(result);
-      } catch {
-        try {
-          const result = await fetchWeatherForCoords(38.9072, -77.0369, "Washington, D.C.");
-          if (!cancelled) setWeather(result);
-        } catch {
-          if (!cancelled) setFailed(true);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetchWeather();
-    return () => { cancelled = true; controller.abort(); };
-  }, []);
-
-  return { weather, loading, failed };
+interface BriefResult {
+  highRelevance: RankedItem[];
 }
 
-function useCurrentTime() {
-  const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 60000);
-    return () => clearInterval(interval);
-  }, []);
-  return time;
+interface UserRole {
+  isSuperAdmin: boolean;
+  clientId?: string;
+  impersonatingClientId?: string;
 }
 
 interface KalshiMarket {
@@ -144,12 +53,10 @@ interface KalshiMarket {
   status: string;
 }
 
-interface ClientStats {
-  totalContacts: number;
-  highPriorityContacts: number;
-  totalNews: number;
-  unreadNews: number;
-  trackedBillsCount: number;
+function scoreColor(score: number) {
+  if (score >= 70) return "bg-red-100 text-red-800 border-red-200";
+  if (score >= 40) return "bg-amber-100 text-amber-800 border-amber-200";
+  return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
 function getPriceColor(price: number) {
@@ -167,17 +74,38 @@ function getPriceBarColor(price: number) {
 export default function ClientDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const { weather, loading: weatherLoading, failed: weatherFailed } = useWeather();
-  const currentTime = useCurrentTime();
   const [marketCategory, setMarketCategory] = useState("politics");
 
   const selectedCategory = PREDICTION_CATEGORIES.find(c => c.id === marketCategory) || PREDICTION_CATEGORIES[0];
 
-  const [aiPromptInput, setAiPromptInput] = useState("");
+  const { data: userRole } = useQuery<UserRole>({
+    queryKey: ["/api/user/role"],
+    enabled: !!user,
+  });
 
-  const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
-    queryKey: ["/api/stats"],
-    refetchInterval: 30000,
+  const effectiveClientId =
+    userRole?.isSuperAdmin && userRole?.impersonatingClientId
+      ? userRole.impersonatingClientId
+      : userRole?.clientId;
+
+  const {
+    data: morningBrief,
+    isLoading: morningBriefLoading,
+    error: morningBriefError,
+  } = useQuery<BriefResult>({
+    queryKey: ["/api/morning-brief", effectiveClientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/morning-brief/${effectiveClientId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? `${res.status}`);
+      }
+      return res.json();
+    },
+    enabled: !!effectiveClientId,
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
@@ -192,29 +120,13 @@ export default function ClientDashboard() {
   });
 
   const displayName = user?.firstName || user?.email?.split("@")[0] || "there";
-  const WeatherIcon = weather ? getWeatherIcon(weather.weatherCode) : Cloud;
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-5xl mx-auto px-6 py-10 space-y-10">
 
-        {/* Hero greeting */}
+        {/* Greeting */}
         <div className="text-center space-y-3" data-testid="card-welcome">
-          <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground" data-testid="text-current-time">
-            <Clock className="h-4 w-4" />
-            <span>{currentTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
-            <span>{currentTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span>
-            {!weatherLoading && weather && (
-              <>
-                <span className="text-border">|</span>
-                <WeatherIcon className="h-4 w-4" />
-                <span data-testid="text-weather-temp">{weather.temperature}&#176;F</span>
-                <span data-testid="text-weather-condition">{getWeatherLabel(weather.weatherCode)}</span>
-                <MapPin className="h-3 w-3" />
-                <span data-testid="text-weather-location">{weather.city}</span>
-              </>
-            )}
-          </div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-dashboard-title">
             {getGreeting()}, {displayName}
           </h1>
@@ -223,128 +135,103 @@ export default function ClientDashboard() {
           </p>
         </div>
 
-        {/* AI Agent Prompt */}
-        <div className="max-w-2xl mx-auto w-full" data-testid="section-ai-prompt">
-          <div className="text-center mb-4">
-            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              What can I help you with?
+        {/* Morning Brief Hero */}
+        <div data-testid="section-morning-brief">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Sunrise className="h-5 w-5 text-amber-500" />
+                Morning Brief
+              </h2>
+              {!morningBriefLoading && morningBrief && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {morningBrief.highRelevance.length} items waiting
+                </p>
+              )}
             </div>
-          </div>
-          <div className="relative">
-            <Input
-              value={aiPromptInput}
-              onChange={(e) => setAiPromptInput(e.target.value)}
-              placeholder="Ask about legislation, staffers, news, lobbying activity..."
-              className="pr-12 h-12 text-base"
-              data-testid="input-dashboard-ai-prompt"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && aiPromptInput.trim()) {
-                  openAIChat(aiPromptInput.trim());
-                  setAiPromptInput("");
-                }
-              }}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-              disabled={!aiPromptInput.trim()}
-              onClick={() => {
-                openAIChat(aiPromptInput.trim());
-                setAiPromptInput("");
-              }}
-              data-testid="button-dashboard-ai-send"
-            >
-              <Send className="h-4 w-4" />
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/morning-brief" data-testid="link-morning-brief-see-all">
+                See all →
+              </Link>
             </Button>
           </div>
-          <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
-            {[
-              { label: "Research staffers", icon: UserSearch },
-              { label: "Track legislation", icon: Scale },
-              { label: "Find lobbyists", icon: Search },
-              { label: "Analyze news", icon: Newspaper },
-            ].map((chip) => (
-              <Button
-                key={chip.label}
-                variant="outline"
-                size="sm"
-                onClick={() => openAIChat(chip.label)}
-                data-testid={`chip-ai-${chip.label.toLowerCase().replace(/\s/g, '-')}`}
-              >
-                <chip.icon className="h-3.5 w-3.5 mr-1.5" />
-                {chip.label}
-              </Button>
-            ))}
-          </div>
-        </div>
 
-        {/* Quick nav cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card
-            className="cursor-pointer hover-elevate overflow-visible"
-            onClick={() => navigate("/contacts")}
-            data-testid="stat-card-total-contacts"
-          >
-            <CardContent className="p-5 text-center space-y-2">
-              <div className="mx-auto w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-500" />
-              </div>
-              {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : (
-                <p className="text-2xl font-bold">{stats?.totalContacts ?? 0}</p>
-              )}
-              <p className="text-xs text-muted-foreground">Contacts</p>
-            </CardContent>
-          </Card>
+          {morningBriefLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-lg border p-4 space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              ))}
+            </div>
+          )}
 
-          <Card
-            className="cursor-pointer hover-elevate overflow-visible"
-            onClick={() => navigate("/contacts")}
-            data-testid="stat-card-high-priority"
-          >
-            <CardContent className="p-5 text-center space-y-2">
-              <div className="mx-auto w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Star className="h-5 w-5 text-amber-500" />
-              </div>
-              {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : (
-                <p className="text-2xl font-bold">{stats?.highPriorityContacts ?? 0}</p>
-              )}
-              <p className="text-xs text-muted-foreground">High Priority</p>
-            </CardContent>
-          </Card>
+          {!morningBriefLoading && morningBriefError && (
+            <Card>
+              <CardContent className="p-4">
+                <Link
+                  href="/morning-brief"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  data-testid="link-morning-brief-error"
+                >
+                  Couldn't load Morning Brief — click to retry
+                </Link>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card
-            className="cursor-pointer hover-elevate overflow-visible"
-            onClick={() => navigate("/news")}
-            data-testid="stat-card-news-articles"
-          >
-            <CardContent className="p-5 text-center space-y-2">
-              <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <Newspaper className="h-5 w-5 text-emerald-500" />
-              </div>
-              {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : (
-                <p className="text-2xl font-bold">{stats?.unreadNews ?? 0}</p>
-              )}
-              <p className="text-xs text-muted-foreground">Unread News</p>
-            </CardContent>
-          </Card>
+          {!morningBriefLoading && !morningBriefError && morningBrief && morningBrief.highRelevance.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Sunrise className="h-8 w-8 text-amber-500 mx-auto mb-3" />
+                <p className="font-medium text-sm mb-1">No urgent items today</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Check Worth Watching for items to monitor
+                </p>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/morning-brief">See all →</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card
-            className="cursor-pointer hover-elevate overflow-visible"
-            onClick={() => navigate("/bills")}
-            data-testid="stat-card-bills"
-          >
-            <CardContent className="p-5 text-center space-y-2">
-              <div className="mx-auto w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-violet-500" />
-              </div>
-              {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : (
-                <p className="text-2xl font-bold">{stats?.trackedBillsCount ?? 0}</p>
-              )}
-              <p className="text-xs text-muted-foreground">Tracked Bills</p>
-            </CardContent>
-          </Card>
+          {!morningBriefLoading && !morningBriefError && morningBrief && morningBrief.highRelevance.length > 0 && (
+            <div className="space-y-2">
+              {morningBrief.highRelevance.slice(0, 3).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigate(`/morning-brief?openItem=${item.id}`)}
+                  className="w-full text-left rounded-lg border p-4 hover:bg-accent/50 transition-colors group border-primary/30 bg-primary/5"
+                  data-testid={`morning-brief-card-${item.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-medium text-muted-foreground block mb-1.5">
+                        {item.source}
+                      </span>
+                      <p className="text-sm font-semibold leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {item.title}
+                      </p>
+                      {item.whyItMatters && (
+                        <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+                          {item.whyItMatters}
+                        </p>
+                      )}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 text-xs ${scoreColor(item.score)}`}
+                    >
+                      {item.score}
+                    </Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Prediction Markets */}
@@ -441,7 +328,7 @@ export default function ClientDashboard() {
           )}
         </div>
 
-        {/* Quick links */}
+        {/* Quick Access */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Quick Access</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
