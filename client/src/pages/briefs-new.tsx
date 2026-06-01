@@ -11,14 +11,29 @@ import {
   Plus, Trash2, Sparkles, Save, FileText, Lock, Share2, ExternalLink,
 } from "lucide-react";
 
+function getInitialState() {
+  const params = new URLSearchParams(window.location.search);
+  const prefillUrls: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const v = params.get(`url${i}`);
+    if (v) prefillUrls.push(v);
+  }
+  return {
+    title: params.get("title") ?? "",
+    clientContext: params.get("clientContext") ?? "",
+    urls: prefillUrls.length > 0 ? prefillUrls : [""],
+  };
+}
+
 export default function BriefsNew() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  const [title, setTitle] = useState("");
-  const [clientContext, setClientContext] = useState("");
+  const init = getInitialState();
+  const [title, setTitle] = useState(init.title);
+  const [clientContext, setClientContext] = useState(init.clientContext);
   const [sensitivity, setSensitivity] = useState<"internal" | "shareable">("internal");
-  const [urls, setUrls] = useState<string[]>([""]);
+  const [urls, setUrls] = useState<string[]>(init.urls);
 
   const addUrl = () => {
     if (urls.length < 5) setUrls([...urls, ""]);

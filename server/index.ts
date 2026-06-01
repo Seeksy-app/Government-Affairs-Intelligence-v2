@@ -161,7 +161,25 @@ app.use((req, res, next) => {
       }, 5 * 60 * 1000); // Check every 5 minutes
       
       log("Auto-sync scheduler started");
-      
+
+      // Government press release sync — every 6 hours, production only
+      if (process.env.NODE_ENV === "production") {
+        const SIX_HOURS = 6 * 60 * 60 * 1000;
+        setInterval(async () => {
+          try {
+            log("Running government press release sync...");
+            const { syncAllSources } = await import("./services/government-press-service");
+            const results = await syncAllSources();
+            const inserted = results.reduce((s, r) => s + r.releasesInserted, 0);
+            const updated = results.reduce((s, r) => s + r.releasesUpdated, 0);
+            log(`Government press sync complete: ${inserted} inserted, ${updated} updated across ${results.length} sources`);
+          } catch (err: any) {
+            console.error("Government press sync error:", err);
+          }
+        }, SIX_HOURS);
+        log("Government press sync scheduled (every 6 hours)");
+      }
+
       // Auto-sync House directory if cache is empty
       setTimeout(async () => {
         try {

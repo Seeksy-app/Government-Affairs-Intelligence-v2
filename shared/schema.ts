@@ -1680,6 +1680,7 @@ export const governmentPressSources = pgTable("government_press_sources", {
   lastSyncedAt: timestamp("last_synced_at"),
   lastSyncStatus: text("last_sync_status"), // 'success' | 'error' | 'partial'
   lastSyncError: text("last_sync_error"),
+  blockReason: text("block_reason"), // set when source is permanently unscrapable; distinct from transient lastSyncError
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1736,3 +1737,26 @@ export const governmentPressSyncRuns = pgTable("government_press_sync_runs", {
 });
 
 export type GovernmentPressSyncRun = typeof governmentPressSyncRuns.$inferSelect;
+
+// ─── Client Context Profiles ──────────────────────────────────────────────────
+
+export const clientProfiles = pgTable("client_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().unique().references(() => clients.id),
+  industries: text("industries").array().notNull().default(sql`'{}'::text[]`),
+  watchlistTopics: text("watchlist_topics").array().notNull().default(sql`'{}'::text[]`),
+  relevantAgencies: text("relevant_agencies").array().notNull().default(sql`'{}'::text[]`),
+  relevantCommittees: text("relevant_committees").array().notNull().default(sql`'{}'::text[]`),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientProfileSchema = createInsertSchema(clientProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertClientProfile = z.infer<typeof insertClientProfileSchema>;
+export type ClientProfile = typeof clientProfiles.$inferSelect;

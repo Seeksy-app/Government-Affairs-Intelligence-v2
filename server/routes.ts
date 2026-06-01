@@ -9658,5 +9658,20 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Morning Brief ────────────────────────────────────────────────────────
+  // GET /api/morning-brief/:clientId
+  // Returns AI-ranked intelligence for the given client.
+  // Response is cached in-memory for 10 minutes per clientId.
+  app.get("/api/morning-brief/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const { rankItemsForClient } = await import("./services/morning-brief-service");
+      const result = await rankItemsForClient(req.params.clientId);
+      res.json(result);
+    } catch (err: any) {
+      console.error("GET /api/morning-brief error:", err);
+      res.status(500).json({ message: err.message ?? "Failed to generate morning brief" });
+    }
+  });
+
   return httpServer;
 }

@@ -88,10 +88,18 @@ export async function parseRss(source: GovernmentPressSource): Promise<ParsedRel
   }));
 }
 
-// ─── HTML parser stub ─────────────────────────────────────────────────────────
+// ─── HTML parsers ─────────────────────────────────────────────────────────────
 
-export async function parseHtml(_source: GovernmentPressSource): Promise<ParsedRelease[]> {
-  // Session 2 builds per-agency HTML parsers.
+export async function parseHtml(source: GovernmentPressSource): Promise<ParsedRelease[]> {
+  const { departmentSlug } = source;
+  if (departmentSlug === "treasury") {
+    const { parseTreasury } = await import("./press-parsers/treasury");
+    return parseTreasury(source.feedUrl);
+  }
+  if (departmentSlug === "dhs") {
+    const { parseDhs } = await import("./press-parsers/dhs");
+    return parseDhs(source.feedUrl);
+  }
   return [];
 }
 
@@ -189,7 +197,7 @@ export async function syncSource(source: GovernmentPressSource): Promise<SyncSum
 
   if (status === "success" && releasesFound === 0 && source.fetchType === "html") {
     status = "partial";
-    errorMessage = "HTML parser not yet implemented (Session 2)";
+    errorMessage = `No HTML parser implemented for ${source.departmentSlug}`;
   }
 
   await db
