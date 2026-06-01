@@ -77,3 +77,12 @@ or errors). For DB queries: use Supabase Dashboard SQL, not inline tsx via
 xargs/env-substitution. For script files: use
   node --env-file=.env --import tsx/esm script/name.ts
 which loads .env natively without shell interpolation.
+
+## Lessons logged from June 1 session
+
+- env var values with parens break shell parsing in `source .env`. Always single-quote multi-word .env values.
+- `npx tsx -e` and `node --eval` patterns leak Postgres connections and hang CC. Use Supabase Dashboard SQL Editor for diagnostic queries instead.
+- 5-minute spinner = hang signal. Don't wait 30 minutes hoping it recovers. Esc, diagnose, retry.
+- Long nano pastes truncate silently. For >50 line files, use bash heredoc or download-from-Claude-and-move method.
+- Federal Register is already in News Intelligence. Don't re-ingest as a press release source.
+- NewsBlur Feed Fetcher User-Agent bypasses Akamai (DOL). Does NOT bypass Cloudflare JS challenge (EPA needs headless browser).

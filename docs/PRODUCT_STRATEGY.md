@@ -469,3 +469,17 @@ These remain undecided. Revisit after Adam's feedback and the analysis of his re
 **When onboarding a future teammate:** this doc plus CLAUDE.md should give them enough context to be useful in a week.
 
 This is a living document. Update the version date at the top when material changes are made. Don't delete deferred features — move them between sections as decisions evolve. The history of *why something was NOT built* is as valuable as the history of what was.
+
+## Shipped Week 1 (June 1, 2026)
+
+- Morning Brief V1 — AI-ranked intelligence page (Option B realized one week early)
+- Client Profiles schema (4 demo clients populated)
+- Suggested Contacts (beta) with staffer keyword matching
+- One-click intelligence-to-brief workflow with client context auto-fill
+- Press release cron scheduler (production-only, NODE_ENV guarded)
+- Dashboard redesign with Morning Brief as hero
+- Nav entry for Morning Brief under Intelligence group
+- Deep-link from dashboard cards to specific Morning Brief items
+
+Total cost: $1.30 in Anthropic API console.
+Total commits today: 4 + dashboard fix in flight.
