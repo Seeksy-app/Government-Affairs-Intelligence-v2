@@ -106,10 +106,15 @@ export default function SymbolicLogicDemoPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p>{result?.conclusion}</p>
-              <div className="text-sm text-muted-foreground">
-                Confidence: {result?.confidence}%
+              <div className="flex items-center gap-2">
+                <Badge variant={result?.conclusionType === "threat" ? "destructive" : "secondary"}>
+                  {result?.conclusionType?.toUpperCase()}
+                </Badge>
+                <div className="text-sm text-muted-foreground">
+                  Confidence: {result?.confidence}%
+                </div>
               </div>
+              <p>{result?.conclusion}</p>
             </CardContent>
           </Card>
 
@@ -179,6 +184,57 @@ export default function SymbolicLogicDemoPage() {
                 </ul>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Assumptions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 list-disc pl-5">
+              {result?.assumptions.map((item, index) => (
+                <li key={index}>
+                  <span className="font-medium">{item.title}: </span>
+                  <span className="text-muted-foreground">{item.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Gaps / Contradictions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {result?.gapsOrContradictions.length ? (
+              <ul className="space-y-2 list-disc pl-5">
+                {result.gapsOrContradictions.map((item, index) => (
+                  <li key={index}>
+                    <span className="font-medium">{item.title}: </span>
+                    <span className="text-muted-foreground">{item.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No major gaps or contradictions detected by the current rule set.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 list-disc pl-5">
+              {result?.recommendedActions.map((action, index) => (
+                <li key={index}>{action}</li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       </div>
