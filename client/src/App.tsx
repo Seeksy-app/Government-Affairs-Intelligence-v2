@@ -71,6 +71,7 @@ import BriefDetailPage from "@/pages/briefs-detail";
 import BriefPublicPage from "@/pages/brief-public";
 import PressReleasesPage from "@/pages/press-releases";
 import MorningBriefPage from "@/pages/morning-brief";
+import SymbolicLogicDemoPage from "@/pages/symbolic-logic-demo";
 
 function AuthenticatedRouter() {
   return (
@@ -89,6 +90,7 @@ function AuthenticatedRouter() {
       <Route path="/admin/settings" component={SettingsPage} />
       
       {/* Client routes */}
+      <Route path="/symbolic-logic-demo" component={SymbolicLogicDemoPage} />
       <Route path="/morning-brief" component={MorningBriefPage} />
       <Route path="/press-releases" component={PressReleasesPage} />
       <Route path="/briefs/new" component={BriefsNewPage} />
