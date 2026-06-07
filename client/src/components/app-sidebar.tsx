@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay, Eye, Radio, Sunrise } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay, Eye, Radio, Sunrise, Brain } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -135,6 +135,7 @@ export function AppSidebar() {
     items: [
       { title: "Morning Brief", url: "/morning-brief", icon: Sunrise, tourId: "morning-brief" },
       { title: "Press Releases", url: "/press-releases", icon: Newspaper, tourId: "press-releases" },
+      { title: "Symbolic Logic", url: "/symbolic-logic-demo", icon: Brain, tourId: "symbolic-logic" },
     ],
   };
 
