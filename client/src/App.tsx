@@ -318,6 +318,7 @@ function AppContent() {
         <Route path="/set-password" component={SetPasswordPage} />
         <Route path="/forgot-password" component={ForgotPasswordPage} />
         <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route path="/symbolic-logic-demo" component={SymbolicLogicDemoPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route path="/brief/:uuid" component={BriefPublicPage} />
