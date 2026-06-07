@@ -38,7 +38,9 @@ function findEvidence(text: string, phrases: string[]) {
 }
 
 export function analyzeSymbolicLogic(input: SymbolicAnalysisInput): SymbolicAnalysisResult {
-  const fullText = `${input.clientObjective} ${input.clientProfile || ""} ${input.articleTitle} ${input.articleText}`;
+  // Detect symbols from the source content only.
+  // Client objective/profile should guide interpretation later, but should not create false evidence.
+  const fullText = `${input.articleTitle} ${input.articleText}`;
 
   const detectedSymbols = LOGIC_SYMBOLS.map((symbol) => {
     const evidence = findEvidence(fullText, symbol.examplePhrases);
