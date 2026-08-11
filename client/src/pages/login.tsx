@@ -18,13 +18,17 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 // GovernmentAffairs.co lockup — GA mark + wordmark (brand: Source Sans 3, ExtraBold)
-function Wordmark({ className = "" }: { className?: string }) {
+function Wordmark({ className = "", onDark = true }: { className?: string; onDark?: boolean }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <div className="grid h-9 w-9 place-items-center rounded-[5px] bg-[#078ACB] font-extrabold tracking-tight text-white">
+      <div
+        className={`grid h-10 w-10 place-items-center rounded-[6px] text-[15px] font-extrabold tracking-tight ${
+          onDark ? "bg-white text-[#14253D]" : "bg-[#14253D] text-white"
+        }`}
+      >
         GA
       </div>
-      <span className="text-lg font-extrabold tracking-tight">
+      <span className="text-xl font-extrabold tracking-tight">
         GovernmentAffairs<span className="text-[#078ACB]">.co</span>
       </span>
     </div>
@@ -96,17 +100,17 @@ export default function LoginPage() {
 
         <Wordmark className="relative" />
 
-        <div className="relative max-w-md">
-          <p className="mb-5 text-xs font-extrabold uppercase tracking-[0.18em] text-[#078ACB]">
+        <div className="relative max-w-xl">
+          <p className="mb-6 text-sm font-extrabold uppercase tracking-[0.2em] text-[#078ACB]">
             Early access — Invite only
           </p>
           <h1
-            className="text-4xl font-[650] leading-[1.08] lg:text-[2.9rem]"
+            className="text-5xl font-[650] leading-[1.04] lg:text-[3.5rem]"
             style={{ letterSpacing: "-0.04em" }}
           >
             Find the path to the people who shape policy.
           </h1>
-          <p className="mt-5 text-[15px] leading-relaxed text-[#C9D2DE]">
+          <p className="mt-6 text-lg leading-relaxed text-[#C9D2DE]">
             Map the staff, brief the topics, and find the fastest route to the
             offices behind every bill, hearing, and grant award.
           </p>
@@ -123,15 +127,15 @@ export default function LoginPage() {
       {/* Right — sign-in form on Paper */}
       <div className="flex min-h-screen items-center justify-center px-6 py-12">
         <div className="w-full max-w-[400px]">
-          <Wordmark className="mb-10 md:hidden" />
+          <Wordmark className="mb-10 md:hidden" onDark={false} />
 
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#078ACB]">
+          <p className="mb-2 text-sm font-extrabold uppercase tracking-[0.2em] text-[#078ACB]">
             Sign in
           </p>
-          <h2 className="text-[1.75rem] font-[650] text-[#14253D]" style={{ letterSpacing: "-0.04em" }}>
+          <h2 className="text-[2.15rem] font-[650] text-[#14253D]" style={{ letterSpacing: "-0.04em" }}>
             Welcome back
           </h2>
-          <p className="mb-8 mt-1.5 text-[15px] text-[#5A6B80]">
+          <p className="mb-8 mt-2 text-base text-[#5A6B80]">
             Sign in to your GovernmentAffairs.co account.
           </p>
 
@@ -142,13 +146,13 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[13px] font-bold text-[#14253D]">Email</FormLabel>
+                    <FormLabel className="text-sm font-bold text-[#14253D]">Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder="you@yourfirm.com"
                         data-testid="input-email"
-                        className="h-11 rounded-[5px] border-[#E9ECEC] bg-white text-[#14253D] focus-visible:border-[#078ACB] focus-visible:ring-[#078ACB]/30"
+                        className="h-12 rounded-[6px] border-[#E9ECEC] bg-white text-base text-[#14253D] focus-visible:border-[#078ACB] focus-visible:ring-[#078ACB]/30"
                         {...field}
                       />
                     </FormControl>
@@ -163,7 +167,7 @@ export default function LoginPage() {
                 render={({ field }) => (
                   <FormItem>
                     <div className="flex items-center justify-between">
-                      <FormLabel className="text-[13px] font-bold text-[#14253D]">Password</FormLabel>
+                      <FormLabel className="text-sm font-bold text-[#14253D]">Password</FormLabel>
                       <Link
                         href="/forgot-password"
                         className="text-[13px] font-semibold text-[#078ACB] hover:underline"
@@ -178,7 +182,7 @@ export default function LoginPage() {
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           data-testid="input-password"
-                          className="h-11 rounded-[5px] border-[#E9ECEC] bg-white pr-11 text-[#14253D] focus-visible:border-[#078ACB] focus-visible:ring-[#078ACB]/30"
+                          className="h-12 rounded-[6px] border-[#E9ECEC] bg-white text-base pr-11 text-[#14253D] focus-visible:border-[#078ACB] focus-visible:ring-[#078ACB]/30"
                           {...field}
                         />
                         <button
@@ -186,7 +190,7 @@ export default function LoginPage() {
                           onClick={() => setShowPassword(!showPassword)}
                           data-testid="button-toggle-password"
                           aria-label={showPassword ? "Hide password" : "Show password"}
-                          className="absolute right-0 top-0 grid h-11 w-11 place-items-center text-[#5A6B80] transition-colors hover:text-[#14253D]"
+                          className="absolute right-0 top-0 grid h-12 w-11 place-items-center text-[#5A6B80] transition-colors hover:text-[#14253D]"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -201,7 +205,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loginMutation.isPending}
                 data-testid="button-login"
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-[5px] bg-[#078ACB] font-bold text-white transition-colors hover:bg-[#0679b0] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-[#078ACB] text-base font-bold text-white transition-colors hover:bg-[#0679b0] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loginMutation.isPending ? (
                   "Signing in…"
@@ -215,7 +219,7 @@ export default function LoginPage() {
             </form>
           </Form>
 
-          <p className="mt-8 text-center text-[14px] text-[#5A6B80]">
+          <p className="mt-8 text-center text-[15px] text-[#5A6B80]">
             Don&apos;t have an account yet?{" "}
             <a
               href="https://calendly.com/smartloads/gov-affairs-demo"

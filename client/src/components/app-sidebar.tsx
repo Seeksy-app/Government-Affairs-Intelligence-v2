@@ -230,7 +230,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#078ACB] text-[13px] font-extrabold tracking-tight text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-[13px] font-extrabold tracking-tight text-[#14253D]">
             GA
           </div>
           <div className="leading-tight">
