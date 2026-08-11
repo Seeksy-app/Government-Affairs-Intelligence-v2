@@ -216,10 +216,16 @@ export default function LoginPage() {
           </Form>
 
           <p className="mt-8 text-center text-[14px] text-[#5A6B80]">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="font-semibold text-[#078ACB] hover:underline">
-              Apply for access
-            </Link>
+            Don&apos;t have an account yet?{" "}
+            <a
+              href="https://calendly.com/smartloads/gov-affairs-demo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[#078ACB] hover:underline"
+              data-testid="link-book-demo"
+            >
+              Book a demo
+            </a>
           </p>
         </div>
       </div>
