@@ -17,6 +17,16 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+// Rotating brand imagery for the sign-in panel — one shown at random per visit.
+// Captions are placeholder copy; edit freely.
+const PANELS = [
+  { src: "/login/corridor.jpg", caption: "Where connection meets a sense of place." },
+  { src: "/login/roundtable.jpg", caption: "A trusted introduction at the table." },
+  { src: "/login/hotel-lobby.jpg", caption: "Warm, accessible, and credible." },
+  { src: "/login/casual-bar.jpg", caption: "Relationships that develop naturally." },
+  { src: "/login/coffee-meeting.jpg", caption: "Quiet, purposeful, human." },
+];
+
 // GovernmentAffairs.co lockup — GA mark + wordmark (brand: Source Sans 3, ExtraBold)
 function Wordmark({ className = "", onDark = true }: { className?: string; onDark?: boolean }) {
   return (
@@ -39,6 +49,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const [panel] = useState(() => PANELS[Math.floor(Math.random() * PANELS.length)]);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -88,13 +99,18 @@ export default function LoginPage() {
     >
       {/* Left — Capitol Navy brand panel */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#14253D] p-12 text-[#F7F6F2] md:flex lg:p-16">
-        {/* restrained architectural column motif */}
+        {/* rotating brand photo + navy overlay for legibility */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          className="pointer-events-none absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url('${panel.src}')` }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              "repeating-linear-gradient(90deg, #F7F6F2 0, #F7F6F2 2px, transparent 2px, transparent 48px)",
+            background:
+              "linear-gradient(105deg, rgba(20,37,61,0.97) 0%, rgba(20,37,61,0.88) 42%, rgba(20,37,61,0.58) 100%)",
           }}
         />
 
@@ -117,6 +133,9 @@ export default function LoginPage() {
         </div>
 
         <div className="relative">
+          <p className="mb-5 max-w-sm text-lg font-medium leading-snug text-[#F7F6F2]">
+            {panel.caption}
+          </p>
           <div className="mb-4 h-px w-12 bg-[#078ACB]" />
           <p className="text-[13px] font-semibold tracking-wide text-[#9FB0C4]">
             Staff intelligence · Legislative monitoring · Relationship mapping
