@@ -1,0 +1,87 @@
+# Render Blueprint — Government Affairs Intelligence
+# ---------------------------------------------------
+# Runs the FULL Express server (API + the built React frontend) as one
+# always-on web service — the same way it ran on the Hostinger VPS.
+# The app is designed as a long-running server (background schedulers for
+# news, LegiStorm, House directory, etc.), which is why an always-on host
+# like Render fits and a serverless host (Vercel) does not.
+#
+# After this deploys, point app.governmentaffairs.co at the service (see
+# RENDER_DEPLOY.md). The V0 landing page stays on Vercel at the root domain.
+#
+# Secret values are NEVER committed. Keys marked `sync: false` are filled in
+# the Render dashboard (or bulk-pasted from your existing Vercel / .env.local).
+
+services:
+  - type: web
+    name: gov-affairs-app
+    runtime: node
+    region: oregon
+    plan: starter            # 512 MB RAM. Bump to "standard" (2 GB) if it runs
+                             # out of memory during the big LegiStorm / House
+                             # directory syncs.
+    branch: main
+    # --include=dev forces the build tools (vite, esbuild, tsx) to install even
+    # though the runtime is production. `npm start` sets NODE_ENV=production itself.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      # Pin Node to the major the app was built/tested against.
+      - key: NODE_VERSION
+        value: "20"
+
+      # ---- Required to boot ----
+      - key: DATABASE_URL          # reuse your existing Supabase URL (already set in Vercel)
+        sync: false
+      - key: SESSION_SECRET        # reuse your existing value
+        sync: false
+      - key: APP_URL               # set to: https://app.governmentaffairs.co
+        sync: false
+
+      # ---- Email (password reset / notifications) ----
+      - key: RESEND_API_KEY
+        sync: false
+
+      # ---- Data / intelligence API keys (reuse existing values) ----
+      - key: CONGRESS_API_KEY
+        sync: false
+      - key: LEGISTORM_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: PDL_API_KEY
+        sync: false
+      - key: KALSHI_API_KEY
+        sync: false
+      - key: SEARCHAPI_API_KEY
+        sync: false
+      - key: INFLUENCERS_API_KEY
+        sync: false
+
+      # ---- AI providers ----
+      - key: AI_INTEGRATIONS_OPENAI_API_KEY
+        sync: false
+      - key: AI_INTEGRATIONS_OPENAI_BASE_URL
+        sync: false
+      - key: AI_INTEGRATIONS_GEMINI_API_KEY
+        sync: false
+      - key: AI_INTEGRATIONS_GEMINI_BASE_URL
+        sync: false
+
+      # ---- File/object storage (uploads) — see RENDER_DEPLOY.md follow-ups ----
+      - key: DEFAULT_OBJECT_STORAGE_BUCKET_ID
+        sync: false
+      - key: PRIVATE_OBJECT_DIR
+        sync: false
+      - key: PUBLIC_OBJECT_SEARCH_PATHS
+        sync: false
+
+      # ---- Optional integrations (add only if you use them) ----
+      - key: MIRO_API_KEY
+        sync: false
+      - key: MIRO_CLIENT_SECRET
+        sync: false
