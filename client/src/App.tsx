@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -313,6 +313,7 @@ function AppContent() {
   if (!user) {
     return (
       <Switch>
+        <Route path="/">{() => <Redirect to="/login" />}</Route>
         <Route path="/signup" component={ClientSignupPage} />
         <Route path="/verify-email" component={VerifyEmailPage} />
         <Route path="/set-password" component={SetPasswordPage} />
