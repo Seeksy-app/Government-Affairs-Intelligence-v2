@@ -230,17 +230,15 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-            {(isSuperAdmin && !isImpersonating) ? (
-              <Shield className="w-5 h-5 text-primary-foreground" />
-            ) : (
-              <Building2 className="w-5 h-5 text-primary-foreground" />
-            )}
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#078ACB] text-[13px] font-extrabold tracking-tight text-white">
+            GA
           </div>
-          <div>
-            <span className="font-semibold text-sm">Political Intel</span>
+          <div className="leading-tight">
+            <span className="text-sm font-semibold">
+              GovernmentAffairs<span className="text-[#078ACB]">.co</span>
+            </span>
             {(isSuperAdmin && !isImpersonating) && (
-              <p className="text-xs text-muted-foreground">Super Admin</p>
+              <p className="text-xs text-[#9FB0C4]">Super Admin</p>
             )}
           </div>
         </div>
