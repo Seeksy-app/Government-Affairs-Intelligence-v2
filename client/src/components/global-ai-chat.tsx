@@ -150,7 +150,7 @@ export function GlobalAIChat() {
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button className="gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md px-5" data-testid="button-global-ai-chat">
+          <Button className="gap-2 rounded-full bg-[#078ACB] hover:bg-[#0679b0] text-white shadow-md px-5" data-testid="button-global-ai-chat">
             <Sparkles className="w-4 h-4" />
             AI Chat
             {chatMessages.length > 0 && (
