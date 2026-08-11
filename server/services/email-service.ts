@@ -1,34 +1,21 @@
-// Resend Email Service - Uses Replit's Resend integration
+// Resend email service.
+// Reads credentials from the environment: RESEND_API_KEY (required) and
+// RESEND_FROM_EMAIL (optional; must be an address on a Resend-verified domain).
+// Replaces the previous Replit-connector integration, which does not exist
+// outside Replit's runtime.
 import { Resend } from 'resend';
 
-let connectionSettings: any;
+const DEFAULT_FROM_EMAIL = 'GovernmentAffairs.co <no-reply@governmentaffairs.co>';
 
 async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || DEFAULT_FROM_EMAIL;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not set');
   }
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
-    throw new Error('Resend not connected');
-  }
-  return { apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email };
+  return { apiKey, fromEmail };
 }
 
 // WARNING: Never cache this client.
