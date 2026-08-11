@@ -13,7 +13,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     target: "[data-tour='dashboard']",
-    title: "Welcome to Political Intel!",
+    title: "Welcome to GovernmentAffairs.co!",
     content: "This is your dashboard where you can see an overview of your contacts, matters, and recent activity. Let's take a quick tour of the key features.",
     placement: "bottom",
   },
