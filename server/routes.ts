@@ -31,7 +31,7 @@ import {
   insertMarketingAiRecommendationSchema,
 } from "@shared/schema";
 import { extractVideoId, checkTranscriptAvailable, getTranscript, TRANSCRIPT_SOURCES, checkPendingWatchList } from "./services/youtube-watchlist";
-import { CongressAPI, formatBillId, parseBillId } from "./services/congress-api";
+import { CongressAPI, formatBillId, parseBillId, lookupMemberPortrait } from "./services/congress-api";
 import { kalshiApi } from "./services/kalshi-api";
 import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
@@ -1087,6 +1087,10 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.message });
       }
+      // If the contact is a current member of Congress, attach the official portrait.
+      if (!parsed.data.imageUrl) {
+        parsed.data.imageUrl = await lookupMemberPortrait(parsed.data.firstName, parsed.data.lastName);
+      }
       const contact = await storage.createContact(parsed.data);
       res.status(201).json(contact);
     } catch (error) {
@@ -1135,6 +1139,10 @@ export async function registerRoutes(
       const parsed = insertContactSchema.safeParse(contactData);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.message });
+      }
+      // If the contact is a current member of Congress, attach the official portrait.
+      if (!parsed.data.imageUrl) {
+        parsed.data.imageUrl = await lookupMemberPortrait(parsed.data.firstName, parsed.data.lastName);
       }
       const contact = await storage.createContact(parsed.data);
       res.status(201).json({ success: true, contact });

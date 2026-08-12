@@ -1,5 +1,9 @@
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 
+// Shared across CongressAPI instances (routes construct one per request).
+let memberRosterCache: { members: SimpleMember[]; fetchedAt: number } | null = null;
+const MEMBER_ROSTER_TTL_MS = 60 * 60 * 1000;
+
 interface CongressBill {
   congress: number;
   type: string;
@@ -370,6 +374,36 @@ export class CongressAPI {
     }
   }
 
+  // The roster changes rarely; cache it so portrait lookups on contact
+  // creation don't re-crawl the ~3-page member list every time.
+  async getCurrentMembersCached(): Promise<SimpleMember[]> {
+    if (memberRosterCache && Date.now() - memberRosterCache.fetchedAt < MEMBER_ROSTER_TTL_MS) {
+      return memberRosterCache.members;
+    }
+    const members = await this.getCurrentMembers({});
+    if (members.length > 0) {
+      memberRosterCache = { members, fetchedAt: Date.now() };
+    }
+    return members;
+  }
+
+  // Official portrait for a contact who is a current member of Congress.
+  // Conservative: last name must match exactly and the first name must
+  // appear in the member's name; returns null unless exactly one member
+  // qualifies, so a "John Smith" never gets someone else's photo.
+  async findMemberPortrait(firstName: string, lastName: string): Promise<string | null> {
+    const first = firstName?.trim().toLowerCase();
+    const last = lastName?.trim().toLowerCase();
+    if (!first || !last) return null;
+    const members = await this.getCurrentMembersCached();
+    const matches = members.filter(
+      (m) =>
+        m.lastName?.trim().toLowerCase() === last &&
+        (m.firstName?.trim().toLowerCase() === first || m.name.toLowerCase().includes(first)),
+    );
+    return matches.length === 1 ? matches[0].imageUrl ?? null : null;
+  }
+
   // Search members by name
   async searchMembers(query: string, options: {
     chamber?: 'house' | 'senate';
@@ -492,6 +526,22 @@ export interface SimpleMember {
   officeAddress?: string;
   website?: string;
   leadership?: string[];
+}
+
+// One-call portrait lookup for contact creation: never throws, null when the
+// key is missing or no unique current-member match exists.
+export async function lookupMemberPortrait(
+  firstName: string,
+  lastName: string,
+): Promise<string | null> {
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!apiKey) return null;
+  try {
+    return await new CongressAPI(apiKey).findMemberPortrait(firstName, lastName);
+  } catch (e) {
+    console.error("[congress-api] portrait lookup failed:", e);
+    return null;
+  }
 }
 
 export function formatBillId(congress: number, billType: string, billNumber: number): string {
