@@ -25,6 +25,21 @@ interface ParsedStaffer {
   position: string;
   organization: string;
   specialty?: string;
+  syncedAt?: string;
+}
+
+// Real directory rows returned by the backend's search_staffer_directory tool.
+export interface DirectoryStaffer {
+  id: string;
+  fullName: string;
+  title: string | null;
+  office: string | null;
+  memberName: string | null;
+  chamber: string | null;
+  state: string | null;
+  email: string | null;
+  isCurrentStaff: boolean | null;
+  lastUpdatedFromApi: string | null;
 }
 
 interface ParsedArticle {
@@ -57,42 +72,31 @@ interface QuickAction {
 interface AIMessageRendererProps {
   content: string;
   onFollowUp?: (query: string) => void;
+  staffers?: DirectoryStaffer[];
+}
+
+// Convert real directory rows into card-renderable entries. Staffer cards are
+// ONLY built from database rows the backend returned — the old regex that
+// guessed staffer names out of bolded prose produced garbage cards
+// ("outdated or incomplete", "LegiStorm") and is gone.
+function stafferEntitiesFromDirectory(rows: DirectoryStaffer[] | undefined): ParsedStaffer[] {
+  if (!rows || rows.length === 0) return [];
+  return rows.map((r) => ({
+    name: r.fullName,
+    position: r.title || "Staffer",
+    organization: r.memberName
+      ? `Office of ${r.memberName}`
+      : r.office || "Congressional Staff",
+    specialty: r.chamber ? `${r.chamber}${r.state ? ` · ${r.state}` : ""}` : undefined,
+    syncedAt: r.lastUpdatedFromApi ?? undefined,
+  }));
 }
 
 function parseEntities(content: string): ParsedEntities {
   const staffers: ParsedStaffer[] = [];
   const articles: ParsedArticle[] = [];
   const bills: ParsedBill[] = [];
-  
-  const stafferPattern = /\*\*([A-Za-z\s.]+)\*\*\s*[–-]\s*([^(\n]+?)(?:\s*\(([^)]+)\))?(?:\n|$)/g;
-  let match;
-  while ((match = stafferPattern.exec(content)) !== null) {
-    const name = match[1].trim();
-    const position = match[2].trim();
-    const detail = match[3]?.trim();
-    
-    if (name.length < 40 && !name.includes('Committee') && !name.includes('House') && !name.includes('Senate')) {
-      const orgMatch = content.match(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^]*?(?:Committee|SASC|HASC|Office)[^]*?(?:\\n|$)`));
-      let organization = "Congressional Staff";
-      if (orgMatch) {
-        if (orgMatch[0].includes('SASC') || orgMatch[0].includes('Senate Armed Services')) {
-          organization = "Senate Armed Services Committee";
-        } else if (orgMatch[0].includes('HASC') || orgMatch[0].includes('House Armed Services')) {
-          organization = "House Armed Services Committee";
-        }
-      }
-      
-      staffers.push({
-        name,
-        position,
-        organization,
-        specialty: detail?.includes('policy') || detail?.includes('defense') || detail?.includes('legal') 
-          ? detail.split(',')[0] 
-          : undefined
-      });
-    }
-  }
-  
+
   const billPattern = /(H\.R\.\s*\d+|S\.\s*\d+|H\.Res\.\s*\d+|S\.Res\.\s*\d+)/gi;
   const billMatches = Array.from(content.matchAll(billPattern));
   for (const bMatch of billMatches) {
@@ -183,6 +187,11 @@ function StafferCard({ staffer }: { staffer: ParsedStaffer }) {
             </p>
             {staffer.specialty && (
               <Badge variant="secondary" className="mt-2 text-xs">{staffer.specialty}</Badge>
+            )}
+            {staffer.syncedAt && (
+              <p className="text-[10px] text-muted-foreground/60 mt-1">
+                Directory record · synced {new Date(staffer.syncedAt).toLocaleDateString()}
+              </p>
             )}
           </div>
         </div>
@@ -536,8 +545,9 @@ function EnhancedMarkdown({ content, entities }: { content: string; entities: Pa
   );
 }
 
-export function AIMessageRenderer({ content, onFollowUp }: AIMessageRendererProps) {
+export function AIMessageRenderer({ content, onFollowUp, staffers }: AIMessageRendererProps) {
   const entities = parseEntities(content);
+  entities.staffers = stafferEntitiesFromDirectory(staffers);
   const quickActions = generateQuickActions(entities);
   
   const hasStructuredData = entities.staffers.length > 0 || entities.articles.length > 0 || entities.bills.length > 0;
@@ -550,7 +560,9 @@ export function AIMessageRenderer({ content, onFollowUp }: AIMessageRendererProp
         <div className="mt-4" data-testid="staffers-section">
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Found {entities.staffers.length} Staffer{entities.staffers.length > 1 ? 's' : ''}</span>
+            <span className="text-sm font-medium">
+              {entities.staffers.length} Staffer{entities.staffers.length > 1 ? 's' : ''} from your directory
+            </span>
           </div>
           <div className="grid grid-cols-1 gap-3">
             {entities.staffers.slice(0, 6).map((staffer, i) => (

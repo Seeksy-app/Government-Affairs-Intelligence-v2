@@ -341,6 +341,8 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
     const empty: RankedBriefResult = {
       clientId,
       clientName: profile.clientName,
+      industries: profile.industries ?? [],
+      watchlistTopics: profile.watchlistTopics ?? [],
       highRelevance: [],
       worthWatching: [],
       generatedAt: new Date().toISOString(),
@@ -357,9 +359,27 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
     return empty;
   }
 
-  // Single Claude call to score all items
+  // Single Claude call to score all items.
+  // Cap the batch so the prompt stays bounded (and can't blow past rate limits
+  // or silently truncate the JSON ranking output as the corpus grows).
+  const MAX_ITEMS_PER_RENDER = 60;
+  if (inputItems.length > MAX_ITEMS_PER_RENDER) {
+    console.log(`[morning-brief] ${clientId}: capping ${inputItems.length} items to ${MAX_ITEMS_PER_RENDER}`);
+    inputItems.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
+    inputItems.length = MAX_ITEMS_PER_RENDER;
+  }
+
   const { system, user } = buildRankingPrompt(profile, inputItems);
-  const rankings = await callClaudeForRanking(system, user);
+  console.log(`[morning-brief] ${clientId}: ranking ${inputItems.length} items (window ${windowHours}h)...`);
+  const rankStart = Date.now();
+  let rankings: ClaudeRanking[];
+  try {
+    rankings = await callClaudeForRanking(system, user);
+    console.log(`[morning-brief] ${clientId}: Claude ranked ${rankings.length} items in ${Date.now() - rankStart}ms`);
+  } catch (err: any) {
+    console.error(`[morning-brief] ${clientId}: Claude ranking FAILED after ${Date.now() - rankStart}ms:`, err?.message || err);
+    throw err;
+  }
   const claudeCallsMadeThisRender = 1;
 
   // Build a lookup map from rankings
