@@ -5,6 +5,7 @@ import { Newspaper, BarChart3, FileText, TrendingUp, ArrowUpRight, ArrowDownRigh
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScoreBadge } from "@/components/score-badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 
@@ -224,12 +225,10 @@ export default function ClientDashboard() {
                         </p>
                       )}
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 text-xs ${scoreColor(item.score)}`}
-                    >
-                      {item.score}
-                    </Badge>
+                    <ScoreBadge
+                      score={item.score}
+                      className={`shrink-0 px-2 py-0.5 text-xs font-semibold ${scoreColor(item.score)}`}
+                    />
                   </div>
                 </button>
               ))}
