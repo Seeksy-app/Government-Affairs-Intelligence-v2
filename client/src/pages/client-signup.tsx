@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +12,27 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, ArrowLeft, ArrowRight, Mail, Users, Target, Megaphone, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatUsPhone } from "@/lib/phone";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const INDUSTRY_OPTIONS = [
+  "Healthcare & Hospitals",
+  "Pharmaceuticals & Life Sciences",
+  "Energy & Utilities",
+  "Technology",
+  "Telecommunications",
+  "Financial Services",
+  "Defense & Aerospace",
+  "Transportation & Infrastructure",
+  "Agriculture & Food",
+  "Education",
+  "Veterans Services",
+  "Manufacturing",
+  "Real Estate & Construction",
+  "Trade Associations & Nonprofits",
+  "Multiple / General Practice",
+  "Other",
+];
 
 const signupSchema = z.object({
   // Step 1: Basic Info
@@ -99,6 +120,18 @@ export default function ClientSignupPage() {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
+  // The Next button becomes Submit in place when step 4 renders, so a fast
+  // double-click on step 3 could submit before the user ever saw step 4.
+  // Arm the submit button only after step 4 has been visible for a moment.
+  const [submitArmed, setSubmitArmed] = useState(false);
+  useEffect(() => {
+    if (step !== 4) {
+      setSubmitArmed(false);
+      return;
+    }
+    const t = setTimeout(() => setSubmitArmed(true), 500);
+    return () => clearTimeout(t);
+  }, [step]);
 
   // Prefill from the LinkedIn sign-in redirect (/signup?from=linkedin&email=…&name=…)
   const [linkedinPrefill] = useState(() => {
@@ -306,7 +339,18 @@ export default function ClientSignupPage() {
 
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              onKeyDown={(e) => {
+                // Enter in a text field should advance the wizard, not submit
+                // the whole application from an earlier step.
+                if (e.key === "Enter" && step < 4 && (e.target as HTMLElement).tagName === "INPUT") {
+                  e.preventDefault();
+                  nextStep();
+                }
+              }}
+              className="space-y-6"
+            >
               
               {/* Step 1: Basic Info */}
               {step === 1 && (
@@ -364,7 +408,12 @@ export default function ClientSignupPage() {
                         <FormItem>
                           <FormLabel>Phone (Optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="(555) 123-4567" {...field} data-testid="input-phone" />
+                            <Input
+                              placeholder="(555) 123-4567"
+                              {...field}
+                              onChange={(e) => field.onChange(formatUsPhone(e.target.value))}
+                              data-testid="input-phone"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -411,9 +460,18 @@ export default function ClientSignupPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Industry Focus (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Healthcare, Energy, Technology" {...field} data-testid="input-industry" />
-                        </FormControl>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="input-industry">
+                              <SelectValue placeholder="Select your primary industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {INDUSTRY_OPTIONS.map((opt) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -650,7 +708,7 @@ export default function ClientSignupPage() {
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={signupMutation.isPending} data-testid="button-submit">
+                    <Button type="submit" disabled={!submitArmed || signupMutation.isPending} data-testid="button-submit">
                       {signupMutation.isPending ? "Submitting..." : "Submit Application"}
                     </Button>
                   )}
