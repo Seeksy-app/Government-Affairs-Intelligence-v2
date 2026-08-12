@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, AtSign, UserCircle, Briefcase, Search, TrendingUp, Megaphone, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, Trophy, Puzzle, MonitorPlay, Eye, Radio, Sunrise, Brain } from "lucide-react";
+import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, Briefcase, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, MonitorPlay, Eye, Radio, Sunrise } from "lucide-react";
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -52,22 +52,6 @@ export function AppSidebar() {
 
   const isSuperAdmin = userRole?.isSuperAdmin;
   const isImpersonating = isSuperAdmin && userRole?.impersonatingClientId;
-
-  const effectiveClientId = isImpersonating ? userRole?.impersonatingClientId : userRole?.clientId;
-
-  const { data: sportsModuleCheck } = useQuery<{ enabled: boolean }>({
-    queryKey: ["/api/modules/check/sports"],
-    enabled: !!user && !!effectiveClientId,
-  });
-
-  const hasSportsModule = sportsModuleCheck?.enabled === true;
-
-  const { data: marketingModuleCheck } = useQuery<{ enabled: boolean }>({
-    queryKey: ["/api/modules/check/marketing_intelligence"],
-    enabled: !!user && !!effectiveClientId,
-  });
-
-  const hasMarketingModule = marketingModuleCheck?.enabled === true;
 
   const superAdminItems = [
     { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
@@ -125,7 +109,6 @@ export function AppSidebar() {
     items: [
       { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
       { title: "Predictions", url: "/predictions", icon: BarChart3, tourId: "predictions" },
-      { title: "Rank Tracking", url: "/rank-tracking", icon: Search, tourId: "rank-tracking" },
     ],
   };
 
@@ -135,7 +118,6 @@ export function AppSidebar() {
     items: [
       { title: "Morning Brief", url: "/morning-brief", icon: Sunrise, tourId: "morning-brief" },
       { title: "Press Releases", url: "/press-releases", icon: Newspaper, tourId: "press-releases" },
-      { title: "Symbolic Logic", url: "/symbolic-logic-demo", icon: Brain, tourId: "symbolic-logic" },
     ],
   };
 
@@ -146,15 +128,6 @@ export function AppSidebar() {
       { title: "Decision Briefs", url: "/briefs", icon: FileText, tourId: "briefs" },
       { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
       { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
-    ],
-  };
-
-  const clientSocialGroup = {
-    label: "Social Media",
-    icon: Megaphone,
-    items: [
-      { title: "Social Tracking", url: "/social", icon: AtSign, tourId: "social" },
-      { title: "Influencers", url: "/influencers", icon: UserCircle, tourId: "influencers" },
     ],
   };
 
@@ -169,30 +142,8 @@ export function AppSidebar() {
     ],
   };
 
-  const clientSportsGroup = {
-    label: "Sports",
-    icon: Trophy,
-    items: [
-      { title: "Sports Dashboard", url: "/sports", icon: Trophy, tourId: "sports" },
-    ],
-  };
-
-  const clientMarketingGroup = {
-    label: "Marketing Intel",
-    icon: TrendingUp,
-    items: [
-      { title: "Marketing Dashboard", url: "/marketing", icon: BarChart3, tourId: "marketing" },
-    ],
-  };
-
-  const clientLocalGovGroup = {
-    label: "Local Gov Intel",
-    icon: Building2,
-    items: [
-      { title: "Local Gov Intelligence", url: "/local-gov", icon: Building2, tourId: "local-gov" },
-    ],
-  };
-
+  // Off-thesis groups (Sports, Marketing Intel, Social Media, Local Gov Intel)
+  // are intentionally not rendered — routes still exist, nav stays on-thesis.
   const clientGroups = [
     clientDirectoryGroup,
     clientStaffersGroup,
@@ -200,10 +151,6 @@ export function AppSidebar() {
     clientNewsGroup,
     clientIntelligenceGroup,
     clientStrategyGroup,
-    clientSocialGroup,
-    ...(hasSportsModule ? [clientSportsGroup] : []),
-    ...(hasMarketingModule ? [clientMarketingGroup] : []),
-    clientLocalGovGroup,
     clientManageGroup,
   ];
 
@@ -313,21 +260,6 @@ export function AppSidebar() {
                   );
                 })}
 
-                <SidebarMenuItem className="mt-2">
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/modules" || location.startsWith("/modules/")}
-                  >
-                    <Link
-                      href="/modules"
-                      data-testid="nav-modules"
-                      data-tour="modules"
-                    >
-                      <Puzzle className="w-4 h-4" />
-                      <span>Modules</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             ) : (
               <SidebarMenu>
