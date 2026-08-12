@@ -309,6 +309,7 @@ export interface IStorage {
 
   // Tracked Bills
   getTrackedBills(clientId: string): Promise<TrackedBill[]>;
+  getAllTrackedBills(): Promise<TrackedBill[]>;
   getTrackedBill(id: string): Promise<TrackedBill | undefined>;
   getTrackedBillByNumber(clientId: string, congress: number, billType: string, billNumber: number): Promise<TrackedBill | undefined>;
   createTrackedBill(bill: InsertTrackedBill): Promise<TrackedBill>;
@@ -1052,6 +1053,10 @@ export class DatabaseStorage implements IStorage {
   // Tracked Bills
   async getTrackedBills(clientId: string): Promise<TrackedBill[]> {
     return db.select().from(trackedBills).where(eq(trackedBills.clientId, clientId)).orderBy(desc(trackedBills.createdAt));
+  }
+
+  async getAllTrackedBills(): Promise<TrackedBill[]> {
+    return db.select().from(trackedBills).orderBy(desc(trackedBills.createdAt));
   }
 
   async getTrackedBill(id: string): Promise<TrackedBill | undefined> {
