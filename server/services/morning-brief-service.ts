@@ -171,9 +171,10 @@ Include ONLY items scoring 40 or higher (omit the rest entirely), as:
 }
 
 Scoring guide:
-- 70-100: Directly names the client's agencies, topics, or committees. High-urgency legislative/regulatory action.
+- 70-100: Actionable development on the client's agencies, topics, or committees — funding decisions, rule changes, votes, hearings, enforcement, major legislation. Naming a relevant agency is NOT enough on its own.
 - 40-69: Adjacent topic, loosely related agency, or background context worth tracking.
 - Below 40: omit from the array.
+- Routine administrative notices (OMB information-collection/paperwork notices, form renewals, comment-period housekeeping, routine meeting announcements) score at most 45 even when they name the client's agencies.
 
 Keep the output small: at most 15 entries, ranked by relevance.`;
 
