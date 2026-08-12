@@ -124,17 +124,21 @@ export default function ClientDashboard() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-10">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-6">
 
-        {/* Greeting */}
-        <div className="text-center space-y-3" data-testid="card-welcome">
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-dashboard-title">
+        {/* Greeting — compact, top-left */}
+        <div className="mb-6" data-testid="card-welcome">
+          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-dashboard-title">
             {getGreeting()}, {displayName}
           </h1>
-          <p className="text-muted-foreground" data-testid="text-dashboard-subtitle">
+          <p className="text-sm text-muted-foreground" data-testid="text-dashboard-subtitle">
             Here's what's happening across your political intelligence
           </p>
         </div>
+
+        {/* Main content (left) + Quick Access rail (right) */}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+        <div className="space-y-10 min-w-0">
 
         {/* Morning Brief Hero */}
         <div data-testid="section-morning-brief">
@@ -329,10 +333,12 @@ export default function ClientDashboard() {
           )}
         </div>
 
-        {/* Quick Access */}
-        <div>
+        </div>{/* end main column */}
+
+        {/* Quick Access — right rail on desktop, below content on mobile */}
+        <aside>
           <h2 className="text-lg font-semibold mb-4">Quick Access</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-3">
             {[
               { label: "Contacts", desc: "Manage your political network", href: "/contacts", icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
               { label: "News Feed", desc: "Latest political developments", href: "/news", icon: Newspaper, color: "text-emerald-500", bg: "bg-emerald-500/10" },
@@ -355,7 +361,9 @@ export default function ClientDashboard() {
               </Card>
             ))}
           </div>
-        </div>
+        </aside>
+
+        </div>{/* end grid */}
 
       </div>
     </div>
