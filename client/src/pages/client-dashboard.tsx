@@ -20,11 +20,20 @@ const PREDICTION_CATEGORIES = [
   { id: "world", label: "World", icon: Globe, apiCategory: "World" },
 ];
 
-function getGreeting() {
+// The brief IS the greeting: its title follows the time of day.
+function getBriefLabel() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "Morning Brief";
+  if (hour < 17) return "Afternoon Brief";
+  return "Evening Brief";
+}
+
+function getTodayLine() {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 interface RankedItem {
@@ -120,39 +129,28 @@ export default function ClientDashboard() {
     refetchInterval: 60000,
   });
 
-  const displayName = user?.firstName || user?.email?.split("@")[0] || "there";
-
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-6">
-
-        {/* Greeting — compact, top-left */}
-        <div className="mb-6" data-testid="card-welcome">
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-dashboard-title">
-            {getGreeting()}, {displayName}
-          </h1>
-          <p className="text-sm text-muted-foreground" data-testid="text-dashboard-subtitle">
-            Here's what's happening across your political intelligence
-          </p>
-        </div>
 
         {/* Main content (left) + Quick Access rail (right) */}
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
         <div className="space-y-10 min-w-0">
 
-        {/* Morning Brief Hero */}
+        {/* Brief — the page's opening block; title follows time of day */}
         <div data-testid="section-morning-brief">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Sunrise className="h-5 w-5 text-amber-500" />
-                Morning Brief
-              </h2>
-              {!morningBriefLoading && morningBrief && (
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {morningBrief.highRelevance.length} items waiting
-                </p>
-              )}
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-dashboard-title">
+                <Sunrise className="h-6 w-6 text-amber-500" />
+                {getBriefLabel()}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1" data-testid="text-brief-date">
+                {getTodayLine()}
+                {!morningBriefLoading && morningBrief && (
+                  <> · {morningBrief.highRelevance.length} item{morningBrief.highRelevance.length === 1 ? "" : "s"} waiting</>
+                )}
+              </p>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/morning-brief" data-testid="link-morning-brief-see-all">
