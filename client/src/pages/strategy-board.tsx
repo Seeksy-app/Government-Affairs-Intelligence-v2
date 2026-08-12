@@ -426,7 +426,77 @@ const STAGE_STYLES: Record<string, { accent: string; dot: string; badge: string 
   "Connected":   { accent: "border-t-[#059669]", dot: "bg-[#059669]", badge: "bg-[#059669]/15 text-[#047857] dark:text-[#34D399]" },
 };
 
-function StrategyKanbanBoard() {
+// Guided steps for a strategy — statuses computed from actual board state so
+// anyone opening the strategy knows what to do next.
+function StepStrip({
+  boardId,
+  hasGoal,
+  cardCount,
+  outreachStarted,
+  suggesting,
+  onSuggest,
+  onMapPath,
+}: {
+  boardId: string;
+  hasGoal: boolean;
+  cardCount: number;
+  outreachStarted: boolean;
+  suggesting: boolean;
+  onSuggest: () => void;
+  onMapPath: () => void;
+}) {
+  const pathMapped = typeof window !== "undefined" && localStorage.getItem(`strategy-pathmapped-${boardId}`) === "1";
+  const hasTargets = cardCount > 0;
+
+  const steps: Array<{ label: string; done: boolean; action?: { label: string; onClick: () => void; busy?: boolean } }> = [
+    { label: "Define the goal", done: hasGoal },
+    {
+      label: "Add targets",
+      done: hasTargets,
+      action: !hasTargets ? { label: "AI Suggest", onClick: onSuggest, busy: suggesting } : undefined,
+    },
+    {
+      label: "Map your path",
+      done: pathMapped,
+      action: { label: "Open Path Finder", onClick: onMapPath },
+    },
+    { label: "Run outreach", done: outreachStarted },
+  ];
+  const nextIdx = steps.findIndex((s) => !s.done);
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2" data-testid="strategy-step-strip">
+      {steps.map((s, i) => {
+        const isNext = i === nextIdx;
+        const accent = s.done ? "border-t-[#059669]" : isNext ? "border-t-[#078ACB]" : "border-t-border";
+        return (
+          <div key={s.label} className={`border border-t-[3px] ${accent} bg-muted/30 rounded-b-md px-3 py-2`}>
+            <p className={`text-[11px] font-semibold ${s.done ? "text-[#059669]" : isNext ? "text-[#078ACB]" : "text-muted-foreground"}`}>
+              {s.done ? "✓ " : ""}Step {i + 1}{isNext && !s.done ? " · next" : ""}
+            </p>
+            <div className="flex items-center justify-between gap-2 mt-0.5">
+              <p className={`text-sm font-medium ${s.done || isNext ? "" : "text-muted-foreground"}`}>{s.label}</p>
+              {s.action && (isNext || !s.done) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-[#078ACB]"
+                  onClick={s.action.onClick}
+                  disabled={s.action.busy}
+                  data-testid={`step-action-${i + 1}`}
+                >
+                  {s.action.busy ? "…" : s.action.label}
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => void }) {
   const { toast } = useToast();
   // Remember the selection across visits — boards persist server-side, but a
   // reset selection used to read as "my board got deleted".
@@ -696,6 +766,21 @@ function StrategyKanbanBoard() {
             ))
           }
         </div>
+      )}
+
+      {selectedBoard && (
+        <StepStrip
+          boardId={selectedBoard.id}
+          hasGoal={boardKeywords.length > 0}
+          cardCount={(cards || []).length}
+          outreachStarted={(cards || []).some((c) => ["Outreach", "In Progress", "Connected"].includes(c.stage))}
+          suggesting={suggestMutation.isPending}
+          onSuggest={() => suggestMutation.mutate()}
+          onMapPath={() => {
+            localStorage.setItem(`strategy-pathmapped-${selectedBoard.id}`, "1");
+            onMapPath(selectedBoard.targetName || boardKeywords[0] || selectedBoard.name);
+          }}
+        />
       )}
 
       {selectedBoard && (
@@ -972,11 +1057,20 @@ function BillInfluenceView() {
   );
 }
 
-function NetworkPathFinder() {
+function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
   const [targetInput, setTargetInput] = useState("");
   const [pathResult, setPathResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Arriving from a strategy's "Map your path" step: run the search directly.
+  useEffect(() => {
+    if (prefill) {
+      setTargetInput(prefill);
+      findPath(prefill);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
 
   const findPath = async (targetOverride?: string) => {
     const target = (targetOverride ?? targetInput).trim();
@@ -1365,15 +1459,41 @@ function PowerGridDashboard() {
 }
 
 export default function StrategyBoardPage() {
-  const [activeView, setActiveView] = useState<ActiveView>("access");
+  // Pipeline is home: the strategy is the primary object, the other tools
+  // serve it. Reference tools are lookups, not steps in a sequence.
+  const [activeView, setActiveView] = useState<ActiveView>("kanban");
+  const [pathfinderPrefill, setPathfinderPrefill] = useState<string | null>(null);
 
-  const views = [
-    { id: "access" as ActiveView, label: "Access Map", icon: Target, desc: "Find the best path to a member" },
+  const goToPathFinder = (target: string) => {
+    setPathfinderPrefill(target);
+    setActiveView("pathfinder");
+  };
+
+  const strategyTools = [
     { id: "kanban" as ActiveView, label: "Pipeline", icon: LayoutGrid, desc: "Track engagement stages" },
-    { id: "bill-influence" as ActiveView, label: "Bill Influence", icon: FileText, desc: "Map bill stakeholders" },
     { id: "pathfinder" as ActiveView, label: "Path Finder", icon: Network, desc: "AI-powered network paths" },
+    { id: "bill-influence" as ActiveView, label: "Bill Influence", icon: FileText, desc: "Map bill stakeholders" },
+  ];
+  const referenceTools = [
+    { id: "access" as ActiveView, label: "Access Map", icon: Target, desc: "Find the best path to a member" },
     { id: "power-grid" as ActiveView, label: "Power Grid", icon: Crown, desc: "Member overview dashboard" },
   ];
+
+  const renderToolButton = (v: { id: ActiveView; label: string; icon: any; desc: string }) => (
+    <button
+      key={v.id}
+      onClick={() => setActiveView(v.id)}
+      className={`flex flex-col items-center gap-1 p-3 rounded-lg border text-center transition-colors flex-1 ${
+        activeView === v.id
+          ? "border-primary bg-primary/5"
+          : "border-transparent hover-elevate"
+      }`}
+      data-testid={`button-view-${v.id}`}
+    >
+      <v.icon className={`h-5 w-5 ${activeView === v.id ? "text-primary" : "text-muted-foreground"}`} />
+      <span className={`text-xs font-medium ${activeView === v.id ? "text-primary" : ""}`}>{v.label}</span>
+    </button>
+  );
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
@@ -1385,28 +1505,22 @@ export default function StrategyBoardPage() {
         <p className="text-muted-foreground">Strategic intelligence tools for political access and engagement</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
-        {views.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => setActiveView(v.id)}
-            className={`flex flex-col items-center gap-1 p-3 rounded-lg border text-center transition-colors ${
-              activeView === v.id
-                ? "border-primary bg-primary/5"
-                : "border-transparent hover-elevate"
-            }`}
-            data-testid={`button-view-${v.id}`}
-          >
-            <v.icon className={`h-5 w-5 ${activeView === v.id ? "text-primary" : "text-muted-foreground"}`} />
-            <span className={`text-xs font-medium ${activeView === v.id ? "text-primary" : ""}`}>{v.label}</span>
-          </button>
-        ))}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="md:flex-[3]">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">Work a strategy</p>
+          <div className="flex gap-2">{strategyTools.map(renderToolButton)}</div>
+        </div>
+        <div className="hidden md:block w-px bg-border mt-6" aria-hidden />
+        <div className="md:flex-[2]">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">Reference</p>
+          <div className="flex gap-2">{referenceTools.map(renderToolButton)}</div>
+        </div>
       </div>
 
       {activeView === "access" && <AccessMappingBoard />}
-      {activeView === "kanban" && <StrategyKanbanBoard />}
+      {activeView === "kanban" && <StrategyKanbanBoard onMapPath={goToPathFinder} />}
       {activeView === "bill-influence" && <BillInfluenceView />}
-      {activeView === "pathfinder" && <NetworkPathFinder />}
+      {activeView === "pathfinder" && <NetworkPathFinder prefill={pathfinderPrefill} />}
       {activeView === "power-grid" && <PowerGridDashboard />}
     </div>
   );
