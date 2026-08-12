@@ -22,6 +22,7 @@ import {
   insertClientApplicationSchema,
   strategyBoards,
   strategyCards,
+  strategySavedViews,
   insertStrategyBoardSchema,
   insertStrategyCardSchema,
   legistormStaffers,
@@ -8022,6 +8023,54 @@ Keep the response practical, actionable, and under 500 words.`;
   });
 
   // Strategy Boards CRUD
+  // Saved views: named Access Maps / Path Finder searches per firm.
+  app.get("/api/strategy/saved-views", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const view = req.query.view as string | undefined;
+      const { db } = await import("./db");
+      const { eq, and, desc } = await import("drizzle-orm");
+      const conditions = [eq(strategySavedViews.clientId, clientId)];
+      if (view) conditions.push(eq(strategySavedViews.view, view));
+      const views = await db.select().from(strategySavedViews)
+        .where(and(...conditions))
+        .orderBy(desc(strategySavedViews.createdAt));
+      res.json(views);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to get saved views" });
+    }
+  });
+
+  app.post("/api/strategy/saved-views", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const { view, name, params } = req.body;
+      if (!view || !name || !params) {
+        return res.status(400).json({ message: "view, name, and params are required" });
+      }
+      const { db } = await import("./db");
+      const [saved] = await db.insert(strategySavedViews)
+        .values({ clientId, view, name, params })
+        .returning();
+      res.status(201).json(saved);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to save view" });
+    }
+  });
+
+  app.delete("/api/strategy/saved-views/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const { db } = await import("./db");
+      const { eq, and } = await import("drizzle-orm");
+      await db.delete(strategySavedViews)
+        .where(and(eq(strategySavedViews.id, req.params.id), eq(strategySavedViews.clientId, clientId)));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete saved view" });
+    }
+  });
+
   app.get("/api/strategy/boards", isAuthenticated, async (req, res) => {
     try {
       const clientId = await getClientId(req);
