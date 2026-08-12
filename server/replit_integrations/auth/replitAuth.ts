@@ -39,7 +39,11 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "strict" : "lax",
+      // "lax" (not "strict"): OAuth providers redirect back cross-site, and
+      // strict cookies are dropped on that navigation — the LinkedIn callback
+      // then can't see the session that stored the CSRF state. Lax still
+      // blocks cross-site POSTs/subresources, the actual CSRF vectors.
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
