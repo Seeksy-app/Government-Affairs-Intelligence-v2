@@ -4130,6 +4130,7 @@ Format your response as a structured summary with clear sections.`;
 YOUR DATA ACCESS:
 - You have DIRECT access to the platform's LegiStorm congressional staff directory (~17,900 staffers) via the search_staffer_directory tool. For ANY question about staffers, who works for a member, schedulers, chiefs of staff, or reaching an office: USE THE TOOL. Never answer staffing questions from memory, and never tell the user to "check LegiStorm" — this platform IS their LegiStorm access.
 - When you present directory results, mention they come from the platform's staff directory and note the sync date if relevant.
+- The app renders every directory record you retrieve as a card below your reply (name, title, office, email, sync date). Do NOT restate the full roster in prose — give a short 2-4 sentence summary (who leads the office, notable structure, who fits the user's ask) and let the cards carry the list.
 
 STYLE:
 1. Cite sources for facts and legislation as [Source: description]

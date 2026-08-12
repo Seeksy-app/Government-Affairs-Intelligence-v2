@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  User, 
-  Network, 
+import {
+  Mail,
+  User,
+  Network,
   FileText, 
   ExternalLink, 
   Search, 
@@ -26,6 +27,7 @@ interface ParsedStaffer {
   organization: string;
   specialty?: string;
   syncedAt?: string;
+  email?: string;
 }
 
 // Real directory rows returned by the backend's search_staffer_directory tool.
@@ -89,6 +91,7 @@ function stafferEntitiesFromDirectory(rows: DirectoryStaffer[] | undefined): Par
       : r.office || "Congressional Staff",
     specialty: r.chamber ? `${r.chamber}${r.state ? ` · ${r.state}` : ""}` : undefined,
     syncedAt: r.lastUpdatedFromApi ?? undefined,
+    email: r.email ?? undefined,
   }));
 }
 
@@ -135,11 +138,6 @@ function generateQuickActions(entities: ParsedEntities): QuickAction[] {
   
   if (entities.staffers.length > 0) {
     actions.push({
-      type: "visualize_network",
-      label: "Visualize Network",
-      icon: "network"
-    });
-    actions.push({
       type: "generate_report",
       label: "Generate Report",
       icon: "file-text"
@@ -167,10 +165,15 @@ function getInitials(name: string): string {
 }
 
 function StafferCard({ staffer }: { staffer: ParsedStaffer }) {
-  const [, setLocation] = useLocation();
-  
+  const slug = staffer.name.replace(/\s+/g, '-').toLowerCase();
+  // LinkedIn people-search seeded with name + office context — always works,
+  // unlike stored profile URLs (none are enriched yet).
+  const linkedinSearch = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(
+    `${staffer.name} ${staffer.organization.replace(/^Office of /, "")}`,
+  )}`;
+
   return (
-    <Card className="hover-elevate transition-all" data-testid={`card-staffer-${staffer.name.replace(/\s+/g, '-').toLowerCase()}`}>
+    <Card className="hover-elevate transition-all" data-testid={`card-staffer-${slug}`}>
       <CardContent className="p-4">
         <div className="flex gap-3">
           <Avatar className="h-12 w-12 bg-gradient-to-br from-primary/80 to-primary">
@@ -196,27 +199,36 @@ function StafferCard({ staffer }: { staffer: ParsedStaffer }) {
           </div>
         </div>
         <div className="flex gap-2 mt-3 flex-wrap">
-          <Button 
-            size="sm" 
-            variant="default" 
+          {staffer.email && (
+            <Button
+              size="sm"
+              variant="default"
+              className="flex-1 text-xs h-8"
+              asChild
+              data-testid={`button-email-${slug}`}
+            >
+              <a href={`mailto:${staffer.email}`}>
+                <Mail className="h-3 w-3 mr-1" />
+                Email
+              </a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
             className="flex-1 text-xs h-8"
-            onClick={() => setLocation(`/network?search=${encodeURIComponent(staffer.name)}`)}
-            data-testid={`button-view-profile-${staffer.name.replace(/\s+/g, '-').toLowerCase()}`}
+            asChild
+            data-testid={`button-linkedin-${slug}`}
           >
-            <User className="h-3 w-3 mr-1" />
-            View Profile
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1 text-xs h-8"
-            onClick={() => setLocation(`/network?search=${encodeURIComponent(staffer.name)}`)}
-            data-testid={`button-network-${staffer.name.replace(/\s+/g, '-').toLowerCase()}`}
-          >
-            <Network className="h-3 w-3 mr-1" />
-            Network
+            <a href={linkedinSearch} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Find on LinkedIn
+            </a>
           </Button>
         </div>
+        {staffer.email && (
+          <p className="text-[11px] text-muted-foreground mt-2 truncate">{staffer.email}</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -446,23 +458,10 @@ function renderInlineContent(text: string, entities: ParsedEntities, keyPrefix: 
         </a>
       );
     } else if (matchedText.startsWith('**') && matchedText.endsWith('**')) {
+      // Bold text stays bold — no name-links. (They used to route to
+      // /network?search=…, which ignores the param: a dead link.)
       const innerText = matchedText.slice(2, -2);
-      const matchingStaffer = entities.staffers.find(s => s.name === innerText);
-      
-      if (matchingStaffer) {
-        parts.push(
-          <Link
-            key={`${keyPrefix}-link-${partIndex++}`}
-            href={`/network?search=${encodeURIComponent(matchingStaffer.name)}`}
-            className="font-semibold text-primary hover:underline cursor-pointer"
-            data-testid={`link-staffer-${matchingStaffer.name.replace(/\s+/g, '-').toLowerCase()}`}
-          >
-            {matchingStaffer.name}
-          </Link>
-        );
-      } else {
-        parts.push(<strong key={`${keyPrefix}-bold-${partIndex++}`}>{innerText}</strong>);
-      }
+      parts.push(<strong key={`${keyPrefix}-bold-${partIndex++}`}>{innerText}</strong>);
     } else if (matchedText.startsWith('http')) {
       let displayName = "Link";
       try {
@@ -609,7 +608,7 @@ export function AIMessageRenderer({ content, onFollowUp, staffers }: AIMessageRe
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {entities.staffers.length} Staffer{entities.staffers.length > 1 ? 's' : ''} from your directory
+              Directory records used in this answer ({entities.staffers.length})
             </span>
           </div>
           <div className="grid grid-cols-1 gap-3">
