@@ -106,6 +106,22 @@ export type InsertClientApplication = z.infer<typeof insertClientApplicationSche
 export type ClientApplication = typeof clientApplications.$inferSelect;
 
 // Political contacts (staffers, officials, etc.)
+// Named lists for organizing contacts (e.g. "VA priority targets").
+export const contactLists = pgTable("contact_lists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContactListSchema = createInsertSchema(contactLists).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContactList = z.infer<typeof insertContactListSchema>;
+export type ContactList = typeof contactLists.$inferSelect;
+
 export const contacts = pgTable("contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull(),
@@ -121,6 +137,7 @@ export const contacts = pgTable("contacts", {
   imageUrl: text("image_url"),
   notes: text("notes"),
   priority: integer("priority").default(0), // 0-5 priority level
+  listId: varchar("list_id"), // optional contact_lists reference
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

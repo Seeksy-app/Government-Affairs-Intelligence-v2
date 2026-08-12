@@ -34,13 +34,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Contact, InsertContact } from "@shared/schema";
+import type { Contact, InsertContact, ContactList } from "@shared/schema";
 
 export default function Contacts() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterChamber, setFilterChamber] = useState<string>("all");
+  const [filterList, setFilterList] = useState<string>("all");
+  const [creatingList, setCreatingList] = useState(false);
+  const [newListName, setNewListName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<Partial<InsertContact>>({
@@ -89,6 +92,27 @@ export default function Contacts() {
 
   const { data: contacts, isLoading } = useQuery<Contact[]>({
     queryKey: ["/api/contacts"],
+  });
+
+  const { data: contactLists } = useQuery<ContactList[]>({
+    queryKey: ["/api/contact-lists"],
+  });
+
+  const createListMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/contact-lists", { name });
+      return res.json();
+    },
+    onSuccess: (list: ContactList) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-lists"] });
+      setFormData((prev) => ({ ...prev, listId: list.id }));
+      setCreatingList(false);
+      setNewListName("");
+      toast({ title: `List "${list.name}" created` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error creating list", description: error.message, variant: "destructive" });
+    },
   });
 
   const createMutation = useMutation({
@@ -175,6 +199,7 @@ export default function Contacts() {
       chamber: contact.chamber || "",
       notes: contact.notes || "",
       priority: contact.priority || 0,
+      listId: contact.listId || null,
     });
     setIsDialogOpen(true);
   };
@@ -185,7 +210,10 @@ export default function Contacts() {
       contact.organization?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contact.title?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesChamber = filterChamber === "all" || contact.chamber === filterChamber;
-    return matchesSearch && matchesChamber;
+    const matchesList =
+      filterList === "all" ||
+      (filterList === "unlisted" ? !contact.listId : contact.listId === filterList);
+    return matchesSearch && matchesChamber && matchesList;
   });
 
   const chambers = ["House", "Senate", "Administration", "Agency", "Lobbyist", "Other"];
@@ -334,6 +362,59 @@ export default function Contacts() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="list">List</Label>
+                {creatingList ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      placeholder="New list name (e.g., VA priority targets)"
+                      value={newListName}
+                      onChange={(e) => setNewListName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (newListName.trim()) createListMutation.mutate(newListName.trim());
+                        }
+                      }}
+                      data-testid="input-new-list-name"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => newListName.trim() && createListMutation.mutate(newListName.trim())}
+                      disabled={!newListName.trim() || createListMutation.isPending}
+                      data-testid="button-create-list"
+                    >
+                      Create
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => { setCreatingList(false); setNewListName(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.listId || "none"}
+                    onValueChange={(value) => {
+                      if (value === "__create__") {
+                        setCreatingList(true);
+                      } else {
+                        setFormData({ ...formData, listId: value === "none" ? null : value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-list">
+                      <SelectValue placeholder="No list" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No list</SelectItem>
+                      {contactLists?.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                      <SelectItem value="__create__">+ Create new list…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
@@ -374,6 +455,18 @@ export default function Contacts() {
                 data-testid="input-search-contacts"
               />
             </div>
+            <Select value={filterList} onValueChange={setFilterList}>
+              <SelectTrigger className="w-[180px]" data-testid="filter-list">
+                <SelectValue placeholder="Filter by list" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Lists</SelectItem>
+                <SelectItem value="unlisted">Not in a list</SelectItem>
+                {contactLists?.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterChamber} onValueChange={setFilterChamber}>
               <SelectTrigger className="w-[180px]" data-testid="filter-chamber">
                 <SelectValue placeholder="Filter by chamber" />

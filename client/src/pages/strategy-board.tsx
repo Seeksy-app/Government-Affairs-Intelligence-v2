@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Target, Users, FileText, Network, LayoutGrid,
   Search, ChevronRight, GripVertical, Plus, Trash2,
-  User, Building2, Star, ArrowRight, Brain, Briefcase,
+  User, UserPlus, Building2, Star, ArrowRight, Brain, Briefcase,
   Mail, Phone, ExternalLink, Crown, Shield, AlertCircle,
   Sparkles, MapPin, Loader2,
 } from "lucide-react";
@@ -415,17 +415,24 @@ function AccessMappingBoard() {
 }
 
 const KANBAN_STAGES = ["Identify", "Research", "Outreach", "In Progress", "Connected"];
-const STAGE_COLORS: Record<string, string> = {
-  "Identify": "bg-muted",
-  "Research": "bg-blue-500/10",
-  "Outreach": "bg-amber-500/10",
-  "In Progress": "bg-purple-500/10",
-  "Connected": "bg-green-500/10",
+// Stage identity follows the brand guide's accent-top card pattern: neutral
+// surfaces, a single colored signal per column, progression cool → warm →
+// resolved instead of a pastel rainbow.
+const STAGE_STYLES: Record<string, { accent: string; dot: string; badge: string }> = {
+  "Identify":    { accent: "border-t-[#9FB0C4]", dot: "bg-[#9FB0C4]", badge: "bg-[#9FB0C4]/20 text-[#5A6B80] dark:text-[#9FB0C4]" },
+  "Research":    { accent: "border-t-[#078ACB]", dot: "bg-[#078ACB]", badge: "bg-[#078ACB]/15 text-[#078ACB]" },
+  "Outreach":    { accent: "border-t-[#D97706]", dot: "bg-[#D97706]", badge: "bg-[#D97706]/15 text-[#B45309] dark:text-[#F59E0B]" },
+  "In Progress": { accent: "border-t-[#14253D] dark:border-t-[#5A7Ba6]", dot: "bg-[#14253D] dark:bg-[#5A7BA6]", badge: "bg-[#14253D]/10 text-[#14253D] dark:bg-white/10 dark:text-[#C9D2DE]" },
+  "Connected":   { accent: "border-t-[#059669]", dot: "bg-[#059669]", badge: "bg-[#059669]/15 text-[#047857] dark:text-[#34D399]" },
 };
 
 function StrategyKanbanBoard() {
   const { toast } = useToast();
-  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  // Remember the selection across visits — boards persist server-side, but a
+  // reset selection used to read as "my board got deleted".
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(
+    () => localStorage.getItem("strategy-selected-board"),
+  );
   const [showNewBoard, setShowNewBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState("");
   const [newBoardDesc, setNewBoardDesc] = useState("");
@@ -524,10 +531,47 @@ function StrategyKanbanBoard() {
     },
   });
 
+  // Auto-select: keep the remembered board if it still exists, otherwise the
+  // most recent one. Never leave the user staring at "No board selected".
+  useEffect(() => {
+    if (!boards || boards.length === 0) return;
+    const exists = selectedBoardId && boards.some((b) => b.id === selectedBoardId);
+    if (!exists) setSelectedBoardId(boards[0].id);
+  }, [boards, selectedBoardId]);
+
+  useEffect(() => {
+    if (selectedBoardId) localStorage.setItem("strategy-selected-board", selectedBoardId);
+  }, [selectedBoardId]);
+
   const selectedBoard = boards?.find(b => b.id === selectedBoardId);
   const boardKeywords = selectedBoard?.description?.includes("Keywords:")
     ? selectedBoard.description.split("Keywords:")[1].split(",").map(k => k.trim()).filter(Boolean)
     : [];
+
+  const addToContactsMutation = useMutation({
+    mutationFn: async (card: StrategyCard) => {
+      const meta = (card.entityMeta ?? {}) as Record<string, any>;
+      const nameParts = card.entityName.trim().split(/\s+/);
+      const res = await apiRequest("POST", "/api/contacts", {
+        firstName: nameParts[0] || card.entityName,
+        lastName: nameParts.slice(1).join(" ") || "(unknown)",
+        title: meta.title || "",
+        organization: meta.office || "",
+        email: meta.email || "",
+        party: meta.party || "",
+        chamber: meta.chamber || "",
+        notes: `Added from Strategy Pipeline${selectedBoard ? ` — board: ${selectedBoard.name}` : ""}`,
+      });
+      return res.json();
+    },
+    onSuccess: (_data, card) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      toast({ title: `${card.entityName} added to Contacts` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add contact", description: error.message, variant: "destructive" });
+    },
+  });
 
   const suggestMutation = useMutation({
     mutationFn: async () => {
@@ -661,7 +705,7 @@ function StrategyKanbanBoard() {
             return (
               <div
                 key={stage}
-                className={`flex-shrink-0 w-64 rounded-lg ${STAGE_COLORS[stage] || "bg-muted"} p-3`}
+                className={`flex-shrink-0 w-64 rounded-lg border border-t-4 ${STAGE_STYLES[stage]?.accent || "border-t-border"} bg-muted/30 p-3`}
                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2", "ring-primary"); }}
                 onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2", "ring-primary"); }}
                 onDrop={(e) => {
@@ -675,8 +719,13 @@ function StrategyKanbanBoard() {
                 data-testid={`kanban-column-${stage.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <h4 className="font-medium text-sm">{stage}</h4>
-                  <Badge variant="secondary" className="text-xs">{stageCards.length}</Badge>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${STAGE_STYLES[stage]?.dot || "bg-muted-foreground"}`} aria-hidden />
+                    <h4 className="font-semibold text-sm tracking-tight">{stage}</h4>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full tabular-nums ${STAGE_STYLES[stage]?.badge || "bg-muted"}`}>
+                    {stageCards.length}
+                  </span>
                 </div>
 
                 <div className="space-y-2 min-h-[100px]">
@@ -698,15 +747,28 @@ function StrategyKanbanBoard() {
                               {meta.title && <p className="text-xs text-muted-foreground truncate">{meta.title}</p>}
                               {meta.office && <p className="text-xs text-muted-foreground truncate">{meta.office}</p>}
                             </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="shrink-0 h-6 w-6"
-                              onClick={() => deleteCardMutation.mutate(card.id)}
-                              data-testid={`button-delete-card-${card.id}`}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            <div className="flex shrink-0">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                title="Add to Contacts"
+                                onClick={() => addToContactsMutation.mutate(card)}
+                                disabled={addToContactsMutation.isPending}
+                                data-testid={`button-add-contact-${card.id}`}
+                              >
+                                <UserPlus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => deleteCardMutation.mutate(card.id)}
+                                data-testid={`button-delete-card-${card.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                           {card.notes && <p className="text-xs text-muted-foreground mt-2 italic">{card.notes}</p>}
                           <div className="flex flex-wrap gap-1 mt-2">

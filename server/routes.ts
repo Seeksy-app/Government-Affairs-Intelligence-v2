@@ -1230,6 +1230,56 @@ export async function registerRoutes(
     }
   });
 
+  // Contact lists (named groupings; a contact belongs to at most one for now)
+  app.get("/api/contact-lists", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const { db } = await import("./db");
+      const { eq, asc } = await import("drizzle-orm");
+      const { contactLists } = await import("@shared/schema");
+      const lists = await db.select().from(contactLists)
+        .where(eq(contactLists.clientId, clientId))
+        .orderBy(asc(contactLists.name));
+      res.json(lists);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to get contact lists" });
+    }
+  });
+
+  app.post("/api/contact-lists", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const name = (req.body.name || "").trim();
+      if (!name) return res.status(400).json({ message: "List name is required" });
+      const { db } = await import("./db");
+      const { contactLists } = await import("@shared/schema");
+      const [list] = await db.insert(contactLists).values({ clientId, name }).returning();
+      res.status(201).json(list);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to create list" });
+    }
+  });
+
+  app.delete("/api/contact-lists/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const { db } = await import("./db");
+      const { eq, and } = await import("drizzle-orm");
+      const { contactLists, contacts: contactsTable } = await import("@shared/schema");
+      // Detach members first so contacts never point at a dead list.
+      await db.update(contactsTable).set({ listId: null })
+        .where(and(eq(contactsTable.listId, req.params.id), eq(contactsTable.clientId, clientId)));
+      await db.delete(contactLists)
+        .where(and(eq(contactLists.id, req.params.id), eq(contactLists.clientId, clientId)));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete list" });
+    }
+  });
+
   // Create contact
   app.post("/api/contacts", isAuthenticated, async (req, res) => {
     try {
