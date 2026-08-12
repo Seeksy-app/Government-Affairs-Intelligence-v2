@@ -35,7 +35,7 @@ import { CongressAPI, formatBillId, parseBillId, lookupMemberPortrait } from "./
 import { kalshiApi } from "./services/kalshi-api";
 import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
-import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail } from "./services/email-service";
+import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail, renderBrandedEmail } from "./services/email-service";
 
 declare module "express-session" {
   interface SessionData {
@@ -380,17 +380,17 @@ export async function registerRoutes(
       
       await sendEmail({
         to: parsed.data.email,
-        subject: "Verify your email - Political Intelligence Platform",
-        html: `
-          <h2>Welcome to the Political Intelligence Platform</h2>
-          <p>Hi ${parsed.data.contactName},</p>
-          <p>Thank you for applying to join the Political Intelligence Platform. Please verify your email address by clicking the link below:</p>
-          <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Verify Email</a></p>
-          <p>Or copy and paste this link: ${verifyUrl}</p>
-          <p>This link expires in 24 hours.</p>
-          <p>After verification, our team will review your application and you'll receive a notification once approved.</p>
-          <p>Best regards,<br>The Political Intelligence Team</p>
-        `,
+        subject: "Verify your email — GovernmentAffairs.co",
+        html: renderBrandedEmail({
+          kicker: "Application Received",
+          heading: "Verify your email address",
+          bodyHtml: `
+            <p style="margin:0 0 12px 0;">Hi ${parsed.data.contactName},</p>
+            <p style="margin:0 0 12px 0;">Thank you for applying to join GovernmentAffairs.co. Please verify your email address by clicking the button below.</p>
+            <p style="margin:0;font-size:13px;color:#5A6B80;">Or copy and paste this link: ${verifyUrl}</p>`,
+          cta: { label: "Verify Email", url: verifyUrl },
+          footerNote: "This link expires in 24 hours. After verification, our team will review your application and notify you once approved.",
+        }),
       });
 
       // Send alert email to all super admins
@@ -408,8 +408,11 @@ export async function registerRoutes(
           await sendEmail({
             to: adminEmails,
             subject: `New Client Signup: ${parsed.data.companyName}`,
-            html: `
-              <h2>New Client Application Received</h2>
+            html: renderBrandedEmail({
+              kicker: "Admin Alert",
+              heading: "New client application received",
+              cta: { label: "Review Application", url: appUrl },
+              bodyHtml: `
               <table style="border-collapse:collapse;width:100%;max-width:500px;">
                 <tr><td style="padding:8px;font-weight:bold;color:#555;">Company</td><td style="padding:8px;">${parsed.data.companyName}</td></tr>
                 <tr><td style="padding:8px;font-weight:bold;color:#555;">Contact</td><td style="padding:8px;">${parsed.data.contactName}</td></tr>
@@ -423,9 +426,8 @@ export async function registerRoutes(
                 ${parsed.data.urgency ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Urgency</td><td style="padding:8px;">${parsed.data.urgency}</td></tr>` : ""}
                 ${parsed.data.howHeardAboutUs ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">How They Found Us</td><td style="padding:8px;">${parsed.data.howHeardAboutUs}</td></tr>` : ""}
                 ${parsed.data.message ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Message</td><td style="padding:8px;">${parsed.data.message}</td></tr>` : ""}
-              </table>
-              <p style="margin-top:20px;"><a href="${appUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Review Application</a></p>
-            `,
+              </table>`,
+            }),
           });
         }
       } catch (alertErr) {
@@ -568,16 +570,16 @@ export async function registerRoutes(
       
       await sendEmail({
         to: application.email,
-        subject: "Welcome to the Political Intelligence Platform!",
-        html: `
-          <h2>Welcome Aboard!</h2>
-          <p>Hi ${application.contactName},</p>
-          <p>Your account for <strong>${application.companyName}</strong> is now fully set up!</p>
-          <p>You can now log in using your email and password.</p>
-          <p><a href="${baseUrl}/login" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
-          <p>Welcome to the Political Intelligence Platform!</p>
-          <p>Best regards,<br>The Political Intelligence Team</p>
-        `,
+        subject: "Welcome to GovernmentAffairs.co!",
+        html: renderBrandedEmail({
+          kicker: "Account Ready",
+          heading: "Welcome aboard",
+          bodyHtml: `
+            <p style="margin:0 0 12px 0;">Hi ${application.contactName},</p>
+            <p style="margin:0 0 12px 0;">Your account for <strong>${application.companyName}</strong> is now fully set up.</p>
+            <p style="margin:0;">You can log in with your email and password — or with LinkedIn, if you prefer.</p>`,
+          cta: { label: "Log In Now", url: `${baseUrl}/login` },
+        }),
       });
 
       res.json({ message: "Password set successfully. You can now log in." });
@@ -820,19 +822,22 @@ export async function registerRoutes(
         approvedClientId: client.id,
       });
 
-      // Send approval email
+      // Send approval email (login URL: prefer APP_URL, fall back to request host)
+      const approvalLoginUrl = process.env.APP_URL
+        ? `${process.env.APP_URL}/login`
+        : `https://${req.headers.host}/login`;
       await sendEmail({
         to: application.email,
-        subject: "Your Application Has Been Approved! - Political Intelligence Platform",
-        html: `
-          <h2>Congratulations!</h2>
-          <p>Hi ${application.contactName},</p>
-          <p>Your application for <strong>${application.companyName}</strong> has been approved!</p>
-          <p>Your account is now active. You can log in using your work email through our secure authentication system.</p>
-          <p><a href="${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;">Log In Now</a></p>
-          <p>Welcome to the Political Intelligence Platform!</p>
-          <p>Best regards,<br>The Political Intelligence Team</p>
-        `,
+        subject: "Your application has been approved — GovernmentAffairs.co",
+        html: renderBrandedEmail({
+          kicker: "Application Approved",
+          heading: "Congratulations!",
+          bodyHtml: `
+            <p style="margin:0 0 12px 0;">Hi ${application.contactName},</p>
+            <p style="margin:0 0 12px 0;">Your application for <strong>${application.companyName}</strong> has been approved.</p>
+            <p style="margin:0;">Your account is now active — log in with your work email to get started.</p>`,
+          cta: { label: "Log In Now", url: approvalLoginUrl },
+        }),
       });
 
       res.json({ success: true, client });
@@ -870,16 +875,17 @@ export async function registerRoutes(
       // Send rejection email
       await sendEmail({
         to: application.email,
-        subject: "Application Update - Political Intelligence Platform",
-        html: `
-          <h2>Application Update</h2>
-          <p>Hi ${application.contactName},</p>
-          <p>Thank you for your interest in the Political Intelligence Platform.</p>
-          <p>After reviewing your application for <strong>${application.companyName}</strong>, we are unable to approve it at this time.</p>
-          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-          <p>If you believe this is an error or would like more information, please contact our support team.</p>
-          <p>Best regards,<br>The Political Intelligence Team</p>
-        `,
+        subject: "Application update — GovernmentAffairs.co",
+        html: renderBrandedEmail({
+          kicker: "Application Update",
+          heading: "About your application",
+          bodyHtml: `
+            <p style="margin:0 0 12px 0;">Hi ${application.contactName},</p>
+            <p style="margin:0 0 12px 0;">Thank you for your interest in GovernmentAffairs.co.</p>
+            <p style="margin:0 0 12px 0;">After reviewing your application for <strong>${application.companyName}</strong>, we are unable to approve it at this time.</p>
+            ${reason ? `<p style="margin:0 0 12px 0;"><strong>Reason:</strong> ${reason}</p>` : ""}
+            <p style="margin:0;">If you believe this is an error or would like more information, contact us at <a href="mailto:support@governmentaffairs.co" style="color:#078ACB;">support@governmentaffairs.co</a>.</p>`,
+        }),
       });
 
       res.json({ success: true });
@@ -1700,13 +1706,15 @@ export async function registerRoutes(
         from: "news@governmentaffairs.co",
         to: email,
         subject: `Shared Article: ${article.title}`,
-        html: `
-          <h2>${article.title}</h2>
-          <p><strong>Source:</strong> ${article.source || 'Unknown'}</p>
-          ${message ? `<p><strong>Message:</strong> ${message}</p>` : ''}
-          <p>${article.summary || ''}</p>
-          ${article.url ? `<p><a href="${article.url}">Read full article</a></p>` : ''}
-        `,
+        html: renderBrandedEmail({
+          kicker: "Shared Article",
+          heading: article.title,
+          bodyHtml: `
+            <p style="margin:0 0 12px 0;font-size:13px;color:#5A6B80;"><strong>Source:</strong> ${article.source || "Unknown"}</p>
+            ${message ? `<p style="margin:0 0 12px 0;padding:12px 14px;background:#F7F6F2;border-left:3px solid #078ACB;border-radius:4px;">${message}</p>` : ""}
+            <p style="margin:0;">${article.summary || ""}</p>`,
+          cta: article.url ? { label: "Read Full Article", url: article.url } : undefined,
+        }),
       });
       
       res.json({ success: true, message: "Article forwarded successfully" });
