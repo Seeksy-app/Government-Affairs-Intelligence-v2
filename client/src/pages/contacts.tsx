@@ -26,12 +26,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Plus, Search, MoreHorizontal, Edit, Trash2, Star, Mail, Phone, Building2 } from "lucide-react";
+import { Users, Plus, Search, MoreHorizontal, Edit, Trash2, Star, Mail, Phone, Building2, FolderOpen, X } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar-utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Contact, InsertContact, ContactList } from "@shared/schema";
@@ -44,6 +45,7 @@ export default function Contacts() {
   const [filterList, setFilterList] = useState<string>("all");
   const [creatingList, setCreatingList] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [showNewListDialog, setShowNewListDialog] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<Partial<InsertContact>>({
@@ -105,8 +107,9 @@ export default function Contacts() {
     },
     onSuccess: (list: ContactList) => {
       queryClient.invalidateQueries({ queryKey: ["/api/contact-lists"] });
-      setFormData((prev) => ({ ...prev, listId: list.id }));
+      if (isDialogOpen) setFormData((prev) => ({ ...prev, listId: list.id }));
       setCreatingList(false);
+      setShowNewListDialog(false);
       setNewListName("");
       toast({ title: `List "${list.name}" created` });
     },
@@ -442,6 +445,37 @@ export default function Contacts() {
         </Dialog>
       </div>
 
+      <Dialog open={showNewListDialog} onOpenChange={(open) => { setShowNewListDialog(open); if (!open) setNewListName(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create a contact list</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              placeholder="e.g., VA priority targets"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newListName.trim()) createListMutation.mutate(newListName.trim());
+              }}
+              data-testid="input-standalone-list-name"
+            />
+            <Button
+              className="w-full"
+              onClick={() => newListName.trim() && createListMutation.mutate(newListName.trim())}
+              disabled={!newListName.trim() || createListMutation.isPending}
+              data-testid="button-standalone-create-list"
+            >
+              {createListMutation.isPending ? "Creating…" : "Create List"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Then use a contact's ⋯ menu to add them, or set the list when creating a contact.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -455,6 +489,13 @@ export default function Contacts() {
                 data-testid="input-search-contacts"
               />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewListDialog(true)}
+              data-testid="button-new-list-standalone"
+            >
+              <Plus className="w-4 h-4 mr-1" /> New List
+            </Button>
             <Select value={filterList} onValueChange={setFilterList}>
               <SelectTrigger className="w-[180px]" data-testid="filter-list">
                 <SelectValue placeholder="Filter by list" />
@@ -521,7 +562,7 @@ export default function Contacts() {
                             <p className="font-medium truncate">
                               {contact.firstName} {contact.lastName}
                             </p>
-                            {contact.priority && contact.priority >= 4 && (
+                            {typeof contact.priority === "number" && contact.priority >= 4 && (
                               <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />
                             )}
                           </div>
@@ -541,6 +582,32 @@ export default function Contacts() {
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
+                          {(contactLists?.length ?? 0) > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {contactLists!.map((l) => (
+                                <DropdownMenuItem
+                                  key={l.id}
+                                  disabled={contact.listId === l.id}
+                                  onClick={() => updateMutation.mutate({ id: contact.id, data: { listId: l.id } })}
+                                  data-testid={`menu-add-to-list-${l.id}`}
+                                >
+                                  <FolderOpen className="w-4 h-4 mr-2" />
+                                  {contact.listId === l.id ? `In "${l.name}"` : `Add to "${l.name}"`}
+                                </DropdownMenuItem>
+                              ))}
+                              {contact.listId && (
+                                <DropdownMenuItem
+                                  onClick={() => updateMutation.mutate({ id: contact.id, data: { listId: null } })}
+                                  data-testid={`menu-remove-from-list-${contact.id}`}
+                                >
+                                  <X className="w-4 h-4 mr-2" />
+                                  Remove from list
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          )}
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => deleteMutation.mutate(contact.id)}
