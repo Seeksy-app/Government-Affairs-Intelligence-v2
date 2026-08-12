@@ -22,6 +22,8 @@ const LINKEDIN_ERRORS: Record<string, string> = {
   linkedin_unavailable: "LinkedIn sign-in isn't configured yet. Use your email and password.",
   linkedin_denied: "LinkedIn sign-in was cancelled.",
   linkedin_state: "LinkedIn sign-in expired — please try again.",
+  linkedin_nocookie: "Sign-in blocked: your browser didn't send the session cookie back (code NC).",
+  linkedin_nosession: "Sign-in blocked: session found but no sign-in state (code NS).",
   linkedin_no_email: "LinkedIn didn't share an email address. Use your email and password.",
   linkedin_session: "Signed in with LinkedIn, but the session couldn't be created. Please try again.",
   linkedin_failed: "LinkedIn sign-in failed. Please try again or use your email and password.",

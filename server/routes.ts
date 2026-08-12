@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac } from "crypto";
 import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
@@ -693,6 +693,28 @@ export async function registerRoutes(
     return `${proto}://${host}/api/auth/linkedin/callback`;
   };
 
+  // The CSRF state is carried two ways: in the session AND in a short-lived
+  // HMAC-signed cookie set directly on this response. The callback accepts
+  // either — this keeps the flow working even if the session cookie gets
+  // lost on the cross-site return trip.
+  const signState = (state: string) =>
+    `${state}.${createHmac("sha256", process.env.SESSION_SECRET!).update(state).digest("hex")}`;
+  const verifySignedState = (value: string | undefined): string | null => {
+    if (!value) return null;
+    const [state, sig] = value.split(".");
+    if (!state || !sig) return null;
+    const expected = createHmac("sha256", process.env.SESSION_SECRET!).update(state).digest("hex");
+    return sig === expected ? state : null;
+  };
+  const readCookie = (req: any, name: string): string | undefined => {
+    const header = (req.headers.cookie as string) || "";
+    for (const part of header.split(";")) {
+      const [k, ...v] = part.trim().split("=");
+      if (k === name) return decodeURIComponent(v.join("="));
+    }
+    return undefined;
+  };
+
   app.get("/api/auth/linkedin", async (req, res) => {
     const { isLinkedInConfigured, buildLinkedInAuthUrl } = await import("./services/linkedin-auth");
     if (!isLinkedInConfigured()) {
@@ -700,6 +722,12 @@ export async function registerRoutes(
     }
     const state = randomBytes(16).toString("hex");
     (req.session as any).linkedinOAuthState = state;
+    res.cookie("li_oauth_state", signState(state), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 10 * 60 * 1000,
+    });
     req.session.save(() => {
       res.redirect(buildLinkedInAuthUrl(linkedInRedirectUri(req), state));
     });
@@ -720,8 +748,19 @@ export async function registerRoutes(
       }
       const savedState = (req.session as any).linkedinOAuthState;
       delete (req.session as any).linkedinOAuthState;
-      if (!state || !savedState || state !== savedState) {
-        return res.redirect("/login?error=linkedin_state");
+      const cookieState = verifySignedState(readCookie(req, "li_oauth_state"));
+      res.clearCookie("li_oauth_state");
+      const stateOk = !!state && (state === savedState || state === cookieState);
+      if (!stateOk) {
+        // Split the generic "state" failure into distinct causes so the login
+        // toast itself says what went wrong on the return trip.
+        const hasSessionCookie = Boolean(req.headers.cookie?.includes("connect.sid"));
+        const hasStateCookie = Boolean(readCookie(req, "li_oauth_state"));
+        console.error(
+          `[linkedin-auth] state check failed: sessionCookie=${hasSessionCookie} stateCookie=${hasStateCookie} sessionID=${req.sessionID} savedState=${savedState ? "present" : "missing"} receivedState=${state ? "present" : "missing"}`,
+        );
+        const reason = !hasSessionCookie && !hasStateCookie ? "linkedin_nocookie" : !savedState ? "linkedin_nosession" : "linkedin_state";
+        return res.redirect(`/login?error=${reason}`);
       }
 
       const accessToken = await exchangeLinkedInCode(code, linkedInRedirectUri(req));
