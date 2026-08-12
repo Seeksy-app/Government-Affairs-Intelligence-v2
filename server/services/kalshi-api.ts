@@ -2,23 +2,56 @@ import crypto from "crypto";
 
 const KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2";
 
-// Raw API response format
+// Module-level cache for the political markets list — shared across requests
+// and API instances so dashboard + predictions page don't re-crawl Kalshi.
+const POLITICAL_CACHE_TTL_MS = 5 * 60 * 1000;
+let politicalMarketsCache: { markets: KalshiMarket[]; fetchedAt: number } | null = null;
+
+// Raw API response format.
+// Kalshi migrated its market fields: numeric cents fields (last_price,
+// yes_bid, volume, open_interest) were replaced by string decimal fields
+// (last_price_dollars, yes_bid_dollars, volume_fp, open_interest_fp).
+// We read the new names first and keep the legacy ones as fallback.
 interface KalshiMarketRaw {
   ticker: string;
   event_ticker: string;
   title: string;
   subtitle?: string;
+  yes_sub_title?: string;
+  // Legacy numeric fields (cents / counts)
   yes_bid?: number;
   yes_ask?: number;
   no_bid?: number;
   no_ask?: number;
   last_price?: number;
-  volume: number;
-  open_interest: number;
+  volume?: number;
+  volume_24h?: number;
+  open_interest?: number;
+  // Current string fields
+  yes_bid_dollars?: string;
+  yes_ask_dollars?: string;
+  no_bid_dollars?: string;
+  no_ask_dollars?: string;
+  last_price_dollars?: string;
+  volume_fp?: string;
+  volume_24h_fp?: string;
+  open_interest_fp?: string;
   status: string;
   close_time: string;
   result?: string;
   category?: string;
+}
+
+// "0.1000" dollars → 10 (cents, i.e. percent); returns 0 when absent/invalid.
+function dollarsToCents(s: string | undefined): number {
+  const n = s ? Math.round(parseFloat(s) * 100) : NaN;
+  return Number.isFinite(n) ? n : 0;
+}
+
+// "528.84" fixed-point count → 529; returns 0 when absent/invalid.
+function fpToInt(s: string | undefined): number {
+  const n = s ? Math.round(parseFloat(s)) : NaN;
+  return Number.isFinite(n) ? n : 0;
 }
 
 // Transformed format for frontend
@@ -30,6 +63,7 @@ export interface KalshiMarket {
   yes_price: number;
   no_price: number;
   volume: number;
+  volume_24h: number;
   open_interest: number;
   status: string;
   close_time: string;
@@ -39,9 +73,29 @@ export interface KalshiMarket {
 
 // Transform raw API response to our format
 function transformMarket(raw: KalshiMarketRaw): KalshiMarket {
-  // Use yes_bid if available, otherwise last_price, otherwise 50 as default
-  const yesPrice = raw.yes_bid ?? raw.last_price ?? 50;
-  const noPrice = raw.no_bid ?? (100 - yesPrice);
+  // Resolve fields across both API generations (string *_dollars/*_fp first,
+  // legacy numeric second). The old code read only the legacy names, which
+  // Kalshi no longer sends — so every market rendered as a fake "50% / Vol 0".
+  const lastPrice = dollarsToCents(raw.last_price_dollars) || raw.last_price || 0;
+  const yesBid = dollarsToCents(raw.yes_bid_dollars) || raw.yes_bid || 0;
+  const yesAsk = dollarsToCents(raw.yes_ask_dollars) || raw.yes_ask || 0;
+  const noBid = dollarsToCents(raw.no_bid_dollars) || raw.no_bid || 0;
+  const volume = fpToInt(raw.volume_fp) || raw.volume || 0;
+  const volume24h = fpToInt(raw.volume_24h_fp) || raw.volume_24h || 0;
+  const openInterest = fpToInt(raw.open_interest_fp) || raw.open_interest || 0;
+
+  // Price preference: last traded price, else bid/ask midpoint, else bid, else 50.
+  let yesPrice: number;
+  if (lastPrice > 0) {
+    yesPrice = lastPrice;
+  } else if (yesBid > 0 && yesAsk > 0 && yesAsk <= 100) {
+    yesPrice = Math.round((yesBid + yesAsk) / 2);
+  } else if (yesBid > 0) {
+    yesPrice = yesBid;
+  } else {
+    yesPrice = 50;
+  }
+  const noPrice = noBid > 0 ? noBid : 100 - yesPrice;
   
   return {
     ticker: raw.ticker,
@@ -50,8 +104,9 @@ function transformMarket(raw: KalshiMarketRaw): KalshiMarket {
     subtitle: raw.subtitle,
     yes_price: yesPrice,
     no_price: noPrice,
-    volume: raw.volume || 0,
-    open_interest: raw.open_interest || 0,
+    volume,
+    volume_24h: volume24h,
+    open_interest: openInterest,
     status: raw.status,
     close_time: raw.close_time,
     result: raw.result,
@@ -141,37 +196,47 @@ class KalshiAPI {
     method: string = "GET",
     requiresAuth: boolean = false
   ): Promise<T | null> {
-    try {
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      };
+    // Kalshi docs: apply exponential backoff on 429 (basic tier ≈ 20 reads/s).
+    const RETRY_DELAYS_MS = [600, 1500];
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        };
 
-      if (requiresAuth) {
-        Object.assign(headers, this.signRequest(method, path));
-      }
+        if (requiresAuth) {
+          Object.assign(headers, this.signRequest(method, path));
+        }
 
-      console.log(`[Kalshi] Making request to: ${this.baseUrl}${path}`);
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method,
-        headers,
-      });
+        const response = await fetch(`${this.baseUrl}${path}`, {
+          method,
+          headers,
+        });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`[Kalshi] API error: ${response.status} ${response.statusText}`);
-        console.error(`[Kalshi] Error body: ${errorBody}`);
-        console.error(`[Kalshi] Request path: ${path}`);
+        if (response.status === 429 && attempt < RETRY_DELAYS_MS.length) {
+          console.warn(`[Kalshi] 429 on ${path} — backing off ${RETRY_DELAYS_MS[attempt]}ms`);
+          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+          continue;
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[Kalshi] API error: ${response.status} ${response.statusText}`);
+          console.error(`[Kalshi] Error body: ${errorBody}`);
+          console.error(`[Kalshi] Request path: ${path}`);
+          return null;
+        }
+
+        const data = await response.json();
+        console.log(`[Kalshi] Fetched ${path}, got ${(data as any)?.markets?.length || 0} markets`);
+        return data;
+      } catch (error) {
+        console.error("[Kalshi] API request failed:", error);
         return null;
       }
-
-      const data = await response.json();
-      console.log(`[Kalshi] Successfully fetched ${path}, got ${(data as any)?.markets?.length || 0} markets`);
-      return data;
-    } catch (error) {
-      console.error("[Kalshi] API request failed:", error);
-      return null;
     }
+    return null;
   }
 
   async getMarkets(options: {
@@ -265,76 +330,53 @@ class KalshiAPI {
   }
 
   async searchPoliticalMarkets(limit: number = 200): Promise<KalshiMarket[]> {
+    // Serve from cache: this used to run a 250-request crawl on EVERY dashboard
+    // load, tripping Kalshi's rate limit (429s) and silently dropping markets.
+    const now = Date.now();
+    if (politicalMarketsCache && now - politicalMarketsCache.fetchedAt < POLITICAL_CACHE_TTL_MS) {
+      return politicalMarketsCache.markets.slice(0, limit);
+    }
+
+    console.log(`[Kalshi] Refreshing political markets cache (limit: ${limit})`);
+
+    // One crawl of /events with with_nested_markets=true returns each political
+    // event WITH its full market objects (prices + volume included) — ~6
+    // requests total, replacing the old one-request-per-event crawl (250+
+    // calls) that tripped Kalshi's rate limit on every dashboard load.
     const allMarkets: KalshiMarket[] = [];
     const seenTickers = new Set<string>();
-    const politicalEventTickers: string[] = [];
-    
-    console.log(`[Kalshi] Starting search for political markets (limit: ${limit})`);
-    
-    // Step 1: Get political events by fetching events and filtering by category
-    let eventCursor: string | undefined;
-    for (let page = 0; page < 5; page++) {
-      const eventsResult = await this.getEvents({ status: "open", limit: 100, cursor: eventCursor });
-      
-      if (!eventsResult?.events?.length) break;
-      
-      for (const event of eventsResult.events) {
-        // Filter for Politics and Elections categories
-        if (event.category === "Politics" || event.category === "Elections") {
-          politicalEventTickers.push(event.event_ticker);
+    let cursor: string | undefined;
+    for (let page = 0; page < 8; page++) {
+      const path = `/events?status=open&limit=200&with_nested_markets=true${cursor ? `&cursor=${cursor}` : ""}`;
+      const result = await this.request<{ events: Array<KalshiEvent & { markets?: KalshiMarketRaw[] }>; cursor?: string }>(
+        path,
+        "GET",
+        false,
+      );
+      if (!result?.events?.length) break;
+      for (const event of result.events) {
+        if (event.category !== "Politics" && event.category !== "Elections") continue;
+        for (const rawMarket of event.markets ?? []) {
+          if (seenTickers.has(rawMarket.ticker)) continue;
+          seenTickers.add(rawMarket.ticker);
+          const market = transformMarket(rawMarket);
+          market.category = market.category ?? event.category;
+          allMarkets.push(market);
         }
       }
-      
-      eventCursor = eventsResult.cursor;
-      if (!eventCursor) break;
+      cursor = result.cursor;
+      if (!cursor) break;
     }
-    
-    console.log(`[Kalshi] Found ${politicalEventTickers.length} political event tickers`);
-    
-    // Step 2: Fetch markets for each political event
-    for (const eventTicker of politicalEventTickers) {
-      if (allMarkets.length >= limit) break;
-      
-      const marketsResult = await this.getMarkets({ 
-        eventTicker, 
-        status: "open", 
-        limit: 50 
-      });
-      
-      if (marketsResult?.markets) {
-        for (const market of marketsResult.markets) {
-          if (!seenTickers.has(market.ticker)) {
-            seenTickers.add(market.ticker);
-            allMarkets.push(market);
-          }
-        }
-      }
-    }
-    
-    console.log(`[Kalshi] Found ${allMarkets.length} markets from political events`);
-    
-    // Step 3: If we need more, supplement with keyword-based search
-    if (allMarkets.length < limit) {
-      let cursor: string | undefined;
-      
-      for (let page = 0; page < 10 && allMarkets.length < limit; page++) {
-        const result = await this.getMarkets({ status: "open", limit: 200, cursor });
-        
-        if (!result?.markets?.length) break;
-        
-        for (const market of result.markets) {
-          if (!seenTickers.has(market.ticker) && this.isPoliticalMarket(market.title, market.ticker)) {
-            seenTickers.add(market.ticker);
-            allMarkets.push(market);
-          }
-        }
-        
-        cursor = result.cursor;
-        if (!cursor) break;
-      }
-    }
-    
-    console.log(`[Kalshi] Total political markets found: ${allMarkets.length}`);
+
+    // Step 3: Rank by real trading activity so live markets lead and dead
+    // placeholder markets (50% / Vol 0, closing in 2099) sink to the bottom.
+    const activity = (m: KalshiMarket) => m.volume_24h * 3 + m.volume + m.open_interest;
+    allMarkets.sort((a, b) => activity(b) - activity(a));
+
+    const liveCount = allMarkets.filter((m) => activity(m) > 0).length;
+    console.log(`[Kalshi] Political markets: ${allMarkets.length} total, ${liveCount} with trading activity`);
+
+    politicalMarketsCache = { markets: allMarkets, fetchedAt: now };
     return allMarkets.slice(0, limit);
   }
 
