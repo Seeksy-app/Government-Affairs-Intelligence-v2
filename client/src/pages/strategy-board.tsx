@@ -16,7 +16,7 @@ import {
   Target, Users, FileText, Network, LayoutGrid,
   Search, ChevronRight, GripVertical, Plus, Trash2,
   User, UserPlus, Building2, Star, ArrowRight, Brain, Briefcase,
-  Mail, Phone, ExternalLink, Crown, Shield, AlertCircle,
+  Mail, Phone, ExternalLink, Crown, Shield, AlertCircle, Calendar,
   Sparkles, MapPin, Loader2,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -1067,6 +1067,71 @@ function NetworkPathFinder() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {pathResult.networkPaths && pathResult.networkPaths.length > 0 && (
+            <Card className="border-[#078ACB]/40">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Network className="h-4 w-4 text-[#078ACB]" /> Warm Paths Through Your Network ({pathResult.networkPaths.length})
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  People your firm already knows, connected to this office by shared service history
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {pathResult.networkPaths.map((p: any, idx: number) => (
+                  <div key={idx} className="rounded-md border p-3" data-testid={`network-path-${idx}`}>
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="font-semibold">{p.contact.name}</span>
+                      {p.contact.title && <span className="text-xs text-muted-foreground">({p.contact.title})</span>}
+                      <ArrowRight className="h-3.5 w-3.5 text-[#078ACB] shrink-0" />
+                      {p.kind === "insider" ? (
+                        <span>currently <span className="font-semibold">inside the office</span> as {p.contactRoleThen || "staff"}</span>
+                      ) : p.kind === "alumni" ? (
+                        <span>
+                          alum of <span className="font-semibold">{p.sharedOffice}</span>
+                          {p.contactRoleThen && <> ({p.contactRoleThen})</>}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="font-semibold">{p.targetStaffer?.fullName}</span>
+                          {p.targetStaffer?.currentTitle && <span className="text-xs text-muted-foreground">({p.targetStaffer.currentTitle})</span>}
+                        </>
+                      )}
+                    </div>
+                    {p.kind === "co-tenure" && (
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Served together at {p.sharedOffice} · {p.overlapStart} → {p.overlapEnd} ({p.overlapYears} yr{p.overlapYears === 1 ? "" : "s"} overlap)
+                        {p.contactRoleThen && <> · your contact was {p.contactRoleThen}</>}
+                      </p>
+                    )}
+                    {p.kind === "co-tenure" && p.targetStaffer?.email && (
+                      <p className="text-xs mt-1">
+                        <a href={`mailto:${p.targetStaffer.email}`} className="text-[#078ACB] font-medium hover:underline">
+                          {p.targetStaffer.email}
+                        </a>
+                        <span className="text-muted-foreground"> — but ask {p.contact.name.split(" ")[0]} for the intro first</span>
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {pathResult.scheduler && (
+            <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm flex flex-wrap items-center gap-2" data-testid="scheduler-strip">
+              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">Books the meeting:</span>
+              <span className="font-semibold">{pathResult.scheduler.fullName}</span>
+              {pathResult.scheduler.title && <span className="text-xs text-muted-foreground">({pathResult.scheduler.title})</span>}
+              {pathResult.scheduler.email && (
+                <a href={`mailto:${pathResult.scheduler.email}`} className="text-[#078ACB] font-medium hover:underline">
+                  {pathResult.scheduler.email}
+                </a>
+              )}
+            </div>
           )}
 
           {pathResult.directStaffers && pathResult.directStaffers.length > 0 && (
