@@ -662,6 +662,92 @@ export async function registerRoutes(
     });
   });
 
+  // ── Sign in with LinkedIn (OpenID Connect) ──────────────────────────────
+  // Existing users (matched by verified email) log straight in; unknown
+  // emails are sent to /signup with LinkedIn profile fields prefilled so
+  // account creation still flows through the application/approval funnel.
+  const linkedInRedirectUri = (req: any): string => {
+    const host = (req.headers["host"] as string) || "localhost:5000";
+    const proto = host.startsWith("localhost")
+      ? "http"
+      : (req.headers["x-forwarded-proto"] as string) || "https";
+    return `${proto}://${host}/api/auth/linkedin/callback`;
+  };
+
+  app.get("/api/auth/linkedin", async (req, res) => {
+    const { isLinkedInConfigured, buildLinkedInAuthUrl } = await import("./services/linkedin-auth");
+    if (!isLinkedInConfigured()) {
+      return res.redirect("/login?error=linkedin_unavailable");
+    }
+    const state = randomBytes(16).toString("hex");
+    (req.session as any).linkedinOAuthState = state;
+    req.session.save(() => {
+      res.redirect(buildLinkedInAuthUrl(linkedInRedirectUri(req), state));
+    });
+  });
+
+  app.get("/api/auth/linkedin/callback", async (req, res) => {
+    try {
+      const { exchangeLinkedInCode, fetchLinkedInUserInfo } = await import("./services/linkedin-auth");
+      const { code, state, error } = req.query as Record<string, string | undefined>;
+
+      if (error || !code) {
+        return res.redirect("/login?error=linkedin_denied");
+      }
+      const savedState = (req.session as any).linkedinOAuthState;
+      delete (req.session as any).linkedinOAuthState;
+      if (!state || !savedState || state !== savedState) {
+        return res.redirect("/login?error=linkedin_state");
+      }
+
+      const accessToken = await exchangeLinkedInCode(code, linkedInRedirectUri(req));
+      const info = await fetchLinkedInUserInfo(accessToken);
+      if (!info.email) {
+        return res.redirect("/login?error=linkedin_no_email");
+      }
+
+      const user = await authStorage.getUserByEmail(info.email.toLowerCase());
+
+      if (!user) {
+        // No account yet — prefill the signup application from LinkedIn.
+        const q = new URLSearchParams({ from: "linkedin", email: info.email });
+        const fullName = [info.given_name, info.family_name].filter(Boolean).join(" ") || info.name || "";
+        if (fullName) q.set("name", fullName);
+        return res.redirect(`/signup?${q.toString()}`);
+      }
+
+      // Backfill the profile photo from LinkedIn if we don't have one.
+      if (!user.profileImageUrl && info.picture) {
+        try {
+          await authStorage.upsertUser({ id: user.id, email: user.email, profileImageUrl: info.picture });
+        } catch (e) {
+          console.error("[linkedin-auth] profile image backfill failed:", e);
+        }
+      }
+
+      const sessionUser = {
+        claims: {
+          sub: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+        },
+        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 1 week, same as password login
+      };
+
+      req.login(sessionUser, (err) => {
+        if (err) {
+          console.error("[linkedin-auth] session login error:", err);
+          return res.redirect("/login?error=linkedin_session");
+        }
+        res.redirect("/dashboard");
+      });
+    } catch (e) {
+      console.error("[linkedin-auth] callback failed:", e);
+      res.redirect("/login?error=linkedin_failed");
+    }
+  });
+
   // Password reset request
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {

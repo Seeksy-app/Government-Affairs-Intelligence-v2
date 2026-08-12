@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,16 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+// Human-readable messages for /login?error=... set by the LinkedIn callback.
+const LINKEDIN_ERRORS: Record<string, string> = {
+  linkedin_unavailable: "LinkedIn sign-in isn't configured yet. Use your email and password.",
+  linkedin_denied: "LinkedIn sign-in was cancelled.",
+  linkedin_state: "LinkedIn sign-in expired — please try again.",
+  linkedin_no_email: "LinkedIn didn't share an email address. Use your email and password.",
+  linkedin_session: "Signed in with LinkedIn, but the session couldn't be created. Please try again.",
+  linkedin_failed: "LinkedIn sign-in failed. Please try again or use your email and password.",
+};
 
 // Rotating brand imagery for the sign-in panel — one shown at random per visit.
 // Captions are placeholder copy; edit freely.
@@ -91,6 +101,20 @@ export default function LoginPage() {
   const onSubmit = (data: LoginForm) => {
     loginMutation.mutate(data);
   };
+
+  // Surface LinkedIn callback errors (?error=linkedin_*) once, then clean the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err && LINKEDIN_ERRORS[err]) {
+      toast({
+        title: "LinkedIn sign-in",
+        description: LINKEDIN_ERRORS[err],
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", "/login");
+    }
+  }, [toast]);
 
   return (
     <div
@@ -237,6 +261,24 @@ export default function LoginPage() {
               </button>
             </form>
           </Form>
+
+          {/* Divider + LinkedIn SSO */}
+          <div className="mt-6 flex items-center gap-3" aria-hidden>
+            <div className="h-px flex-1 bg-[#E9ECEC]" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#5A6B80]">or</span>
+            <div className="h-px flex-1 bg-[#E9ECEC]" />
+          </div>
+
+          <a
+            href="/api/auth/linkedin"
+            data-testid="button-linkedin-login"
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2.5 rounded-[6px] bg-[#0A66C2] text-base font-bold text-white transition-colors hover:bg-[#004182]"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden>
+              <path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0z" />
+            </svg>
+            Continue with LinkedIn
+          </a>
 
           <p className="mt-8 text-center text-[15px] text-[#5A6B80]">
             Don&apos;t have an account yet?{" "}
