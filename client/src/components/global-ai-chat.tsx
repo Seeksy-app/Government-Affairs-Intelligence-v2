@@ -10,13 +10,14 @@ import { MessageSquare, Send, Sparkles, ArrowRight, History, Search, Loader2, Sa
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AIMessageRenderer } from "@/components/ai-message-renderer";
+import { AIMessageRenderer, type DirectoryStaffer } from "@/components/ai-message-renderer";
 import type { ClientPortal } from "@shared/schema";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   provider?: string;
+  staffers?: DirectoryStaffer[];
 }
 
 const SUGGESTED_PROMPTS = [
@@ -28,12 +29,12 @@ const SUGGESTED_PROMPTS = [
   "What are recent career moves in the EPA?",
 ];
 
-const AI_PROVIDERS = [
-  { value: "auto", label: "Auto (Best Available)" },
-  { value: "openai", label: "OpenAI GPT-4.1" },
-  { value: "gemini", label: "Google Gemini" },
-  { value: "anthropic", label: "Anthropic Claude" },
-];
+// Only providers the backend reports as actually configured are shown.
+const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic Claude",
+  openai: "OpenAI",
+  gemini: "Google Gemini",
+};
 
 export function openAIChat(prefillMessage?: string) {
   window.dispatchEvent(new CustomEvent("open-ai-chat", { detail: { message: prefillMessage } }));
@@ -69,6 +70,12 @@ export function GlobalAIChat() {
     queryKey: ["/api/portals"],
   });
 
+  const { data: providerData } = useQuery<{ providers: string[] }>({
+    queryKey: ["/api/ai/providers"],
+    staleTime: 5 * 60 * 1000,
+  });
+  const availableProviders = providerData?.providers ?? [];
+
   const saveRecentSearch = (query: string) => {
     const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
     setRecentSearches(updated);
@@ -86,10 +93,11 @@ export function GlobalAIChat() {
       return res.json();
     },
     onSuccess: (data) => {
-      setChatMessages(prev => [...prev, { 
-        role: "assistant", 
+      setChatMessages(prev => [...prev, {
+        role: "assistant",
         content: data.response,
-        provider: data.provider 
+        provider: data.provider,
+        staffers: data.staffers ?? [],
       }]);
       setChatInput("");
     },
@@ -177,9 +185,10 @@ export function GlobalAIChat() {
                   <SelectValue placeholder="Select AI Provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AI_PROVIDERS.map((provider) => (
-                    <SelectItem key={provider.value} value={provider.value}>
-                      {provider.label}
+                  <SelectItem value="auto">Auto (Best Available)</SelectItem>
+                  {availableProviders.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PROVIDER_LABELS[p] ?? p}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -259,8 +268,9 @@ export function GlobalAIChat() {
                             className="rounded-2xl px-4 py-3 bg-muted rounded-bl-md"
                             data-testid={`global-chat-message-${i}`}
                           >
-                            <AIMessageRenderer 
-                              content={msg.content} 
+                            <AIMessageRenderer
+                              content={msg.content}
+                              staffers={msg.staffers}
                               onFollowUp={(query) => {
                                 setChatInput(query);
                                 saveRecentSearch(query);

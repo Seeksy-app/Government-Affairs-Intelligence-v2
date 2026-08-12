@@ -4125,36 +4125,48 @@ Format your response as a structured summary with clear sections.`;
         return res.status(400).json({ message: "Message is required" });
       }
 
-      const systemPrompt = `You are a political intelligence research assistant. You help analyze political news, track career movements of government officials and staffers, and provide insights on lobbying activities and policy developments.
+      const systemPrompt = `You are the research assistant inside GovernmentAffairs.co, a political intelligence platform for government-affairs professionals.
 
-IMPORTANT INSTRUCTIONS:
-1. Always provide sources when citing facts, legislation, or specific information
-2. Format sources as [Source: description] at the end of your response
-3. Be concise but thorough
-4. When you don't have specific sources, indicate that the information is based on general knowledge
+YOUR DATA ACCESS:
+- You have DIRECT access to the platform's LegiStorm congressional staff directory (~17,900 staffers) via the search_staffer_directory tool. For ANY question about staffers, who works for a member, schedulers, chiefs of staff, or reaching an office: USE THE TOOL. Never answer staffing questions from memory, and never tell the user to "check LegiStorm" — this platform IS their LegiStorm access.
+- When you present directory results, mention they come from the platform's staff directory and note the sync date if relevant.
 
-${context ? `Context from recent research:\n${context}` : "No research context available yet."}`;
+STYLE:
+1. Cite sources for facts and legislation as [Source: description]
+2. Be concise but thorough
+3. Do NOT use markdown tables — use short lists or bolded lines instead
+4. If something is from general knowledge rather than platform data, say so
+
+${context ? `Context from recent research:\n${context}` : ""}`;
+
+      const chatMessages = [
+        { role: "system" as const, content: systemPrompt },
+        ...(history || []).map((h: any) => ({
+          role: h.role as "user" | "assistant",
+          content: h.content,
+        })),
+        { role: "user" as const, content: message },
+      ];
 
       let reply = "";
       let usedProvider = "unknown";
+      let staffers: any[] = [];
 
-      // Central provider fallback (anthropic → openai → gemini), skipping
-      // anything unconfigured. See server/services/ai-providers.ts.
       try {
-        const { completeChat, AI_MODELS } = await import("./services/ai-providers");
-        const result = await completeChat(
-          [
-            { role: "system" as const, content: systemPrompt },
-            ...(history || []).map((h: any) => ({
-              role: h.role as "user" | "assistant",
-              content: h.content,
-            })),
-            { role: "user" as const, content: message },
-          ],
-          { maxTokens: 1500 },
-        );
-        reply = result.text;
-        usedProvider = `${result.provider} (${AI_MODELS[result.provider]})`;
+        const { providerConfig, completeChat, AI_MODELS } = await import("./services/ai-providers");
+        if (providerConfig("anthropic")) {
+          // Grounded path: Claude + directory tool access.
+          const { groundedChat } = await import("./services/grounded-chat");
+          const result = await groundedChat(chatMessages, { maxTokens: 2000 });
+          reply = result.text;
+          usedProvider = result.provider;
+          staffers = result.staffers;
+        } else {
+          // Fallback: plain completion via whatever provider is configured.
+          const result = await completeChat(chatMessages, { maxTokens: 1500 });
+          reply = result.text;
+          usedProvider = `${result.provider} (${AI_MODELS[result.provider]})`;
+        }
       } catch (providerError) {
         console.error("AI chat: all providers failed:", providerError);
       }
@@ -4162,15 +4174,18 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       if (!reply) {
         return res.status(500).json({ message: "I couldn't generate a response. Please try again." });
       }
-      
-      // Add source attribution
-      const responseWithSource = `${reply}\n\n---\n*Powered by ${usedProvider}*`;
-      
-      res.json({ response: responseWithSource, provider: usedProvider });
+
+      res.json({ response: reply, provider: usedProvider, staffers });
     } catch (error) {
       console.error("Error in chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
     }
+  });
+
+  // Which AI providers are actually configured (drives the chat's model picker)
+  app.get("/api/ai/providers", isAuthenticated, async (_req, res) => {
+    const { availableProviders } = await import("./services/ai-providers");
+    res.json({ providers: availableProviders() });
   });
 
   // ============ YouTube Watch List Routes ============
