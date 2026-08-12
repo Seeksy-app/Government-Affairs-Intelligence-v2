@@ -194,6 +194,23 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: run bill-alert sync now (the scheduler runs it every 6h)
+  app.post("/api/admin/bill-alerts/run", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = await storage.getSuperAdminByUserId(userId!);
+      if (!superAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const { syncTrackedBillsAndAlert } = await import("./services/bill-alert-service");
+      const result = await syncTrackedBillsAndAlert();
+      res.json(result);
+    } catch (error) {
+      console.error("Error running bill alert sync:", error);
+      res.status(500).json({ message: "Failed to run bill alert sync" });
+    }
+  });
+
   // Admin: Create client
   app.post("/api/admin/clients", isAuthenticated, async (req, res) => {
     try {

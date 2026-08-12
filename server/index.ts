@@ -183,6 +183,20 @@ app.use((req, res, next) => {
           }
         }, SIX_HOURS);
         log("Government press sync scheduled (every 6 hours)");
+
+        // Bill tracking alerts — detect changes on tracked bills and email
+        // ALERT_EMAIL. Every 6 hours, first run 5 minutes after boot.
+        const runBillAlerts = async () => {
+          try {
+            const { syncTrackedBillsAndAlert } = await import("./services/bill-alert-service");
+            await syncTrackedBillsAndAlert();
+          } catch (err) {
+            console.error("Bill alert sync error:", err);
+          }
+        };
+        setTimeout(runBillAlerts, 5 * 60 * 1000);
+        setInterval(runBillAlerts, SIX_HOURS);
+        log("Bill alert sync scheduled (every 6 hours)");
       }
 
       // Auto-sync House directory if cache is empty
