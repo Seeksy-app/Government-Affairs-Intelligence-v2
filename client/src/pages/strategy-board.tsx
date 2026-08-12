@@ -225,7 +225,7 @@ function AccessMappingBoard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-sm whitespace-pre-wrap" data-testid="text-ai-strategy">{aiStrategy.strategy}</div>
+                <div className="text-sm whitespace-pre-wrap" data-testid="text-ai-strategy">{renderMarkdown(aiStrategy.strategy)}</div>
               </CardContent>
             </Card>
           )}
@@ -415,6 +415,26 @@ function StrategyKanbanBoard() {
   });
 
   const selectedBoard = boards?.find(b => b.id === selectedBoardId);
+  const boardKeywords = selectedBoard?.description?.includes("Keywords:")
+    ? selectedBoard.description.split("Keywords:")[1].split(",").map(k => k.trim()).filter(Boolean)
+    : [];
+
+  const suggestMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/strategy/boards/${selectedBoardId}/suggest-cards`);
+      return res.json();
+    },
+    onSuccess: (data: { created: unknown[]; message?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy/boards", selectedBoardId, "cards"] });
+      toast({
+        title: data.created.length > 0 ? `Added ${data.created.length} suggested staffers to Identify` : "No new suggestions",
+        description: data.message ?? (data.created.length > 0 ? "Ranked by fit against this board's keywords." : undefined),
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "AI suggest failed", description: error.message, variant: "destructive" });
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -434,6 +454,21 @@ function StrategyKanbanBoard() {
               ))}
             </SelectContent>
           </Select>
+          {selectedBoardId && (
+            <Button
+              variant="outline"
+              onClick={() => suggestMutation.mutate()}
+              disabled={suggestMutation.isPending || boardKeywords.length === 0}
+              title={boardKeywords.length === 0 ? "Add keywords to this board to enable AI suggestions" : undefined}
+              data-testid="button-ai-suggest"
+            >
+              {suggestMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Thinking…</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-1" /> AI Suggest</>
+              )}
+            </Button>
+          )}
           <Button onClick={() => setShowNewBoard(true)} data-testid="button-new-board">
             <Plus className="h-4 w-4 mr-1" /> New Board
           </Button>
@@ -581,7 +616,12 @@ function StrategyKanbanBoard() {
                       variant="ghost"
                       size="sm"
                       className="w-full mt-2"
-                      onClick={() => setAddCardStage(stage)}
+                      onClick={() => {
+                        setAddCardStage(stage);
+                        // Seed the search with the board's first keyword so
+                        // relevant staffers appear before any typing.
+                        if (boardKeywords[0]) setAddCardSearch(boardKeywords[0]);
+                      }}
                       data-testid={`button-add-card-${stage.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       <Plus className="h-3 w-3 mr-1" /> Add
@@ -748,7 +788,7 @@ function BillInfluenceView() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-sm whitespace-pre-wrap" data-testid="text-bill-ai-strategy">{billInfluence.aiStrategy}</div>
+                    <div className="text-sm whitespace-pre-wrap" data-testid="text-bill-ai-strategy">{renderMarkdown(billInfluence.aiStrategy)}</div>
                   </CardContent>
                 </Card>
               )}
