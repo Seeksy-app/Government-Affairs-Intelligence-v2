@@ -163,17 +163,19 @@ function buildRankingPrompt(
 
 Return ONLY a valid JSON array. No markdown fences, no preamble, no explanation.
 
-Each element must match this exact shape:
+Include ONLY items scoring 40 or higher (omit the rest entirely), as:
 {
-  "id": "<id from the item>",
-  "score": <integer 0-100>,
-  "whyItMatters": "<1-2 sentences explaining relevance to this client; empty string if score < 40>"
+  "i": <item number as shown in brackets>,
+  "score": <integer 40-100>,
+  "why": "<ONE short sentence, max 20 words, on why this matters to the client>"
 }
 
 Scoring guide:
 - 70-100: Directly names the client's agencies, topics, or committees. High-urgency legislative/regulatory action.
 - 40-69: Adjacent topic, loosely related agency, or background context worth tracking.
-- 0-39: No meaningful connection to this client's work.`;
+- Below 40: omit from the array.
+
+Keep the output small: at most 15 entries, ranked by relevance.`;
 
   const clientBlock = `CLIENT: ${profile.clientName}
 Industries: ${profile.industries.join(", ")}
@@ -183,13 +185,10 @@ Relevant committees: ${profile.relevantCommittees.join(", ")}`;
 
   const itemsBlock = items
     .map((item, i) => {
-      const summary = item.summary?.slice(0, 300) ?? "(no summary)";
-      return `[${i + 1}] ID: ${item.id}
-Source: ${item.source}
-Title: ${item.title}
-Summary: ${summary}`;
+      const summary = item.summary?.slice(0, 220) ?? "(no summary)";
+      return `[${i + 1}] (${item.source}) ${item.title} — ${summary}`;
     })
-    .join("\n\n");
+    .join("\n");
 
   const user = `${clientBlock}
 
@@ -203,15 +202,20 @@ ${itemsBlock}`;
 async function callClaudeForRanking(
   system: string,
   user: string,
+  items: InputItem[],
 ): Promise<ClaudeRanking[]> {
   const client = new Anthropic({
     apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
     baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || undefined,
   });
 
+  // Compact output format ({i, score, why}, relevant items only) keeps the
+  // response small enough to finish well inside proxy timeouts. 16k-token
+  // UUID-echoing responses were taking 1-2 minutes and getting killed at the
+  // proxy (~100s), which the UI experienced as an endless loading skeleton.
   const message = await client.messages.create({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 2000,
     system,
     messages: [{ role: "user", content: user }],
   });
@@ -233,11 +237,19 @@ async function callClaudeForRanking(
     throw new Error(`Claude response was not an array: ${jsonText.slice(0, 200)}`);
   }
 
-  return parsed.map((item: any) => ({
-    id: String(item.id ?? ""),
-    score: Number(item.score ?? 0),
-    whyItMatters: String(item.whyItMatters ?? ""),
-  }));
+  // Map 1-based item indexes back to item IDs; drop anything out of range.
+  return (parsed as any[])
+    .map((entry) => {
+      const idx = Number(entry.i ?? entry.index ?? 0) - 1;
+      const item = items[idx];
+      if (!item) return null;
+      return {
+        id: item.id,
+        score: Number(entry.score ?? 0),
+        whyItMatters: String(entry.why ?? entry.whyItMatters ?? ""),
+      };
+    })
+    .filter((r): r is ClaudeRanking => r !== null);
 }
 
 // ─── "Who to focus on" lookup ─────────────────────────────────────────────────
@@ -362,7 +374,7 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
   // Single Claude call to score all items.
   // Cap the batch so the prompt stays bounded (and can't blow past rate limits
   // or silently truncate the JSON ranking output as the corpus grows).
-  const MAX_ITEMS_PER_RENDER = 60;
+  const MAX_ITEMS_PER_RENDER = 40;
   if (inputItems.length > MAX_ITEMS_PER_RENDER) {
     console.log(`[morning-brief] ${clientId}: capping ${inputItems.length} items to ${MAX_ITEMS_PER_RENDER}`);
     inputItems.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
@@ -374,7 +386,7 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
   const rankStart = Date.now();
   let rankings: ClaudeRanking[];
   try {
-    rankings = await callClaudeForRanking(system, user);
+    rankings = await callClaudeForRanking(system, user, inputItems);
     console.log(`[morning-brief] ${clientId}: Claude ranked ${rankings.length} items in ${Date.now() - rankStart}ms`);
   } catch (err: any) {
     console.error(`[morning-brief] ${clientId}: Claude ranking FAILED after ${Date.now() - rankStart}ms:`, err?.message || err);

@@ -106,6 +106,7 @@ export default function ClientDashboard() {
     },
     enabled: !!effectiveClientId,
     staleTime: 10 * 60 * 1000,
+    retry: 1, // fail fast — surface the error instead of minutes of skeleton
   });
 
   const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({

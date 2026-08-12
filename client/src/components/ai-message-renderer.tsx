@@ -417,19 +417,35 @@ function SuggestedFollowUps({ entities, onFollowUp }: {
 function renderInlineContent(text: string, entities: ParsedEntities, keyPrefix: string = "") {
   const parts: JSX.Element[] = [];
   
-  const combinedPattern = /(\*\*[^*]+\*\*|https?:\/\/[^\s<>)\]]+)/g;
+  // Markdown links first so their URLs aren't split out by the bare-URL branch.
+  const combinedPattern = /(\[[^\]]+\]\(https?:\/\/[^)\s]+\)|\*\*[^*]+\*\*|https?:\/\/[^\s<>)\]]+)/g;
   let lastIndex = 0;
   let match;
   let partIndex = 0;
-  
+
   while ((match = combinedPattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(<span key={`${keyPrefix}-text-${partIndex++}`}>{text.slice(lastIndex, match.index)}</span>);
     }
-    
+
     const matchedText = match[0];
-    
-    if (matchedText.startsWith('**') && matchedText.endsWith('**')) {
+
+    const mdLink = matchedText.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+    if (mdLink) {
+      parts.push(
+        <a
+          key={`${keyPrefix}-mdlink-${partIndex++}`}
+          href={mdLink[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline inline-flex items-center gap-1"
+          data-testid={`link-md-${partIndex}`}
+        >
+          {mdLink[1]}
+          <ExternalLink className="h-3 w-3 inline" />
+        </a>
+      );
+    } else if (matchedText.startsWith('**') && matchedText.endsWith('**')) {
       const innerText = matchedText.slice(2, -2);
       const matchingStaffer = entities.staffers.find(s => s.name === innerText);
       
@@ -485,9 +501,41 @@ function EnhancedMarkdown({ content, entities }: { content: string; entities: Pa
   const elements: JSX.Element[] = [];
   let listItems: JSX.Element[] = [];
   
+  const flushList = (i: number) => {
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-flush-${i}`} className="list-disc list-inside my-2 space-y-1">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+      inList = false;
+    }
+  };
+
   lines.forEach((line, i) => {
     const trimmedLine = line.trim();
-    
+
+    // Horizontal rules / stray divider lines (---, --, ***, "* --") → thin rule.
+    // Without this, "-"-led divider lines render as bullet items reading "--".
+    if (/^[*\s]*[-_*]{2,}[*\s]*$/.test(trimmedLine) && !/[a-zA-Z0-9]/.test(trimmedLine)) {
+      flushList(i);
+      elements.push(<hr key={`hr-${i}`} className="my-3 border-border/60" />);
+      return;
+    }
+
+    // Markdown headings (#, ##, ###...) → styled heading line.
+    const heading = trimmedLine.match(/^#{1,4}\s+(.*)$/);
+    if (heading) {
+      flushList(i);
+      elements.push(
+        <h4 key={`h-${i}`} className="font-semibold text-sm mt-3 mb-1.5">
+          {renderInlineContent(heading[1], entities, `h-${i}`)}
+        </h4>
+      );
+      return;
+    }
+
     if (trimmedLine.startsWith('-') || trimmedLine.startsWith('•')) {
       if (!inList) {
         inList = true;
