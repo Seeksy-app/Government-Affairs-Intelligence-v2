@@ -19,12 +19,16 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Sun,
+  Sunrise,
+  Sunset,
   ExternalLink,
   FileText,
   Users,
   AlertCircle,
   Clock,
   Info,
+  RefreshCw,
+  ChevronRight,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,6 +89,29 @@ function scoreColor(score: number) {
   if (score >= 70) return "bg-red-100 text-red-800 border-red-200";
   if (score >= 40) return "bg-amber-100 text-amber-800 border-amber-200";
   return "bg-slate-100 text-slate-600 border-slate-200";
+}
+
+// Left accent bar per relevance tier — the card's at-a-glance signal.
+function accentClass(score: number) {
+  if (score >= 70) return "border-l-red-400";
+  if (score >= 40) return "border-l-amber-400";
+  return "border-l-slate-300";
+}
+
+// The brief's identity follows the clock (matches the dashboard header).
+function getBriefIdentity() {
+  const hour = new Date().getHours();
+  if (hour < 12) return { label: "Morning Brief", Icon: Sunrise };
+  if (hour < 17) return { label: "Afternoon Brief", Icon: Sun };
+  return { label: "Evening Brief", Icon: Sunset };
+}
+
+function getTodayLine() {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 // ─── Side Panel ───────────────────────────────────────────────────────────────
@@ -235,40 +262,51 @@ function ItemCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-lg border p-4 hover:bg-accent/50 transition-colors group ${
-        highlight ? "border-primary/30 bg-primary/5" : "bg-card"
-      }`}
+      className={`w-full text-left rounded-xl border border-l-4 bg-card transition-all group hover:shadow-md hover:-translate-y-px ${accentClass(
+        item.score,
+      )} ${highlight ? "p-5" : "p-4"}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {item.source}
             </span>
             {item.publishedAt && (
               <>
-                <span className="text-muted-foreground/50 text-xs">·</span>
+                <span className="text-muted-foreground/40 text-xs">·</span>
                 <span className="text-xs text-muted-foreground">
                   {formatDate(item.publishedAt)}
                 </span>
               </>
             )}
+            <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+              {item.type === "press_release" ? "Press Release" : "News"}
+            </Badge>
           </div>
-          <p className="text-sm font-semibold leading-snug group-hover:text-primary transition-colors line-clamp-2">
+          <p
+            className={`font-semibold leading-snug group-hover:text-primary transition-colors ${
+              highlight ? "text-base line-clamp-3" : "text-sm line-clamp-2"
+            }`}
+          >
             {item.title}
           </p>
           {item.whyItMatters && (
-            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed border-l-2 border-primary/20 pl-2.5">
               {item.whyItMatters}
             </p>
           )}
         </div>
-        <Badge
-          variant="outline"
-          className={`shrink-0 text-xs ${scoreColor(item.score)}`}
-        >
-          {item.score}
-        </Badge>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span
+            className={`inline-flex items-center justify-center min-w-[2.25rem] rounded-md border px-1.5 py-0.5 text-sm font-bold tabular-nums ${scoreColor(
+              item.score,
+            )}`}
+          >
+            {item.score}
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-muted-foreground/70 transition-colors" />
+        </div>
       </div>
     </button>
   );
@@ -373,37 +411,53 @@ export default function MorningBriefPage() {
       })
     : null;
 
+  const { label: briefLabel, Icon: BriefIcon } = getBriefIdentity();
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Sun className="h-5 w-5 text-amber-500" />
-              <h1 className="text-xl font-semibold">Morning Brief</h1>
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6">
+        {/* Masthead */}
+        <div className="border-b pb-6 mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <BriefIcon className="h-6 w-6 text-amber-500" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight" data-testid="text-brief-title">
+                  {briefLabel}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {getTodayLine()}
+                  {brief?.clientName && <> · {brief.clientName}</>}
+                  {generatedAt && <> · generated {generatedAt}</>}
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {brief?.clientName ?? "Loading..."}
-              {generatedAt && (
-                <span className="ml-2 text-xs">· Generated {generatedAt}</span>
-              )}
-            </p>
-          </div>
-          {brief && (
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <span className="text-xs text-muted-foreground">
-                {brief.scoringMetadata.totalItemsConsidered} items scored ·{" "}
-                {brief.scoringMetadata.windowUsedHours}h window
-              </span>
+            {brief && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
                 className="shrink-0"
+                data-testid="button-refresh-brief"
               >
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 Refresh
               </Button>
+            )}
+          </div>
+          {brief && (
+            <div className="flex items-center gap-2 mt-4 flex-wrap">
+              <span className="text-xs font-medium rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                {brief.scoringMetadata.totalItemsConsidered} items scored
+              </span>
+              <span className="text-xs font-medium rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                last {brief.scoringMetadata.windowUsedHours}h
+              </span>
+              <span className="text-xs font-medium rounded-full bg-red-50 text-red-700 px-2.5 py-1 dark:bg-red-950/40 dark:text-red-300">
+                {brief.highRelevance.length} high priority
+              </span>
             </div>
           )}
         </div>
@@ -446,11 +500,15 @@ export default function MorningBriefPage() {
         {/* Content */}
         {!isLoading && brief && (
           <div className="space-y-8">
-            {/* High Relevance */}
+            {/* Top Priorities */}
             <section>
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
-                  High Relevance
+              <div className="flex items-center gap-2.5 mb-4">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                </span>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+                  Top Priorities
                 </h2>
                 <Badge variant="secondary" className="text-xs">
                   {brief.highRelevance.length}
@@ -458,10 +516,10 @@ export default function MorningBriefPage() {
               </div>
               {brief.highRelevance.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No high-relevance items in this window.
+                  Nothing urgent in this window — a quiet day for {brief.clientName}.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {brief.highRelevance.map((item) => (
                     <ItemCard
                       key={item.id}
@@ -477,15 +535,15 @@ export default function MorningBriefPage() {
             {/* Worth Watching */}
             {brief.worthWatching.length > 0 && (
               <section>
-                <div className="flex items-center gap-2 mb-3">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
                     Worth Watching
                   </h2>
                   <Badge variant="outline" className="text-xs">
                     {brief.worthWatching.length}
                   </Badge>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {brief.worthWatching.map((item) => (
                     <ItemCard
                       key={item.id}
