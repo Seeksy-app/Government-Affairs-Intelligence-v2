@@ -8110,6 +8110,90 @@ Keep the response practical, actionable, and under 500 words.`;
     }
   });
 
+  // AI pipeline builder: find staffers matching the board's keywords, have
+  // Claude pick the best initial targets, and add them to Identify.
+  app.post("/api/strategy/boards/:boardId/suggest-cards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = (await getClientId(req)) || "default";
+      const { db } = await import("./db");
+      const { eq, or, ilike } = await import("drizzle-orm");
+
+      const [board] = await db.select().from(strategyBoards)
+        .where(eq(strategyBoards.id, req.params.boardId));
+      if (!board) return res.status(404).json({ message: "Board not found" });
+
+      const keywords = (board.description?.split("Keywords:")[1] || "")
+        .split(",").map((k) => k.trim()).filter(Boolean);
+      if (keywords.length === 0) {
+        return res.status(400).json({ message: "Add keywords to this board first — suggestions search the staff directory by keyword." });
+      }
+
+      const candidates = await db.select().from(legistormStaffers)
+        .where(or(...keywords.flatMap((kw) => [
+          ilike(legistormStaffers.currentTitle, `%${kw}%`),
+          ilike(legistormStaffers.currentOffice, `%${kw}%`),
+        ])))
+        .limit(40);
+
+      const existing = await db.select().from(strategyCards)
+        .where(eq(strategyCards.boardId, board.id));
+      const existingIds = new Set(existing.map((c) => c.entityId));
+      const fresh = candidates.filter((s) => !existingIds.has(String(s.legistormId)));
+      if (fresh.length === 0) {
+        return res.json({ created: [], message: "No new staffers matched this board's keywords." });
+      }
+
+      // Compact index-based output (same lesson as Morning Brief: never make
+      // the model echo IDs; long outputs die at the proxy timeout).
+      const list = fresh
+        .map((s, i) => `[${i + 1}] ${s.fullName} — ${s.currentTitle ?? "unknown title"} — ${s.currentOffice ?? "unknown office"}`)
+        .join("\n");
+      const { completeChat } = await import("./services/ai-providers");
+      const { text } = await completeChat([
+        {
+          role: "system",
+          content: 'You are a government affairs strategist picking the best initial staffer targets for an outreach pipeline. Return ONLY a JSON array (no markdown fences): [{"i": <item number>, "reason": "<why, max 15 words>", "priority": "high" | "medium"}]. At most 8 entries, best first. Prefer staffers whose role owns the issue (policy advisers, legislative directors, liaisons for the topic) over generic senior titles.',
+        },
+        {
+          role: "user",
+          content: `Engagement goal: ${board.name}${board.description ? ` — ${board.description}` : ""}\nKeywords: ${keywords.join(", ")}\n\nCandidate staffers:\n${list}`,
+        },
+      ], { maxTokens: 800 });
+
+      let picks: Array<{ i: number; reason?: string; priority?: string }>;
+      try {
+        picks = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
+      } catch {
+        console.error("[strategy-board] unparseable AI suggestion output:", text.slice(0, 300));
+        return res.status(502).json({ message: "The AI returned an unparseable plan — try again." });
+      }
+
+      const created = [];
+      for (const p of picks.slice(0, 8)) {
+        const s = fresh[p.i - 1];
+        if (!s) continue;
+        const [card] = await db.insert(strategyCards).values({
+          boardId: board.id,
+          clientId,
+          entityType: "staffer",
+          entityId: String(s.legistormId),
+          entityName: s.fullName || "",
+          entityMeta: { title: s.currentTitle, office: s.currentOffice, party: s.party, chamber: s.chamber, email: s.email },
+          stage: "Identify",
+          notes: p.reason || null,
+          priority: p.priority === "high" ? "high" : "medium",
+        }).returning();
+        created.push(card);
+      }
+
+      console.log(`[strategy-board] AI suggested ${created.length} staffers for board ${board.id} (keywords: ${keywords.join(", ")})`);
+      res.json({ created });
+    } catch (error: any) {
+      console.error("[strategy-board] suggest-cards failed:", error);
+      res.status(500).json({ message: error.message || "Failed to suggest staffers" });
+    }
+  });
+
   app.patch("/api/strategy/cards/:id", isAuthenticated, async (req, res) => {
     try {
       const { db } = await import("./db");
