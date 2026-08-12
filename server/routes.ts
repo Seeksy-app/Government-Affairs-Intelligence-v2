@@ -112,14 +112,20 @@ export async function registerRoutes(
 
       // Check if super admin
       let superAdmin = await storage.getSuperAdminByUserId(userId);
-      
-      // Auto-create first super admin if none exists
+
+      // Bootstrap: on a fresh deploy with no super admins, promote ONLY the
+      // user whose email matches SUPER_ADMIN_BOOTSTRAP_EMAIL. The previous
+      // behavior (first user to log in wins) was an account-takeover primitive
+      // on any fresh deploy with public signup enabled.
       if (!superAdmin) {
-        const allSuperAdmins = await storage.getSuperAdmins();
-        if (allSuperAdmins.length === 0) {
-          // First user becomes super admin
-          superAdmin = await storage.createSuperAdmin({ userId });
-          console.log(`Auto-created super admin for user ${userId}`);
+        const bootstrapEmail = process.env.SUPER_ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+        const userEmail = (req.user as any)?.claims?.email?.trim().toLowerCase();
+        if (bootstrapEmail && userEmail && bootstrapEmail === userEmail) {
+          const allSuperAdmins = await storage.getSuperAdmins();
+          if (allSuperAdmins.length === 0) {
+            superAdmin = await storage.createSuperAdmin({ userId });
+            console.log(`Bootstrapped super admin for ${userEmail} (matched SUPER_ADMIN_BOOTSTRAP_EMAIL)`);
+          }
         }
       }
       
@@ -4132,114 +4138,25 @@ ${context ? `Context from recent research:\n${context}` : "No research context a
       let reply = "";
       let usedProvider = "unknown";
 
-      // Try providers in order of preference: specified provider, then fallbacks
-      const providers = provider ? [provider, "openai", "gemini", "anthropic"] : ["openai", "gemini", "anthropic"];
-      const uniqueProviders = [...new Set(providers)];
-
-      for (const currentProvider of uniqueProviders) {
-        try {
-          if (currentProvider === "openai") {
-            const openaiApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-            const openaiBaseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-            
-            if (!openaiApiKey) continue;
-
-            const messages = [
-              { role: "system" as const, content: systemPrompt },
-              ...(history || []).map((h: any) => ({
-                role: h.role as "user" | "assistant",
-                content: h.content,
-              })),
-              { role: "user" as const, content: message }
-            ];
-
-            const OpenAI = (await import("openai")).default;
-            const openai = new OpenAI({
-              apiKey: openaiApiKey,
-              baseURL: openaiBaseUrl,
-            });
-
-            const completion = await openai.chat.completions.create({
-              model: "gpt-4.1",
-              messages,
-              max_completion_tokens: 1500,
-            });
-
-            reply = completion.choices?.[0]?.message?.content || "";
-            if (reply) {
-              usedProvider = "OpenAI GPT-4.1";
-              break;
-            }
-          } else if (currentProvider === "gemini") {
-            const geminiApiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
-            const geminiBaseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
-            
-            if (!geminiApiKey) continue;
-
-            const { GoogleGenAI } = await import("@google/genai");
-            const ai = new GoogleGenAI({
-              apiKey: geminiApiKey,
-              httpOptions: {
-                apiVersion: "",
-                baseUrl: geminiBaseUrl,
-              },
-            });
-
-            const chatHistory = (history || []).map((h: any) => ({
-              role: h.role === "assistant" ? "model" : "user",
-              parts: [{ text: h.content }],
-            }));
-
-            const response = await ai.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: [
-                { role: "user", parts: [{ text: systemPrompt }] },
-                ...chatHistory,
-                { role: "user", parts: [{ text: message }] },
-              ],
-            });
-
-            reply = response.text || "";
-            if (reply) {
-              usedProvider = "Google Gemini 2.5 Flash";
-              break;
-            }
-          } else if (currentProvider === "anthropic") {
-            const anthropicApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
-            const anthropicBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-            
-            if (!anthropicApiKey) continue;
-
-            const Anthropic = (await import("@anthropic-ai/sdk")).default;
-            const anthropic = new Anthropic({
-              apiKey: anthropicApiKey,
-              baseURL: anthropicBaseUrl,
-            });
-
-            const anthropicMessages = (history || []).map((h: any) => ({
+      // Central provider fallback (anthropic → openai → gemini), skipping
+      // anything unconfigured. See server/services/ai-providers.ts.
+      try {
+        const { completeChat, AI_MODELS } = await import("./services/ai-providers");
+        const result = await completeChat(
+          [
+            { role: "system" as const, content: systemPrompt },
+            ...(history || []).map((h: any) => ({
               role: h.role as "user" | "assistant",
               content: h.content,
-            }));
-            anthropicMessages.push({ role: "user", content: message });
-
-            const response = await anthropic.messages.create({
-              model: "claude-sonnet-4-5",
-              max_tokens: 1500,
-              system: systemPrompt,
-              messages: anthropicMessages,
-            });
-
-            const textBlock = response.content.find((block: any) => block.type === "text");
-            reply = textBlock ? (textBlock as any).text : "";
-            if (reply) {
-              usedProvider = "Anthropic Claude Sonnet 4.5";
-              break;
-            }
-          }
-        } catch (providerError) {
-          console.error(`Error with ${currentProvider}:`, providerError);
-          continue;
-        }
+            })),
+            { role: "user" as const, content: message },
+          ],
+          { maxTokens: 1500 },
+        );
+        reply = result.text;
+        usedProvider = `${result.provider} (${AI_MODELS[result.provider]})`;
+      } catch (providerError) {
+        console.error("AI chat: all providers failed:", providerError);
       }
 
       if (!reply) {
@@ -9664,6 +9581,18 @@ Format your response with clear headers and bullet points. Be specific and data-
   // Response is cached in-memory for 10 minutes per clientId.
   app.get("/api/morning-brief/:clientId", isAuthenticated, async (req, res) => {
     try {
+      // Authorization: a user may only read their own client's brief.
+      // Super admins (not impersonating) may read any client's brief.
+      const userId = getUserId(req);
+      const superAdmin = userId ? await storage.getSuperAdminByUserId(userId) : null;
+      const isUnscopedSuperAdmin = !!superAdmin && !req.session?.impersonatingClientId;
+      if (!isUnscopedSuperAdmin) {
+        const ownClientId = await getClientId(req);
+        if (!ownClientId || ownClientId !== req.params.clientId) {
+          return res.status(403).json({ message: "Not authorized for this client" });
+        }
+      }
+
       const { rankItemsForClient } = await import("./services/morning-brief-service");
       const result = await rankItemsForClient(req.params.clientId);
       res.json(result);

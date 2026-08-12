@@ -1,14 +1,9 @@
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { YoutubeTranscript } from "youtube-transcript";
-import OpenAI from "openai";
 import { CongressAPI } from "./congress-api";
+import { completeChat, streamChat } from "./ai-providers";
 
 const firecrawl = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY! });
-
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
 
 const congressApi = process.env.CONGRESS_API_KEY 
   ? new CongressAPI(process.env.CONGRESS_API_KEY)
@@ -320,19 +315,18 @@ export async function researchPoliticalEntity(
 }
 
 export async function generateSummary(content: string): Promise<string> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.1",
-    messages: [
+  const { text } = await completeChat(
+    [
       {
         role: "system",
         content: "You are a research assistant. Provide a concise 2-3 sentence summary of the following content.",
       },
       { role: "user", content: content.slice(0, 15000) },
     ],
-    max_completion_tokens: 200,
-  });
+    { maxTokens: 200 },
+  );
 
-  return response.choices[0]?.message?.content || "";
+  return text;
 }
 
 export interface ChatMessage {
@@ -579,19 +573,7 @@ MEETING & SCHEDULING GUIDANCE:
     { role: "user", content: question },
   ];
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.1",
-    messages,
-    stream: true,
-    max_completion_tokens: 2048,
-  });
-
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content;
-    if (content) {
-      yield content;
-    }
-  }
+  yield* streamChat(messages, { maxTokens: 2048 });
 }
 
 export async function analyzeStafferCareer(careerHistory: {
@@ -612,12 +594,11 @@ export async function analyzeStafferCareer(careerHistory: {
     .map((h) => `${h.title} at ${h.organization} (${h.startYear || "?"}-${h.endYear || "present"}) - ${h.policyAreas?.join(", ") || "N/A"}`)
     .join("\n");
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.1",
-    messages: [
+  const { text } = await completeChat(
+    [
       {
         role: "system",
-        content: `You are a political intelligence analyst. Analyze this staffer's career history and provide insights.`,
+        content: `You are a political intelligence analyst. Analyze this staffer's career history and provide insights. Respond with ONLY a JSON object — no prose, no markdown fences.`,
       },
       {
         role: "user",
@@ -633,10 +614,11 @@ ${careerText}
 Respond in JSON format: { "summary": "...", "patterns": ["..."], "policyFocus": ["..."], "connections": ["..."] }`,
       },
     ],
-    response_format: { type: "json_object" },
-  });
+    { maxTokens: 1024 },
+  );
 
-  const result = JSON.parse(response.choices[0]?.message?.content || "{}");
+  const jsonText = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+  const result = JSON.parse(jsonText || "{}");
   return {
     summary: result.summary || "",
     patterns: result.patterns || [],
@@ -672,17 +654,5 @@ Guidelines:
     { role: "user", content: question },
   ];
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.1",
-    messages,
-    stream: true,
-    max_completion_tokens: 2048,
-  });
-
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content;
-    if (content) {
-      yield content;
-    }
-  }
+  yield* streamChat(messages, { maxTokens: 2048 });
 }
