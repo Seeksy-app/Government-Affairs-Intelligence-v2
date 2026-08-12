@@ -19,13 +19,13 @@ export default function PrivacyPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl" data-testid="text-privacy-title">Privacy Policy</CardTitle>
-            <p className="text-muted-foreground text-sm">Last updated: February 3, 2026</p>
+            <p className="text-muted-foreground text-sm">Last updated: August 12, 2026</p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
             <section>
               <h2 className="text-lg font-semibold">1. Introduction</h2>
               <p className="text-muted-foreground">
-                This Privacy Policy describes how the Political Intelligence Platform ("we", "us", or "our") collects, uses, and shares information about you when you use our services. We are committed to protecting your privacy and ensuring the security of your personal information.
+                This Privacy Policy describes how GovernmentAffairs.co ("we", "us", or "our") collects, uses, and shares information about you when you use our government affairs intelligence platform and related services (the "Service"). We are committed to protecting your privacy and ensuring the security of your personal information.
               </p>
             </section>
 
@@ -47,6 +47,14 @@ export default function PrivacyPage() {
                 <li>Usage data and analytics</li>
                 <li>Cookies and similar tracking technologies</li>
               </ul>
+              <h3 className="text-base font-medium mt-4">2.3 Information from Third-Party Sign-In</h3>
+              <p className="text-muted-foreground">
+                If you choose to sign in using a third-party identity provider such as LinkedIn, we receive, with your consent, the basic profile information that provider shares — your name, email address, and profile photo. We do not receive your password for that service, we do not access your connections or contacts on that service, and we do not post on your behalf. Your use of the identity provider is governed by its own privacy policy.
+              </p>
+              <h3 className="text-base font-medium mt-4">2.4 Publicly Available Professional Information</h3>
+              <p className="text-muted-foreground">
+                The Service aggregates professional information about government officials, legislative staff, and other public-sector personnel — such as names, titles, office affiliations, committee assignments, and official contact details — from public and licensed sources, including Congress.gov and LegiStorm. This information relates to individuals in their professional, public-facing capacities.
+              </p>
             </section>
 
             <section>
@@ -77,16 +85,20 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">5. Third-Party Services</h2>
               <p className="text-muted-foreground">
-                Our platform integrates with third-party services including:
+                We rely on third-party services to operate the platform:
               </p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-                <li><strong>Miro:</strong> For network visualization and mapping</li>
-                <li><strong>Congress.gov API:</strong> For accessing congressional data</li>
-                <li><strong>AI Services:</strong> For research and analysis features</li>
-                <li><strong>Firecrawl:</strong> For web content extraction</li>
+                <li><strong>Hosting and infrastructure:</strong> Render (application hosting) and Supabase (database hosting)</li>
+                <li><strong>AI processing:</strong> Anthropic, Perplexity, and Parallel.ai, which process content you submit (such as research questions and documents) to power analysis, briefing, and research features</li>
+                <li><strong>Government data sources:</strong> Congress.gov (legislative data) and LegiStorm (congressional staff directory data)</li>
+                <li><strong>Market data:</strong> Kalshi (prediction market data display; no personal data is shared)</li>
+                <li><strong>Contact enrichment:</strong> People Data Labs, used at your direction to enrich professional contact records</li>
+                <li><strong>Web research:</strong> Firecrawl and search providers, for retrieving public web content you request</li>
+                <li><strong>Email delivery:</strong> Resend, for transactional email such as password resets</li>
+                <li><strong>Identity providers:</strong> LinkedIn, if you choose to sign in with LinkedIn</li>
               </ul>
               <p className="text-muted-foreground mt-2">
-                Each of these services has their own privacy policies governing the use of your data.
+                Each of these services has its own privacy policy governing the use of your data.
               </p>
             </section>
 
@@ -116,7 +128,7 @@ export default function PrivacyPage() {
                 <li>Withdrawal of consent</li>
               </ul>
               <p className="text-muted-foreground mt-2">
-                To exercise these rights, please contact us through the platform's support channels.
+                To exercise these rights, contact us at support@governmentaffairs.co.
               </p>
             </section>
 
@@ -144,7 +156,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">12. Contact Us</h2>
               <p className="text-muted-foreground">
-                If you have any questions about this Privacy Policy or our data practices, please contact us through the platform's support channels.
+                If you have any questions about this Privacy Policy or our data practices, contact us at support@governmentaffairs.co.
               </p>
             </section>
           </CardContent>
