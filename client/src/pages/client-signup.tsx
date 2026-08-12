@@ -100,12 +100,20 @@ export default function ClientSignupPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
 
+  // Prefill from the LinkedIn sign-in redirect (/signup?from=linkedin&email=…&name=…)
+  const [linkedinPrefill] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("from") === "linkedin"
+      ? { email: params.get("email") || "", name: params.get("name") || "" }
+      : null;
+  });
+
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
       companyName: "",
-      contactName: "",
-      email: "",
+      contactName: linkedinPrefill?.name || "",
+      email: linkedinPrefill?.email || "",
       phone: "",
       firmSize: "",
       industry: "",
@@ -243,6 +251,15 @@ export default function ClientSignupPage() {
           <CardDescription>
             Tell us about your firm to get started
           </CardDescription>
+          {linkedinPrefill && (
+            <p
+              className="mt-2 rounded-md bg-[#0A66C2]/10 px-3 py-2 text-sm text-[#0A66C2]"
+              data-testid="text-linkedin-prefill-notice"
+            >
+              We don't have an account for <strong>{linkedinPrefill.email}</strong> yet — finish this
+              short application and you'll sign in with LinkedIn once you're approved.
+            </p>
+          )}
         </CardHeader>
 
         {/* Progress Steps */}
