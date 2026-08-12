@@ -7953,6 +7953,19 @@ Keep the response practical, actionable, and under 500 words.`;
       const { target } = req.body;
       if (!target) return res.status(400).json({ message: "target is required" });
 
+      // Warm routes through the firm's own contacts (co-tenure graph) +
+      // who books the meeting.
+      const clientId = await getClientId(req);
+      const { findNetworkPaths } = await import("./services/path-builder");
+      const { findSchedulerForMember } = await import("./services/legistorm-service");
+      const [networkPaths, schedulers] = await Promise.all([
+        clientId ? findNetworkPaths(clientId, target).catch((e) => {
+          console.error("[path-builder] failed:", e);
+          return [];
+        }) : Promise.resolve([]),
+        findSchedulerForMember(target).catch(() => []),
+      ]);
+
       const { ilike, or } = await import("drizzle-orm");
       const { db } = await import("./db");
 
@@ -7989,7 +8002,7 @@ Keep the response practical, actionable, and under 500 words.`;
             },
             body: JSON.stringify({
               model: "sonar",
-              messages: [{ role: "user", content: `A government affairs professional needs access to "${target}" in Congress. ${directStaffers.length > 0 ? `Direct staffers found: ${stafferContext}.` : "No direct staffers found."} Provide a brief, practical networking strategy with 3-4 specific steps. Include alternative approaches if direct access is difficult. Keep it under 250 words.` }],
+              messages: [{ role: "user", content: `A government affairs professional needs access to "${target}" in Congress. ${directStaffers.length > 0 ? `Direct staffers found: ${stafferContext}.` : "No direct staffers found."} ${networkPaths.length > 0 ? `IMPORTANT — the client has warm routes through their own network: ${networkPaths.slice(0, 4).map((p: any) => p.kind === "insider" ? `${p.contact.name} currently works in the target office` : p.kind === "alumni" ? `${p.contact.name} is an alum of the target office (${p.contactRoleThen ?? "staffer"})` : `${p.contact.name} worked with ${p.targetStaffer?.fullName} at ${p.sharedOffice} (${p.overlapYears}y overlap)`).join("; ")}. Lead your strategy with these warm introductions.` : ""} Provide a brief, practical networking strategy with 3-4 specific steps. Include alternative approaches if direct access is difficult. Keep it under 250 words.` }],
               max_tokens: 500,
             }),
           });
@@ -8004,6 +8017,10 @@ Keep the response practical, actionable, and under 500 words.`;
         directStaffers,
         committeeConnections,
         aiRecommendation,
+        networkPaths,
+        scheduler: schedulers[0]
+          ? { fullName: schedulers[0].fullName, title: schedulers[0].currentTitle, email: schedulers[0].email }
+          : null,
       });
     } catch (error: any) {
       console.error("Error finding path:", error);
