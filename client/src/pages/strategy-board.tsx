@@ -66,6 +66,105 @@ function renderMarkdown(text: string) {
   });
 }
 
+// Named saves for Strategy Board tools. Saves the view's *parameters* (not a
+// snapshot) — loading one re-runs against live data.
+function SavedViewsBar({
+  view,
+  currentName,
+  currentParams,
+  onLoad,
+}: {
+  view: string;
+  currentName: string;
+  currentParams: Record<string, unknown> | null;
+  onLoad: (params: any) => void;
+}) {
+  const { toast } = useToast();
+
+  const { data: savedViews } = useQuery<Array<{ id: string; name: string; params: any }>>({
+    queryKey: ["/api/strategy/saved-views", view],
+    queryFn: async () => {
+      const res = await fetch(`/api/strategy/saved-views?view=${encodeURIComponent(view)}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 10000,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/strategy/saved-views", {
+        view,
+        name: currentName,
+        params: currentParams,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy/saved-views", view] });
+      toast({ title: `Saved "${currentName}"` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/strategy/saved-views/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy/saved-views", view] });
+    },
+  });
+
+  const alreadySaved = savedViews?.some((v) => v.name === currentName) ?? false;
+  const hasContent = (savedViews?.length ?? 0) > 0 || currentParams !== null;
+  if (!hasContent) return null;
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs font-medium text-muted-foreground">Saved:</span>
+      {savedViews?.map((v) => (
+        <Badge
+          key={v.id}
+          variant="outline"
+          className="cursor-pointer hover-elevate gap-1.5 py-1 pl-2.5 pr-1.5"
+          onClick={() => onLoad(v.params)}
+          data-testid={`saved-view-${v.id}`}
+        >
+          {v.name}
+          <button
+            type="button"
+            className="opacity-50 hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteMutation.mutate(v.id);
+            }}
+            aria-label={`Delete saved view ${v.name}`}
+            data-testid={`delete-saved-view-${v.id}`}
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+      {(savedViews?.length ?? 0) === 0 && (
+        <span className="text-xs text-muted-foreground">none yet</span>
+      )}
+      {currentParams !== null && !alreadySaved && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          data-testid="button-save-view"
+        >
+          <Star className="h-3.5 w-3.5 mr-1" /> Save current
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function AccessMappingBoard() {
   const [targetQuery, setTargetQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
@@ -148,6 +247,17 @@ function AccessMappingBoard() {
         <h2 className="text-xl font-semibold mb-1" data-testid="text-access-mapping-title">Access Mapping</h2>
         <p className="text-sm text-muted-foreground">Select a Member of Congress to see their staff ranked by influence and accessibility</p>
       </div>
+
+      <SavedViewsBar
+        view="access"
+        currentName={selectedMemberName}
+        currentParams={selectedMember ? { memberId: selectedMember, memberName: selectedMemberName } : null}
+        onLoad={(p) => {
+          setSelectedMember(p.memberId);
+          setSelectedMemberName(p.memberName);
+          setTargetQuery(p.memberName);
+        }}
+      />
 
       <Card>
         <CardContent className="p-4">
@@ -806,15 +916,16 @@ function NetworkPathFinder() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const findPath = async () => {
-    if (!targetInput.trim()) return;
+  const findPath = async (targetOverride?: string) => {
+    const target = (targetOverride ?? targetInput).trim();
+    if (!target) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/strategy/find-path`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ target: targetInput }),
+        body: JSON.stringify({ target }),
       });
       if (!res.ok) throw new Error("Failed to find path");
       const data = await res.json();
@@ -833,6 +944,16 @@ function NetworkPathFinder() {
         <p className="text-sm text-muted-foreground">Find the shortest path to reach a target through your network of contacts and staffers</p>
       </div>
 
+      <SavedViewsBar
+        view="pathfinder"
+        currentName={targetInput.trim()}
+        currentParams={pathResult && targetInput.trim() ? { target: targetInput.trim() } : null}
+        onLoad={(p) => {
+          setTargetInput(p.target);
+          findPath(p.target);
+        }}
+      />
+
       <Card>
         <CardContent className="p-4">
           <div className="flex gap-3">
@@ -847,7 +968,7 @@ function NetworkPathFinder() {
                 data-testid="input-pathfinder-target"
               />
             </div>
-            <Button onClick={findPath} disabled={loading || !targetInput.trim()} data-testid="button-find-path">
+            <Button onClick={() => findPath()} disabled={loading || !targetInput.trim()} data-testid="button-find-path">
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
               Find Path
             </Button>

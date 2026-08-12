@@ -1354,6 +1354,26 @@ export const insertStrategyCardSchema = createInsertSchema(strategyCards).omit({
 export type InsertStrategyCard = z.infer<typeof insertStrategyCardSchema>;
 export type StrategyCard = typeof strategyCards.$inferSelect;
 
+// Saved views for Strategy Board tools (named Access Maps, Path Finder
+// searches, …). `params` holds whatever the view needs to re-run itself —
+// views re-query live data on load rather than storing snapshots.
+export const strategySavedViews = pgTable("strategy_saved_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull(),
+  view: text("view").notNull(), // "access" | "pathfinder"
+  name: text("name").notNull(),
+  params: jsonb("params").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStrategySavedViewSchema = createInsertSchema(strategySavedViews).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStrategySavedView = z.infer<typeof insertStrategySavedViewSchema>;
+export type StrategySavedView = typeof strategySavedViews.$inferSelect;
+
 export const veteranCongressMembers = pgTable("veteran_congress_members", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull(),
