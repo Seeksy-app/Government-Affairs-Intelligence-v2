@@ -19,20 +19,20 @@ export default function TermsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl" data-testid="text-terms-title">Terms and Conditions</CardTitle>
-            <p className="text-muted-foreground text-sm">Last updated: February 3, 2026</p>
+            <p className="text-muted-foreground text-sm">Last updated: August 12, 2026</p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
             <section>
               <h2 className="text-lg font-semibold">1. Acceptance of Terms</h2>
               <p className="text-muted-foreground">
-                By accessing and using this Political Intelligence Platform ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by these terms, please do not use this Service.
+                By accessing and using GovernmentAffairs.co (the "Service"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this Service.
               </p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold">2. Description of Service</h2>
               <p className="text-muted-foreground">
-                The Political Intelligence Platform is a multi-tenant SaaS platform designed for political consulting firms. The Service provides tools for tracking political contacts, monitoring career paths, aggregating news, managing client relationships, and conducting research.
+                GovernmentAffairs.co is a multi-tenant SaaS platform designed for government affairs and lobbying firms and in-house government relations teams. The Service provides tools for tracking legislative activity and political contacts, monitoring congressional staff, aggregating news and government press releases, generating AI-assisted research briefs, managing client relationships, and conducting research.
               </p>
             </section>
 
@@ -72,9 +72,15 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold">7. Third-Party Integrations</h2>
+              <h2 className="text-lg font-semibold">7. Third-Party Integrations and Content</h2>
               <p className="text-muted-foreground">
-                The Service may integrate with third-party services including but not limited to Miro, Congress.gov API, and various AI services. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
+                The Service integrates with third-party services including but not limited to Congress.gov, LegiStorm, Kalshi, AI providers (such as Anthropic, Perplexity, and Parallel.ai), People Data Labs, and identity providers such as LinkedIn. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Portions of the Service's output — including briefs, summaries, relevance scores, and research answers — are generated with the assistance of artificial intelligence. This content is provided for informational purposes only, may contain errors or omissions, and should be independently verified before you rely on it. It does not constitute legal, financial, or investment advice.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Prediction market data displayed in the Service is provided for informational purposes only. The Service does not facilitate trading, wagering, or the purchase or sale of any contract or financial instrument.
               </p>
             </section>
 
@@ -102,7 +108,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">11. Contact Us</h2>
               <p className="text-muted-foreground">
-                If you have any questions about these Terms, please contact us through the platform's support channels.
+                If you have any questions about these Terms, contact us at support@governmentaffairs.co.
               </p>
             </section>
           </CardContent>
