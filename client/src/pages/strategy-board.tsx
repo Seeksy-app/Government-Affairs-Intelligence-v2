@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import {
   Target, Users, FileText, Network, LayoutGrid,
-  Search, ChevronRight, GripVertical, Plus, Trash2,
+  Search, ChevronRight, GripVertical, Plus, Trash2, X,
   User, UserPlus, Building2, Star, ArrowRight, Brain, Briefcase,
   Mail, Phone, ExternalLink, Crown, Shield, AlertCircle, Calendar,
   Sparkles, MapPin, Loader2,
@@ -510,6 +510,8 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
   const [addCardStage, setAddCardStage] = useState<string | null>(null);
   const [addCardSearch, setAddCardSearch] = useState("");
   const [dragCard, setDragCard] = useState<string | null>(null);
+  const [addingKeyword, setAddingKeyword] = useState(false);
+  const [newKeyword, setNewKeyword] = useState("");
 
   const { data: boards, isLoading: loadingBoards } = useQuery<StrategyBoard[]>({
     queryKey: ["/api/strategy/boards"],
@@ -617,6 +619,37 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
   const boardKeywords = selectedBoard?.description?.includes("Keywords:")
     ? selectedBoard.description.split("Keywords:")[1].split(",").map(k => k.trim()).filter(Boolean)
     : [];
+
+  // Keywords are stored inside board.description ("…\n\nKeywords: a, b").
+  // Rewrite that suffix; the base description is preserved.
+  const updateKeywordsMutation = useMutation({
+    mutationFn: async (keywords: string[]) => {
+      const base = (selectedBoard?.description ?? "").split("Keywords:")[0].trim();
+      const description = keywords.length > 0
+        ? `${base}${base ? "\n\n" : ""}Keywords: ${keywords.join(", ")}`
+        : base;
+      const res = await apiRequest("PATCH", `/api/strategy/boards/${selectedBoardId}`, { description });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strategy/boards"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update keywords", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addKeyword = () => {
+    const kw = newKeyword.trim();
+    if (!kw) return;
+    if (boardKeywords.some((k) => k.toLowerCase() === kw.toLowerCase())) {
+      toast({ title: "Already a keyword", description: `"${kw}" is on this board.` });
+      return;
+    }
+    updateKeywordsMutation.mutate([...boardKeywords, kw]);
+    setNewKeyword("");
+    setAddingKeyword(false);
+  };
 
   const addToContactsMutation = useMutation({
     mutationFn: async (card: StrategyCard) => {
@@ -753,18 +786,49 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
         </Card>
       )}
 
-      {selectedBoard && selectedBoard.description?.includes("Keywords:") && (
+      {selectedBoard && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-muted-foreground">Keywords:</span>
-          {selectedBoard.description
-            .split("Keywords:")[1]
-            .split(",")
-            .map(k => k.trim())
-            .filter(Boolean)
-            .map((keyword, i) => (
-              <Badge key={i} variant="secondary" className="text-xs">{keyword}</Badge>
-            ))
-          }
+          {boardKeywords.map((keyword) => (
+            <Badge key={keyword} variant="secondary" className="text-xs gap-1 pr-1">
+              {keyword}
+              <button
+                type="button"
+                className="opacity-50 hover:opacity-100"
+                onClick={() => updateKeywordsMutation.mutate(boardKeywords.filter((k) => k !== keyword))}
+                disabled={updateKeywordsMutation.isPending}
+                aria-label={`Remove keyword ${keyword}`}
+                data-testid={`remove-keyword-${keyword}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          {addingKeyword ? (
+            <Input
+              autoFocus
+              className="h-6 w-40 text-xs"
+              placeholder="new keyword…"
+              value={newKeyword}
+              onChange={(e) => setNewKeyword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); addKeyword(); }
+                if (e.key === "Escape") { setAddingKeyword(false); setNewKeyword(""); }
+              }}
+              onBlur={() => { if (newKeyword.trim()) addKeyword(); else setAddingKeyword(false); }}
+              data-testid="input-new-keyword"
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              onClick={() => setAddingKeyword(true)}
+              data-testid="button-add-keyword"
+            >
+              <Plus className="h-3 w-3 mr-0.5" /> Add
+            </Button>
+          )}
         </div>
       )}
 

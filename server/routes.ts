@@ -8174,6 +8174,24 @@ Keep the response practical, actionable, and under 500 words.`;
     }
   });
 
+  app.patch("/api/strategy/boards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { eq } = await import("drizzle-orm");
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (req.body.name !== undefined) updates.name = req.body.name;
+      if (req.body.description !== undefined) updates.description = req.body.description;
+      const [board] = await db.update(strategyBoards)
+        .set(updates)
+        .where(eq(strategyBoards.id, req.params.id))
+        .returning();
+      if (!board) return res.status(404).json({ message: "Board not found" });
+      res.json(board);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to update board" });
+    }
+  });
+
   app.delete("/api/strategy/boards/:id", isAuthenticated, async (req, res) => {
     try {
       const { db } = await import("./db");
