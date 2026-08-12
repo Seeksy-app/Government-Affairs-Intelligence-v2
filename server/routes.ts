@@ -708,9 +708,14 @@ export async function registerRoutes(
   app.get("/api/auth/linkedin/callback", async (req, res) => {
     try {
       const { exchangeLinkedInCode, fetchLinkedInUserInfo } = await import("./services/linkedin-auth");
-      const { code, state, error } = req.query as Record<string, string | undefined>;
+      const { code, state, error, error_description } = req.query as Record<string, string | undefined>;
 
       if (error || !code) {
+        // LinkedIn's error param names the real cause (e.g. unauthorized_scope_error
+        // when the OpenID Connect product isn't enabled on the app).
+        console.error(
+          `[linkedin-auth] provider returned error: ${error ?? "(no code)"} — ${error_description ?? "no description"}`,
+        );
         return res.redirect("/login?error=linkedin_denied");
       }
       const savedState = (req.session as any).linkedinOAuthState;
