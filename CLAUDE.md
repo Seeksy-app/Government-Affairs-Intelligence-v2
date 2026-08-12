@@ -124,7 +124,7 @@ Working end-to-end:
 - Local dev: `npm run dev` (port 5000). `.env.local` mirrors Render env.
   Never point local dev at prod with service-role keys.
 
-## Brand System (see https://www.governmentaffairs.co/brand-guide.html)
+## Brand System (full guide: docs/BRAND.md; original vendored at docs/brand-guide.html)
 Capitol Navy `#14253D` (authority/sidebar), Signal Blue `#078ACB` (actions),
 Paper `#F7F6F2` (surfaces), Stone `#E9ECEC`, Civic Red `#A53B39` (editorial
 accent only). Font: Source Sans 3 (headlines 650 weight, −4% tracking).
