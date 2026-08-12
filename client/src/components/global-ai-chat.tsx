@@ -20,13 +20,15 @@ interface ChatMessage {
   staffers?: DirectoryStaffer[];
 }
 
+// Keep these aligned with what the assistant can actually answer from platform
+// data (currently: the LegiStorm staff directory via search_staffer_directory).
 const SUGGESTED_PROMPTS = [
-  "Find recent lobbying activities related to healthcare reform",
-  "What legislation has been introduced on climate change this month?",
-  "Research key staffers working on defense policy",
-  "Who are the top lobbyists for tech companies?",
-  "Find connections between energy sector and congressional committees",
-  "What are recent career moves in the EPA?",
+  "Who are Mike Johnson's senior staff?",
+  "Who is the scheduler in Hakeem Jeffries' office?",
+  "Find health policy staffers on the Senate Finance Committee",
+  "Who handles defense policy for the House Armed Services Committee?",
+  "Who is the legislative director for Chuck Schumer?",
+  "Find communications directors in leadership offices",
 ];
 
 // Only providers the backend reports as actually configured are shown.

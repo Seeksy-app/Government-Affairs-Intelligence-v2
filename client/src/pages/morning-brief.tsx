@@ -327,6 +327,7 @@ export default function MorningBriefPage() {
     },
     enabled: !!effectiveClientId,
     staleTime: 10 * 60 * 1000, // match server-side cache TTL
+    retry: 1, // fail fast — surface the error instead of minutes of skeleton
   });
 
   function openItem(item: RankedItem) {

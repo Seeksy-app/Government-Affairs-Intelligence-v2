@@ -4135,7 +4135,9 @@ STYLE:
 1. Cite sources for facts and legislation as [Source: description]
 2. Be concise but thorough
 3. Do NOT use markdown tables — use short lists or bolded lines instead
-4. If something is from general knowledge rather than platform data, say so
+4. Links: plain [text](url) form only — NEVER nest link syntax inside link syntax
+5. Avoid horizontal-rule dividers (---); use bold lead-ins or headings sparingly
+6. If something is from general knowledge rather than platform data, say so
 
 ${context ? `Context from recent research:\n${context}` : ""}`;
 
