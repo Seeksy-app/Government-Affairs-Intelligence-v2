@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { ScoreBadge } from "@/components/score-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -134,9 +135,11 @@ function ItemPanel({
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="pr-8">
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="outline" className={scoreColor(item.score)}>
-              Score {item.score}
-            </Badge>
+            <ScoreBadge
+              score={item.score}
+              label="Score"
+              className={`px-2.5 py-0.5 text-xs font-semibold ${scoreColor(item.score)}`}
+            />
             <Badge variant="outline" className="text-xs">
               {item.type === "press_release" ? "Press Release" : "News"}
             </Badge>
@@ -298,13 +301,12 @@ function ItemCard({
           )}
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
-          <span
-            className={`inline-flex items-center justify-center min-w-[2.25rem] rounded-md border px-1.5 py-0.5 text-sm font-bold tabular-nums ${scoreColor(
+          <ScoreBadge
+            score={item.score}
+            className={`min-w-[2.25rem] px-1.5 py-0.5 text-sm font-bold ${scoreColor(
               item.score,
             )}`}
-          >
-            {item.score}
-          </span>
+          />
           <ChevronRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-muted-foreground/70 transition-colors" />
         </div>
       </div>
