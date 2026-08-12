@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Newspaper, BarChart3, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, ChevronRight, Users, Sunrise, Cloud } from "lucide-react";
+import { Newspaper, BarChart3, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, ChevronRight, Users, Sunrise, Cloud, Network } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +121,7 @@ export default function ClientDashboard() {
   const { data: predictionMarkets, isLoading: marketsLoading } = useQuery<KalshiMarket[]>({
     queryKey: ["/api/kalshi/markets", marketCategory],
     queryFn: async () => {
-      const res = await fetch(`/api/kalshi/markets?category=${encodeURIComponent(selectedCategory.apiCategory)}&limit=4`, { credentials: "include" });
+      const res = await fetch(`/api/kalshi/markets?category=${encodeURIComponent(selectedCategory.apiCategory)}&limit=8`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch markets");
       const data = await res.json();
       return data.markets || data || [];
@@ -275,13 +275,13 @@ export default function ClientDashboard() {
 
           {marketsLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <Card key={i}><CardContent className="p-5"><Skeleton className="h-4 w-full mb-3" /><Skeleton className="h-8 w-24 mb-2" /><Skeleton className="h-2 w-full" /></CardContent></Card>
               ))}
             </div>
           ) : predictionMarkets && predictionMarkets.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {predictionMarkets.slice(0, 4).map((market) => (
+              {predictionMarkets.slice(0, 8).map((market) => (
                 <Card
                   key={market.ticker}
                   className="cursor-pointer hover-elevate overflow-visible"
@@ -289,7 +289,7 @@ export default function ClientDashboard() {
                   data-testid={`market-card-${market.ticker}`}
                 >
                   <CardContent className="p-5">
-                    <p className="text-sm font-medium line-clamp-2 mb-4 min-h-[2.5rem]" data-testid={`market-title-${market.ticker}`}>
+                    <p className="text-sm font-medium line-clamp-3 mb-4 min-h-[3.75rem]" data-testid={`market-title-${market.ticker}`}>
                       {market.title}
                     </p>
                     <div className="flex items-end justify-between gap-2 mb-3">
@@ -336,25 +336,26 @@ export default function ClientDashboard() {
         {/* Quick Access — right rail on desktop, below content on mobile */}
         <aside>
           <h2 className="text-lg font-semibold mb-4">Quick Access</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
             {[
-              { label: "Contacts", desc: "Manage your political network", href: "/contacts", icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-              { label: "News Feed", desc: "Latest political developments", href: "/news", icon: Newspaper, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-              { label: "Legislation", desc: "Track bills and votes", href: "/bills", icon: FileText, color: "text-violet-500", bg: "bg-violet-500/10" },
-              { label: "Predictions", desc: "Political prediction markets", href: "/predictions", icon: BarChart3, color: "text-indigo-500", bg: "bg-indigo-500/10" },
-              { label: "Congressional", desc: "Members and schedules", href: "/congressional", icon: Landmark, color: "text-amber-500", bg: "bg-amber-500/10" },
-              { label: "Network Map", desc: "Visualize relationships", href: "/network", icon: TrendingUp, color: "text-rose-500", bg: "bg-rose-500/10" },
+              { label: "Contacts", desc: "Manage your political network", href: "/contacts", icon: Users },
+              { label: "News Feed", desc: "Latest political developments", href: "/news", icon: Newspaper },
+              { label: "Legislation", desc: "Track bills and votes", href: "/bills", icon: FileText },
+              { label: "Predictions", desc: "Political prediction markets", href: "/predictions", icon: BarChart3 },
+              { label: "Congressional", desc: "Members and schedules", href: "/congressional", icon: Landmark },
+              { label: "Network Map", desc: "Visualize relationships", href: "/network", icon: Network },
             ].map((item) => (
-              <Card key={item.href} className="cursor-pointer hover-elevate overflow-visible" onClick={() => navigate(item.href)} data-testid={`link-quick-${item.label.toLowerCase().replace(/\s/g, '-')}`}>
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full ${item.bg} flex items-center justify-center shrink-0`}>
-                    <item.icon className={`h-5 w-5 ${item.color}`} />
+              <Card key={item.href} className="group cursor-pointer hover-elevate overflow-visible" onClick={() => navigate(item.href)} data-testid={`link-quick-${item.label.toLowerCase().replace(/\s/g, '-')}`}>
+                <CardContent className="p-4 flex items-center gap-3.5">
+                  {/* GA-mark treatment: navy tile / white icon, inverted on dark */}
+                  <div className="w-9 h-9 rounded-md bg-[#14253D] text-white dark:bg-white dark:text-[#14253D] flex items-center justify-center shrink-0">
+                    <item.icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                    <p className="font-semibold text-sm tracking-tight">{item.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{item.desc}</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 transition-colors group-hover:text-[#078ACB]" />
                 </CardContent>
               </Card>
             ))}

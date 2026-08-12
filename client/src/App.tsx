@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Users, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -228,13 +228,15 @@ function AuthenticatedLayout() {
   });
 
   const isImpersonating = userRole?.isSuperAdmin && userRole?.impersonatingClientId;
+  // Session-only: lets an admin hide the banner while recording demos.
+  const [bannerHidden, setBannerHidden] = useState(false);
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          {isImpersonating && (
+          {isImpersonating && !bannerHidden && (
             <div className="bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between gap-2" data-testid="banner-impersonation">
               <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
@@ -242,16 +244,27 @@ function AuthenticatedLayout() {
                   Viewing as: {userRole?.impersonatingClientName}
                 </span>
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => stopImpersonateMutation.mutate()}
-                disabled={stopImpersonateMutation.isPending}
-                data-testid="button-stop-impersonation"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Exit
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-amber-950 hover:bg-amber-400"
+                  onClick={() => setBannerHidden(true)}
+                  data-testid="button-hide-impersonation-banner"
+                >
+                  Hide
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => stopImpersonateMutation.mutate()}
+                  disabled={stopImpersonateMutation.isPending}
+                  data-testid="button-stop-impersonation"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Exit
+                </Button>
+              </div>
             </div>
           )}
           <header className="flex items-center justify-between p-3 border-b gap-2">
