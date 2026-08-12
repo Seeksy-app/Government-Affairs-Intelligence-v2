@@ -2,10 +2,24 @@ import crypto from "crypto";
 
 const KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2";
 
-// Module-level cache for the political markets list — shared across requests
-// and API instances so dashboard + predictions page don't re-crawl Kalshi.
-const POLITICAL_CACHE_TTL_MS = 5 * 60 * 1000;
-let politicalMarketsCache: { markets: KalshiMarket[]; fetchedAt: number } | null = null;
+// Module-level cache of ALL open markets (with event categories), shared
+// across requests and API instances — one crawl serves the dashboard and
+// every predictions-page category tab.
+const MARKETS_CACHE_TTL_MS = 5 * 60 * 1000;
+let allMarketsCache: { markets: KalshiMarket[]; fetchedAt: number } | null = null;
+
+// UI category names → Kalshi's actual event categories. The old code exact-
+// matched UI strings ("Tech", "Culture") against Kalshi's names ("Science and
+// Technology", "Entertainment"), so those tabs always showed zero markets.
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  Politics: ["Politics", "Elections"],
+  Elections: ["Politics", "Elections"],
+  Tech: ["Science and Technology"],
+  "Tech & Science": ["Science and Technology"],
+  Culture: ["Entertainment", "Social"],
+  Financials: ["Financials", "Companies"],
+  "Climate and Weather": ["Climate and Weather"],
+};
 
 // Raw API response format.
 // Kalshi migrated its market fields: numeric cents fields (last_price,
@@ -329,20 +343,17 @@ class KalshiAPI {
     return politicalKeywords.some(keyword => lowerTitle.includes(keyword));
   }
 
-  async searchPoliticalMarkets(limit: number = 200): Promise<KalshiMarket[]> {
-    // Serve from cache: this used to run a 250-request crawl on EVERY dashboard
-    // load, tripping Kalshi's rate limit (429s) and silently dropping markets.
+  // One crawl of /events with with_nested_markets=true returns every open
+  // event WITH its full market objects (prices + volume included) — ~8
+  // requests every 5 minutes, replacing the old one-request-per-event crawls
+  // (250+ calls) that tripped Kalshi's rate limit on every page load.
+  private async ensureMarketsCache(): Promise<KalshiMarket[]> {
     const now = Date.now();
-    if (politicalMarketsCache && now - politicalMarketsCache.fetchedAt < POLITICAL_CACHE_TTL_MS) {
-      return politicalMarketsCache.markets.slice(0, limit);
+    if (allMarketsCache && now - allMarketsCache.fetchedAt < MARKETS_CACHE_TTL_MS) {
+      return allMarketsCache.markets;
     }
 
-    console.log(`[Kalshi] Refreshing political markets cache (limit: ${limit})`);
-
-    // One crawl of /events with with_nested_markets=true returns each political
-    // event WITH its full market objects (prices + volume included) — ~6
-    // requests total, replacing the old one-request-per-event crawl (250+
-    // calls) that tripped Kalshi's rate limit on every dashboard load.
+    console.log(`[Kalshi] Refreshing full markets cache...`);
     const allMarkets: KalshiMarket[] = [];
     const seenTickers = new Set<string>();
     let cursor: string | undefined;
@@ -355,12 +366,11 @@ class KalshiAPI {
       );
       if (!result?.events?.length) break;
       for (const event of result.events) {
-        if (event.category !== "Politics" && event.category !== "Elections") continue;
         for (const rawMarket of event.markets ?? []) {
           if (seenTickers.has(rawMarket.ticker)) continue;
           seenTickers.add(rawMarket.ticker);
           const market = transformMarket(rawMarket);
-          market.category = market.category ?? event.category;
+          market.category = event.category ?? market.category;
           allMarkets.push(market);
         }
       }
@@ -368,16 +378,23 @@ class KalshiAPI {
       if (!cursor) break;
     }
 
-    // Step 3: Rank by real trading activity so live markets lead and dead
-    // placeholder markets (50% / Vol 0, closing in 2099) sink to the bottom.
+    // Rank by real trading activity so live markets lead and dead placeholder
+    // markets (50% / Vol 0, closing in 2099) sink to the bottom.
     const activity = (m: KalshiMarket) => m.volume_24h * 3 + m.volume + m.open_interest;
     allMarkets.sort((a, b) => activity(b) - activity(a));
 
     const liveCount = allMarkets.filter((m) => activity(m) > 0).length;
-    console.log(`[Kalshi] Political markets: ${allMarkets.length} total, ${liveCount} with trading activity`);
+    console.log(`[Kalshi] Markets cache: ${allMarkets.length} total, ${liveCount} with trading activity`);
 
-    politicalMarketsCache = { markets: allMarkets, fetchedAt: now };
-    return allMarkets.slice(0, limit);
+    allMarketsCache = { markets: allMarkets, fetchedAt: now };
+    return allMarkets;
+  }
+
+  async searchPoliticalMarkets(limit: number = 200): Promise<KalshiMarket[]> {
+    const markets = await this.ensureMarketsCache();
+    return markets
+      .filter((m) => m.category === "Politics" || m.category === "Elections")
+      .slice(0, limit);
   }
 
   async getEventMetadata(eventTicker: string): Promise<KalshiEventMetadata | null> {
@@ -411,54 +428,11 @@ class KalshiAPI {
   }
 
   async searchMarketsByCategory(category: string, limit: number = 200): Promise<KalshiMarket[]> {
-    if (category === "Politics" || category === "Elections") {
-      return this.searchPoliticalMarkets(limit);
-    }
-
-    const allMarkets: KalshiMarket[] = [];
-    const seenTickers = new Set<string>();
-    const matchingEventTickers: string[] = [];
-
-    console.log(`[Kalshi] Searching markets for category: ${category} (limit: ${limit})`);
-
-    let eventCursor: string | undefined;
-    for (let page = 0; page < 5; page++) {
-      const eventsResult = await this.getEvents({ status: "open", limit: 100, cursor: eventCursor });
-      if (!eventsResult?.events?.length) break;
-
-      for (const event of eventsResult.events) {
-        if (event.category === category) {
-          matchingEventTickers.push(event.event_ticker);
-        }
-      }
-
-      eventCursor = eventsResult.cursor;
-      if (!eventCursor) break;
-    }
-
-    console.log(`[Kalshi] Found ${matchingEventTickers.length} event tickers for category: ${category}`);
-
-    for (const eventTicker of matchingEventTickers) {
-      if (allMarkets.length >= limit) break;
-
-      const marketsResult = await this.getMarkets({
-        eventTicker,
-        status: "open",
-        limit: 50,
-      });
-
-      if (marketsResult?.markets) {
-        for (const market of marketsResult.markets) {
-          if (!seenTickers.has(market.ticker)) {
-            seenTickers.add(market.ticker);
-            allMarkets.push({ ...market, category });
-          }
-        }
-      }
-    }
-
-    console.log(`[Kalshi] Total markets found for ${category}: ${allMarkets.length}`);
-    return allMarkets.slice(0, limit);
+    const kalshiCategories = new Set(CATEGORY_ALIASES[category] ?? [category]);
+    const markets = await this.ensureMarketsCache();
+    const matched = markets.filter((m) => m.category && kalshiCategories.has(m.category));
+    console.log(`[Kalshi] Category "${category}" → [${Array.from(kalshiCategories).join(", ")}]: ${matched.length} markets`);
+    return matched.slice(0, limit);
   }
 
   async getAvailableCategories(): Promise<string[]> {
