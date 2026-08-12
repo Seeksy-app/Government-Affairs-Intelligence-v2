@@ -14,6 +14,15 @@ import {
 import { eq } from "drizzle-orm";
 
 export async function seedDatabase() {
+  // Never insert demo/sample data into a production database. Everything this
+  // function creates (firms, contacts, news, staffers, career histories,
+  // connections) is FICTIONAL — in production it would be indistinguishable
+  // from real intelligence data. Opt in explicitly with SEED_DEMO_DATA=true.
+  if (process.env.NODE_ENV === "production" && process.env.SEED_DEMO_DATA !== "true") {
+    console.log("Skipping demo seed (production; set SEED_DEMO_DATA=true to override)");
+    return;
+  }
+
   console.log("Checking if database needs seeding...");
 
   // Check if we already have data

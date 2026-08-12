@@ -71,6 +71,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Preflight: log which AI providers are actually configured so key
+  // misconfiguration shows up in the deploy log, not as user-facing 500s.
+  const { logAiProviderStatus } = await import("./services/ai-providers");
+  logAiProviderStatus();
+
   await registerRoutes(httpServer, app);
 
   // Seed database with sample data

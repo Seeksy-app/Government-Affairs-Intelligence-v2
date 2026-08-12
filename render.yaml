@@ -63,13 +63,17 @@ services:
         sync: false
 
       # ---- AI providers ----
+      # Anthropic powers Morning Brief, Decision Briefs, and chat (primary).
+      - key: AI_INTEGRATIONS_ANTHROPIC_API_KEY
+        sync: false
+      # Parallel.ai powers Decision Brief source extraction/search.
+      - key: PARALLEL_API_KEY
+        sync: false
+      # OpenAI/Gemini are optional fallbacks. Do NOT set the *_BASE_URL vars to
+      # the old Replit localhost sidecar — leave them unset for the real APIs.
       - key: AI_INTEGRATIONS_OPENAI_API_KEY
         sync: false
-      - key: AI_INTEGRATIONS_OPENAI_BASE_URL
-        sync: false
       - key: AI_INTEGRATIONS_GEMINI_API_KEY
-        sync: false
-      - key: AI_INTEGRATIONS_GEMINI_BASE_URL
         sync: false
 
       # ---- File/object storage (uploads) — see RENDER_DEPLOY.md follow-ups ----
