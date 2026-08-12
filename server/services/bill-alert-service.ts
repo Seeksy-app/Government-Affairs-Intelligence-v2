@@ -1,6 +1,6 @@
 import { storage } from "../storage";
 import { CongressAPI, formatBillId } from "./congress-api";
-import { sendEmail } from "./email-service";
+import { sendEmail, renderBrandedEmail } from "./email-service";
 
 // Scheduled bill-change detection + email alerts. Mirrors the manual
 // POST /api/tracked-bills/:id/sync logic, but runs across every tracked bill
@@ -107,30 +107,19 @@ function buildAlertHtml(alerts: BillAlert[]): string {
   const rows = alerts
     .map(
       (a) => `
-    <div style="margin-bottom: 16px; padding: 14px 16px; background: #ffffff; border-radius: 8px; border-left: 4px solid #078ACB;">
+    <div style="margin-bottom: 16px; padding: 14px 16px; background: #F7F6F2; border-radius: 8px; border-left: 4px solid #078ACB;">
       <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 700; color: #14253D; text-transform: uppercase; letter-spacing: 0.03em;">${escapeHtml(a.billLabel)}</p>
       <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: 600; color: #14253D;">${escapeHtml(a.title)}</p>
-      <p style="margin: 0; font-size: 14px; color: #4b5563;">${escapeHtml(a.description)}</p>
+      <p style="margin: 0; font-size: 14px; color: #5A6B80;">${escapeHtml(a.description)}</p>
     </div>`,
     )
     .join("");
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #F7F6F2; margin: 0; padding: 24px;">
-      <div style="max-width: 600px; margin: 0 auto;">
-        <div style="background: #14253D; color: #ffffff; padding: 20px 24px; border-radius: 12px 12px 0 0;">
-          <p style="margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.05em;">GOVERNMENTAFFAIRS.CO</p>
-          <h1 style="margin: 6px 0 0 0; font-size: 20px;">Tracked bill activity</h1>
-        </div>
-        <div style="background: #E9ECEC; padding: 20px; border-radius: 0 0 12px 12px;">
-          ${rows}
-          <p style="margin: 8px 0 0 0; text-align: center;">
-            <a href="https://app.governmentaffairs.co/bills" style="font-size: 14px; color: #078ACB; font-weight: 600;">View in Bill Tracking →</a>
-          </p>
-        </div>
-      </div>
-    </body>
-    </html>`;
+  return renderBrandedEmail({
+    kicker: "Bill Tracking",
+    heading: "Tracked bill activity",
+    bodyHtml: rows,
+    cta: { label: "View in Bill Tracking", url: "https://app.governmentaffairs.co/bills" },
+    footerNote: "You're receiving this because bill alerts are enabled for tracked legislation.",
+  });
 }
