@@ -1291,6 +1291,18 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.message });
       }
+      // Duplicate guard: same email (or same full name when no email) within
+      // the firm means this person is already in Contacts.
+      const existingContacts = await storage.getContacts(clientId);
+      const dup = existingContacts.find((c) =>
+        parsed.data.email
+          ? c.email?.toLowerCase() === parsed.data.email!.toLowerCase()
+          : c.firstName.toLowerCase() === parsed.data.firstName.toLowerCase() &&
+            c.lastName.toLowerCase() === parsed.data.lastName.toLowerCase(),
+      );
+      if (dup) {
+        return res.status(409).json({ message: `${dup.firstName} ${dup.lastName} is already in Contacts` });
+      }
       // If the contact is a current member of Congress, attach the official portrait.
       if (!parsed.data.imageUrl) {
         parsed.data.imageUrl = await lookupMemberPortrait(parsed.data.firstName, parsed.data.lastName);
