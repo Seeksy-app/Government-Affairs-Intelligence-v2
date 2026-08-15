@@ -5671,12 +5671,17 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       }
 
       const eventTickers = [...new Set(markets.map((m: any) => m.event_ticker).filter(Boolean))];
-      const imageMap = await kalshiApi.getEventImages(eventTickers.slice(0, 30));
+      const brandingMap = await kalshiApi.getEventBranding(eventTickers.slice(0, 30));
 
-      const marketsWithImages = markets.map((m: any) => ({
-        ...m,
-        image_url: imageMap.get(m.ticker) || imageMap.get(m.event_ticker) || null,
-      }));
+      const marketsWithImages = markets.map((m: any) => {
+        const marketBrand = brandingMap.get(m.ticker);
+        const eventBrand = brandingMap.get(m.event_ticker);
+        return {
+          ...m,
+          image_url: marketBrand?.image_url || eventBrand?.image_url || null,
+          color_code: marketBrand?.color_code || null,
+        };
+      });
 
       res.json({ markets: marketsWithImages, cursor: null });
     } catch (error) {
