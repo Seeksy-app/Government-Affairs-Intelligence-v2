@@ -402,29 +402,44 @@ class KalshiAPI {
   }
 
   async getEventImages(eventTickers: string[]): Promise<Map<string, string>> {
+    const branding = await this.getEventBranding(eventTickers);
     const imageMap = new Map<string, string>();
+    branding.forEach((b, ticker) => {
+      if (b.image_url) imageMap.set(ticker, b.image_url);
+    });
+    return imageMap;
+  }
+
+  // Per-market/event image + brand color (Kalshi sets color_code per
+  // competitor/outcome on many sports and entertainment markets — used to
+  // give cards a genuine team-brand accent instead of a guessed one).
+  async getEventBranding(eventTickers: string[]): Promise<Map<string, { image_url?: string; color_code?: string }>> {
+    const brandingMap = new Map<string, { image_url?: string; color_code?: string }>();
     const batchSize = 5;
-    
+
     for (let i = 0; i < eventTickers.length; i += batchSize) {
       const batch = eventTickers.slice(i, i + batchSize);
-      const results = await Promise.allSettled(
+      await Promise.allSettled(
         batch.map(async (ticker) => {
           const metadata = await this.getEventMetadata(ticker);
           if (metadata?.image_url) {
-            imageMap.set(ticker, metadata.image_url);
+            brandingMap.set(ticker, { ...brandingMap.get(ticker), image_url: metadata.image_url });
           }
           if (metadata?.market_details) {
             for (const detail of metadata.market_details) {
-              if (detail.image_url) {
-                imageMap.set(detail.market_ticker, detail.image_url);
+              if (detail.image_url || detail.color_code) {
+                brandingMap.set(detail.market_ticker, {
+                  image_url: detail.image_url,
+                  color_code: detail.color_code,
+                });
               }
             }
           }
         })
       );
     }
-    
-    return imageMap;
+
+    return brandingMap;
   }
 
   async searchMarketsByCategory(category: string, limit: number = 200): Promise<KalshiMarket[]> {

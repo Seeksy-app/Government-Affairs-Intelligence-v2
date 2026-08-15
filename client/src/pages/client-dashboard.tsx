@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Newspaper, BarChart3, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, ChevronRight, Users, Sunrise, Cloud, Network } from "lucide-react";
+import { Newspaper, BarChart3, FileText, TrendingUp, Landmark, Trophy, DollarSign, Beaker, Film, Heart, Globe, ChevronRight, Users, Sunrise, Cloud, Network } from "lucide-react";
+import { getCategoryIcon, resolveAccentColor, formatCloseLabel, formatVolume } from "@/lib/kalshi-visuals";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,9 +59,14 @@ interface UserRole {
 interface KalshiMarket {
   ticker: string;
   title: string;
+  subtitle?: string | null;
   yes_price: number;
   volume: number;
   status: string;
+  category?: string | null;
+  close_time?: string | null;
+  image_url?: string | null;
+  color_code?: string | null;
 }
 
 function scoreColor(score: number) {
@@ -69,17 +75,6 @@ function scoreColor(score: number) {
   return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
-function getPriceColor(price: number) {
-  if (price >= 70) return "text-emerald-600 dark:text-emerald-400";
-  if (price >= 40) return "text-amber-600 dark:text-amber-400";
-  return "text-rose-600 dark:text-rose-400";
-}
-
-function getPriceBarColor(price: number) {
-  if (price >= 70) return "bg-emerald-500";
-  if (price >= 40) return "bg-amber-500";
-  return "bg-rose-500";
-}
 
 export default function ClientDashboard() {
   const [, navigate] = useLocation();
@@ -275,50 +270,76 @@ export default function ClientDashboard() {
           {marketsLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <Card key={i}><CardContent className="p-5"><Skeleton className="h-4 w-full mb-3" /><Skeleton className="h-8 w-24 mb-2" /><Skeleton className="h-2 w-full" /></CardContent></Card>
+                <Card key={i}><CardContent className="p-4"><Skeleton className="h-4 w-full mb-3" /><Skeleton className="h-8 w-24 mb-2" /><Skeleton className="h-2 w-full" /></CardContent></Card>
               ))}
             </div>
           ) : predictionMarkets && predictionMarkets.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {predictionMarkets.slice(0, 8).map((market) => (
-                <Card
-                  key={market.ticker}
-                  className="cursor-pointer hover-elevate overflow-visible"
-                  onClick={() => navigate("/predictions")}
-                  data-testid={`market-card-${market.ticker}`}
-                >
-                  <CardContent className="p-5">
-                    <p className="text-sm font-medium line-clamp-3 mb-4 min-h-[3.75rem]" data-testid={`market-title-${market.ticker}`}>
-                      {market.title}
-                    </p>
-                    <div className="flex items-end justify-between gap-2 mb-3">
-                      <span className={`text-2xl font-bold ${getPriceColor(market.yes_price)}`} data-testid={`market-price-${market.ticker}`}>
-                        {market.yes_price}%
-                      </span>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {market.yes_price >= 60 ? (
-                          <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                        ) : market.yes_price <= 40 ? (
-                          <ArrowDownRight className="h-3 w-3 text-rose-500" />
-                        ) : (
-                          <Minus className="h-3 w-3 text-amber-500" />
+              {predictionMarkets.slice(0, 8).map((market) => {
+                const accent = resolveAccentColor(market.yes_price, market.color_code);
+                const CategoryIcon = getCategoryIcon(market.category ?? selectedCategory.apiCategory);
+                const closeLabel = formatCloseLabel(market.close_time);
+                return (
+                  <Card
+                    key={market.ticker}
+                    className="cursor-pointer hover-elevate overflow-visible border-t-[3px]"
+                    style={{ borderTopColor: accent }}
+                    onClick={() => navigate("/predictions")}
+                    data-testid={`market-card-${market.ticker}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                          <CategoryIcon className="h-3 w-3" />
+                          {market.category || selectedCategory.label}
+                        </span>
+                        {closeLabel && (
+                          <span className="text-[11px] text-muted-foreground shrink-0">{closeLabel}</span>
                         )}
-                        <span>Vol: {market.volume >= 1000 ? `${(market.volume / 1000).toFixed(1)}k` : market.volume.toLocaleString()}</span>
                       </div>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${getPriceBarColor(market.yes_price)}`}
-                        style={{ width: `${market.yes_price}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-muted-foreground">Yes</span>
-                      <span className="text-[10px] text-muted-foreground">No</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                      <div className="flex items-start gap-2.5 mb-3">
+                        {market.image_url ? (
+                          <img
+                            src={market.image_url}
+                            alt=""
+                            className="w-8 h-8 rounded-md object-cover shrink-0 bg-muted"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        ) : (
+                          <div
+                            className="w-8 h-8 rounded-md shrink-0 flex items-center justify-center"
+                            style={{ backgroundColor: `${accent}1A` }}
+                          >
+                            <CategoryIcon className="h-4 w-4" style={{ color: accent }} />
+                          </div>
+                        )}
+                        <p className="text-sm font-medium leading-snug line-clamp-2" data-testid={`market-title-${market.ticker}`}>
+                          {market.title}
+                        </p>
+                      </div>
+
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-1.5">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${market.yes_price}%`, backgroundColor: accent }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{ color: accent, backgroundColor: `${accent}1A` }}
+                          data-testid={`market-price-${market.ticker}`}
+                        >
+                          {market.yes_price}%
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">{formatVolume(market.volume)} vol</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <Card>
