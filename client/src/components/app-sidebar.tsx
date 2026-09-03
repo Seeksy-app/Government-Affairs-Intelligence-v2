@@ -182,7 +182,7 @@ export function AppSidebar() {
           </div>
           <div className="leading-tight">
             <span className="text-sm font-semibold">
-              GovernmentAffairs<span className="text-[#078ACB]">.co</span>
+              GovernmentAffairs<span className="text-[#078ACB]">.io</span>
             </span>
             {(isSuperAdmin && !isImpersonating) && (
               <p className="text-xs text-[#9FB0C4]">Super Admin</p>

@@ -1,8 +1,8 @@
-# GovernmentAffairs.co Brand System
+# GovernmentAffairs.io Brand System
 
 Distilled from the official brand guide. The full slide-format guide is
 vendored at [docs/brand-guide.html](brand-guide.html); the live copy is at
-https://www.governmentaffairs.co/brand-guide.html. If they ever disagree,
+https://www.governmentaffairs.io/brand-guide.html. If they ever disagree,
 the live guide wins — re-vendor it here.
 
 ## Core message
@@ -40,7 +40,7 @@ the live guide wins — re-vendor it here.
 
 ## Logo system
 
-- **Lockup:** GA mark + "GovernmentAffairs.co" wordmark, Source Sans 3
+- **Lockup:** GA mark + "GovernmentAffairs.io" wordmark, Source Sans 3
   ExtraBold/800. The ".co" renders in Signal Blue.
 - **GA mark:** navy square, white "GA". On dark backgrounds it inverts:
   white square, navy "GA".

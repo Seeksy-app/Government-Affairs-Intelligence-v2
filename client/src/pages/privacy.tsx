@@ -25,7 +25,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">1. Introduction</h2>
               <p className="text-muted-foreground">
-                This Privacy Policy describes how GovernmentAffairs.co ("we", "us", or "our") collects, uses, and shares information about you when you use our government affairs intelligence platform and related services (the "Service"). We are committed to protecting your privacy and ensuring the security of your personal information.
+                This Privacy Policy describes how GovernmentAffairs.io ("we", "us", or "our") collects, uses, and shares information about you when you use our government affairs intelligence platform and related services (the "Service"). We are committed to protecting your privacy and ensuring the security of your personal information.
               </p>
             </section>
 
@@ -128,7 +128,7 @@ export default function PrivacyPage() {
                 <li>Withdrawal of consent</li>
               </ul>
               <p className="text-muted-foreground mt-2">
-                To exercise these rights, contact us at support@governmentaffairs.co.
+                To exercise these rights, contact us at support@governmentaffairs.io.
               </p>
             </section>
 
@@ -156,7 +156,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-semibold">12. Contact Us</h2>
               <p className="text-muted-foreground">
-                If you have any questions about this Privacy Policy or our data practices, contact us at support@governmentaffairs.co.
+                If you have any questions about this Privacy Policy or our data practices, contact us at support@governmentaffairs.io.
               </p>
             </section>
           </CardContent>

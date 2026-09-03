@@ -1,8 +1,8 @@
 # Deploying the app on Render (plain-English guide)
 
 **Goal:** get the app's "brain" (the Express backend) running again on an
-always-on host, and point **`app.governmentaffairs.co`** at it. The V0 landing
-page stays on Vercel at **`governmentaffairs.co`** — untouched.
+always-on host, and point **`app.governmentaffairs.io`** at it. The V0 landing
+page stays on Vercel at **`governmentaffairs.io`** — untouched.
 
 **Why Render and not Vercel:** this backend runs continuously and does scheduled
 background work (news pulls, LegiStorm + House directory syncs). Vercel only runs
@@ -25,7 +25,7 @@ runs it exactly as it was built on the old VPS.
    or your local **`.env.local`** file. Render has a bulk **"Add from .env"**
    paste box — quickest way. See the checklist below.
 5. **Two values need attention:**
-   - **`APP_URL`** → set to **`https://app.governmentaffairs.co`** (this is new —
+   - **`APP_URL`** → set to **`https://app.governmentaffairs.io`** (this is new —
      it makes password-reset email links point at the right place).
    - **`DATABASE_URL`** → reuse your existing one (it already points at Supabase).
 6. Click **Create / Deploy**. First build takes a few minutes. Watch the log —
@@ -34,9 +34,9 @@ runs it exactly as it was built on the old VPS.
 ## Part B — Point the domain (you)
 
 1. In Render, open the service ▸ **Settings ▸ Custom Domains ▸ Add**
-   `app.governmentaffairs.co`. Render shows you a **CNAME target** (like
+   `app.governmentaffairs.io`. Render shows you a **CNAME target** (like
    `gov-affairs-app.onrender.com`).
-2. Go to wherever you manage DNS for `governmentaffairs.co` (likely **Vercel**,
+2. Go to wherever you manage DNS for `governmentaffairs.io` (likely **Vercel**,
    since the landing page lives there). Find the existing **`app`** record — it
    currently points at Vercel — and **change it to the Render CNAME** from step 1.
 3. Wait for it to go green in Render (a few minutes to an hour). Render adds the
@@ -45,7 +45,7 @@ runs it exactly as it was built on the old VPS.
 ## Part C — Verify (me)
 
 Once it's live, tell me and I'll check end-to-end that:
-- `app.governmentaffairs.co` loads the real app (not just the shell),
+- `app.governmentaffairs.io` loads the real app (not just the shell),
 - login actually works (real response, not the webpage),
 - data loads.
 
@@ -60,7 +60,7 @@ Reuse existing values from Vercel / `.env.local` unless noted.
 **Required to boot**
 - `DATABASE_URL` — reuse (points at Supabase `wogcfejomgyjgbaosdyg`)
 - `SESSION_SECRET` — reuse
-- `APP_URL` — **set to `https://app.governmentaffairs.co`**
+- `APP_URL` — **set to `https://app.governmentaffairs.io`**
 - `NODE_VERSION` — already set to `20` in `render.yaml`
 
 **Email**
@@ -96,5 +96,5 @@ Reuse existing values from Vercel / `.env.local` unless noted.
   Vercel static "app" project is no longer used and can be deleted. (Leave the
   **landing page** Vercel project alone.)
 - **Login cookies:** login is email/password with sessions stored in Postgres.
-  Because the app and its API are the same address (`app.governmentaffairs.co`),
+  Because the app and its API are the same address (`app.governmentaffairs.io`),
   cookies work with no extra config.

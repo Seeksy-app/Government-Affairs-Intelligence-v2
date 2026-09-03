@@ -25,14 +25,14 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">1. Acceptance of Terms</h2>
               <p className="text-muted-foreground">
-                By accessing and using GovernmentAffairs.co (the "Service"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this Service.
+                By accessing and using GovernmentAffairs.io (the "Service"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this Service.
               </p>
             </section>
 
             <section>
               <h2 className="text-lg font-semibold">2. Description of Service</h2>
               <p className="text-muted-foreground">
-                GovernmentAffairs.co is a multi-tenant SaaS platform designed for government affairs and lobbying firms and in-house government relations teams. The Service provides tools for tracking legislative activity and political contacts, monitoring congressional staff, aggregating news and government press releases, generating AI-assisted research briefs, managing client relationships, and conducting research.
+                GovernmentAffairs.io is a multi-tenant SaaS platform designed for government affairs and lobbying firms and in-house government relations teams. The Service provides tools for tracking legislative activity and political contacts, monitoring congressional staff, aggregating news and government press releases, generating AI-assisted research briefs, managing client relationships, and conducting research.
               </p>
             </section>
 
@@ -108,7 +108,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">11. Contact Us</h2>
               <p className="text-muted-foreground">
-                If you have any questions about these Terms, contact us at support@governmentaffairs.co.
+                If you have any questions about these Terms, contact us at support@governmentaffairs.io.
               </p>
             </section>
           </CardContent>

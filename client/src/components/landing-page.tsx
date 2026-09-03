@@ -129,7 +129,7 @@ export function LandingPage() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
               <Building2 className="w-4.5 h-4.5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg tracking-tight">governmentaffairs<span className="text-primary">.co</span></span>
+            <span className="font-bold text-lg tracking-tight">governmentaffairs<span className="text-primary">.io</span></span>
           </div>
           <div className="hidden md:flex items-center gap-7">
             <a href="#platform" className="text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">Platform</a>
@@ -484,7 +484,7 @@ export function LandingPage() {
                 <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
                   <Building2 className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold tracking-tight">governmentaffairs<span className="text-primary">.co</span></span>
+                <span className="font-bold tracking-tight">governmentaffairs<span className="text-primary">.io</span></span>
               </div>
               <p className="text-xs text-muted-foreground max-w-xs">
                 Political intelligence platform for government affairs professionals.
@@ -513,7 +513,7 @@ export function LandingPage() {
               </Link>
             </div>
             <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} governmentaffairs.co
+              &copy; {new Date().getFullYear()} governmentaffairs.io
             </p>
           </div>
         </div>

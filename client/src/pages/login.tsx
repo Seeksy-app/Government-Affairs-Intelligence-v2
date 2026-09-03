@@ -39,7 +39,7 @@ const PANELS = [
   { src: "/login/coffee-meeting.jpg", caption: "Quiet, purposeful, human." },
 ];
 
-// GovernmentAffairs.co lockup — GA mark + wordmark (brand: Source Sans 3, ExtraBold)
+// GovernmentAffairs.io lockup — GA mark + wordmark (brand: Source Sans 3, ExtraBold)
 function Wordmark({ className = "", onDark = true }: { className?: string; onDark?: boolean }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
@@ -51,7 +51,7 @@ function Wordmark({ className = "", onDark = true }: { className?: string; onDar
         GA
       </div>
       <span className="text-xl font-extrabold tracking-tight">
-        GovernmentAffairs<span className="text-[#078ACB]">.co</span>
+        GovernmentAffairs<span className="text-[#078ACB]">.io</span>
       </span>
     </div>
   );
@@ -181,7 +181,7 @@ export default function LoginPage() {
             Welcome back
           </h2>
           <p className="mb-8 mt-2 text-base text-[#5A6B80]">
-            Sign in to your GovernmentAffairs.co account.
+            Sign in to your GovernmentAffairs.io account.
           </p>
 
           <Form {...form}>

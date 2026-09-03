@@ -381,13 +381,13 @@ export async function registerRoutes(
       
       await sendEmail({
         to: parsed.data.email,
-        subject: "Verify your email — GovernmentAffairs.co",
+        subject: "Verify your email — GovernmentAffairs.io",
         html: renderBrandedEmail({
           kicker: "Application Received",
           heading: "Verify your email address",
           bodyHtml: `
             <p style="margin:0 0 12px 0;">Hi ${parsed.data.contactName},</p>
-            <p style="margin:0 0 12px 0;">Thank you for applying to join GovernmentAffairs.co. Please verify your email address by clicking the button below.</p>
+            <p style="margin:0 0 12px 0;">Thank you for applying to join GovernmentAffairs.io. Please verify your email address by clicking the button below.</p>
             <p style="margin:0;font-size:13px;color:#5A6B80;">Or copy and paste this link: ${verifyUrl}</p>`,
           cta: { label: "Verify Email", url: verifyUrl },
           footerNote: "This link expires in 24 hours. After verification, our team will review your application and notify you once approved.",
@@ -571,7 +571,7 @@ export async function registerRoutes(
       
       await sendEmail({
         to: application.email,
-        subject: "Welcome to GovernmentAffairs.co!",
+        subject: "Welcome to GovernmentAffairs.io!",
         html: renderBrandedEmail({
           kicker: "Account Ready",
           heading: "Welcome aboard",
@@ -959,7 +959,7 @@ export async function registerRoutes(
         : `https://${req.headers.host}/login`;
       await sendEmail({
         to: application.email,
-        subject: "Your application has been approved — GovernmentAffairs.co",
+        subject: "Your application has been approved — GovernmentAffairs.io",
         html: renderBrandedEmail({
           kicker: "Application Approved",
           heading: "Congratulations!",
@@ -1006,16 +1006,16 @@ export async function registerRoutes(
       // Send rejection email
       await sendEmail({
         to: application.email,
-        subject: "Application update — GovernmentAffairs.co",
+        subject: "Application update — GovernmentAffairs.io",
         html: renderBrandedEmail({
           kicker: "Application Update",
           heading: "About your application",
           bodyHtml: `
             <p style="margin:0 0 12px 0;">Hi ${application.contactName},</p>
-            <p style="margin:0 0 12px 0;">Thank you for your interest in GovernmentAffairs.co.</p>
+            <p style="margin:0 0 12px 0;">Thank you for your interest in GovernmentAffairs.io.</p>
             <p style="margin:0 0 12px 0;">After reviewing your application for <strong>${application.companyName}</strong>, we are unable to approve it at this time.</p>
             ${reason ? `<p style="margin:0 0 12px 0;"><strong>Reason:</strong> ${reason}</p>` : ""}
-            <p style="margin:0;">If you believe this is an error or would like more information, contact us at <a href="mailto:support@governmentaffairs.co" style="color:#078ACB;">support@governmentaffairs.co</a>.</p>`,
+            <p style="margin:0;">If you believe this is an error or would like more information, contact us at <a href="mailto:support@governmentaffairs.io" style="color:#078ACB;">support@governmentaffairs.io</a>.</p>`,
         }),
       });
 
@@ -1896,7 +1896,7 @@ export async function registerRoutes(
       const resend = new Resend(process.env.RESEND_API_KEY);
       
       await resend.emails.send({
-        from: "news@governmentaffairs.co",
+        from: "news@governmentaffairs.io",
         to: email,
         subject: `Shared Article: ${article.title}`,
         html: renderBrandedEmail({
@@ -4351,7 +4351,7 @@ Format your response as a structured summary with clear sections.`;
         return res.status(400).json({ message: "Message is required" });
       }
 
-      const systemPrompt = `You are the research assistant inside GovernmentAffairs.co, a political intelligence platform for government-affairs professionals.
+      const systemPrompt = `You are the research assistant inside GovernmentAffairs.io, a political intelligence platform for government-affairs professionals.
 
 YOUR DATA ACCESS:
 - You have DIRECT access to the platform's LegiStorm congressional staff directory (~17,900 staffers) via the search_staffer_directory tool. For ANY question about staffers, who works for a member, schedulers, chiefs of staff, or reaching an office: USE THE TOOL. Never answer staffing questions from memory, and never tell the user to "check LegiStorm" — this platform IS their LegiStorm access.
