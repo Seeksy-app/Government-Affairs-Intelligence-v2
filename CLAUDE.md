@@ -15,19 +15,31 @@ Tenancy naming (important): `clients` = the lobbying FIRM (SaaS licensee);
 `clients`, drives Morning Brief scoring (industries, watchlistTopics,
 relevantAgencies, relevantCommittees).
 
-## Domains & Hosting (current as of 2026-08-12)
+## Domains & Hosting (current as of 2026-09-03 — mid domain migration .co → .io)
 | Surface | URL | Host |
 |---|---|---|
-| Marketing landing (V0-built, separate codebase) | governmentaffairs.co | Vercel project `govaffairs` |
-| The app (this repo: frontend + Express API together) | app.governmentaffairs.co | **Render** web service `gov-affairs-app` |
+| Marketing landing (V0-built, separate codebase) | governmentaffairs.io | Vercel project `v0-project` |
+| The app (this repo: frontend + Express API together) | app.governmentaffairs.io *(pending DNS — see below)* | **Render** web service `gov-affairs-app` |
 
+- **Domain migration in progress (started 2026-09-03):** the company domain
+  moved from `governmentaffairs.co` to `governmentaffairs.io`. Resend and the
+  Vercel landing project (`v0-project`, formerly `govaffairs`) are already on
+  `.io`. **`app.governmentaffairs.io` has no DNS yet** — Render's app is still
+  only reachable at `app.governmentaffairs.co` until someone adds an `app`
+  CNAME for `governmentaffairs.io` at GoDaddy (same playbook as the original
+  setup — see `RENDER_DEPLOY.md`) and attaches the custom domain in Render.
+  All code (email sender/footer, in-app links, LinkedIn OAuth callback — which
+  is built from the live request host, not hardcoded) already targets `.io`.
+  The old `govaffairs` Vercel project survives, renamed to
+  `govaffairs-old-landing`, as an instant rollback if needed.
 - **The old Hostinger VPS (187.77.217.123) and the old Vercel app project are
   RETIRED/DELETED.** Do not reference them.
 - Render auto-deploys on push to `main` (~3 min). Blueprint: `render.yaml`.
   Deploy guide: `RENDER_DEPLOY.md`.
-- DNS is at GoDaddy. `app` CNAME → `gov-affairs-app.onrender.com`.
+- DNS is at GoDaddy. `app` CNAME → `gov-affairs-app.onrender.com` (still only
+  set up for the `.co` zone — see migration note above).
 - Landing-page changes happen in V0 (chat), not this repo. Its "Log in" buttons
-  point at app.governmentaffairs.co; login page "Book a demo" →
+  point at app.governmentaffairs.io; login page "Book a demo" →
   calendly.com/smartloads/gov-affairs-demo.
 
 ## Stack
@@ -78,7 +90,7 @@ Working end-to-end:
   crawls (429 storms) or exact-match UI categories (see CATEGORY_ALIASES:
   "Tech"→"Science and Technology", "Culture"→"Entertainment"+"Social").
 - **Email** via `RESEND_API_KEY` (+ optional `RESEND_FROM_EMAIL`, default
-  no-reply@governmentaffairs.co). Password reset works. The old Replit
+  no-reply@governmentaffairs.io). Password reset works. The old Replit
   connector email path is deleted.
 - **Security (PR #7)**: morning-brief IDOR fixed (client-scope check);
   first-login super-admin auto-promotion removed; demo seeder gated out of

@@ -15,7 +15,7 @@ The platform launched its first material product feature — **Decision Briefs V
 Decision Briefs is the bet that turns aggregation into product. The remaining V1.x roadmap and the V2 thinking captured here is downstream of that bet.
 
 **Repository:** `Seeksy-app/Government-Affairs-Intelligence-v2`
-**Production domain (marketing site only currently):** governmentaffairs.co
+**Production domain (marketing site only currently):** governmentaffairs.io
 **First named customer:** Adam Consulting Group (testing in early-to-mid June 2026)
 
 ---
@@ -405,7 +405,7 @@ Don't build for "lobbyists" abstractly. Build for Adam. Then find a contrasting 
 
 ## Naming and Branding
 
-Currently using **GovAffairs** as the working name. Domain is **governmentaffairs.co**.
+Currently using **GovAffairs** as the working name. Domain is **governmentaffairs.io**.
 
 Candidates considered and rejected:
 - Govify.io

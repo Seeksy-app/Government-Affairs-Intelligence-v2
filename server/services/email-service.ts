@@ -5,7 +5,7 @@
 // outside Replit's runtime.
 import { Resend } from 'resend';
 
-const DEFAULT_FROM_EMAIL = 'GovernmentAffairs.co <no-reply@governmentaffairs.co>';
+const DEFAULT_FROM_EMAIL = 'GovernmentAffairs.io <no-reply@governmentaffairs.io>';
 
 async function getCredentials() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -112,7 +112,7 @@ export function renderBrandedEmail(options: {
         <tr><td style="background:#14253D;border-radius:0 0 12px 12px;padding:20px 28px;text-align:center;">
           <p style="margin:0;font-size:13px;font-style:italic;color:#9FB0C4;">Find the path to the people who shape policy.</p>
           <p style="margin:10px 0 0 0;font-size:12px;color:#5A6B80;">
-            GovernmentAffairs.co · <a href="mailto:support@governmentaffairs.co" style="color:#078ACB;text-decoration:none;">support@governmentaffairs.co</a>
+            GovernmentAffairs.io · <a href="mailto:support@governmentaffairs.io" style="color:#078ACB;text-decoration:none;">support@governmentaffairs.io</a>
           </p>
           ${footerNote ? `<p style="margin:8px 0 0 0;font-size:11px;color:#5A6B80;">${footerNote}</p>` : ""}
         </td></tr>
