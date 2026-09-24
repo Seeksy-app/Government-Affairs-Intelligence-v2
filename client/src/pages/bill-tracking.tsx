@@ -32,6 +32,7 @@ const CONGRESS_SESSIONS = [
 import type { TrackedBill, BillChangeHistory, Matter } from "@shared/schema";
 import { US_STATES, isStateBill, trackedBillLabel, jurisdictionName } from "@shared/bill-label";
 import { LegiScanAttribution } from "@/components/legiscan-attribution";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 const STATE_OPTIONS = Object.entries(US_STATES).sort((a, b) => a[1].localeCompare(b[1]));
 
@@ -299,18 +300,19 @@ export default function BillTrackingPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Bill Tracking</h1>
-          <p className="text-muted-foreground">Track federal and state bills and get notified of changes</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Monitor"
+        title="Bills"
+        description="Track federal and state legislation and get notified when anything moves."
+        className="mb-0"
+        actions={
+          <>
           {unreadChanges && unreadChanges.length > 0 && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {unreadChanges.length} new updates
-            </Badge>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              {unreadChanges.length} new update{unreadChanges.length === 1 ? "" : "s"}
+            </span>
           )}
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
@@ -487,25 +489,26 @@ export default function BillTrackingPage() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Unread Changes Alert */}
       {unreadChanges && unreadChanges.length > 0 && (
-        <Card className="border-destructive/50 bg-destructive/5">
+        <Card className="border-primary/20 bg-primary/[0.04]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-destructive" />
-              Recent Bill Updates
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bell className="w-4 h-4 text-primary" />
+              What changed since you last looked
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1.5">
             {unreadChanges.slice(0, 5).map((change) => (
               <button
                 key={change.id}
                 type="button"
                 onClick={() => openBillPanel(change.bill)}
-                className="flex w-full items-center justify-between gap-3 rounded-md bg-background p-2 text-left hover:bg-muted/60"
+                className="flex w-full items-center justify-between gap-3 rounded-md border border-transparent bg-card px-3 py-2 text-left shadow-xs transition-colors hover:border-primary/30"
               >
                 <div className="min-w-0">
                   <span className="font-medium">{trackedBillLabel(change.bill)}</span>
@@ -719,6 +722,6 @@ export default function BillTrackingPage() {
       />
 
       <BillAlertsDialog bill={alertsBill} onClose={() => setAlertsBill(null)} />
-    </div>
+    </PageShell>
   );
 }

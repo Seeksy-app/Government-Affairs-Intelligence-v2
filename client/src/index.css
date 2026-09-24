@@ -12,12 +12,12 @@
   /* "Fresh" light theme (Sep 2026): near-white canvas, white sidebar with
      navy text and a Signal Blue tint for the active item. Dark mode below
      keeps the navy look. */
-  --background: 220 20% 98.5%;
+  --background: 220 23% 98%;
   --foreground: 214 51% 16%;
-  --border: 220 13% 91%;
+  --border: 220 14% 90%;
   --card: 0 0% 100%;
-  --card-foreground: 222 15% 12%;
-  --card-border: 220 13% 91%;
+  --card-foreground: 214 40% 14%;
+  --card-border: 220 14% 90%;
   --sidebar: 0 0% 100%;
   --sidebar-foreground: 215 25% 27%;
   --sidebar-border: 220 13% 91%;
@@ -27,37 +27,38 @@
   --sidebar-accent-foreground: 200 93% 30%;
   --sidebar-ring: 199 93% 41%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 15% 12%;
-  --popover-border: 220 13% 90%;
+  --popover-foreground: 214 40% 14%;
+  --popover-border: 220 14% 88%;
   --primary: 199 93% 41%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 220 15% 90%;
-  --secondary-foreground: 222 15% 15%;
+  --secondary: 220 16% 94%;
+  --secondary-foreground: 214 40% 16%;
   --muted: 220 14% 95%;
-  --muted-foreground: 222 12% 40%;
+  --muted-foreground: 216 13% 41%;
   --accent: 210 30% 96%;
-  --accent-foreground: 222 15% 15%;
+  --accent-foreground: 214 40% 16%;
   --destructive: 0 84% 40%;
   --destructive-foreground: 0 85% 97%;
-  --input: 220 13% 80%;
+  --input: 220 13% 84%;
   --ring: 199 93% 41%;
   --chart-1: 199 93% 41%;
   --chart-2: 190 80% 40%;
   --chart-3: 280 65% 45%;
   --chart-4: 30 80% 45%;
   --chart-5: 160 70% 40%;
-  --font-sans: Open Sans, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  /* Source Sans 3 is the only brand typeface — serif utilities map to it too. */
+  --font-sans: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
   --radius: .5rem;
-  --shadow-2xs: 0px 2px 0px 0px hsl(199 93% 41% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(199 93% 41% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(199 93% 41% / 0.00), 0px 1px 2px -1px hsl(199 93% 41% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(199 93% 41% / 0.00), 0px 1px 2px -1px hsl(199 93% 41% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(199 93% 41% / 0.00), 0px 2px 4px -1px hsl(199 93% 41% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(199 93% 41% / 0.00), 0px 4px 6px -1px hsl(199 93% 41% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(199 93% 41% / 0.00), 0px 8px 10px -1px hsl(199 93% 41% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(199 93% 41% / 0.00);
+  --shadow-2xs: 0 1px 0 0 rgb(16 24 40 / 0.03);
+  --shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(16 24 40 / 0.04), 0 1px 3px 0 rgb(16 24 40 / 0.04);
+  --shadow: 0 1px 3px 0 rgb(16 24 40 / 0.06), 0 1px 2px -1px rgb(16 24 40 / 0.06);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.08), 0 2px 4px -2px rgb(16 24 40 / 0.05);
+  --shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --shadow-xl: 0 20px 24px -4px rgb(16 24 40 / 0.08), 0 8px 8px -4px rgb(16 24 40 / 0.03);
+  --shadow-2xl: 0 24px 48px -12px rgb(16 24 40 / 0.18);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -103,12 +104,12 @@
   --card-foreground: 210 40% 98%;
   --card-border: 222 18% 13%;
   --sidebar: 214 45% 12%;
-  --sidebar-foreground: 210 40% 98%;
+  --sidebar-foreground: 214 25% 82%;
   --sidebar-border: 222 18% 16%;
   --sidebar-primary: 199 90% 48%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 222 18% 16%;
-  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-accent: 199 55% 18%;
+  --sidebar-accent-foreground: 199 90% 78%;
   --sidebar-ring: 199 90% 48%;
   --popover: 222 20% 14%;
   --popover-foreground: 210 40% 98%;
@@ -130,14 +131,14 @@
   --chart-3: 280 65% 60%;
   --chart-4: 30 80% 60%;
   --chart-5: 160 70% 55%;
-  --shadow-2xs: 0px 2px 0px 0px hsl(199 90% 48% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(199 90% 48% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(199 90% 48% / 0.00), 0px 1px 2px -1px hsl(199 90% 48% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(199 90% 48% / 0.00), 0px 1px 2px -1px hsl(199 90% 48% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(199 90% 48% / 0.00), 0px 2px 4px -1px hsl(199 90% 48% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(199 90% 48% / 0.00), 0px 4px 6px -1px hsl(199 90% 48% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(199 90% 48% / 0.00), 0px 8px 10px -1px hsl(199 90% 48% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(199 90% 48% / 0.00);
+  --shadow-2xs: 0 1px 0 0 rgb(0 0 0 / 0.2);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25), 0 1px 3px 0 rgb(0 0 0 / 0.2);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+  --shadow-lg: 0 12px 16px -4px rgb(0 0 0 / 0.4), 0 4px 6px -2px rgb(0 0 0 / 0.2);
+  --shadow-xl: 0 20px 24px -4px rgb(0 0 0 / 0.45), 0 8px 8px -4px rgb(0 0 0 / 0.2);
+  --shadow-2xl: 0 24px 48px -12px rgb(0 0 0 / 0.5);
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -175,6 +176,19 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-feature-settings: "kern", "liga", "calt";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Brand headlines: Source Sans 3 at 650, tightened tracking. Utility
+     classes on a heading still win (they're later in the cascade). */
+  h1, h2, h3 {
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
   }
 }
 

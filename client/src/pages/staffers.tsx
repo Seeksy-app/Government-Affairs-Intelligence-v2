@@ -65,6 +65,32 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import type { Staffer, LegistormStaffer } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 const CHAMBERS = [
   { value: "all", label: "All Chambers" },
@@ -148,20 +174,18 @@ const US_STATES = [
 
 function getPartyColor(party: string | null): string {
   switch (party) {
-    case "Republican": return "bg-red-500/10 text-red-500 border-red-500/20";
-    case "Democrat": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "Independent": return "bg-green-500/10 text-green-500 border-green-500/20";
+    case "Republican": return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20";
+    case "Democrat": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20";
+    case "Independent": return "bg-muted text-foreground/80 border-border";
     default: return "bg-muted text-muted-foreground";
   }
 }
 
+// Chambers are neutral labels, not categories that need their own colors.
 function getChamberColor(chamber: string | null): string {
   switch (chamber) {
-    case "House": return "bg-indigo-500/10 text-indigo-500 border-indigo-500/20";
-    case "Senate": return "bg-purple-500/10 text-purple-500 border-purple-500/20";
-    case "Both": return "bg-cyan-500/10 text-cyan-500 border-cyan-500/20";
-    case "Former": return "bg-muted text-muted-foreground";
-    default: return "bg-muted text-muted-foreground";
+    case "Former": return "bg-muted text-muted-foreground border-transparent";
+    default: return "bg-transparent text-foreground/80 border-border";
   }
 }
 
@@ -597,18 +621,13 @@ export default function StaffersPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            Political Staffers
-          </h1>
-          <p className="text-muted-foreground">
-            Search and track congressional staffers, map career trajectories, and visualize networks
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Reach"
+        title="Staff Directory"
+        description="Find the congressional staffers behind every office and map how their careers connect."
+        className="mb-0"
+        actions={
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-staffer">
@@ -784,11 +803,11 @@ export default function StaffersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
           <TabsTrigger value="search" data-testid="tab-search">
             <Search className="h-4 w-4 mr-2" />
             Search
@@ -809,17 +828,15 @@ export default function StaffersPage() {
 
         <TabsContent value="search" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Search Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                <div className="xl:col-span-2">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <div className="relative sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by name..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full"
+                    className="w-full pl-9"
                     data-testid="input-search-name"
                   />
                 </div>
@@ -873,35 +890,44 @@ export default function StaffersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-12 w-12 rounded-full mb-4" />
-                    <Skeleton className="h-5 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/2 mb-4" />
-                    <Skeleton className="h-8 w-full" />
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3.5 w-1/2" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-12" />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : staffers.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No staffers found</h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  {searchQuery || memberFilter || chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all"
+              <EmptyState
+                icon={Users}
+                title="No staffers found"
+                description={
+                  searchQuery || memberFilter || chamberFilter !== "all" || partyFilter !== "all" || stateFilter !== "all"
                     ? "Try adjusting your search filters"
-                    : "Add your first staffer to get started"}
-                </p>
-                <Button onClick={() => setAddDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Staffer
-                </Button>
-              </CardContent>
+                    : "Add your first staffer to get started"
+                }
+                action={
+                  <Button onClick={() => setAddDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Staffer
+                  </Button>
+                }
+              />
             </Card>
           ) : (
             <>
               <p className="text-sm text-muted-foreground" data-testid="text-staffer-count">
-                {(search || chamber !== "all" || party !== "all") && stats?.totalStaffers
+                {(searchQuery || chamberFilter !== "all" || partyFilter !== "all") && stats?.totalStaffers
                   ? `${searchResult?.total || staffers.length} of ${stats.totalStaffers} staffers found`
                   : `${searchResult?.total || staffers.length} staffer${(searchResult?.total || staffers.length) !== 1 ? "s" : ""} found`}
               </p>
@@ -913,16 +939,16 @@ export default function StaffersPage() {
                     onClick={() => navigate(`/staffers/${staffer.id}`)}
                     data-testid={`card-staffer-${staffer.id}`}
                   >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10 shrink-0">
                           <AvatarImage src={getAvatarUrl(staffer.name, staffer.photoUrl)} alt={staffer.name} />
-                          <AvatarFallback className="bg-primary/10 text-primary">
+                          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                             {staffer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{staffer.name}</h3>
+                          <h3 className="text-sm font-semibold truncate">{staffer.name}</h3>
                           <p className="text-sm text-muted-foreground truncate">
                             {staffer.currentPosition}
                           </p>
@@ -972,38 +998,38 @@ export default function StaffersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Total Staffers</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Staffers</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalStaffers || 0}</div>
+                <div className="text-2xl font-semibold tabular-nums">{stats?.totalStaffers || 0}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">House Staff</CardTitle>
-                <Building2 className="h-4 w-4 text-indigo-500" />
+                <CardTitle className="text-sm font-medium text-muted-foreground">House Staff</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.byChamber?.House || 0}</div>
+                <div className="text-2xl font-semibold tabular-nums">{stats?.byChamber?.House || 0}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Senate Staff</CardTitle>
-                <Building2 className="h-4 w-4 text-purple-500" />
+                <CardTitle className="text-sm font-medium text-muted-foreground">Senate Staff</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.byChamber?.Senate || 0}</div>
+                <div className="text-2xl font-semibold tabular-nums">{stats?.byChamber?.Senate || 0}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Organizations</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Organizations</CardTitle>
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.topOrganizations?.length || 0}</div>
+                <div className="text-2xl font-semibold tabular-nums">{stats?.topOrganizations?.length || 0}</div>
               </CardContent>
             </Card>
           </div>
@@ -1011,7 +1037,7 @@ export default function StaffersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>By Party</CardTitle>
+                <CardTitle className="text-base">By Party</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {stats?.byParty && Object.entries(stats.byParty).map(([party, count]) => (
@@ -1032,7 +1058,7 @@ export default function StaffersPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Organizations</CardTitle>
+                <CardTitle className="text-base">Top Organizations</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {stats?.topOrganizations?.slice(0, 5).map((org) => (
@@ -1051,11 +1077,11 @@ export default function StaffersPage() {
 
         <TabsContent value="legistorm" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="text-sm">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-medium tabular-nums">
                 {lsStatus?.totalStaffers?.toLocaleString() || 0} total staffers
               </Badge>
-              <Badge variant="outline" className="text-sm">
+              <Badge variant="outline" className="font-medium tabular-nums">
                 {lsStatus?.currentStaffers?.toLocaleString() || 0} current
               </Badge>
               {lsStatus?.syncHistory?.[0] && (
@@ -1096,18 +1122,19 @@ export default function StaffersPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Search LegiStorm Directory</CardTitle>
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="text-base font-semibold">Search the LegiStorm directory</CardTitle>
               <CardDescription>Search across {lsStatus?.totalStaffers?.toLocaleString() || 0} congressional staffers from LegiStorm</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-1">
+            <CardContent className="p-4 pt-0">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative sm:col-span-2 lg:col-span-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by name, title, office..."
                     value={lsQuery}
                     onChange={(e) => { setLsQuery(e.target.value); setLsPage(0); }}
-                    className="w-full"
+                    className="w-full pl-9"
                     data-testid="input-ls-search"
                   />
                 </div>
@@ -1149,35 +1176,41 @@ export default function StaffersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-12 w-12 rounded-full mb-4" />
-                    <Skeleton className="h-5 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/2 mb-4" />
-                    <Skeleton className="h-8 w-full" />
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3.5 w-1/2" />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-12" />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : (lsResult?.staffers?.length || 0) === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Database className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">
-                  {(lsStatus?.totalStaffers || 0) === 0 ? "No LegiStorm data synced yet" : "No staffers match your search"}
-                </h3>
-                <p className="text-muted-foreground text-center mb-4">
-                  {(lsStatus?.totalStaffers || 0) === 0
+              <EmptyState
+                icon={Database}
+                title={(lsStatus?.totalStaffers || 0) === 0 ? "No LegiStorm data synced yet" : "No staffers match your search"}
+                description={
+                  (lsStatus?.totalStaffers || 0) === 0
                     ? "Run a full sync to download congressional staff data from LegiStorm"
                     : "Try adjusting your search filters"
-                  }
-                </p>
-                {(lsStatus?.totalStaffers || 0) === 0 && (
-                  <Button onClick={() => syncMutation.mutate("full")} disabled={syncMutation.isPending}>
-                    <Database className="h-4 w-4 mr-2" />
-                    Start Full Sync
-                  </Button>
-                )}
-              </CardContent>
+                }
+                action={
+                  (lsStatus?.totalStaffers || 0) === 0 ? (
+                    <Button onClick={() => syncMutation.mutate("full")} disabled={syncMutation.isPending}>
+                      <Database className="h-4 w-4 mr-2" />
+                      Start Full Sync
+                    </Button>
+                  ) : undefined
+                }
+              />
             </Card>
           ) : (
             <>
@@ -1217,16 +1250,16 @@ export default function StaffersPage() {
                     onClick={() => setLsSelectedId(staffer.legistormId)}
                     data-testid={`card-ls-staffer-${staffer.legistormId}`}
                   >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10 shrink-0">
                           <AvatarImage src={getAvatarUrl(staffer.fullName)} alt={staffer.fullName} />
-                          <AvatarFallback className="bg-primary/10 text-primary">
+                          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                             {staffer.fullName.split(" ").map(n => n[0]).join("").slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{staffer.fullName}</h3>
+                          <h3 className="text-sm font-semibold truncate">{staffer.fullName}</h3>
                           <p className="text-sm text-muted-foreground truncate">
                             {staffer.currentTitle || "Staff"}
                           </p>
@@ -1463,7 +1496,7 @@ export default function StaffersPage() {
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm flex items-center gap-2">
                         <Search className="h-4 w-4" />
-                        AI Career Research
+                        Career Research
                       </h4>
                       <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[400px] overflow-y-auto space-y-3">
                         {lsResearchResult.split(/\n{2,}/).map((block, bIdx) => {
@@ -1535,7 +1568,7 @@ export default function StaffersPage() {
                           return (
                             <div key={pos.id || i} className="p-3 rounded-md bg-muted/50 space-y-2 hover-elevate group/pos">
                               <div className="flex items-start gap-3">
-                                <div className={`h-2 w-2 mt-2 rounded-full shrink-0 ${pos.isCurrent ? "bg-green-500" : "bg-muted-foreground/50"}`} />
+                                <div className={`h-2 w-2 mt-2 rounded-full shrink-0 ${pos.isCurrent ? "bg-primary" : "bg-muted-foreground/50"}`} />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium">{pos.title}</p>
                                   {pos.memberName && (
@@ -1666,8 +1699,7 @@ export default function StaffersPage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <CardTitle className="flex items-center gap-2" data-testid="text-veteran-staffers-title">
-                    <Shield className="h-5 w-5" />
+                  <CardTitle className="text-base font-semibold" data-testid="text-veteran-staffers-title">
                     Veteran Staffers & Military Liaisons
                   </CardTitle>
                   <CardDescription className="mt-1">
@@ -1711,7 +1743,7 @@ export default function StaffersPage() {
                         <div className="flex items-start gap-3">
                           <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
                             <AvatarImage src={getAvatarUrl(staffer.fullName)} alt={staffer.fullName} />
-                            <AvatarFallback className="text-xs">{getInitials(staffer.fullName)}</AvatarFallback>
+                            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{getInitials(staffer.fullName)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -1745,9 +1777,9 @@ export default function StaffersPage() {
                               )}
                             </div>
                             {staffer.email && (
-                              <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
-                                <Mail className="h-3 w-3" />
-                                {staffer.email}
+                              <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground hover:text-primary flex min-w-0 items-center gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
+                                <Mail className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{staffer.email}</span>
                               </a>
                             )}
                           </div>
@@ -1758,12 +1790,11 @@ export default function StaffersPage() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-6">
-                  <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No staffers with military/veterans-related titles found in the directory.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={Shield}
+                  title="No veteran staffers yet"
+                  description="No staffers with military/veterans-related titles found in the directory."
+                />
               )}
             </CardContent>
           </Card>
@@ -1777,7 +1808,7 @@ export default function StaffersPage() {
                       <SheetTitle className="flex items-center gap-3">
                         <Avatar className="h-14 w-14">
                           <AvatarImage src={getAvatarUrl(selectedVetStaffer.fullName)} alt={selectedVetStaffer.fullName} />
-                          <AvatarFallback className="text-lg">{getInitials(selectedVetStaffer.fullName)}</AvatarFallback>
+                          <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{getInitials(selectedVetStaffer.fullName)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <span className="text-lg">{selectedVetStaffer.fullName}</span>
@@ -1937,7 +1968,7 @@ export default function StaffersPage() {
                     <div className="space-y-3">
                       <h4 className="text-sm font-medium flex items-center gap-2">
                         <Search className="h-4 w-4" />
-                        AI Research
+                        Background Research
                       </h4>
                       <Button
                         variant="outline"
@@ -1965,6 +1996,6 @@ export default function StaffersPage() {
           </Sheet>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

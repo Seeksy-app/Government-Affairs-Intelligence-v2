@@ -8,6 +8,7 @@ import { Search, FileText, FolderOpen, Book, ArrowLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { KbCategory, KbArticle } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 export default function KnowledgeBase() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -41,54 +42,59 @@ export default function KnowledgeBase() {
 
   if (selectedArticle) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
-        <Button variant="ghost" onClick={() => setSelectedArticle(null)} className="mb-4" data-testid="button-back-to-articles">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Knowledge Base
+      <PageShell width="narrow">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSelectedArticle(null)}
+          className="-ml-2 mb-3 h-8 px-2 text-muted-foreground hover:text-foreground"
+          data-testid="button-back-to-articles"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          All articles
         </Button>
+        <PageHeader
+          eyebrow="Knowledge Base"
+          title={<span className="break-words">{selectedArticle.title}</span>}
+          description={selectedArticle.summary || undefined}
+        />
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">{selectedArticle.title}</CardTitle>
-            {selectedArticle.summary && (
-              <CardDescription className="text-base">{selectedArticle.summary}</CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="prose dark:prose-invert max-w-none">
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none break-words p-5 sm:p-6">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {selectedArticle.content || ""}
             </ReactMarkdown>
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Knowledge Base</h1>
-          <p className="text-muted-foreground">Find help articles and documentation</p>
-        </div>
-      </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Brief"
+        title="Knowledge Base"
+        description="Find how-to guides and reference articles for your team."
+        className="mb-0"
+      />
 
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search articles..."
+          placeholder="Search articles…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-9"
           data-testid="input-kb-search"
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-6">
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Categories</CardTitle>
+      <div className="grid gap-4 lg:grid-cols-4">
+        <Card className="h-fit lg:col-span-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Categories</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1">
             <Button
               variant={selectedCategory === null ? "secondary" : "ghost"}
               className="w-full justify-start"
@@ -99,7 +105,8 @@ export default function KnowledgeBase() {
               data-testid="button-category-all"
             >
               <Book className="w-4 h-4 mr-2" />
-              All Articles ({articles.length})
+              <span className="flex-1 text-left">All articles</span>
+              <span className="text-xs text-muted-foreground">{articles.length}</span>
             </Button>
             {categories.map((cat) => (
               <Button
@@ -112,23 +119,30 @@ export default function KnowledgeBase() {
                 }}
                 data-testid={`button-category-${cat.id}`}
               >
-                <FolderOpen className="w-4 h-4 mr-2" />
-                {cat.name}
+                <FolderOpen className="w-4 h-4 mr-2 shrink-0" />
+                <span className="truncate">{cat.name}</span>
               </Button>
             ))}
           </CardContent>
         </Card>
 
-        <div className="col-span-3 space-y-4">
+        <div className="space-y-3 lg:col-span-3">
           {displayArticles.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  {searchQuery ? "No articles found for your search" : "No articles available"}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                {searchQuery ? (
+                  <Search className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <h3 className="mt-4 text-sm font-semibold">
+                {searchQuery ? "No articles match your search" : "No articles yet"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {searchQuery ? "Try a different word or phrase." : "Articles will appear here once they're published."}
+              </p>
+            </div>
           ) : (
             displayArticles.map((article) => (
               <Card 
@@ -137,18 +151,20 @@ export default function KnowledgeBase() {
                 onClick={() => setSelectedArticle(article)}
                 data-testid={`card-article-${article.id}`}
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    {article.title}
+                <CardHeader className="p-4 sm:p-5">
+                  <CardTitle className="flex items-start gap-2 text-base font-semibold">
+                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 break-words">{article.title}</span>
                   </CardTitle>
-                  <CardDescription>{article.summary}</CardDescription>
+                  {article.summary && (
+                    <CardDescription className="line-clamp-2 pl-6">{article.summary}</CardDescription>
+                  )}
                 </CardHeader>
               </Card>
             ))
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

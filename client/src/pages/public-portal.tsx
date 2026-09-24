@@ -16,6 +16,7 @@ import {
   TrendingUp, ExternalLink, Clock, Star, BarChart3, FileSearch,
   Activity, AlertCircle, Rss
 } from "lucide-react";
+import { GaMark } from "@/components/ga-mark";
 import { formatDistanceToNow, format } from "date-fns";
 import { LegiScanAttribution } from "@/components/legiscan-attribution";
 
@@ -459,7 +460,7 @@ export default function PublicPortal() {
       <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
         <div className="min-h-screen bg-background">
           <div className="border-b bg-card">
-            <div className="container mx-auto py-4 flex items-center justify-between gap-4">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
               <Button variant="ghost" onClick={() => setSelectedMatter(null)} data-testid="button-back-to-matters">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -467,7 +468,7 @@ export default function PublicPortal() {
               <SheetTrigger asChild>
                 <Button variant="outline" className="gap-2" data-testid="button-open-chat">
                   <MessageCircle className="w-4 h-4" />
-                  Ask AI
+                  Ask a question
                   {messages.length > 0 && (
                     <Badge variant="secondary" className="ml-1">{messages.length}</Badge>
                   )}
@@ -476,7 +477,7 @@ export default function PublicPortal() {
             </div>
           </div>
 
-        <div className="container mx-auto py-8 space-y-6">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -546,7 +547,7 @@ export default function PublicPortal() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="border-b bg-card">
-          <div className="container mx-auto py-6">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 {portal.clientLogo ? (
@@ -562,17 +563,14 @@ export default function PublicPortal() {
                 )}
                 <div>
                   <h1 className="text-2xl font-bold" data-testid="text-portal-client-name">{portal.clientName}</h1>
-                  <p className="text-muted-foreground flex items-center gap-1">
-                    <Star className="w-4 h-4" />
-                    {portal.name}
-                  </p>
+                  <p className="text-muted-foreground">{portal.name}</p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <SheetTrigger asChild>
                   <Button variant="outline" className="gap-2" data-testid="button-open-chat">
                     <MessageCircle className="w-4 h-4" />
-                    Ask AI
+                    Ask a question
                     {messages.length > 0 && (
                       <Badge variant="secondary" className="ml-1">{messages.length}</Badge>
                     )}
@@ -602,7 +600,7 @@ export default function PublicPortal() {
         </div>
 
       {/* Tabs Navigation */}
-      <div className="container mx-auto py-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" data-testid="tab-overview">
@@ -1099,9 +1097,12 @@ export default function PublicPortal() {
 
       {/* Footer */}
       <footer className="border-t mt-12 bg-card">
-        <div className="container mx-auto py-6 text-center text-sm text-muted-foreground">
-          <p>Powered by Political Intelligence Platform</p>
-          <p className="text-xs mt-1">Secure client portal for {portal.clientName}</p>
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-muted-foreground sm:px-6">
+          <a href="https://governmentaffairs.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 font-semibold text-foreground">
+            <GaMark size={20} />
+            <span>GovernmentAffairs<span className="text-[#078ACB]">.io</span></span>
+          </a>
+          <p className="text-xs">Secure client portal for {portal.clientName}</p>
         </div>
       </footer>
 

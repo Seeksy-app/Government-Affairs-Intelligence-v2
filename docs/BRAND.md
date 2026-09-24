@@ -60,6 +60,22 @@ the live guide wins — re-vendor it here.
   a white sidebar with navy text, and a pale Signal Blue tint for the active
   item; cards are white with hairline borders. Dark mode keeps the navy
   shell. Tokens live in `client/src/index.css`.
+- **Page anatomy:** every page uses `<PageShell>` + `<PageHeader>`
+  (`client/src/components/page-header.tsx`): Signal Blue eyebrow naming the
+  sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
+  650–700 weight title, one plain sentence of description, actions on the
+  right. No decorative icons beside page titles, no serif, no gradient text.
+- **Navigation:** flat sidebar sections named for the job (Brief, Monitor,
+  Reach, Clients, Workspace); every page listed exactly once.
+- **Color discipline:** red/destructive only for errors and destructive
+  actions. Relevance scores and "new update" notices use the Signal Blue
+  tint (`bg-primary/10 text-primary`), never alarm red. Concern levels are
+  the one exception: Low (emerald) / Worth watching (amber) / Act now
+  (Civic Red).
+- **Empty states:** centered muted circle icon, short bold title, one line
+  of explanation, optional primary action.
+- **Voice in UI:** no "AI-powered"/"AI Chat" labels — name the outcome
+  ("Research assistant", "Discover connections").
 - **Radius:** 3–6px — avoid soft, inflated card shapes.
 - **Spacing:** 8px base rhythm, generous section spacing.
 - **Icons:** simple outlined icons at 16, 20, or 24px.

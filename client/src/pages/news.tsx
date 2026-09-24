@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { 
   Newspaper, Plus, Search, ExternalLink, Flag, Check, Clock, 
-  RefreshCw, Bookmark, TrendingUp, Rss, Settings, Sparkles,
+  RefreshCw, Bookmark, TrendingUp, Rss, Settings,
   AlertCircle, Filter, Star, Users, Trash2, Building2, X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Mail, Share2, Target, Eye, EyeOff } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 interface AssignmentWithClient extends RssFeedClientAssignment {
   clientName: string;
@@ -385,19 +386,20 @@ export default function News() {
 
   const getCategoryColor = (category: string | null) => {
     switch (category?.toLowerCase()) {
-      case "legislation": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "executive": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
-      case "defense": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "policy": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "campaign": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-      default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
+      // One neutral chip style for every category — color is reserved for state.
+      case "legislation":
+      case "executive":
+      case "defense":
+      case "policy":
+      case "campaign":
+      default: return "border bg-muted/50 text-muted-foreground capitalize";
     }
   };
 
   const getRelevanceColor = (score: number) => {
-    if (score >= 70) return "text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400";
-    if (score >= 40) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400";
+    if (score >= 70) return "text-primary bg-primary/10";
+    if (score >= 40) return "text-foreground bg-muted";
+    return "text-muted-foreground bg-muted/60";
   };
 
   const highRelevanceCount = articles?.filter(a => (a.relevanceScore || 0) >= 50).length || 0;
@@ -414,18 +416,14 @@ export default function News() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-serif flex items-center gap-2" data-testid="text-news-title">
-            <Sparkles className="h-7 w-7 text-primary" />
-            News Intelligence
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            AI-powered news aggregation from {rssFeeds?.filter(f => f.isActive).length || 0} sources
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Monitor"
+        title={<span data-testid="text-news-title">News</span>}
+        description={`Monitor policy coverage from ${rssFeeds?.filter(f => f.isActive).length || 0} sources, scored for relevance to your clients.`}
+        className="mb-0"
+        actions={
+        <>
           <Button 
             variant="outline"
             onClick={() => fetchNewsMutation.mutate()}
@@ -444,7 +442,7 @@ export default function News() {
             <Target className="w-4 h-4 mr-2" />
             High Intent
             {highIntentKeywords && highIntentKeywords.length > 0 && (
-              <Badge variant="destructive" className="ml-2">{highIntentKeywords.length}</Badge>
+              <Badge variant="secondary" className="ml-2 px-1.5 tabular-nums">{highIntentKeywords.length}</Badge>
             )}
           </Button>
           
@@ -461,7 +459,7 @@ export default function News() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="border rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium">Add New Feed</h4>
+                  <h4 className="text-sm font-semibold">Add New Feed</h4>
                   <div className="flex gap-2">
                     <Input
                       placeholder="RSS feed URL..."
@@ -478,12 +476,12 @@ export default function News() {
                       Test
                     </Button>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Input
                       placeholder="Feed name..."
                       value={newFeedName}
                       onChange={(e) => setNewFeedName(e.target.value)}
-                      className="flex-1"
+                      className="min-w-[160px] flex-1"
                       data-testid="input-feed-name"
                     />
                     <Select value={newFeedCategory} onValueChange={setNewFeedCategory}>
@@ -511,26 +509,26 @@ export default function News() {
                 </div>
                 
                 <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-3">Active Feeds ({rssFeeds?.filter(f => f.isActive).length || 0})</h4>
+                  <h4 className="text-sm font-semibold mb-3">Active Feeds ({rssFeeds?.filter(f => f.isActive).length || 0})</h4>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {rssFeeds?.map((feed) => (
                       <div 
                         key={feed.id} 
-                        className="flex items-center justify-between p-2 rounded bg-muted/50 hover-elevate cursor-pointer"
+                        className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-md bg-muted/50 hover-elevate cursor-pointer"
                         onClick={() => {
                           setSelectedFeed(feed);
                           setIsFeedDetailsOpen(true);
                         }}
                         data-testid={`feed-item-${feed.id}`}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${feed.isActive ? "bg-green-500" : "bg-gray-400"}`} />
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className={`w-2 h-2 shrink-0 rounded-full ${feed.isActive ? "bg-primary" : "bg-muted-foreground/40"}`} />
                           <span className="font-medium text-sm">{feed.name}</span>
-                          <Badge variant="outline" className="text-xs">{feed.category}</Badge>
+                          <Badge variant="outline" className="text-xs font-normal capitalize text-muted-foreground">{feed.category}</Badge>
                           {feed.lastFetchStatus === "error" && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <AlertCircle className="h-4 w-4 text-red-500" />
+                                <AlertCircle className="h-4 w-4 text-destructive" />
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Feed fetch error: {feed.lastFetchError || "Unknown error"}</p>
@@ -557,7 +555,7 @@ export default function News() {
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Rss className="h-5 w-5" />
+                  <Rss className="h-4 w-4 text-muted-foreground" />
                   {selectedFeed?.name}
                 </DialogTitle>
               </DialogHeader>
@@ -587,7 +585,7 @@ export default function News() {
                       <span>{selectedFeed.articleCount || 0}</span>
                     </div>
                     {selectedFeed.lastFetchStatus === "error" && selectedFeed.lastFetchError && (
-                      <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-red-600 text-xs">
+                      <div className="p-2 rounded-md bg-destructive/5 border border-destructive/20 text-destructive text-xs">
                         <AlertCircle className="h-3 w-3 inline mr-1" />
                         {selectedFeed.lastFetchError}
                       </div>
@@ -617,7 +615,7 @@ export default function News() {
                     <div className="border-t pt-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Users className="h-4 w-4" />
-                        <h4 className="font-medium">Assign to Clients</h4>
+                        <h4 className="text-sm font-semibold">Assign to Clients</h4>
                       </div>
                       
                       {clients && clients.length > 0 ? (
@@ -785,88 +783,80 @@ export default function News() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+        </>
+        }
+      />
 
-      <div className="grid grid-cols-5 gap-4">
-        <Card 
-          className={`hover-elevate cursor-pointer transition-all ${activeTab === "all" ? "ring-2 ring-primary" : ""}`}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <Card
+          className={`hover-elevate cursor-pointer transition-colors ${activeTab === "all" ? "border-primary bg-primary/5" : ""}`}
           onClick={() => setActiveTab("all")}
           data-testid="card-total-articles"
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Articles</p>
-                <p className="text-2xl font-bold">{articles?.length || 0}</p>
-              </div>
-              <Newspaper className="h-8 w-8 text-muted-foreground/50" />
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              Total articles
+              <Newspaper className="h-3.5 w-3.5" />
             </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{articles?.length || 0}</p>
           </CardContent>
         </Card>
-        <Card 
-          className={`hover-elevate cursor-pointer transition-all ${activeTab === "high-relevance" ? "ring-2 ring-green-500" : ""}`}
+        <Card
+          className={`hover-elevate cursor-pointer transition-colors ${activeTab === "high-relevance" ? "border-primary bg-primary/5" : ""}`}
           onClick={() => setActiveTab("high-relevance")}
           data-testid="card-high-relevance"
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">High Relevance</p>
-                <p className="text-2xl font-bold text-green-600">{highRelevanceCount}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-green-500/50" />
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              High relevance
+              <TrendingUp className="h-3.5 w-3.5" />
             </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{highRelevanceCount}</p>
           </CardContent>
         </Card>
-        <Card 
-          className={`hover-elevate cursor-pointer transition-all ${activeTab === "unread" ? "ring-2 ring-blue-500" : ""}`}
+        <Card
+          className={`hover-elevate cursor-pointer transition-colors ${activeTab === "unread" ? "border-primary bg-primary/5" : ""}`}
           onClick={() => setActiveTab("unread")}
           data-testid="card-unread"
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Unread</p>
-                <p className="text-2xl font-bold text-blue-600">{unreadCount}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-blue-500/50" />
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              Unread
+              <AlertCircle className="h-3.5 w-3.5" />
             </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{unreadCount}</p>
           </CardContent>
         </Card>
-        <Card 
-          className={`hover-elevate cursor-pointer transition-all ${activeTab === "bookmarked" ? "ring-2 ring-yellow-500" : ""}`}
+        <Card
+          className={`hover-elevate cursor-pointer transition-colors ${activeTab === "bookmarked" ? "border-primary bg-primary/5" : ""}`}
           onClick={() => setActiveTab("bookmarked")}
           data-testid="card-bookmarked"
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bookmarked</p>
-                <p className="text-2xl font-bold text-yellow-600">{bookmarkedCount}</p>
-              </div>
-              <Bookmark className="h-8 w-8 text-yellow-500/50" />
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              Bookmarked
+              <Bookmark className="h-3.5 w-3.5" />
             </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{bookmarkedCount}</p>
           </CardContent>
         </Card>
-        <Card 
-          className={`hover-elevate cursor-pointer transition-all ${activeTab === "assigned" ? "ring-2 ring-purple-500" : ""}`}
+        <Card
+          className={`hover-elevate cursor-pointer transition-colors ${activeTab === "assigned" ? "border-primary bg-primary/5" : ""}`}
           onClick={() => setActiveTab("assigned")}
           data-testid="card-assigned"
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Assigned</p>
-                <p className="text-2xl font-bold text-purple-600">{assignedCount}</p>
-              </div>
-              <Share2 className="h-8 w-8 text-purple-500/50" />
+            <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
+              Assigned
+              <Share2 className="h-3.5 w-3.5" />
             </div>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{assignedCount}</p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <TabsList>
           <TabsTrigger value="all" data-testid="tab-all">
             All Articles
@@ -892,18 +882,19 @@ export default function News() {
             Flagged
           </TabsTrigger>
         </TabsList>
+        </div>
       </Tabs>
 
       <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <Search className="w-4 h-4 text-muted-foreground" />
+        <CardHeader className="p-5 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search articles..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-sm"
+                className="pl-9"
                 data-testid="input-search-news"
               />
             </div>
@@ -945,22 +936,25 @@ export default function News() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5 pt-0">
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <Skeleton className="h-16 w-16 rounded" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-3/4" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-1/2" />
-                      </div>
+                <div key={i} className="rounded-lg border p-4">
+                  <div className="flex gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-12 rounded-full" />
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-3 w-1/3" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="hidden gap-1 sm:flex">
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                      <Skeleton className="h-8 w-8 rounded-md" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : filteredArticles && filteredArticles.length > 0 ? (
@@ -968,24 +962,24 @@ export default function News() {
               {filteredArticles.map((article) => (
                 <Card 
                   key={article.id} 
-                  className={`hover-elevate transition-colors ${!article.isRead ? "border-l-4 border-l-primary" : ""}`}
+                  className={`hover-elevate transition-colors shadow-none ${!article.isRead ? "border-l-2 border-l-primary" : ""}`}
                   data-testid={`news-card-${article.id}`}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           {(article.relevanceScore || 0) > 0 && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRelevanceColor(article.relevanceScore || 0)}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${getRelevanceColor(article.relevanceScore || 0)}`}>
                               <Star className="h-3 w-3 inline mr-1" />
                               {article.relevanceScore}%
                             </span>
                           )}
                           {article.isFlagged && (
-                            <Flag className="h-4 w-4 text-orange-500 fill-orange-500" />
+                            <Flag className="h-3.5 w-3.5 text-primary fill-primary" aria-label="Flagged" />
                           )}
                           {article.isBookmarked && (
-                            <Bookmark className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                            <Bookmark className="h-3.5 w-3.5 text-primary fill-primary" aria-label="Bookmarked" />
                           )}
                         </div>
                         {article.url ? (
@@ -993,25 +987,25 @@ export default function News() {
                             href={article.url} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="font-medium line-clamp-2 hover:text-primary hover:underline cursor-pointer transition-colors"
+                            className="font-semibold leading-snug line-clamp-2 hover:text-primary cursor-pointer transition-colors"
                             onClick={() => markReadMutation.mutate({ id: article.id, isRead: true })}
                             data-testid={`link-article-${article.id}`}
                           >
                             {article.title}
                           </a>
                         ) : (
-                          <h3 className="font-medium line-clamp-2">{article.title}</h3>
+                          <h3 className="font-semibold leading-snug line-clamp-2">{article.title}</h3>
                         )}
                         {article.summary && (
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {article.summary}
                           </p>
                         )}
-                        {article.matchedTopics && Array.isArray(article.matchedTopics) && article.matchedTopics.length > 0 && (
+                        {Array.isArray(article.matchedTopics) && article.matchedTopics.length > 0 && (
                           <div className="flex items-center gap-1 mt-2 flex-wrap">
                             <span className="text-xs text-muted-foreground">Matches:</span>
                             {(article.matchedTopics as string[]).slice(0, 3).map((topic, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
+                              <Badge key={i} variant="secondary" className="text-xs font-normal">
                                 {String(topic)}
                               </Badge>
                             ))}
@@ -1024,10 +1018,10 @@ export default function News() {
                         )}
                         {getMatchingKeywords(article).length > 0 && (
                           <div className="flex items-center gap-1 mt-2 flex-wrap">
-                            <Target className="h-3 w-3 text-red-500" />
-                            <span className="text-xs text-red-600 font-medium">High Intent:</span>
+                            <Target className="h-3 w-3 text-primary" />
+                            <span className="text-xs text-primary font-medium">High intent:</span>
                             {getMatchingKeywords(article).map((keyword, i) => (
-                              <Badge key={i} variant="destructive" className="text-xs">
+                              <Badge key={i} variant="outline" className="text-xs font-medium border-primary/20 bg-primary/5 text-primary">
                                 {keyword}
                               </Badge>
                             ))}
@@ -1035,14 +1029,14 @@ export default function News() {
                         )}
                         {getPortalNameForArticle(article.id) && (
                           <div className="flex items-center gap-1 mt-2 flex-wrap">
-                            <Share2 className="h-3 w-3 text-purple-500" />
-                            <span className="text-xs text-purple-600 font-medium">Assigned to:</span>
-                            <Badge className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                            <Share2 className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground font-medium">Assigned to:</span>
+                            <Badge variant="outline" className="text-xs font-normal">
                               {getPortalNameForArticle(article.id)}
                             </Badge>
                           </div>
                         )}
-                        <div className="flex items-center gap-3 mt-3 flex-wrap">
+                        <div className="flex items-center gap-x-3 gap-y-1 mt-3 flex-wrap">
                           {article.category && (
                             <span className={`text-xs px-2 py-0.5 rounded-full ${getCategoryColor(article.category)}`}>
                               {article.category}
@@ -1061,16 +1055,17 @@ export default function News() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="-ml-2 flex items-center gap-0.5 shrink-0 text-muted-foreground sm:ml-0">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => bookmarkMutation.mutate(article.id)}
+                              aria-label={article.isBookmarked ? "Remove bookmark" : "Bookmark article"}
                               data-testid={`button-bookmark-${article.id}`}
                             >
-                              <Bookmark className={`h-4 w-4 ${article.isBookmarked ? "text-yellow-500 fill-yellow-500" : ""}`} />
+                              <Bookmark className={`h-4 w-4 ${article.isBookmarked ? "text-primary fill-primary" : ""}`} />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1083,9 +1078,10 @@ export default function News() {
                               variant="ghost"
                               size="icon"
                               onClick={() => toggleFlagMutation.mutate({ id: article.id, isFlagged: !article.isFlagged })}
+                              aria-label={article.isFlagged ? "Remove flag" : "Flag for follow-up"}
                               data-testid={`button-flag-${article.id}`}
                             >
-                              <Flag className={`h-4 w-4 ${article.isFlagged ? "text-orange-500 fill-orange-500" : ""}`} />
+                              <Flag className={`h-4 w-4 ${article.isFlagged ? "text-primary fill-primary" : ""}`} />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1098,9 +1094,10 @@ export default function News() {
                               variant="ghost"
                               size="icon"
                               onClick={() => markReadMutation.mutate({ id: article.id, isRead: !article.isRead })}
+                              aria-label={article.isRead ? "Mark as unread" : "Mark as read"}
                               data-testid={`button-read-${article.id}`}
                             >
-                              <Check className={`h-4 w-4 ${article.isRead ? "text-green-500" : ""}`} />
+                              <Check className={`h-4 w-4 ${article.isRead ? "text-primary" : ""}`} />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -1127,7 +1124,7 @@ export default function News() {
                         )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-more-${article.id}`}>
+                            <Button variant="ghost" size="icon" aria-label="More actions" data-testid={`button-more-${article.id}`}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -1175,16 +1172,20 @@ export default function News() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <Newspaper className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">No articles found</p>
-              <p className="text-sm mb-4">
-                {searchQuery || filterCategory !== "all" || filterRead !== "all" 
-                  ? "Try adjusting your filters" 
-                  : "Click 'Refresh News' to fetch articles from all sources"}
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Newspaper className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="mt-4 text-sm font-semibold">No articles found</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {searchQuery || filterCategory !== "all" || filterRead !== "all"
+                  ? "Try adjusting your filters."
+                  : "Refresh to pull the latest articles from all sources."}
               </p>
               {!searchQuery && filterCategory === "all" && filterRead === "all" && (
-                <Button 
+                <Button
+                  size="sm"
+                  className="mt-4"
                   onClick={() => fetchNewsMutation.mutate()}
                   disabled={fetchNewsMutation.isPending}
                 >
@@ -1254,7 +1255,7 @@ export default function News() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-red-500" />
+              <Target className="h-4 w-4 text-primary" />
               High Intent Keywords
             </DialogTitle>
           </DialogHeader>
@@ -1282,6 +1283,7 @@ export default function News() {
                   }
                 }}
                 disabled={!newKeyword.trim() || createKeywordMutation.isPending}
+                aria-label="Add keyword"
                 data-testid="button-add-keyword"
               >
                 <Plus className="h-4 w-4" />
@@ -1296,8 +1298,8 @@ export default function News() {
                     data-testid={`keyword-item-${kw.id}`}
                   >
                     <div className="flex items-center gap-2">
-                      <Badge variant="destructive">{kw.keyword}</Badge>
-                      {kw.matchCount > 0 && (
+                      <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">{kw.keyword}</Badge>
+                      {(kw.matchCount ?? 0) > 0 && (
                         <span className="text-xs text-muted-foreground">
                           {kw.matchCount} matches
                         </span>
@@ -1307,6 +1309,7 @@ export default function News() {
                       variant="ghost"
                       size="icon"
                       onClick={() => deleteKeywordMutation.mutate(kw.id)}
+                      aria-label={`Remove ${kw.keyword}`}
                       data-testid={`button-delete-keyword-${kw.id}`}
                     >
                       <X className="h-4 w-4" />
@@ -1322,6 +1325,6 @@ export default function News() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

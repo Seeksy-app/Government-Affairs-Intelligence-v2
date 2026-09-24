@@ -34,6 +34,7 @@ import {
   ShieldQuestion,
 } from "lucide-react";
 import { useAskBrief } from "@/components/briefs/ask-box";
+import { PageHeader } from "@/components/page-header";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,16 +91,17 @@ function formatDate(iso: string | null) {
 }
 
 function scoreColor(score: number) {
-  if (score >= 70) return "bg-red-100 text-red-800 border-red-200";
-  if (score >= 40) return "bg-amber-100 text-amber-800 border-amber-200";
-  return "bg-slate-100 text-slate-600 border-slate-200";
+  // Relevance is information, not alarm: high scores get the brand blue.
+  if (score >= 70) return "bg-primary/10 text-primary border-primary/20";
+  if (score >= 40) return "bg-muted text-foreground border-border";
+  return "bg-muted text-muted-foreground border-border";
 }
 
 // Left accent bar per relevance tier — the card's at-a-glance signal.
 function accentClass(score: number) {
-  if (score >= 70) return "border-l-red-400";
-  if (score >= 40) return "border-l-amber-400";
-  return "border-l-slate-300";
+  if (score >= 70) return "border-l-primary";
+  if (score >= 40) return "border-l-primary/35";
+  return "border-l-border";
 }
 
 // The brief's identity follows the clock (matches the dashboard header).
@@ -280,7 +282,7 @@ function ItemCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border border-l-4 bg-card transition-all group hover:shadow-md hover:-translate-y-px ${accentClass(
+      className={`w-full text-left rounded-lg border border-l-[3px] bg-card shadow-sm transition-colors group hover:border-primary/30 ${accentClass(
         item.score,
       )} ${highlight ? "p-5" : "p-4"}`}
     >
@@ -443,52 +445,42 @@ export default function MorningBriefPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {/* Masthead */}
-        <div className="border-b pb-6 mb-8">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                <BriefIcon className="h-6 w-6 text-amber-500" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight" data-testid="text-brief-title">
-                  {briefLabel}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {getTodayLine()}
-                  {brief?.clientName && <> · {brief.clientName}</>}
-                  {generatedAt && <> · generated {generatedAt}</>}
-                </p>
-              </div>
-            </div>
-            {brief && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                className="shrink-0"
-                data-testid="button-refresh-brief"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+        <PageHeader
+          eyebrow={getTodayLine()}
+          title={<span data-testid="text-brief-title">{briefLabel}</span>}
+          description={
+            <>
+              Ranked for {brief?.clientName ?? "your firm"} from the last{" "}
+              {brief?.scoringMetadata.windowUsedHours ?? 48} hours of news and agency press releases
+              {generatedAt && <> · updated {generatedAt}</>}
+            </>
+          }
+          actions={
+            brief && (
+              <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh-brief">
+                <RefreshCw className="h-3.5 w-3.5" />
                 Refresh
               </Button>
-            )}
-          </div>
+            )
+          }
+          className="mb-8"
+        >
           {brief && (
-            <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <span className="text-xs font-medium rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-                {brief.scoringMetadata.totalItemsConsidered} items scored
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                {brief.highRelevance.length} top priorit{brief.highRelevance.length === 1 ? "y" : "ies"}
               </span>
-              <span className="text-xs font-medium rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-                last {brief.scoringMetadata.windowUsedHours}h
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                {brief.worthWatching.length} worth watching
               </span>
-              <span className="text-xs font-medium rounded-full bg-red-50 text-red-700 px-2.5 py-1 dark:bg-red-950/40 dark:text-red-300">
-                {brief.highRelevance.length} high priority
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                {brief.scoringMetadata.totalItemsConsidered} items reviewed
               </span>
             </div>
           )}
-        </div>
+        </PageHeader>
 
         {/* Loading */}
         {isLoading && (
@@ -530,18 +522,7 @@ export default function MorningBriefPage() {
           <div className="space-y-8">
             {/* Top Priorities */}
             <section>
-              <div className="flex items-center gap-2.5 mb-4">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-60" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                </span>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                  Top Priorities
-                </h2>
-                <Badge variant="secondary" className="text-xs">
-                  {brief.highRelevance.length}
-                </Badge>
-              </div>
+              <h2 className="mb-3 text-lg font-semibold tracking-tight">Top priorities</h2>
               {brief.highRelevance.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nothing urgent in this window — a quiet day for {brief.clientName}.
@@ -563,14 +544,7 @@ export default function MorningBriefPage() {
             {/* Worth Watching */}
             {brief.worthWatching.length > 0 && (
               <section>
-                <div className="flex items-center gap-2.5 mb-4">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                    Worth Watching
-                  </h2>
-                  <Badge variant="outline" className="text-xs">
-                    {brief.worthWatching.length}
-                  </Badge>
-                </div>
+                <h2 className="mb-3 text-lg font-semibold tracking-tight">Worth watching</h2>
                 <div className="space-y-2.5">
                   {brief.worthWatching.map((item) => (
                     <ItemCard
@@ -586,8 +560,7 @@ export default function MorningBriefPage() {
 
             {/* Footer metadata */}
             <p className="text-xs text-muted-foreground text-center pb-4">
-              {brief.scoringMetadata.ignoredCount} items scored below threshold ·{" "}
-              {brief.scoringMetadata.claudeCallsMadeThisRender} Claude call
+              {brief.scoringMetadata.ignoredCount} lower-relevance items not shown
             </p>
           </div>
         )}

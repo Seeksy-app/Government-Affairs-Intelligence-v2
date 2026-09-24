@@ -273,8 +273,8 @@ function AuthenticatedLayout() {
               </div>
             </div>
           )}
-          <header className="flex items-center justify-between p-3 border-b gap-3">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-card px-3 sm:px-4">
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-muted-foreground" />
             <div className="flex flex-1 justify-center">
               <GlobalSearch />
             </div>

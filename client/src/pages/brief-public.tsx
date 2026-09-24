@@ -14,6 +14,7 @@ import {
 import { ExternalLink, FileText, Mail } from "lucide-react";
 import type { BriefContent, BriefSource } from "@shared/schema";
 import { BottomLine } from "@/components/briefs/bottom-line";
+import { GaMark } from "@/components/ga-mark";
 
 type PublicBrief = {
   id: string;
@@ -122,7 +123,9 @@ function EmailGate({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen flex-col bg-background">
+      <BrandBar />
+      <div className="flex flex-1 items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
         <div className="flex justify-center mb-4">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -150,11 +153,29 @@ function EmailGate({
             </div>
           </div>
           <Button type="submit" className="w-full" disabled={logViewMutation.isPending}>
-            {logViewMutation.isPending ? "Unlocking..." : "View Brief"}
+            {logViewMutation.isPending ? "Unlocking..." : "View brief"}
           </Button>
         </form>
       </div>
+      </div>
     </div>
+  );
+}
+
+// ─── Brand bar ────────────────────────────────────────────────────────────────
+
+// Client-facing pages carry the brand quietly: mark + wordmark, nothing else.
+function BrandBar() {
+  return (
+    <header className="border-b bg-card">
+      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
+        <a href="https://governmentaffairs.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm font-bold tracking-tight">
+          <GaMark size={24} />
+          <span>GovernmentAffairs<span className="text-[#078ACB]">.io</span></span>
+        </a>
+        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Decision brief</span>
+      </div>
+    </header>
   );
 }
 
@@ -165,16 +186,14 @@ function BriefReadingView({ brief }: { brief: PublicBrief }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-12">
+      <BrandBar />
+      <div className="max-w-2xl mx-auto px-4 py-10 sm:px-6 sm:py-12">
         {/* Header */}
         <div className="mb-10">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Decision Brief
-          </p>
-          <h1 className="text-3xl font-bold leading-tight mb-3">{brief.title}</h1>
+          <h1 className="text-[32px] font-bold leading-tight tracking-tight mb-3 break-words">{brief.title}</h1>
           {brief.generatedAt && (
             <p className="text-sm text-muted-foreground">
-              Generated {new Date(brief.generatedAt).toLocaleDateString("en-US", {
+              Prepared {new Date(brief.generatedAt).toLocaleDateString("en-US", {
                 year: "numeric", month: "long", day: "numeric",
               })}
             </p>
@@ -235,9 +254,9 @@ function BriefReadingView({ brief }: { brief: PublicBrief }) {
             <div className="space-y-4">
               {(
                 [
-                  { key: "cautious", label: "Cautious", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30" },
-                  { key: "moderate", label: "Moderate", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30" },
-                  { key: "aggressive", label: "Aggressive", color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950/30" },
+                  { key: "cautious", label: "Cautious", color: "text-primary", bg: "border border-border bg-muted/40" },
+                  { key: "moderate", label: "Moderate", color: "text-amber-700 dark:text-amber-400", bg: "border border-border bg-muted/40" },
+                  { key: "aggressive", label: "Aggressive", color: "text-[#A53B39] dark:text-red-400", bg: "border border-border bg-muted/40" },
                 ] as const
               ).map(({ key, label, color, bg }) => (
                 <div key={key} className={`rounded-lg p-4 ${bg}`}>

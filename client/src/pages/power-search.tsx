@@ -23,6 +23,32 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { PoliticalOrganization, Client, KbCategory } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 interface CompanyEnrichResult {
   name: string;
@@ -381,33 +407,35 @@ export default function PowerSearchPage() {
 
   return (
     <div className="flex flex-col h-full" data-testid="power-search-page">
-      <div className="p-4 pb-0">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap className="h-5 w-5" />
-          <h1 className="text-lg font-semibold" data-testid="text-page-title">Power Search</h1>
-        </div>
-
-        <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList>
-            <TabsTrigger value="people" data-testid="tab-people-search">
-              <UserSearch className="h-4 w-4 mr-1.5" />
-              People
-            </TabsTrigger>
-            <TabsTrigger value="organizations" data-testid="tab-organizations">
-              <Building2 className="h-4 w-4 mr-1.5" />
-              Organizations
-              {organizations.length > 0 && (
-                <Badge variant="secondary" className="ml-1.5 text-[10px]">{organizations.length}</Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <PageShell className="pb-0 lg:pb-0">
+        <PageHeader
+          eyebrow="Reach"
+          title="Power Search"
+          description="Find the people and organizations around an issue, then save them as contacts."
+          className="mb-4"
+        >
+          <Tabs value={mainTab} onValueChange={setMainTab}>
+            <TabsList>
+              <TabsTrigger value="people" data-testid="tab-people-search">
+                <UserSearch className="h-4 w-4 mr-1.5" />
+                People
+              </TabsTrigger>
+              <TabsTrigger value="organizations" data-testid="tab-organizations">
+                <Building2 className="h-4 w-4 mr-1.5" />
+                Organizations
+                {organizations.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] tabular-nums">{organizations.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </PageHeader>
+      </PageShell>
 
       <div className="flex-1 overflow-hidden">
         {mainTab === "people" && (
           <ScrollArea className="h-full">
-            <div className="p-4 space-y-5">
+            <div className="mx-auto w-full max-w-[1400px] px-4 pb-8 sm:px-6 lg:px-8 space-y-5">
               <Card>
                 <CardContent className="p-4 space-y-4">
                   <div>
@@ -432,7 +460,7 @@ export default function PowerSearchPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1">Company</Label>
+                      <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">Company</Label>
                       <Input
                         placeholder="e.g. Akin Gump"
                         value={personSearchCompany}
@@ -442,7 +470,7 @@ export default function PowerSearchPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1">Job Title</Label>
+                      <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">Job Title</Label>
                       <Input
                         placeholder="e.g. Lobbyist"
                         value={personSearchTitle}
@@ -452,7 +480,7 @@ export default function PowerSearchPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1">Location</Label>
+                      <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">Location</Label>
                       <Input
                         placeholder="e.g. Washington DC"
                         value={personSearchLocation}
@@ -462,7 +490,7 @@ export default function PowerSearchPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1">Industry</Label>
+                      <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">Industry</Label>
                       <Input
                         placeholder="e.g. Government"
                         value={personSearchIndustry}
@@ -472,7 +500,7 @@ export default function PowerSearchPage() {
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1">School</Label>
+                      <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">School</Label>
                       <Input
                         placeholder="e.g. Georgetown"
                         value={personSearchSchool}
@@ -563,7 +591,7 @@ export default function PowerSearchPage() {
                           <div className="flex items-start gap-3">
                             <Avatar className="h-10 w-10 shrink-0">
                               <AvatarImage src={getAvatarUrl(person.fullName, person.profilePicUrl)} alt={person.fullName} />
-                              <AvatarFallback className="text-xs">
+                              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                                 {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
                               </AvatarFallback>
                             </Avatar>
@@ -631,9 +659,9 @@ export default function PowerSearchPage() {
         )}
 
         {mainTab === "organizations" && (
-          <div className="flex-1 overflow-hidden flex h-full">
+          <div className="flex-1 overflow-hidden flex h-full border-t">
             <div className="w-full flex flex-col lg:flex-row h-full">
-              <div className="lg:w-[400px] border-r flex flex-col">
+              <div className="lg:w-[400px] lg:shrink-0 border-b lg:border-b-0 lg:border-r flex flex-col">
                 <div className="p-3 border-b space-y-3">
                   <div className="flex gap-2">
                     <Select value={orgSearchType} onValueChange={(v: "name" | "website") => setOrgSearchType(v)}>
@@ -650,9 +678,10 @@ export default function PowerSearchPage() {
                       value={orgSearchQuery}
                       onChange={(e) => setOrgSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleOrgSearch()}
+                      className="min-w-0"
                       data-testid="input-org-search"
                     />
-                    <Button onClick={handleOrgSearch} disabled={isSearching || !orgSearchQuery.trim()} size="icon" data-testid="button-search-org">
+                    <Button onClick={handleOrgSearch} disabled={isSearching || !orgSearchQuery.trim()} size="icon" className="shrink-0" aria-label="Search organizations" data-testid="button-search-org">
                       {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -693,11 +722,11 @@ export default function PowerSearchPage() {
                           </div>
                         ))
                       ) : filteredOrgs.length === 0 ? (
-                        <div className="p-6 text-center text-muted-foreground">
-                          <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm font-medium">No organizations tracked</p>
-                          <p className="text-xs mt-1">Search above to enrich and track organizations</p>
-                        </div>
+                        <EmptyState
+                          icon={Building2}
+                          title="No organizations tracked"
+                          description="Search above to enrich and track organizations"
+                        />
                       ) : (
                         filteredOrgs.map(org => (
                           <div
@@ -710,9 +739,9 @@ export default function PowerSearchPage() {
                             data-testid={`card-org-${org.id}`}
                           >
                             <div className="flex items-start gap-2">
-                              <Avatar className="h-8 w-8 mt-0.5">
+                              <Avatar className="h-8 w-8 mt-0.5 shrink-0">
                                 <AvatarImage src={getAvatarUrl(org.name)} alt={org.name} />
-                                <AvatarFallback className="text-xs">
+                                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                                   {getOrgTypeIcon(org)}
                                 </AvatarFallback>
                               </Avatar>
@@ -723,9 +752,9 @@ export default function PowerSearchPage() {
                                   {org.pdlEnriched && <Badge variant="outline" className="text-[10px]">PDL</Badge>}
                                 </div>
                                 {org.headquartersCity && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {org.headquartersCity}{org.headquartersState ? `, ${org.headquartersState}` : ""}
+                                  <p className="text-xs text-muted-foreground mt-1 flex min-w-0 items-center gap-1">
+                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{org.headquartersCity}{org.headquartersState ? `, ${org.headquartersState}` : ""}</span>
                                   </p>
                                 )}
                               </div>
@@ -793,11 +822,11 @@ export default function PowerSearchPage() {
                           </CardContent>
                         </Card>
                       ) : (
-                        <div className="p-6 text-center text-muted-foreground">
-                          <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm font-medium">Search for an organization</p>
-                          <p className="text-xs mt-1">Enter a name or website to look up and enrich</p>
-                        </div>
+                        <EmptyState
+                          icon={Search}
+                          title="Search for an organization"
+                          description="Enter a name or website to look up and enrich"
+                        />
                       )}
                     </div>
                   )}
@@ -807,11 +836,11 @@ export default function PowerSearchPage() {
               <div className="flex-1 overflow-hidden">
                 {selectedOrg ? (
                   <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4">
+                    <div className="p-4 sm:p-6 space-y-4">
                       <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className="text-xl font-semibold" data-testid="text-detail-name">{selectedOrg.name}</h2>
+                            <h2 className="text-lg font-semibold" data-testid="text-detail-name">{selectedOrg.name}</h2>
                             {getOrgTypeBadge(selectedOrg)}
                             {selectedOrg.pdlEnriched && <Badge variant="outline">PDL Enriched</Badge>}
                           </div>
@@ -819,7 +848,7 @@ export default function PowerSearchPage() {
                             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">{selectedOrg.description}</p>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -827,7 +856,7 @@ export default function PowerSearchPage() {
                             disabled={isPeopleLoading}
                             data-testid="button-find-people"
                           >
-                            {isPeopleLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <UserSearch className="h-4 w-4 mr-1" />}
+                            {isPeopleLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <UserSearch className="h-4 w-4 mr-1.5" />}
                             Find People
                           </Button>
                           <Button
@@ -837,12 +866,14 @@ export default function PowerSearchPage() {
                             disabled={isAiResearching}
                             data-testid="button-ai-research"
                           >
-                            {isAiResearching ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Brain className="h-4 w-4 mr-1" />}
-                            AI Research
+                            {isAiResearching ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <BookOpen className="h-4 w-4 mr-1.5" />}
+                            Research
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            aria-label="Stop tracking organization"
                             onClick={() => {
                               if (confirm("Remove this organization from tracking?")) {
                                 deleteMutation.mutate(selectedOrg.id);
@@ -924,13 +955,10 @@ export default function PowerSearchPage() {
 
                       {selectedOrg.aiSummary && (
                         <Card>
-                          <CardHeader className="pb-2">
-                            <div className="flex items-center gap-2">
-                              <Brain className="h-4 w-4" />
-                              <CardTitle className="text-sm">AI Intelligence Report</CardTitle>
-                            </div>
+                          <CardHeader className="p-4 pb-2">
+                            <CardTitle className="text-sm font-semibold">Research Brief</CardTitle>
                           </CardHeader>
-                          <CardContent>
+                          <CardContent className="p-4 pt-0">
                             <div className="text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-ai-summary">{selectedOrg.aiSummary}</div>
                             {selectedOrg.aiSources && selectedOrg.aiSources.length > 0 && (
                               <div className="mt-3 pt-3 border-t">
@@ -950,12 +978,11 @@ export default function PowerSearchPage() {
 
                       {(peopleResults.length > 0 || isPeopleLoading) && (
                         <Card>
-                          <CardHeader className="pb-2">
+                          <CardHeader className="p-4 pb-2">
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4" />
-                                <CardTitle className="text-sm">Key People ({peopleResults.length})</CardTitle>
-                              </div>
+                              <CardTitle className="text-sm font-semibold">
+                                Key People <span className="font-normal text-muted-foreground tabular-nums">({peopleResults.length})</span>
+                              </CardTitle>
                               {!isPeopleLoading && peopleResults.length > 0 && (
                                 <Button variant="ghost" size="sm" onClick={() => setPeopleResults([])} data-testid="button-clear-people">
                                   <X className="h-3 w-3 mr-1" /> Clear
@@ -963,7 +990,7 @@ export default function PowerSearchPage() {
                               )}
                             </div>
                           </CardHeader>
-                          <CardContent>
+                          <CardContent className="p-4 pt-0">
                             {isPeopleLoading ? (
                               <div className="space-y-3">
                                 {Array(3).fill(0).map((_, i) => (
@@ -980,9 +1007,9 @@ export default function PowerSearchPage() {
                               <div className="space-y-2">
                                 {peopleResults.map((person, idx) => (
                                   <div key={person.id || idx} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`org-person-${idx}`}>
-                                    <Avatar className="h-8 w-8">
+                                    <Avatar className="h-8 w-8 shrink-0">
                                       <AvatarImage src={getAvatarUrl(person.fullName, person.profilePicUrl)} alt={person.fullName} />
-                                      <AvatarFallback className="text-xs">
+                                      <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                                         {person.firstName?.[0] || ''}{person.lastName?.[0] || ''}
                                       </AvatarFallback>
                                     </Avatar>
@@ -992,8 +1019,8 @@ export default function PowerSearchPage() {
                                         <p className="text-xs text-muted-foreground truncate">{person.jobTitle}</p>
                                       )}
                                       {person.location && (
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                          <MapPin className="h-3 w-3" />{person.location}
+                                        <p className="text-xs text-muted-foreground flex min-w-0 items-center gap-1">
+                                          <MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{person.location}</span>
                                         </p>
                                       )}
                                     </div>
@@ -1024,12 +1051,12 @@ export default function PowerSearchPage() {
                     </div>
                   </ScrollArea>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="font-medium">Select an organization</p>
-                      <p className="text-sm mt-1">Search and track organizations, or select one from the list</p>
-                    </div>
+                  <div className="h-full flex items-center justify-center">
+                    <EmptyState
+                      icon={Building2}
+                      title="Select an organization"
+                      description="Search and track organizations, or select one from the list"
+                    />
                   </div>
                 )}
               </div>
@@ -1051,7 +1078,7 @@ export default function PowerSearchPage() {
               <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={getAvatarUrl(contactDialogPerson.fullName, contactDialogPerson.profilePicUrl)} alt={contactDialogPerson.fullName} />
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                     {contactDialogPerson.firstName?.[0]}{contactDialogPerson.lastName?.[0]}
                   </AvatarFallback>
                 </Avatar>

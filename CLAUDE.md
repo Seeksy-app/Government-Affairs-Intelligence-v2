@@ -185,6 +185,11 @@ keeps the navy shell. GA mark = **"Dome"** (round G + Capitol-arch A) —
 use `<GaMark />` (client/src/components/ga-mark.tsx; auto-inverts in dark
 mode); favicon.svg/png + government-affairs-logo.svg match it. The V0 landing
 page still has the old typeset GA mark until it's updated there.
+**Site-wide redesign (Sep 2026):** Source Sans 3 is the only font (index.html
+loads just it + JetBrains Mono); every page uses `PageShell` + `PageHeader`
+(client/src/components/page-header.tsx); sidebar = flat job-named sections
+(Brief / Monitor / Reach / Clients / Workspace). Rules in docs/BRAND.md
+"Interface language" — follow them for any new page.
 Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
 Signature line: "Find the path to the people who shape policy."
 

@@ -35,7 +35,14 @@ export function useAskBrief() {
   });
 }
 
-export function AskBox({ showExamples = true }: { showExamples?: boolean }) {
+export function AskBox({
+  showExamples = true,
+  showHeading = true,
+}: {
+  showExamples?: boolean;
+  /** Off where the page title already says "Should I be worried?". */
+  showHeading?: boolean;
+}) {
   const [question, setQuestion] = useState("");
   const [clientContext, setClientContext] = useState("");
   const [showContext, setShowContext] = useState(false);
@@ -52,14 +59,18 @@ export function AskBox({ showExamples = true }: { showExamples?: boolean }) {
   return (
     <Card className="border-primary/25" data-testid="card-ask-box">
       <CardContent className="p-4 sm:p-5">
-        <div className="flex items-center gap-2">
-          <ShieldQuestion className="h-5 w-5 text-primary shrink-0" />
-          <h2 className="text-lg font-semibold tracking-tight">Should I be worried?</h2>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1 mb-3">
-          Paste a headline, a link, or a bill number, or just ask. We find the sources and write a
-          calm, cited answer in about a minute.
-        </p>
+        {showHeading && (
+          <>
+            <div className="flex items-center gap-2">
+              <ShieldQuestion className="h-5 w-5 text-primary shrink-0" />
+              <h2 className="text-lg font-semibold tracking-tight">Should I be worried?</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 mb-3">
+              Paste a headline, a link, or a bill number, or just ask. We find the sources and write a
+              calm, cited answer in about a minute.
+            </p>
+          </>
+        )}
 
         <form
           onSubmit={(e) => {

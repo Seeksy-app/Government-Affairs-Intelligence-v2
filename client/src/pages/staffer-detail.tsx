@@ -33,6 +33,32 @@ import {
 } from "lucide-react";
 import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { Staffer, StafferCareerPosition, StafferConnection } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 const ORG_TYPE_COLORS: Record<string, string> = {
   "Congressional Office": "bg-blue-500",
@@ -46,17 +72,19 @@ const ORG_TYPE_COLORS: Record<string, string> = {
 
 function getPartyColor(party: string | null): string {
   switch (party) {
-    case "Republican": return "bg-red-500/10 text-red-500 border-red-500/20";
-    case "Democrat": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "Independent": return "bg-green-500/10 text-green-500 border-green-500/20";
+    case "Republican": return "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20";
+    case "Democrat": return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20";
+    case "Independent": return "bg-muted text-foreground/80 border-border";
     default: return "bg-muted text-muted-foreground";
   }
 }
 
+// Chambers are neutral labels, not categories that need their own colors.
 function getChamberColor(chamber: string | null): string {
   switch (chamber) {
-    case "House": return "bg-indigo-500/10 text-indigo-500 border-indigo-500/20";
-    case "Senate": return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+    case "House":
+    case "Senate":
+      return "bg-transparent text-foreground/80 border-border";
     default: return "bg-muted text-muted-foreground";
   }
 }
@@ -145,10 +173,7 @@ export default function StafferDetailPage() {
 
   const addPositionMutation = useMutation({
     mutationFn: async (data: typeof newPosition) => {
-      return apiRequest(`/api/staffers/${stafferId}/positions`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/staffers/${stafferId}/positions`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/staffers", stafferId] });
@@ -175,10 +200,7 @@ export default function StafferDetailPage() {
 
   const addConnectionMutation = useMutation({
     mutationFn: async (data: typeof newConnection) => {
-      return apiRequest(`/api/staffers/${stafferId}/connections`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/staffers/${stafferId}/connections`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/staffers", stafferId] });
@@ -201,9 +223,7 @@ export default function StafferDetailPage() {
 
   const deletePositionMutation = useMutation({
     mutationFn: async (positionId: string) => {
-      return apiRequest(`/api/staffers/${stafferId}/positions/${positionId}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/staffers/${stafferId}/positions/${positionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/staffers", stafferId] });
@@ -214,9 +234,7 @@ export default function StafferDetailPage() {
 
   const deleteConnectionMutation = useMutation({
     mutationFn: async (connectionId: string) => {
-      return apiRequest(`/api/staffers/${stafferId}/connections/${connectionId}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/staffers/${stafferId}/connections/${connectionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/staffers", stafferId] });
@@ -228,9 +246,7 @@ export default function StafferDetailPage() {
   const handleExportMiro = async () => {
     setExportingMiro(true);
     try {
-      const res = await apiRequest(`/api/staffers/${stafferId}/export-miro`, {
-        method: "POST",
-      });
+      const res = await (await apiRequest("POST", `/api/staffers/${stafferId}/export-miro`)).json();
       toast({ 
         title: "Exported to Miro",
         description: "Opening your new Miro board...",
@@ -275,8 +291,8 @@ export default function StafferDetailPage() {
             shape: n.group === "person" ? "dot" : "box",
             size: n.level === 0 ? 30 : 20,
             color: n.group === "person" 
-              ? { background: "#3B82F6", border: "#1E3A8A" }
-              : { background: "#10B981", border: "#047857" },
+              ? { background: "#078ACB", border: "#14253D" }
+              : { background: "#E9ECEC", border: "#B8C0C8" },
           }))
         );
         const edges = new DataSet(
@@ -319,59 +335,106 @@ export default function StafferDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <PageShell className="space-y-6">
+        <Skeleton className="h-8 w-40" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start gap-4">
+              <Skeleton className="h-16 w-16 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </PageShell>
     );
   }
 
   if (!stafferData?.staffer) {
     return (
-      <div className="container mx-auto p-6">
+      <PageShell>
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Staffer not found</h3>
-            <Button onClick={() => navigate("/staffers")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Staffers
-            </Button>
-          </CardContent>
+          <EmptyState
+            icon={Users}
+            title="Staffer not found"
+            description="This profile may have been removed or the link is out of date."
+            action={
+              <Button onClick={() => navigate("/staffers")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Staffers
+              </Button>
+            }
+          />
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
   const { staffer, careerPositions, connections } = stafferData;
 
+  const roleLine = [staffer.currentPosition, staffer.currentOrganization && `at ${staffer.currentOrganization}`]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <Button variant="ghost" onClick={() => navigate("/staffers")} className="mb-4">
+    <PageShell className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={() => navigate("/staffers")} className="-ml-2 text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Staffers
       </Button>
 
+      <PageHeader
+        eyebrow="Staff Directory"
+        title={staffer.name}
+        description={roleLine || undefined}
+        className="mb-0"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExportJson}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Export JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportMiro}
+              disabled={exportingMiro}
+              data-testid="button-export-miro"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {exportingMiro ? "Exporting..." : "Export to Miro"}
+            </Button>
+          </>
+        }
+      />
+
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap items-start gap-6">
-            <Avatar className="h-24 w-24">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-4">
+            <Avatar className="h-16 w-16 shrink-0">
               <AvatarImage src={getAvatarUrl(staffer.name, staffer.photoUrl)} alt={staffer.name} />
-              <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+              <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
                 {staffer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h1 className="text-3xl font-bold mb-1">{staffer.name}</h1>
-              <p className="text-lg text-muted-foreground mb-2">
-                {staffer.currentPosition} {staffer.currentOrganization && `at ${staffer.currentOrganization}`}
-              </p>
               {staffer.currentMember && (
-                <p className="text-muted-foreground mb-3">
-                  Works for {staffer.currentMember}
+                <p className="text-sm text-muted-foreground mb-2">
+                  Works for <span className="font-medium text-foreground">{staffer.currentMember}</span>
                 </p>
               )}
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {staffer.party && (
                   <Badge variant="outline" className={getPartyColor(staffer.party)}>
                     {staffer.party}
@@ -395,58 +458,43 @@ export default function StafferDetailPage() {
                   <Badge variant="secondary">{staffer.pathwayType}</Badge>
                 )}
               </div>
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 {staffer.contactEmail && (
-                  <a href={`mailto:${staffer.contactEmail}`} className="flex items-center gap-1 hover:text-foreground">
-                    <Mail className="h-4 w-4" />
-                    {staffer.contactEmail}
+                  <a href={`mailto:${staffer.contactEmail}`} className="flex min-w-0 max-w-full items-center gap-1.5 hover:text-primary">
+                    <Mail className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{staffer.contactEmail}</span>
                   </a>
                 )}
                 {staffer.linkedinUrl && (
-                  <a href={staffer.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground">
-                    <LinkIcon className="h-4 w-4" />
+                  <a href={staffer.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-primary">
+                    <LinkIcon className="h-4 w-4 shrink-0" />
                     LinkedIn
                   </a>
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <Button variant="outline" onClick={handleExportJson}>
-                <FileDown className="h-4 w-4 mr-2" />
-                Export JSON
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleExportMiro}
-                disabled={exportingMiro}
-                data-testid="button-export-miro"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                {exportingMiro ? "Exporting..." : "Export to Miro"}
-              </Button>
-            </div>
           </div>
 
           {staffer.bio && (
-            <p className="mt-4 text-muted-foreground">{staffer.bio}</p>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{staffer.bio}</p>
           )}
 
           {timelineData?.stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t">
               <div>
-                <p className="text-2xl font-bold">{timelineData.stats.totalYears}</p>
+                <p className="text-2xl font-semibold tabular-nums">{timelineData.stats.totalYears}</p>
                 <p className="text-sm text-muted-foreground">Years in Politics</p>
               </div>
               <div>
-                <p className="text-2xl font-bold">{timelineData.stats.totalPositions}</p>
+                <p className="text-2xl font-semibold tabular-nums">{timelineData.stats.totalPositions}</p>
                 <p className="text-sm text-muted-foreground">Positions Held</p>
               </div>
               <div>
-                <p className="text-2xl font-bold">{timelineData.stats.organizations}</p>
+                <p className="text-2xl font-semibold tabular-nums">{timelineData.stats.organizations}</p>
                 <p className="text-sm text-muted-foreground">Organizations</p>
               </div>
               <div>
-                <p className="text-2xl font-bold">{connections.length}</p>
+                <p className="text-2xl font-semibold tabular-nums">{connections.length}</p>
                 <p className="text-sm text-muted-foreground">Connections</p>
               </div>
             </div>
@@ -455,7 +503,7 @@ export default function StafferDetailPage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
           <TabsTrigger value="timeline" data-testid="tab-timeline">
             <Clock className="h-4 w-4 mr-2" />
             Career Timeline
@@ -471,11 +519,11 @@ export default function StafferDetailPage() {
         </TabsList>
 
         <TabsContent value="timeline" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Career Timeline</h2>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <h2 className="text-base font-semibold">Career Timeline</h2>
             <Dialog open={addPositionOpen} onOpenChange={setAddPositionOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-position">
+                <Button size="sm" data-testid="button-add-position">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Position
                 </Button>
@@ -591,30 +639,33 @@ export default function StafferDetailPage() {
           </div>
 
           <div className="relative">
-            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-border" />
-            <div className="space-y-6">
+            {(timelineData?.timeline?.length ?? 0) > 0 && (
+              <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-border" />
+            )}
+            <div className="space-y-4">
               {timelineData?.timeline.map((pos) => (
-                <div key={pos.id} className="relative flex gap-4 pl-4">
-                  <div className={`w-4 h-4 rounded-full border-2 border-background z-10 ${
-                    pos.orgType && ORG_TYPE_COLORS[pos.orgType] ? ORG_TYPE_COLORS[pos.orgType] : "bg-gray-400"
+                <div key={pos.id} className="relative flex gap-3 sm:gap-4">
+                  <div className={`mt-5 h-4 w-4 shrink-0 rounded-full border-[3px] border-background z-10 ${
+                    pos.isCurrent ? "bg-primary" : "bg-muted-foreground/40"
                   }`} />
-                  <Card className="flex-1">
+                  <Card className="flex-1 min-w-0">
                     <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold">{pos.position}</h3>
-                          <p className="text-muted-foreground">{pos.organization}</p>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold">{pos.position}</h3>
+                          <p className="text-sm text-muted-foreground">{pos.organization}</p>
                           {pos.bossName && (
                             <p className="text-sm text-muted-foreground">Reported to: {pos.bossName}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={pos.isCurrent ? "default" : "secondary"}>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Badge variant={pos.isCurrent ? "default" : "secondary"} className="whitespace-nowrap tabular-nums">
                             {pos.endYear ? `${pos.startYear} - ${pos.endYear}` : `${pos.startYear} - Present`}
                           </Badge>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => deletePositionMutation.mutate(pos.id)}
                             data-testid={`button-delete-position-${pos.id}`}
                           >
@@ -642,10 +693,11 @@ export default function StafferDetailPage() {
               ))}
               {(!timelineData?.timeline || timelineData.timeline.length === 0) && (
                 <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-8">
-                    <Clock className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No career positions added yet</p>
-                  </CardContent>
+                  <EmptyState
+                    icon={Clock}
+                    title="No career positions added yet"
+                    description="Add past roles to map this staffer's path through Congress and beyond."
+                  />
                 </Card>
               )}
             </div>
@@ -653,11 +705,11 @@ export default function StafferDetailPage() {
         </TabsContent>
 
         <TabsContent value="connections" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Professional Connections</h2>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <h2 className="text-base font-semibold">Professional Connections</h2>
             <Dialog open={addConnectionOpen} onOpenChange={setAddConnectionOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-connection">
+                <Button size="sm" data-testid="button-add-connection">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Connection
                 </Button>
@@ -759,16 +811,17 @@ export default function StafferDetailPage() {
             {connections.map((conn) => (
               <Card key={conn.id}>
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold">{conn.connectedToName}</h3>
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold truncate">{conn.connectedToName}</h3>
                       {conn.organization && (
-                        <p className="text-sm text-muted-foreground">{conn.organization}</p>
+                        <p className="text-sm text-muted-foreground truncate">{conn.organization}</p>
                       )}
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => deleteConnectionMutation.mutate(conn.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -784,8 +837,8 @@ export default function StafferDetailPage() {
                     <Badge 
                       variant="outline"
                       className={
-                        conn.strength === "Strong" ? "border-green-500 text-green-500" :
-                        conn.strength === "Weak" ? "border-yellow-500 text-yellow-500" :
+                        conn.strength === "Strong" ? "border-primary/30 bg-primary/5 text-primary" :
+                        conn.strength === "Weak" ? "text-muted-foreground" :
                         ""
                       }
                     >
@@ -799,11 +852,12 @@ export default function StafferDetailPage() {
               </Card>
             ))}
             {connections.length === 0 && (
-              <Card className="col-span-2">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <Users className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">No connections added yet</p>
-                </CardContent>
+              <Card className="md:col-span-2">
+                <EmptyState
+                  icon={Users}
+                  title="No connections added yet"
+                  description="Record who this staffer has worked with to build paths to their office."
+                />
               </Card>
             )}
           </div>
@@ -811,32 +865,33 @@ export default function StafferDetailPage() {
 
         <TabsContent value="network" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Network Visualization</CardTitle>
+            <CardHeader className="p-5 pb-3">
+              <CardTitle className="text-base font-semibold">Network Graph</CardTitle>
               <CardDescription>
-                Interactive graph showing career connections and organizations
+                Career connections and organizations, mapped.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div 
-                ref={networkRef} 
-                className="w-full h-[500px] border rounded-lg bg-background"
-                data-testid="network-graph"
-              />
-              {(!networkData || (networkData.nodes.length === 0 && networkData.edges.length === 0)) && (
-                <div className="flex items-center justify-center h-[500px]">
-                  <div className="text-center">
-                    <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">
-                      Add career positions and connections to visualize the network
-                    </p>
+            <CardContent className="p-5 pt-0">
+              <div className="relative">
+                <div
+                  ref={networkRef}
+                  className="w-full h-[420px] sm:h-[500px] border rounded-lg bg-background"
+                  data-testid="network-graph"
+                />
+                {(!networkData || (networkData.nodes.length === 0 && networkData.edges.length === 0)) && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <EmptyState
+                      icon={Network}
+                      title="Nothing to map yet"
+                      description="Add career positions and connections to visualize the network"
+                    />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

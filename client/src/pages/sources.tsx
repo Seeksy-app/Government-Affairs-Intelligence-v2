@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Database, Globe, Bot, Radio, Building2, Users, BarChart3, Mail, Search } from "lucide-react";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 interface DataSource {
   name: string;
@@ -11,156 +12,156 @@ interface DataSource {
   status: "active" | "configured" | "available";
 }
 
+// Client-facing inventory of what powers the platform. Keep it accurate:
+// firms read this page during security and procurement review.
 const DATA_SOURCES: DataSource[] = [
+  // Government
   {
-    name: "Congress.gov API",
+    name: "Congress.gov",
     category: "government",
-    description: "Official source for congressional bills, resolutions, and legislative actions. Covers the 119th Congress (2025-2026) and historical data.",
+    description: "Official record of federal bills, resolutions, sponsors, actions, and Congressional Research Service summaries.",
     url: "https://api.congress.gov",
     apiRequired: true,
-    status: "configured",
-  },
-  {
-    name: "House Telephone Directory",
-    category: "government",
-    description: "Official House of Representatives staff directory (directory.house.gov). Scraped for 9,400+ employee records with office and position data.",
-    url: "https://directory.house.gov",
     status: "active",
   },
   {
-    name: "C-SPAN Video Library",
+    name: "LegiScan",
     category: "government",
-    description: "Complete archive of congressional proceedings, hearings, and political events with searchable transcripts.",
-    url: "https://www.c-span.org/video/",
-    status: "available",
+    description: "Bill status and actions for all 50 state legislatures. Licensed under CC BY 4.0.",
+    url: "https://legiscan.com",
+    apiRequired: true,
+    status: "active",
   },
   {
-    name: "Senate Video/Audio",
+    name: "Federal agency press releases",
     category: "government",
-    description: "Official Senate hearing recordings and floor proceedings.",
-    url: "https://www.senate.gov/committees/video-audio.htm",
-    status: "available",
+    description: "Newsroom feeds from federal departments, checked throughout the day and ranked in the Morning Brief.",
+    status: "active",
   },
   {
-    name: "House Office of the Clerk",
+    name: "Federal Register",
     category: "government",
-    description: "Official House hearing videos and legislative proceedings.",
-    url: "https://clerk.house.gov/",
+    description: "Daily journal of the U.S. Government: rules, proposed rules, and public notices.",
+    url: "https://www.federalregister.gov/",
     status: "available",
   },
   {
     name: "GPO govinfo",
     category: "government",
-    description: "Government Publishing Office - Congressional Record, Federal Register, and official documents.",
+    description: "Government Publishing Office: Congressional Record and official publications.",
     url: "https://www.govinfo.gov/",
     status: "available",
   },
   {
-    name: "Federal Register",
+    name: "House staff directory",
     category: "government",
-    description: "Daily journal of the U.S. Government containing rules, proposed rules, and public notices.",
-    url: "https://www.federalregister.gov/",
-    status: "available",
-  },
-  {
-    name: "YouTube Transcripts",
-    category: "media",
-    description: "Extract transcripts from YouTube videos including hearings, speeches, and political content. Watch list tracks videos awaiting captions.",
-    apiRequired: false,
+    description: "Official House of Representatives staff directory with office and position data.",
+    url: "https://directory.house.gov",
     status: "active",
   },
+  // Directories & market data
   {
-    name: "LegiStorm API",
+    name: "LegiStorm",
     category: "data",
-    description: "Congressional staff directory with 12,000+ staffer profiles including position histories, contact information, salary data, and member associations. Supports full and incremental sync.",
+    description: "Congressional staff directory: 16,700+ current staffers with titles, offices, contact details, and position histories.",
     url: "https://www.legistorm.com",
     apiRequired: true,
     status: "active",
   },
   {
-    name: "People Data Labs (PDL)",
+    name: "People Data Labs",
     category: "data",
-    description: "Professional profile enrichment with career histories, skills, education, and company data. Powers contact enrichment, company search, and LinkedIn career mapping.",
+    description: "Professional profile enrichment for contacts: career history, education, and organizations.",
     url: "https://www.peopledatalabs.com",
     apiRequired: true,
     status: "active",
   },
   {
-    name: "Influencers Club API",
+    name: "Kalshi",
     category: "data",
-    description: "Social media influencer tracking across Instagram, YouTube, TikTok, Twitter, Twitch, and OnlyFans. Profile enrichment and post monitoring.",
-    apiRequired: true,
-    status: "active",
-  },
-  {
-    name: "Kalshi API",
-    category: "data",
-    description: "Prediction market data for political event forecasting. Provides real-time market prices, event contracts, and settlement data for political outcomes.",
+    description: "Regulated prediction-market odds on elections and policy outcomes, refreshed every minute.",
     url: "https://kalshi.com",
     apiRequired: true,
     status: "active",
   },
+  // Research & analysis
   {
-    name: "SearchAPI.io",
-    category: "data",
-    description: "Google Rank Tracking API for monitoring search result rankings. Supports device targeting (desktop/mobile/tablet) and location-specific tracking.",
-    url: "https://www.searchapi.io",
+    name: "Anthropic Claude",
+    category: "research",
+    description: "Writes Decision Briefs and ranks the Morning Brief. Every claim in a brief is cited to a source you can open.",
+    url: "https://www.anthropic.com",
     apiRequired: true,
     status: "active",
   },
   {
-    name: "Perplexity AI",
+    name: "Parallel",
     category: "research",
-    description: "AI-powered research using the Sonar model. Powers staffer career research, entity research, veteran status analysis, bill-mapping discovery, and marketing intelligence.",
+    description: "Finds and reads current reporting and official pages for \"Should I be worried?\" answers.",
+    url: "https://parallel.ai",
+    apiRequired: true,
+    status: "active",
+  },
+  {
+    name: "Perplexity",
+    category: "research",
+    description: "Web research for staffer career background and entity lookups.",
     url: "https://www.perplexity.ai",
-    apiRequired: true,
-    status: "active",
-  },
-  {
-    name: "OpenAI GPT-4",
-    category: "research",
-    description: "AI chat and research assistant for document analysis, Q&A, content generation, and structured data extraction. Integrated via Replit AI.",
     apiRequired: true,
     status: "active",
   },
   {
     name: "Firecrawl",
     category: "research",
-    description: "AI-powered web content extraction and scraping. Used for research documents, news articles, team websites, and structured data extraction from URLs. SOC 2 Type II certified.",
+    description: "Extracts clean text from web pages and documents you add to research projects. SOC 2 Type II certified.",
     url: "https://www.firecrawl.dev",
     apiRequired: true,
     status: "active",
   },
+  // Hearings & media
   {
-    name: "Resend",
-    category: "research",
-    description: "Transactional email delivery for account notifications, daily briefs, research updates, and admin alerts.",
-    url: "https://resend.com",
-    apiRequired: true,
+    name: "C-SPAN Video Library",
+    category: "media",
+    description: "Archive of congressional proceedings and hearings with searchable transcripts.",
+    url: "https://www.c-span.org/video/",
+    status: "available",
+  },
+  {
+    name: "Senate video and audio",
+    category: "media",
+    description: "Official Senate committee hearing recordings and floor proceedings.",
+    url: "https://www.senate.gov/committees/video-audio.htm",
+    status: "available",
+  },
+  {
+    name: "House Office of the Clerk",
+    category: "media",
+    description: "Official House hearing video and floor proceedings.",
+    url: "https://clerk.house.gov/",
+    status: "available",
+  },
+  {
+    name: "Hearing transcripts",
+    category: "media",
+    description: "Transcripts pulled from published hearing and speech video for search and research projects.",
+    status: "active",
+  },
+  // Your workspace
+  {
+    name: "Contacts",
+    category: "internal",
+    description: "Your firm's contacts, lists, and notes. Private to your workspace.",
     status: "active",
   },
   {
-    name: "Contact Database",
+    name: "Research projects",
     category: "internal",
-    description: "Internal database of political contacts, career histories, and professional connections.",
+    description: "Documents, links, and briefs you organize by project. Private to your workspace.",
     status: "active",
   },
   {
-    name: "Research Documents",
+    name: "News",
     category: "internal",
-    description: "Uploaded PDFs, extracted web content, and YouTube transcripts organized by matter.",
-    status: "active",
-  },
-  {
-    name: "News Aggregation",
-    category: "internal",
-    description: "Curated political news articles with filtering and tracking capabilities.",
-    status: "active",
-  },
-  {
-    name: "Social Media Tracker",
-    category: "internal",
-    description: "X/Twitter account monitoring with keyword matching, alerts, and engagement metrics.",
+    description: "Policy news collected from national and trade outlets, scored for relevance to your clients.",
     status: "active",
   },
 ];
@@ -168,33 +169,31 @@ const DATA_SOURCES: DataSource[] = [
 const categoryIcons = {
   government: Building2,
   media: Radio,
-  research: Bot,
-  data: Search,
+  research: Search,
+  data: BarChart3,
   internal: Database,
 };
 
 const categoryLabels = {
   government: "Government",
-  media: "Media",
-  research: "AI & Research",
-  data: "Data & Enrichment",
-  internal: "Internal",
+  media: "Hearings & media",
+  research: "Research & analysis",
+  data: "Directories & markets",
+  internal: "Your workspace",
 };
 
 const categoryDescriptions = {
-  government: "Official government data and legislative sources",
-  media: "Video, audio, and media content sources",
-  research: "AI-powered research, analysis, and communication tools",
-  data: "Third-party APIs for data enrichment, directories, and market intelligence",
-  internal: "Platform data and user-generated content",
+  government: "Official federal and state legislative and agency sources",
+  media: "Hearing and floor video, audio, and transcripts",
+  research: "Services that find, read, and summarize sources, always with citations",
+  data: "Licensed directories and market data",
+  internal: "Data your team creates, private to your workspace",
 };
 
-const categoryColors = {
-  government: "text-blue-500",
-  media: "text-purple-500",
-  research: "text-green-500",
-  data: "text-amber-500",
-  internal: "text-orange-500",
+const statusBadgeClass: Record<DataSource["status"], string> = {
+  active: "border-transparent bg-primary/10 text-primary",
+  configured: "border-transparent bg-secondary text-secondary-foreground",
+  available: "text-muted-foreground",
 };
 
 export default function SourcesPage() {
@@ -209,27 +208,27 @@ export default function SourcesPage() {
   const categories = ["government", "data", "research", "media", "internal"] as const;
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" data-testid="text-sources-title">Data Sources</h1>
-        <p className="text-muted-foreground mt-1">
-          Master list of all data sources and APIs powering the platform
-        </p>
-      </div>
+    <PageShell width="default" className="space-y-6">
+      <PageHeader
+        eyebrow="Workspace"
+        title={<span data-testid="text-sources-title">Sources</span>}
+        description="Every data source and service behind your bills, briefs and directory, in one list."
+        className="mb-0"
+      />
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {categories.map((category) => {
           const Icon = categoryIcons[category];
           return (
             <Card key={category}>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2">
-                  <Icon className={`w-5 h-5 ${categoryColors[category]}`} />
-                  <div>
-                    <p className="text-2xl font-bold">{DATA_SOURCES.filter(s => s.category === category).length}</p>
-                    <p className="text-sm text-muted-foreground">{categoryLabels[category]}</p>
-                  </div>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <p className="truncate text-sm">{categoryLabels[category]}</p>
                 </div>
+                <p className="mt-2 text-2xl font-semibold tabular-nums">
+                  {DATA_SOURCES.filter(s => s.category === category).length}
+                </p>
               </CardContent>
             </Card>
           );
@@ -243,8 +242,8 @@ export default function SourcesPage() {
         return (
           <Card key={category}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Icon className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Icon className="h-4 w-4 text-muted-foreground" />
                 {categoryLabels[category]}
               </CardTitle>
               <CardDescription>
@@ -252,24 +251,22 @@ export default function SourcesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {sources.map((source) => (
                   <div
                     key={source.name}
-                    className="flex items-start justify-between p-4 border rounded-lg hover-elevate"
+                    className="flex items-start justify-between gap-4 rounded-lg border p-4"
                     data-testid={`source-${source.name.toLowerCase().replace(/\s+/g, '-')}`}
                   >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{source.name}</p>
-                        <Badge
-                          variant={source.status === "active" ? "default" : source.status === "configured" ? "secondary" : "outline"}
-                        >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">{source.name}</p>
+                        <Badge variant="outline" className={`capitalize shadow-none ${statusBadgeClass[source.status]}`}>
                           {source.status}
                         </Badge>
                         {source.apiRequired && (
-                          <Badge variant="outline" className="text-xs">
-                            API Key Required
+                          <Badge variant="outline" className="text-xs font-medium text-muted-foreground shadow-none">
+                            API key
                           </Badge>
                         )}
                       </div>
@@ -280,7 +277,8 @@ export default function SourcesPage() {
                         href={source.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground ml-4"
+                        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={`Open ${source.name}`}
                         data-testid={`link-${source.name.toLowerCase().replace(/\s+/g, '-')}`}
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -293,6 +291,6 @@ export default function SourcesPage() {
           </Card>
         );
       })}
-    </div>
+    </PageShell>
   );
 }
