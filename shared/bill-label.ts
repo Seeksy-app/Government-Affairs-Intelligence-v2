@@ -38,6 +38,11 @@ interface LabelableBill {
   billNumber: number;
 }
 
+// Tags are lowercase, hyphenated, no leading "#": " Q3 Priority " → "q3-priority".
+export function normalizeTag(raw: string): string {
+  return raw.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, "-").slice(0, 40);
+}
+
 export function isStateBill(bill: { jurisdiction?: string | null }): boolean {
   return !!bill.jurisdiction && bill.jurisdiction !== "US";
 }
