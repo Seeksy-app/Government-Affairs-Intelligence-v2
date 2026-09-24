@@ -33,6 +33,20 @@ import { Share2, Users } from "lucide-react";
 
 const STATE_OPTIONS = Object.entries(US_STATES).sort((a, b) => a[1].localeCompare(b[1]));
 
+// apiRequest errors read like `503: {"message":"..."}`; show just the message.
+function friendlyError(error: Error): string {
+  const json = error.message.match(/\{[\s\S]*\}\s*$/)?.[0];
+  if (json) {
+    try {
+      const parsed = JSON.parse(json);
+      if (typeof parsed?.message === "string") return parsed.message;
+    } catch {
+      // fall through to the raw text
+    }
+  }
+  return error.message.replace(/^\d{3}:\s*/, "");
+}
+
 interface StateBillSearchResult {
   legiscanBillId: number;
   state: string;
@@ -102,7 +116,7 @@ export default function BillTrackingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to Share", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to Share", description: friendlyError(error), variant: "destructive" });
     },
   });
 
@@ -115,7 +129,7 @@ export default function BillTrackingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to Unshare", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to Unshare", description: friendlyError(error), variant: "destructive" });
     },
   });
 
@@ -131,7 +145,7 @@ export default function BillTrackingPage() {
       setSelectedBill(updatedBill);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to Assign", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to Assign", description: friendlyError(error), variant: "destructive" });
     },
   });
 
@@ -147,10 +161,11 @@ export default function BillTrackingPage() {
     onError: (error: Error) => {
       toast({
         title: "Search Failed",
-        description: error.message,
+        description: friendlyError(error),
         variant: "destructive",
       });
       setIsSearching(false);
+      setHasSearched(false);
     },
   });
 
@@ -188,7 +203,7 @@ export default function BillTrackingPage() {
     onError: (error: Error) => {
       toast({
         title: "Failed to Track Bill",
-        description: error.message,
+        description: friendlyError(error),
         variant: "destructive",
       });
     },
@@ -204,8 +219,9 @@ export default function BillTrackingPage() {
       setIsSearching(false);
     },
     onError: (error: Error) => {
-      toast({ title: "Search Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Search Failed", description: friendlyError(error), variant: "destructive" });
       setIsSearching(false);
+      setHasSearched(false); // the search didn't run, so don't claim "No bills found"
     },
   });
 
@@ -223,7 +239,7 @@ export default function BillTrackingPage() {
       setHasSearched(false);
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to Track Bill", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to Track Bill", description: friendlyError(error), variant: "destructive" });
     },
   });
 
