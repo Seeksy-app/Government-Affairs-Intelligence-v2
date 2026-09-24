@@ -14,6 +14,7 @@ import {
   TrendingUp, Landmark, DollarSign, Globe, User, Vote, Scale, MapPin,
   BarChart3, Trophy, Zap, Cloud, Beaker, Film, Heart, Star, Settings2, Check
 } from "lucide-react";
+import { formatVolume } from "@/lib/kalshi-visuals";
 import { PageHeader, PageShell } from "@/components/page-header";
 
 interface KalshiMarket {
@@ -216,12 +217,7 @@ export default function PredictionsPage() {
   const visibleMarkets = filteredMarkets.slice(0, displayCount);
   const hasMore = filteredMarkets.length > displayCount;
 
-  const formatVolumeCompact = (vol: number) => {
-    if (vol >= 1000000000) return `$${(vol / 1000000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-    if (vol >= 1000000) return `$${(vol / 1000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-    if (vol >= 1000) return `$${Math.round(vol).toLocaleString()}`;
-    return `$${vol.toLocaleString()}`;
-  };
+  const formatVolumeCompact = (vol: number) => formatVolume(vol);
 
   const handleCategoryChange = (categoryId: string) => {
     setActiveCategory(categoryId);
@@ -333,7 +329,7 @@ export default function PredictionsPage() {
         <CardContent className="p-4 flex-1 flex flex-col min-h-0">
           <div className="flex items-start gap-3 mb-3">
             {getMarketImage(market.title, market.image_url)}
-            <h3 className="font-semibold text-sm leading-snug flex-1 min-w-0 pr-1" style={{ wordBreak: 'break-word' }}>
+            <h3 className="font-semibold text-sm leading-snug flex-1 min-w-0 pr-1 line-clamp-3" style={{ wordBreak: 'break-word' }} title={market.title}>
               {market.title}
             </h3>
           </div>
