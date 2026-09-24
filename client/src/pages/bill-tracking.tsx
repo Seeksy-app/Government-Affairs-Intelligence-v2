@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +85,18 @@ export default function BillTrackingPage() {
   const { data: matters } = useQuery<Matter[]>({
     queryKey: ["/api/matters"],
   });
+
+  // Global search links here as /bills?open=<id>: open that bill's panel,
+  // then drop the param so a refresh or a repeat search behaves normally.
+  const search = useSearch();
+  useEffect(() => {
+    const id = new URLSearchParams(search).get("open");
+    if (id) {
+      setFocusTags(false);
+      setOpenBillId(id);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [search]);
 
   const openBill = trackedBills?.find((b) => b.id === openBillId) ?? null;
   const openBillPanel = (bill: TrackedBill, options: { focusTags?: boolean } = {}) => {

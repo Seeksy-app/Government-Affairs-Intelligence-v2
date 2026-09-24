@@ -12,6 +12,7 @@ import { Users, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalAIChat } from "@/components/global-ai-chat";
+import { GlobalSearch } from "@/components/global-search";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
@@ -204,7 +205,7 @@ function HomeRedirect() {
 
 function AuthenticatedLayout() {
   const { toast } = useToast();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
@@ -272,15 +273,19 @@ function AuthenticatedLayout() {
               </div>
             </div>
           )}
-          <header className="flex items-center justify-between p-3 border-b gap-2">
+          <header className="flex items-center justify-between p-3 border-b gap-3">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex flex-1 justify-center">
+              <GlobalSearch />
+            </div>
             <div className="flex items-center gap-2">
               <GlobalAIChat />
               <ThemeToggle />
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <ErrorBoundary>
+            {/* Keyed by route so a crash on one page doesn't stick after navigating away. */}
+            <ErrorBoundary key={location}>
               <AuthenticatedRouter />
             </ErrorBoundary>
           </main>

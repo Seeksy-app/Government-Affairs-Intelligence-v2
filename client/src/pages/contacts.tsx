@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { formatUsPhone } from "@/lib/phone";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,16 @@ export default function Contacts() {
     notes: "",
     priority: 0,
   });
+
+  // Global search links here as /contacts?q=<name>: pre-fill the filter.
+  const urlSearch = useSearch();
+  useEffect(() => {
+    const q = new URLSearchParams(urlSearch).get("q");
+    if (q) {
+      setSearchQuery(q);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [urlSearch]);
 
   // Handle query parameters for adding a new contact from staffer lookup
   useEffect(() => {
