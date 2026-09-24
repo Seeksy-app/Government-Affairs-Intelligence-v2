@@ -10223,19 +10223,44 @@ Format your response with clear headers and bullet points. Be specific and data-
   });
 
   // ─── Government Press Releases — List ────────────────────────────────────
-  // GET /api/government-press/releases
+  // GET /api/government-press/releases?scope=mine|all
+  // "mine" (default) = the agencies in the firm's client profile. Falls back to
+  // all agencies when none of the firm's agencies have releases collected.
   app.get("/api/government-press/releases", isAuthenticated, async (req, res) => {
     try {
       const { db } = await import("./db");
-      const { governmentPressReleases } = await import("@shared/schema");
-      const { desc, isNotNull } = await import("drizzle-orm");
+      const { governmentPressReleases, governmentPressSources, clientProfiles } = await import("@shared/schema");
+      const { and, desc, eq, inArray, isNotNull } = await import("drizzle-orm");
+      const { agencySlugsFor } = await import("./services/government-press-service");
+
+      const clientId = await getClientId(req);
+      const [profile] = clientId
+        ? await db.select().from(clientProfiles).where(eq(clientProfiles.clientId, clientId)).limit(1)
+        : [];
+      const mySlugs = agencySlugsFor(profile?.relevantAgencies ?? []);
+
+      const sources = await db
+        .select({ slug: governmentPressSources.departmentSlug, name: governmentPressSources.departmentName, isActive: governmentPressSources.isActive })
+        .from(governmentPressSources);
+      const collected = new Set(sources.filter((s) => s.isActive).map((s) => s.slug));
+      const nameOf = (slug: string) => sources.find((s) => s.slug === slug)?.name ?? slug.toUpperCase();
+      const agencies = mySlugs.map((slug) => ({ slug, name: nameOf(slug), collected: collected.has(slug) }));
+
+      const hasMine = mySlugs.some((slug) => collected.has(slug));
+      const scope = req.query.scope === "all" || !hasMine ? "all" : "mine";
+
       const releases = await db
         .select()
         .from(governmentPressReleases)
-        .where(isNotNull(governmentPressReleases.publishedAt))
+        .where(
+          scope === "mine"
+            ? and(isNotNull(governmentPressReleases.publishedAt), inArray(governmentPressReleases.departmentSlug, mySlugs))
+            : isNotNull(governmentPressReleases.publishedAt),
+        )
         .orderBy(desc(governmentPressReleases.publishedAt))
-        .limit(50);
-      res.json(releases);
+        .limit(75);
+
+      res.json({ scope, hasMine, agencies, releases });
     } catch (err: any) {
       console.error("GET /api/government-press/releases error:", err);
       res.status(500).json({ message: err.message ?? "Failed to fetch press releases" });
