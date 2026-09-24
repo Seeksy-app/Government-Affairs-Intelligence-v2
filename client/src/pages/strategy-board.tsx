@@ -22,26 +22,52 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { StrategyBoard, StrategyCard, LegistormStaffer } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 type ActiveView = "access" | "kanban" | "bill-influence" | "pathfinder" | "power-grid";
 
 const INFLUENCE_TIERS: Record<string, { score: number; label: string; color: string; pillClass: string }> = {
-  "Chief of Staff": { score: 95, label: "Critical", color: "destructive", pillClass: "bg-red-500 text-white" },
-  "Legislative Director": { score: 90, label: "Critical", color: "destructive", pillClass: "bg-red-500 text-white" },
-  "Deputy Chief of Staff": { score: 88, label: "Very High", color: "destructive", pillClass: "bg-orange-500 text-white" },
-  "Policy Director": { score: 85, label: "Very High", color: "destructive", pillClass: "bg-orange-500 text-white" },
-  "Communications Director": { score: 80, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "Senior Policy Advisor": { score: 78, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "Senior Advisor": { score: 78, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "Counsel": { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "General Counsel": { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "Press Secretary": { score: 72, label: "High", color: "default", pillClass: "bg-blue-500 text-white" },
-  "Scheduler": { score: 70, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
-  "Legislative Assistant": { score: 65, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
-  "Legislative Aide": { score: 60, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
-  "Legislative Correspondent": { score: 55, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" },
-  "Staff Assistant": { score: 40, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" },
-  "Intern": { score: 20, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" },
+  "Chief of Staff": { score: 95, label: "Critical", color: "default", pillClass: "bg-[#14253D] text-white dark:bg-white/15" },
+  "Legislative Director": { score: 90, label: "Critical", color: "default", pillClass: "bg-[#14253D] text-white dark:bg-white/15" },
+  "Deputy Chief of Staff": { score: 88, label: "Very High", color: "default", pillClass: "bg-primary text-primary-foreground" },
+  "Policy Director": { score: 85, label: "Very High", color: "default", pillClass: "bg-primary text-primary-foreground" },
+  "Communications Director": { score: 80, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "Senior Policy Advisor": { score: 78, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "Senior Advisor": { score: 78, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "Counsel": { score: 75, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "General Counsel": { score: 75, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "Press Secretary": { score: 72, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" },
+  "Scheduler": { score: 70, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" },
+  "Legislative Assistant": { score: 65, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" },
+  "Legislative Aide": { score: 60, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" },
+  "Legislative Correspondent": { score: 55, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" },
+  "Staff Assistant": { score: 40, label: "Entry", color: "outline", pillClass: "bg-muted text-muted-foreground" },
+  "Intern": { score: 20, label: "Entry", color: "outline", pillClass: "bg-muted text-muted-foreground" },
 };
 
 function getInfluenceScore(title: string): { score: number; label: string; color: string; pillClass: string } {
@@ -49,12 +75,12 @@ function getInfluenceScore(title: string): { score: number; label: string; color
   for (const [key, value] of Object.entries(INFLUENCE_TIERS)) {
     if (normalizedTitle.includes(key.toLowerCase())) return value;
   }
-  if (normalizedTitle.includes("director")) return { score: 80, label: "High", color: "default", pillClass: "bg-blue-500 text-white" };
-  if (normalizedTitle.includes("senior")) return { score: 75, label: "High", color: "default", pillClass: "bg-blue-500 text-white" };
-  if (normalizedTitle.includes("advisor") || normalizedTitle.includes("adviser")) return { score: 70, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
-  if (normalizedTitle.includes("manager")) return { score: 65, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
-  if (normalizedTitle.includes("assistant")) return { score: 45, label: "Entry", color: "outline", pillClass: "bg-gray-400 text-white" };
-  return { score: 50, label: "Moderate", color: "secondary", pillClass: "bg-amber-500 text-white" };
+  if (normalizedTitle.includes("director")) return { score: 80, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" };
+  if (normalizedTitle.includes("senior")) return { score: 75, label: "High", color: "secondary", pillClass: "bg-primary/10 text-primary" };
+  if (normalizedTitle.includes("advisor") || normalizedTitle.includes("adviser")) return { score: 70, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" };
+  if (normalizedTitle.includes("manager")) return { score: 65, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" };
+  if (normalizedTitle.includes("assistant")) return { score: 45, label: "Entry", color: "outline", pillClass: "bg-muted text-muted-foreground" };
+  return { score: 50, label: "Moderate", color: "outline", pillClass: "bg-muted text-foreground/80" };
 }
 
 function renderMarkdown(text: string) {
@@ -244,7 +270,7 @@ function AccessMappingBoard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold mb-1" data-testid="text-access-mapping-title">Access Mapping</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-access-mapping-title">Access Mapping</h2>
         <p className="text-sm text-muted-foreground">Select a Member of Congress to see their staff ranked by influence and accessibility</p>
       </div>
 
@@ -321,20 +347,19 @@ function AccessMappingBoard() {
               disabled={loadingAI}
               data-testid="button-ai-strategy"
             >
-              {loadingAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              AI Access Strategy
+              {loadingAI ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Target className="h-4 w-4 mr-2" />}
+              Draft Access Strategy
             </Button>
           </div>
 
           {aiStrategy?.strategy && (
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Brain className="h-4 w-4" />
-                  AI-Recommended Access Strategy
+              <CardHeader className="p-5 pb-3">
+                <CardTitle className="text-base font-semibold">
+                  Recommended Access Strategy
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-5 pt-0">
                 <div className="text-sm whitespace-pre-wrap" data-testid="text-ai-strategy">{renderMarkdown(aiStrategy.strategy)}</div>
               </CardContent>
             </Card>
@@ -380,8 +405,8 @@ function AccessMappingBoard() {
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2 items-center">
                         {staffer.email && (
-                          <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground">
-                            <Mail className="h-3 w-3" /> {staffer.email}
+                          <a href={`mailto:${staffer.email}`} className="text-xs text-muted-foreground flex min-w-0 max-w-full items-center gap-1 hover:text-primary">
+                            <Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{staffer.email}</span>
                           </a>
                         )}
                         {staffer.phone && (
@@ -400,10 +425,11 @@ function AccessMappingBoard() {
               })}
               {rankedStaffers.length === 0 && (
                 <Card className="col-span-full">
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">No staffers found for this member in the LegiStorm directory</p>
-                  </CardContent>
+                  <EmptyState
+                    icon={Users}
+                    title="No staffers found"
+                    description="No staffers found for this member in the LegiStorm directory"
+                  />
                 </Card>
               )}
             </div>
@@ -453,7 +479,7 @@ function StepStrip({
     {
       label: "Add targets",
       done: hasTargets,
-      action: !hasTargets ? { label: "AI Suggest", onClick: onSuggest, busy: suggesting } : undefined,
+      action: !hasTargets ? { label: "Suggest", onClick: onSuggest, busy: suggesting } : undefined,
     },
     {
       label: "Map your path",
@@ -697,12 +723,12 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-xl font-semibold" data-testid="text-kanban-title">Strategy Pipeline</h2>
+          <h2 className="text-lg font-semibold" data-testid="text-kanban-title">Strategy Pipeline</h2>
           <p className="text-sm text-muted-foreground">Organize staffers and contacts into engagement stages</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={selectedBoardId || ""} onValueChange={setSelectedBoardId}>
-            <SelectTrigger className="w-[200px]" data-testid="select-board">
+            <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-board">
               <SelectValue placeholder="Select a board" />
             </SelectTrigger>
             <SelectContent>
@@ -716,18 +742,18 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
               variant="outline"
               onClick={() => suggestMutation.mutate()}
               disabled={suggestMutation.isPending || boardKeywords.length === 0}
-              title={boardKeywords.length === 0 ? "Add keywords to this board to enable AI suggestions" : undefined}
+              title={boardKeywords.length === 0 ? "Add keywords to this board to enable suggestions" : undefined}
               data-testid="button-ai-suggest"
             >
               {suggestMutation.isPending ? (
-                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Thinking…</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Finding…</>
               ) : (
-                <><Sparkles className="h-4 w-4 mr-1" /> AI Suggest</>
+                <><UserPlus className="h-4 w-4 mr-2" /> Suggest Targets</>
               )}
             </Button>
           )}
           <Button onClick={() => setShowNewBoard(true)} data-testid="button-new-board">
-            <Plus className="h-4 w-4 mr-1" /> New Board
+            <Plus className="h-4 w-4 mr-2" /> New Board
           </Button>
         </div>
       </div>
@@ -775,14 +801,16 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
 
       {!selectedBoardId && !loadingBoards && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <LayoutGrid className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="font-medium mb-2">No board selected</h3>
-            <p className="text-sm text-muted-foreground mb-4">Select an existing board or create a new one to start tracking your engagement pipeline</p>
-            <Button onClick={() => setShowNewBoard(true)} data-testid="button-create-first-board">
-              <Plus className="h-4 w-4 mr-1" /> Create Your First Board
-            </Button>
-          </CardContent>
+          <EmptyState
+            icon={LayoutGrid}
+            title="No board selected"
+            description="Select an existing board or create a new one to start tracking your engagement pipeline"
+            action={
+              <Button onClick={() => setShowNewBoard(true)} data-testid="button-create-first-board">
+                <Plus className="h-4 w-4 mr-2" /> Create Your First Board
+              </Button>
+            }
+          />
         </Card>
       )}
 
@@ -911,7 +939,7 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-6 w-6"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
                                 onClick={() => deleteCardMutation.mutate(card.id)}
                                 data-testid={`button-delete-card-${card.id}`}
                               >
@@ -922,8 +950,8 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
                           {card.notes && <p className="text-xs text-muted-foreground mt-2 italic">{card.notes}</p>}
                           <div className="flex flex-wrap gap-1 mt-2">
                             <Badge variant="outline" className="text-xs">{card.entityType}</Badge>
-                            {card.priority === "high" && <Badge variant="destructive" className="text-xs">High</Badge>}
-                            {card.priority === "critical" && <Badge variant="destructive" className="text-xs">Critical</Badge>}
+                            {card.priority === "high" && <Badge variant="outline" className="text-xs border-primary/20 bg-primary/5 text-primary">High</Badge>}
+                            {card.priority === "critical" && <Badge variant="default" className="text-xs">Critical</Badge>}
                           </div>
                         </CardContent>
                       </Card>
@@ -1023,7 +1051,7 @@ function BillInfluenceView() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" data-testid="text-bill-influence-title">Bill Influence Map</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-bill-influence-title">Bill Influence Map</h2>
         <p className="text-sm text-muted-foreground">See who worked on a bill and find the best paths to influence its outcome</p>
       </div>
 
@@ -1093,22 +1121,22 @@ function BillInfluenceView() {
                 </div>
               ) : (
                 <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-8">
-                    <FileText className="h-10 w-10 text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">No staffer connections found for this bill yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Use Bill Mapping to connect staffers to bills</p>
-                  </CardContent>
+                  <EmptyState
+                    icon={FileText}
+                    title="No staffer connections found for this bill yet"
+                    description="Use Bill Mapping to connect staffers to bills"
+                  />
                 </Card>
               )}
 
               {billInfluence?.aiStrategy && (
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Brain className="h-4 w-4" /> AI Influence Strategy
+                  <CardHeader className="p-5 pb-3">
+                    <CardTitle className="text-base font-semibold">
+                      Influence Strategy
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-5 pt-0">
                     <div className="text-sm whitespace-pre-wrap" data-testid="text-bill-ai-strategy">{renderMarkdown(billInfluence.aiStrategy)}</div>
                   </CardContent>
                 </Card>
@@ -1160,7 +1188,7 @@ function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" data-testid="text-pathfinder-title">Network Path Finder</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-pathfinder-title">Network Path Finder</h2>
         <p className="text-sm text-muted-foreground">Find the shortest path to reach a target through your network of contacts and staffers</p>
       </div>
 
@@ -1176,8 +1204,8 @@ function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1 min-w-0">
               <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Who do you need access to? (e.g., Senator Warren, Energy Committee Chair)"
@@ -1198,9 +1226,9 @@ function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
 
       {loading && (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Analyzing network connections and finding optimal paths...</p>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-5 w-5 animate-spin text-primary mb-3" />
+            <p className="text-sm text-muted-foreground">Mapping connections to this office…</p>
           </CardContent>
         </Card>
       )}
@@ -1209,12 +1237,12 @@ function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
         <div className="space-y-4">
           {pathResult.aiRecommendation && (
             <Card className="border-primary/20 bg-primary/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Brain className="h-4 w-4" /> AI-Recommended Strategy
+              <CardHeader className="p-5 pb-3">
+                <CardTitle className="text-base font-semibold">
+                  Recommended Approach
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-5 pt-0">
                 <div className="text-sm whitespace-pre-wrap" data-testid="text-path-ai-recommendation">
                   {pathResult.aiRecommendation.split("\n").map((line: string, lineIdx: number) => (
                     <span key={lineIdx}>
@@ -1353,10 +1381,11 @@ function NetworkPathFinder({ prefill }: { prefill?: string | null }) {
 
           {(!pathResult.directStaffers?.length && !pathResult.committeeConnections?.length && !pathResult.aiRecommendation) && (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No direct paths found</p>
-              </CardContent>
+              <EmptyState
+                icon={Network}
+                title="No direct paths found"
+                description="Try a member's full name, their office, or a committee."
+              />
             </Card>
           )}
         </div>
@@ -1398,7 +1427,7 @@ function PowerGridDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" data-testid="text-power-grid-title">Power Grid</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-power-grid-title">Power Grid</h2>
         <p className="text-sm text-muted-foreground">Overview of Members of Congress with their key staff and influence indicators</p>
       </div>
 
@@ -1454,13 +1483,13 @@ function PowerGridDashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredGrid.map((member: any, idx: number) => {
-            const partyColor = member.party === "Republican" ? "text-red-500" : member.party === "Democrat" ? "text-blue-500" : "text-muted-foreground";
+            const partyColor = member.party === "Republican" ? "text-red-700 dark:text-red-400" : member.party === "Democrat" ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground";
             return (
               <Card key={idx} data-testid={`card-power-grid-${idx}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="font-semibold text-sm">{member.memberName}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{member.memberName}</p>
                       <div className="flex flex-wrap items-center gap-1 mt-1">
                         <Badge variant="outline" className="text-xs">{member.chamber}</Badge>
                         <span className={`text-xs font-medium ${partyColor}`}>{member.party}</span>
@@ -1470,7 +1499,7 @@ function PowerGridDashboard() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="text-right shrink-0">
-                          <p className="text-lg font-bold text-primary">{member.staffCount}</p>
+                          <p className="text-lg font-semibold tabular-nums text-foreground">{member.staffCount}</p>
                           <p className="text-xs text-muted-foreground">staff</p>
                         </div>
                       </TooltipTrigger>
@@ -1510,10 +1539,11 @@ function PowerGridDashboard() {
           })}
           {filteredGrid.length === 0 && (
             <Card className="col-span-full">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <LayoutGrid className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No members found matching your filters</p>
-              </CardContent>
+              <EmptyState
+                icon={Search}
+                title="No members found"
+                description="No members found matching your filters"
+              />
             </Card>
           )}
         </div>
@@ -1535,7 +1565,7 @@ export default function StrategyBoardPage() {
 
   const strategyTools = [
     { id: "kanban" as ActiveView, label: "Pipeline", icon: LayoutGrid, desc: "Track engagement stages" },
-    { id: "pathfinder" as ActiveView, label: "Path Finder", icon: Network, desc: "AI-powered network paths" },
+    { id: "pathfinder" as ActiveView, label: "Path Finder", icon: Network, desc: "Warm paths through your network" },
     { id: "bill-influence" as ActiveView, label: "Bill Influence", icon: FileText, desc: "Map bill stakeholders" },
   ];
   const referenceTools = [
@@ -1547,36 +1577,34 @@ export default function StrategyBoardPage() {
     <button
       key={v.id}
       onClick={() => setActiveView(v.id)}
-      className={`flex flex-col items-center gap-1 p-3 rounded-lg border text-center transition-colors flex-1 ${
+      className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors ${
         activeView === v.id
-          ? "border-primary bg-primary/5"
-          : "border-transparent hover-elevate"
+          ? "border-primary/40 bg-primary/5"
+          : "border-border bg-card hover-elevate"
       }`}
       data-testid={`button-view-${v.id}`}
     >
       <v.icon className={`h-5 w-5 ${activeView === v.id ? "text-primary" : "text-muted-foreground"}`} />
-      <span className={`text-xs font-medium ${activeView === v.id ? "text-primary" : ""}`}>{v.label}</span>
+      <span className={`w-full truncate text-xs font-semibold ${activeView === v.id ? "text-primary" : "text-foreground/80"}`}>{v.label}</span>
     </button>
   );
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <Target className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-bold" data-testid="text-strategy-page-title">Strategy Board</h1>
-        </div>
-        <p className="text-muted-foreground">Strategic intelligence tools for political access and engagement</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Reach"
+        title={<span data-testid="text-strategy-page-title">Strategy Board</span>}
+        description="Map the path to each office you need to reach and track every engagement from first research to a meeting."
+      />
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="md:flex-[3]">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">Work a strategy</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground mb-1.5 px-1">Work a strategy</p>
           <div className="flex gap-2">{strategyTools.map(renderToolButton)}</div>
         </div>
         <div className="hidden md:block w-px bg-border mt-6" aria-hidden />
         <div className="md:flex-[2]">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">Reference</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground mb-1.5 px-1">Reference</p>
           <div className="flex gap-2">{referenceTools.map(renderToolButton)}</div>
         </div>
       </div>
@@ -1586,6 +1614,6 @@ export default function StrategyBoardPage() {
       {activeView === "bill-influence" && <BillInfluenceView />}
       {activeView === "pathfinder" && <NetworkPathFinder prefill={pathfinderPrefill} />}
       {activeView === "power-grid" && <PowerGridDashboard />}
-    </div>
+    </PageShell>
   );
 }

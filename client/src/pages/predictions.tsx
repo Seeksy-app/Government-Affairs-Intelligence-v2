@@ -14,6 +14,7 @@ import {
   TrendingUp, Landmark, DollarSign, Globe, User, Vote, Scale, MapPin,
   BarChart3, Trophy, Zap, Cloud, Beaker, Film, Heart, Star, Settings2, Check
 } from "lucide-react";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 interface KalshiMarket {
   ticker: string;
@@ -253,71 +254,71 @@ export default function PredictionsPage() {
     const t = title.toLowerCase();
     if (activeCategory === "sports" || t.includes("nba") || t.includes("nfl") || t.includes("mlb") || t.includes("nhl") || t.includes("soccer") || t.includes("golf") || t.includes("tennis")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
-          <Trophy className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Trophy className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("shutdown") || t.includes("government") || t.includes("funding")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-          <Landmark className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Landmark className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("house") || t.includes("senate") || t.includes("congress")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
-          <Landmark className="w-6 h-6 text-primary" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Landmark className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("fed") || t.includes("chair") || t.includes("treasury") || t.includes("interest rate") || t.includes("inflation") || t.includes("gdp") || t.includes("stock")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-          <DollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <DollarSign className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("president") || t.includes("trump") || t.includes("cabinet") || t.includes("nominee")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-          <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <User className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("election") || t.includes("vote") || t.includes("democrat") || t.includes("republican")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-          <Vote className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Vote className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("weather") || t.includes("temperature") || t.includes("hurricane") || t.includes("climate")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center shrink-0">
-          <Cloud className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Cloud className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("court") || t.includes("scotus") || t.includes("justice")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
-          <Scale className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <Scale className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     if (t.includes("governor") || t.includes("mayor") || t.includes("local")) {
       return (
-        <div className="w-10 h-10 rounded-lg overflow-hidden bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0">
-          <MapPin className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+          <MapPin className="w-5 h-5 text-muted-foreground" />
         </div>
       );
     }
     const CategoryIcon = currentCategoryObj.icon;
     return (
       <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
-        <CategoryIcon className="w-6 h-6 text-muted-foreground" />
+        <CategoryIcon className="w-5 h-5 text-muted-foreground" />
       </div>
     );
   };
@@ -325,14 +326,14 @@ export default function PredictionsPage() {
   const MarketCard = ({ market }: { market: KalshiMarket }) => {
     return (
       <Card
-        className="bg-card border-border hover-elevate cursor-pointer h-full flex flex-col"
+        className="hover-elevate cursor-pointer h-full flex flex-col"
         onClick={() => handleMarketClick(market)}
         data-testid={`card-market-${market.ticker}`}
       >
         <CardContent className="p-4 flex-1 flex flex-col min-h-0">
           <div className="flex items-start gap-3 mb-3">
             {getMarketImage(market.title, market.image_url)}
-            <h3 className="font-medium text-sm leading-snug flex-1 min-w-0 pr-1" style={{ wordBreak: 'break-word' }}>
+            <h3 className="font-semibold text-sm leading-snug flex-1 min-w-0 pr-1" style={{ wordBreak: 'break-word' }}>
               {market.title}
             </h3>
           </div>
@@ -342,13 +343,13 @@ export default function PredictionsPage() {
               <span className="text-muted-foreground text-sm flex-1 truncate">
                 {market.subtitle?.split(" ").slice(0, 3).join(" ") || (market.yes_price >= 50 ? "Yes" : "No")}
               </span>
-              <span className="font-semibold text-sm shrink-0">
+              <span className="font-semibold text-sm tabular-nums shrink-0">
                 {market.yes_price}%
               </span>
               <div className="flex gap-1 shrink-0">
                 <Badge
                   variant="outline"
-                  className="cursor-pointer text-xs px-2 py-0.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 no-default-hover-elevate no-default-active-elevate"
+                  className="cursor-pointer text-xs font-medium px-2 py-0.5 border-primary/20 bg-primary/5 text-primary no-default-hover-elevate no-default-active-elevate"
                   onClick={(e) => e.stopPropagation()}
                   data-testid={`badge-yes-${market.ticker}`}
                 >
@@ -356,7 +357,7 @@ export default function PredictionsPage() {
                 </Badge>
                 <Badge
                   variant="outline"
-                  className="cursor-pointer text-xs px-2 py-0.5 bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 no-default-hover-elevate no-default-active-elevate"
+                  className="cursor-pointer text-xs font-medium px-2 py-0.5 bg-muted/60 text-muted-foreground no-default-hover-elevate no-default-active-elevate"
                   onClick={(e) => e.stopPropagation()}
                   data-testid={`badge-no-${market.ticker}`}
                 >
@@ -370,13 +371,13 @@ export default function PredictionsPage() {
                 <span className="text-muted-foreground text-sm flex-1 truncate">
                   {market.subtitle.split(" ").slice(3, 6).join(" ") || "Other"}
                 </span>
-                <span className="font-semibold text-sm shrink-0">
+                <span className="font-semibold text-sm tabular-nums shrink-0">
                   {market.no_price}%
                 </span>
                 <div className="flex gap-1 shrink-0">
                   <Badge
                     variant="outline"
-                    className="cursor-pointer text-xs px-2 py-0.5 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 no-default-hover-elevate no-default-active-elevate"
+                    className="cursor-pointer text-xs font-medium px-2 py-0.5 border-primary/20 bg-primary/5 text-primary no-default-hover-elevate no-default-active-elevate"
                     onClick={(e) => e.stopPropagation()}
                     data-testid={`badge-yes-alt-${market.ticker}`}
                   >
@@ -384,7 +385,7 @@ export default function PredictionsPage() {
                   </Badge>
                   <Badge
                     variant="outline"
-                    className="cursor-pointer text-xs px-2 py-0.5 bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 no-default-hover-elevate no-default-active-elevate"
+                    className="cursor-pointer text-xs font-medium px-2 py-0.5 bg-muted/60 text-muted-foreground no-default-hover-elevate no-default-active-elevate"
                     onClick={(e) => e.stopPropagation()}
                     data-testid={`badge-no-alt-${market.ticker}`}
                   >
@@ -395,8 +396,8 @@ export default function PredictionsPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-border/50">
-            <span className="text-muted-foreground text-xs">
+          <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t">
+            <span className="text-muted-foreground text-xs tabular-nums">
               {formatVolumeCompact(market.volume)}
             </span>
             <Button
@@ -418,9 +419,16 @@ export default function PredictionsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <PageShell className="space-y-4">
+      <PageHeader
+        eyebrow="Monitor"
+        title="Prediction Markets"
+        description="Monitor live Kalshi odds on elections, Congress, the courts and the economy."
+        className="mb-2"
+      />
+
       {/* Category tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 items-center" data-testid="category-tabs-container">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 items-center border-b" data-testid="category-tabs-container">
         {MARKET_CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           const isActive = activeCategory === cat.id;
@@ -432,13 +440,13 @@ export default function PredictionsPage() {
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   onClick={() => handleCategoryChange(cat.id)}
-                  className="rounded-full whitespace-nowrap gap-1.5 shrink-0"
+                  className={`rounded-full whitespace-nowrap gap-1.5 shrink-0 ${isActive ? "" : "text-muted-foreground hover:text-foreground"}`}
                   data-testid={`button-category-${cat.id}`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {cat.label}
                   {isDefault && (
-                    <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 ml-0.5" />
+                    <Star className="h-3 w-3 fill-current opacity-60 ml-0.5" aria-label="Default category" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -454,7 +462,8 @@ export default function PredictionsPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full shrink-0"
+              className="rounded-full shrink-0 text-muted-foreground"
+              aria-label="Set default category"
               data-testid="button-category-settings"
             >
               <Settings2 className="h-4 w-4" />
@@ -483,7 +492,7 @@ export default function PredictionsPage() {
       {/* Sub-filters for Politics */}
       {activeCategory === "politics" && (
         <div
-          className="flex gap-2 overflow-x-auto pb-1 items-center flex-wrap"
+          className="flex gap-1.5 items-center flex-wrap"
           role="tablist"
           aria-label="Politics sub-filters"
         >
@@ -499,7 +508,7 @@ export default function PredictionsPage() {
               role="tab"
               aria-selected={politicsSubFilter === filter.value}
               data-testid={`tab-${filter.value}`}
-              className="rounded-full whitespace-nowrap"
+              className={`rounded-full whitespace-nowrap ${politicsSubFilter === filter.value ? "" : "text-muted-foreground hover:text-foreground"}`}
             >
               {filter.label}
             </Button>
@@ -510,7 +519,7 @@ export default function PredictionsPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-full gap-1"
+                className="rounded-full gap-1 text-muted-foreground hover:text-foreground"
                 data-testid="button-sort-filter"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -542,7 +551,7 @@ export default function PredictionsPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-full gap-1"
+                className="rounded-full gap-1 text-muted-foreground hover:text-foreground"
                 data-testid="button-sort-filter-alt"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -568,17 +577,17 @@ export default function PredictionsPage() {
 
       {/* Section header with search and refresh */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-2xl font-bold" data-testid="text-category-title">
+        <h2 className="text-lg font-semibold" data-testid="text-category-title">
           {currentCategoryObj.label}
           {activeCategory === "politics" && politicsSubFilter !== "all" && (
-            <span className="text-base font-normal text-muted-foreground ml-2">
+            <span className="text-sm font-normal text-muted-foreground ml-2">
               / {POLITICS_SUB_FILTERS.find(f => f.value === politicsSubFilter)?.label}
             </span>
           )}
         </h2>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative max-w-xs">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative flex-1 sm:w-64 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search markets..."
@@ -589,8 +598,8 @@ export default function PredictionsPage() {
               aria-label="Search prediction markets"
             />
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="w-4 h-4" aria-hidden="true" />
+          <div className="hidden sm:flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground" title="Next automatic refresh">
+            <Clock className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{timeUntilRefresh}</span>
           </div>
           <Button
@@ -598,6 +607,7 @@ export default function PredictionsPage() {
             size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
+            className="shrink-0"
             data-testid="button-refresh-markets"
             aria-label="Refresh markets"
           >
@@ -615,33 +625,27 @@ export default function PredictionsPage() {
 
       {/* Markets grid */}
       {isLoading ? (
-        <div className="space-y-6">
-          <div className="flex items-center justify-center gap-3 py-4">
-            <div className="relative w-8 h-8">
-              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-            </div>
-            <span className="text-muted-foreground animate-pulse">Loading {currentCategoryObj.label.toLowerCase()} markets...</span>
-          </div>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">Loading {currentCategoryObj.label.toLowerCase()} markets…</p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
               <Card key={i} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex gap-3 mb-4">
-                    <Skeleton className="w-10 h-10 rounded-lg animate-pulse" />
+                    <Skeleton className="w-10 h-10 rounded-lg" />
                     <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />
-                      <Skeleton className="h-4 w-3/4 animate-pulse" style={{ animationDelay: `${i * 75}ms` }} />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Skeleton className="h-6 w-full animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
-                    <Skeleton className="h-6 w-full animate-pulse" style={{ animationDelay: `${i * 125}ms` }} />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
                   </div>
-                  <div className="flex justify-between gap-2 mt-4 pt-3 border-t border-border">
-                    <Skeleton className="h-4 w-20 animate-pulse" />
-                    <Skeleton className="h-5 w-5 rounded-full animate-pulse" />
+                  <div className="flex justify-between gap-2 mt-4 pt-3 border-t">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-5 w-5 rounded-full" />
                   </div>
                 </CardContent>
               </Card>
@@ -651,9 +655,9 @@ export default function PredictionsPage() {
       ) : visibleMarkets.length > 0 ? (
         <>
           {isFetching && (
-            <div className="flex items-center justify-center gap-2 py-2 bg-muted/50 rounded-lg mb-4 animate-pulse">
-              <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Updating markets...</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Updating markets…</span>
             </div>
           )}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -669,33 +673,34 @@ export default function PredictionsPage() {
                 onClick={handleShowMore}
                 data-testid="button-show-more"
               >
-                Load More ({filteredMarkets.length - displayCount} remaining)
+                Load more ({filteredMarkets.length - displayCount} remaining)
               </Button>
             </div>
           )}
         </>
       ) : (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Activity className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
+          <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Activity className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </div>
-            <h3 className="font-medium mb-2">No Markets Found</h3>
-            <p className="text-muted-foreground text-sm mb-4">
+            <h3 className="mt-4 text-sm font-semibold">No markets found</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               {searchQuery || (activeCategory === "politics" && politicsSubFilter !== "all")
                 ? "Try adjusting your filters or search query."
                 : `No ${currentCategoryObj.label.toLowerCase()} prediction markets are currently available.`}
             </p>
             {(searchQuery || (activeCategory === "politics" && politicsSubFilter !== "all")) && (
               <Button
-                variant="outline"
+                size="sm"
+                className="mt-4"
                 onClick={() => {
                   setSearchQuery("");
                   setPoliticsSubFilter("all");
                 }}
                 data-testid="button-clear-filters"
               >
-                Clear Filters
+                Clear filters
               </Button>
             )}
           </CardContent>
@@ -709,8 +714,8 @@ export default function PredictionsPage() {
             <DialogTitle className="flex items-start gap-3">
               {selectedMarket && getMarketImage(selectedMarket.title, selectedMarket.image_url)}
               <div className="flex-1">
-                <Badge variant="outline" className="mb-2">{selectedMarket?.ticker}</Badge>
-                <h2 className="text-xl font-bold">{selectedMarket?.title}</h2>
+                <Badge variant="outline" className="mb-2 font-normal text-muted-foreground">{selectedMarket?.ticker}</Badge>
+                <h2 className="text-lg font-semibold leading-snug">{selectedMarket?.title}</h2>
                 {selectedMarket?.subtitle && (
                   <p className="text-sm text-muted-foreground mt-1">{selectedMarket.subtitle}</p>
                 )}
@@ -721,48 +726,36 @@ export default function PredictionsPage() {
           {selectedMarket && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-emerald-500/10 border-emerald-500/30">
+                <Card className="border-primary/20 bg-primary/5 shadow-none">
                   <CardContent className="p-4 text-center">
                     <p className="text-sm text-muted-foreground mb-1">Yes</p>
-                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <p className="text-3xl font-semibold tabular-nums text-primary">
                       {selectedMarket.yes_price}%
                     </p>
-                    <Button
-                      className="mt-3 w-full bg-emerald-500 border-emerald-600 text-white"
-                      data-testid="button-buy-yes"
-                    >
-                      Buy Yes
-                    </Button>
                   </CardContent>
                 </Card>
-                <Card className="bg-red-500/10 border-red-500/30">
+                <Card className="bg-muted/40 shadow-none">
                   <CardContent className="p-4 text-center">
                     <p className="text-sm text-muted-foreground mb-1">No</p>
-                    <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                    <p className="text-3xl font-semibold tabular-nums text-foreground">
                       {selectedMarket.no_price}%
                     </p>
-                    <Button
-                      className="mt-3 w-full bg-red-500 border-red-600 text-white"
-                      data-testid="button-buy-no"
-                    >
-                      Buy No
-                    </Button>
                   </CardContent>
                 </Card>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between gap-2 text-sm">
-                  <span className="text-emerald-500">Yes: {selectedMarket.yes_price}%</span>
-                  <span className="text-red-500">No: {selectedMarket.no_price}%</span>
+                  <span className="font-medium text-primary tabular-nums">Yes: {selectedMarket.yes_price}%</span>
+                  <span className="text-muted-foreground tabular-nums">No: {selectedMarket.no_price}%</span>
                 </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden flex">
+                <div className="h-2 bg-muted rounded-full overflow-hidden flex">
                   <div
-                    className="h-full bg-emerald-500 transition-all"
+                    className="h-full bg-primary transition-all"
                     style={{ width: `${selectedMarket.yes_price}%` }}
                   />
                   <div
-                    className="h-full bg-red-500 transition-all"
+                    className="h-full bg-muted-foreground/30 transition-all"
                     style={{ width: `${selectedMarket.no_price}%` }}
                   />
                 </div>
@@ -771,15 +764,15 @@ export default function PredictionsPage() {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-sm text-muted-foreground">Volume</p>
-                  <p className="font-semibold">{formatVolumeCompact(selectedMarket.volume)}</p>
+                  <p className="font-semibold tabular-nums">{formatVolumeCompact(selectedMarket.volume)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Open Interest</p>
-                  <p className="font-semibold">{selectedMarket.open_interest.toLocaleString()}</p>
+                  <p className="font-semibold tabular-nums">{selectedMarket.open_interest.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Closes</p>
-                  <p className="font-semibold">
+                  <p className="font-semibold tabular-nums">
                     {new Date(selectedMarket.close_time).toLocaleDateString()}
                   </p>
                 </div>
@@ -801,6 +794,6 @@ export default function PredictionsPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

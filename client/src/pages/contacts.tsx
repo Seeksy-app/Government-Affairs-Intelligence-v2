@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Contact, InsertContact, ContactList } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 export default function Contacts() {
   const { toast } = useToast();
@@ -232,16 +233,13 @@ export default function Contacts() {
   const chambers = ["House", "Senate", "Administration", "Agency", "Lobbyist", "Other"];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-serif" data-testid="text-contacts-title">
-            Contacts
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your political network
-          </p>
-        </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Reach"
+        title={<span data-testid="text-contacts-title">Contacts</span>}
+        description="Keep the people you reach on the Hill organized by list, chamber, and priority."
+        className="mb-0"
+        actions={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => resetForm()} data-testid="button-add-contact">
@@ -453,7 +451,8 @@ export default function Contacts() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       <Dialog open={showNewListDialog} onOpenChange={(open) => { setShowNewListDialog(open); if (!open) setNewListName(""); }}>
         <DialogContent className="max-w-sm">
@@ -487,27 +486,20 @@ export default function Contacts() {
       </Dialog>
 
       <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <Search className="w-4 h-4 text-muted-foreground" />
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="relative min-w-0 flex-1 sm:min-w-[220px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-sm"
+                className="w-full pl-9"
                 data-testid="input-search-contacts"
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowNewListDialog(true)}
-              data-testid="button-new-list-standalone"
-            >
-              <Plus className="w-4 h-4 mr-1" /> New List
-            </Button>
             <Select value={filterList} onValueChange={setFilterList}>
-              <SelectTrigger className="w-[180px]" data-testid="filter-list">
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="filter-list">
                 <SelectValue placeholder="Filter by list" />
               </SelectTrigger>
               <SelectContent>
@@ -519,7 +511,7 @@ export default function Contacts() {
               </SelectContent>
             </Select>
             <Select value={filterChamber} onValueChange={setFilterChamber}>
-              <SelectTrigger className="w-[180px]" data-testid="filter-chamber">
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="filter-chamber">
                 <SelectValue placeholder="Filter by chamber" />
               </SelectTrigger>
               <SelectContent>
@@ -529,20 +521,33 @@ export default function Contacts() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewListDialog(true)}
+              data-testid="button-new-list-standalone"
+            >
+              <Plus className="w-4 h-4 mr-2" /> New List
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </CardContent>
+      </Card>
+
+      <div>
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i}>
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <Skeleton className="h-12 w-12 rounded-full" />
-                      <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                      <div className="flex-1 space-y-2">
                         <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24 mt-1" />
+                        <Skeleton className="h-3 w-24" />
                       </div>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <Skeleton className="h-3 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   </CardContent>
                 </Card>
@@ -560,20 +565,20 @@ export default function Contacts() {
                 <Card key={contact.id} className="hover-elevate" data-testid={`contact-card-${contact.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="h-10 w-10 shrink-0">
                           <AvatarImage src={getAvatarUrl(`${contact.firstName} ${contact.lastName}`, contact.imageUrl)} alt={`${contact.firstName} ${contact.lastName}`} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                             {contact.firstName[0]}{contact.lastName[0]}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <p className="text-sm font-semibold truncate">
                               {contact.firstName} {contact.lastName}
                             </p>
                             {typeof contact.priority === "number" && contact.priority >= 4 && (
-                              <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 shrink-0" />
+                              <Star className="h-3 w-3 text-primary fill-primary shrink-0" aria-label="High priority" />
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground truncate">
@@ -583,7 +588,7 @@ export default function Contacts() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="shrink-0" data-testid={`button-contact-menu-${contact.id}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" data-testid={`button-contact-menu-${contact.id}`}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -628,23 +633,23 @@ export default function Contacts() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-1.5">
                       {contact.organization && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Building2 className="h-3 w-3" />
+                        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">{contact.organization}</span>
                         </div>
                       )}
                       {contact.email && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
+                        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">{contact.email}</span>
                         </div>
                       )}
                       {contact.phone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span>{contact.phone}</span>
+                        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span className="tabular-nums">{contact.phone}</span>
                         </div>
                       )}
                     </div>
@@ -656,8 +661,8 @@ export default function Contacts() {
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            contact.party === "D" ? "border-blue-500 text-blue-600" : 
-                            contact.party === "R" ? "border-red-500 text-red-600" : ""
+                            contact.party === "D" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" :
+                            contact.party === "R" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300" : ""
                           }`}
                         >
                           {contact.party}
@@ -673,16 +678,25 @@ export default function Contacts() {
             </div>
             </>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">No contacts found</p>
-              <p className="text-sm">
-                {searchQuery || filterChamber !== "all" ? "Try adjusting your filters" : "Add your first contact to get started"}
-              </p>
-            </div>
+            <Card>
+              <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="mt-4 text-sm font-semibold">No contacts found</p>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  {searchQuery || filterChamber !== "all" ? "Try adjusting your filters" : "Add your first contact to get started"}
+                </p>
+                {!(searchQuery || filterChamber !== "all") && (
+                  <Button className="mt-4" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Contact
+                  </Button>
+                )}
+              </div>
+            </Card>
           )}
-        </CardContent>
-      </Card>
-    </div>
+      </div>
+    </PageShell>
   );
 }

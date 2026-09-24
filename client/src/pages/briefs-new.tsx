@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, PageShell } from "@/components/page-header";
 import {
-  Plus, Trash2, Sparkles, Save, FileText, Lock, Share2, ExternalLink,
+  Plus, Trash2, Save, FileText, Lock, Share2, ExternalLink, ArrowLeft, Loader2,
 } from "lucide-react";
 
 function getInitialState() {
@@ -67,29 +69,33 @@ export default function BriefsNew() {
       navigate(`/briefs/${brief.id}`);
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't create the brief", description: err.message, variant: "destructive" });
     },
   });
 
   const canSubmit = title.trim().length > 0 && validUrls.length > 0;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-1">
-          <FileText className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-semibold">New Decision Brief</h1>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          AI-generated decision brief for client delivery
-        </p>
-      </div>
+    <PageShell width="narrow">
+      <Link
+        href="/briefs"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        All briefs
+      </Link>
+      <PageHeader
+        eyebrow="Brief"
+        title="Brief from your own links"
+        description="Add up to five articles and we'll brief the issue from those sources, tailored to your client."
+      />
 
-      <div className="space-y-6">
+      <Card>
+      <CardContent className="space-y-6 p-5 sm:p-6">
         {/* Title */}
         <div className="space-y-2">
           <Label htmlFor="title">
-            Topic / Title <span className="text-destructive">*</span>
+            Topic / title <span className="text-destructive">*</span>
           </Label>
           <Input
             id="title"
@@ -103,7 +109,7 @@ export default function BriefsNew() {
         {/* Sensitivity toggle */}
         <div className="space-y-2">
           <Label>Sensitivity</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setSensitivity("internal")}
@@ -139,7 +145,7 @@ export default function BriefsNew() {
         {/* Client context */}
         <div className="space-y-2">
           <Label htmlFor="context">
-            Client Context{" "}
+            Client context{" "}
             <span className="text-muted-foreground text-xs font-normal">(optional)</span>
           </Label>
           <Textarea
@@ -158,11 +164,10 @@ export default function BriefsNew() {
         {/* Source URLs */}
         <div className="space-y-2">
           <Label>
-            Source URLs <span className="text-destructive">*</span>
+            Source links <span className="text-destructive">*</span>
           </Label>
           <p className="text-xs text-muted-foreground">
-            Up to 5 article URLs. These are the primary grounding material for
-            the brief.
+            Up to 5 article links. The brief is written from these sources.
           </p>
           <div className="space-y-2">
             {urls.map((url, i) => (
@@ -183,6 +188,7 @@ export default function BriefsNew() {
                     size="icon"
                     onClick={() => removeUrl(i)}
                     className="shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label="Remove link"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -193,20 +199,20 @@ export default function BriefsNew() {
           {urls.length < 5 && (
             <Button variant="outline" size="sm" onClick={addUrl} className="mt-1">
               <Plus className="h-4 w-4 mr-1" />
-              Add URL ({urls.length}/5)
+              Add link ({urls.length}/5)
             </Button>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 pt-2 border-t">
+        <div className="flex flex-wrap justify-end gap-3 border-t pt-5">
           <Button
             variant="outline"
             disabled={!canSubmit || createMutation.isPending}
             onClick={() => createMutation.mutate(false)}
           >
             <Save className="h-4 w-4 mr-2" />
-            Save Draft
+            Save draft
           </Button>
           <Button
             disabled={!canSubmit || createMutation.isPending}
@@ -214,18 +220,19 @@ export default function BriefsNew() {
           >
             {createMutation.isPending ? (
               <>
-                <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                Creating...
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating…
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate Brief
+                <FileText className="h-4 w-4 mr-2" />
+                Generate brief
               </>
             )}
           </Button>
         </div>
-      </div>
-    </div>
+      </CardContent>
+      </Card>
+    </PageShell>
   );
 }

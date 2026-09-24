@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader, PageShell } from "@/components/page-header";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Matter } from "@shared/schema";
@@ -30,10 +32,10 @@ export default function MattersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/matters"] });
       setIsCreateOpen(false);
       setNewMatter({ name: "", description: "" });
-      toast({ title: "Matter created successfully" });
+      toast({ title: "Project created" });
     },
     onError: () => {
-      toast({ title: "Failed to create matter", variant: "destructive" });
+      toast({ title: "Couldn't create the project", variant: "destructive" });
     },
   });
 
@@ -41,7 +43,7 @@ export default function MattersPage() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/matters/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/matters"] });
-      toast({ title: "Matter deleted" });
+      toast({ title: "Project deleted" });
     },
   });
 
@@ -53,36 +55,40 @@ export default function MattersPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-48" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 bg-muted rounded" />
-            ))}
-          </div>
+      <PageShell className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-12" />
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-80 max-w-full" />
         </div>
-      </div>
+        <Skeleton className="h-9 w-full max-w-sm" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-40 rounded-lg" />
+          ))}
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Research Projects</h1>
-          <p className="text-muted-foreground">Manage your research projects and documents</p>
-        </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Brief"
+        title="Research Projects"
+        description="Keep the documents, notes and research for each client issue in one place."
+        className="mb-0"
+        actions={
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-matter">
               <Plus className="mr-2 h-4 w-4" />
-              New Project
+              New project
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Research Project</DialogTitle>
+              <DialogTitle>New research project</DialogTitle>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -92,7 +98,7 @@ export default function MattersPage() {
               className="space-y-4"
             >
               <div className="space-y-2">
-                <Label htmlFor="name">Matter Name</Label>
+                <Label htmlFor="name">Project name</Label>
                 <Input
                   id="name"
                   data-testid="input-matter-name"
@@ -107,55 +113,69 @@ export default function MattersPage() {
                 <Textarea
                   id="description"
                   data-testid="input-matter-description"
-                  placeholder="Brief description of this matter..."
+                  placeholder="What is this project about?"
                   value={newMatter.description}
                   onChange={(e) => setNewMatter({ ...newMatter, description: e.target.value })}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={createMatter.isPending} data-testid="button-submit-matter">
-                {createMatter.isPending ? "Creating..." : "Create Matter"}
+                {createMatter.isPending ? "Creating…" : "Create project"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
-      <div className="flex items-center gap-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
+      <div className="relative w-full max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search matters..."
+          placeholder="Search projects…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
+          className="pl-9"
           data-testid="input-search-matters"
         />
       </div>
 
       {filteredMatters.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Folder className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No matters yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first matter to start organizing research for your clients.
-            </p>
-            <Button onClick={() => setIsCreateOpen(true)} data-testid="button-create-first-matter">
+        <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            {matters.length > 0 ? (
+              <Search className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <Folder className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+          <h3 className="mt-4 text-sm font-semibold">
+            {matters.length > 0 ? "No projects match your search" : "No research projects yet"}
+          </h3>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {matters.length > 0
+              ? "Try a different name or keyword."
+              : "Create a project to keep the research for a client issue together."}
+          </p>
+          {matters.length === 0 && (
+            <Button className="mt-4" onClick={() => setIsCreateOpen(true)} data-testid="button-create-first-matter">
               <Plus className="mr-2 h-4 w-4" />
-              Create Matter
+              New project
             </Button>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredMatters.map((matter) => (
-            <Card key={matter.id} className="hover-elevate" data-testid={`card-matter-${matter.id}`}>
+            <Card key={matter.id} className="flex flex-col" data-testid={`card-matter-${matter.id}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Folder className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{matter.name}</CardTitle>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Folder className="h-4 w-4 shrink-0 text-primary" />
+                    <CardTitle className="truncate text-base font-semibold">{matter.name}</CardTitle>
                   </div>
-                  <Badge variant={matter.status === "active" ? "default" : "secondary"}>
+                  <Badge
+                    variant="secondary"
+                    className={`shrink-0 capitalize shadow-none ${matter.status === "active" ? "bg-primary/10 text-primary" : ""}`}
+                  >
                     {matter.status}
                   </Badge>
                 </div>
@@ -163,7 +183,7 @@ export default function MattersPage() {
                   <CardDescription className="line-clamp-2">{matter.description}</CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="mt-auto space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <FileText className="h-4 w-4" />
                   <span>Research folder</span>
@@ -178,10 +198,12 @@ export default function MattersPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => deleteMatter.mutate(matter.id)}
+                    aria-label={`Delete ${matter.name}`}
                     data-testid={`button-delete-matter-${matter.id}`}
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -189,6 +211,6 @@ export default function MattersPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

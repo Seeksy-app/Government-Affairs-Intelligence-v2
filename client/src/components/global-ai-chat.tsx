@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { MessageSquare, Send, Sparkles, ArrowRight, History, Search, Loader2, Save, ExternalLink } from "lucide-react";
+import { MessageSquare, MessageSquareText, Send, Sparkles, ArrowRight, History, Search, Loader2, Save, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -160,11 +160,11 @@ export function GlobalAIChat() {
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button className="gap-2 rounded-full bg-[#078ACB] hover:bg-[#0679b0] text-white shadow-md px-5" data-testid="button-global-ai-chat">
-            <Sparkles className="w-4 h-4" />
-            AI Chat
+          <Button variant="outline" size="sm" className="gap-2" data-testid="button-global-ai-chat">
+            <MessageSquareText className="w-4 h-4 text-primary" />
+            <span className="hidden sm:inline">Research assistant</span>
             {chatMessages.length > 0 && (
-              <Badge variant="secondary" className="ml-1 bg-white/20 text-white hover:bg-white/30">{chatMessages.length}</Badge>
+              <Badge variant="secondary" className="ml-0.5 px-1.5">{chatMessages.length}</Badge>
             )}
           </Button>
         </SheetTrigger>

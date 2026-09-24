@@ -16,10 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import type { StafferBillAssociation, TrackedBill, Contact, LegistormStaffer } from "@shared/schema";
 import {
-  FileText, Users, Search, Plus, Trash2, Loader2, Bot,
+  FileText, Users, Search, Plus, Trash2, Loader2,
   ArrowRight, Briefcase, Calendar, Building2, MapPin, ChevronRight,
-  Link2, Sparkles, ExternalLink, X
+  Link2, ExternalLink, X
 } from "lucide-react";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 const ROLE_OPTIONS = [
   { value: "drafted", label: "Drafted" },
@@ -34,22 +35,22 @@ const ROLE_OPTIONS = [
 ];
 
 const CONFIDENCE_OPTIONS = [
-  { value: "confirmed", label: "Confirmed", color: "bg-green-600" },
-  { value: "high", label: "High", color: "bg-blue-600" },
-  { value: "medium", label: "Medium", color: "bg-yellow-600" },
-  { value: "low", label: "Low", color: "bg-orange-600" },
+  { value: "confirmed", label: "Confirmed", color: "bg-primary" },
+  { value: "high", label: "High", color: "bg-primary/70" },
+  { value: "medium", label: "Medium", color: "bg-primary/40" },
+  { value: "low", label: "Low", color: "bg-muted-foreground/40" },
 ];
 
 function RoleBadge({ role }: { role: string | null }) {
   if (!role) return null;
   const label = ROLE_OPTIONS.find(r => r.value === role)?.label || role;
-  return <Badge variant="secondary" className="text-xs">{label}</Badge>;
+  return <Badge variant="secondary" className="shrink-0 text-xs font-normal">{label}</Badge>;
 }
 
 function ConfidenceDot({ confidence }: { confidence: string | null }) {
   const conf = CONFIDENCE_OPTIONS.find(c => c.value === (confidence || "confirmed"));
   return (
-    <span className={`inline-block w-2 h-2 rounded-full ${conf?.color || "bg-gray-400"}`} title={conf?.label || "Unknown"} />
+    <span className={`inline-block w-2 h-2 shrink-0 rounded-full ${conf?.color || "bg-muted-foreground/40"}`} title={`${conf?.label || "Unknown"} confidence`} />
   );
 }
 
@@ -142,79 +143,68 @@ export default function BillMappingPage() {
   }, [associations]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between gap-4 p-4 border-b flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Bill Mapping</h1>
-          <p className="text-sm text-muted-foreground">Track staffers and the legislation they shaped throughout their careers</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={() => setShowAiDialog(true)} variant="outline" data-testid="button-ai-discover">
-            <Sparkles className="w-4 h-4 mr-2" />
-            AI Discover
-          </Button>
-          <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-association">
-            <Plus className="w-4 h-4 mr-2" />
-            Link Staffer to Bill
-          </Button>
-        </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Monitor"
+        title="Bill Mapping"
+        description="Map staffers to the legislation they shaped across their careers."
+        className="mb-0"
+        actions={
+          <>
+            <Button onClick={() => setShowAiDialog(true)} variant="outline" data-testid="button-ai-discover">
+              <Search className="w-4 h-4 mr-2" />
+              Discover connections
+            </Button>
+            <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-association">
+              <Plus className="w-4 h-4 mr-2" />
+              Link Staffer to Bill
+            </Button>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              Staffers mapped
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums" data-testid="text-stat-staffers">{stats.staffers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <FileText className="h-3.5 w-3.5" />
+              Bills linked
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums" data-testid="text-stat-bills">{stats.bills}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Link2 className="h-3.5 w-3.5" />
+              Total links
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums" data-testid="text-stat-total">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Search className="h-3.5 w-3.5" />
+              Auto-discovered
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums" data-testid="text-stat-ai">{stats.aiDiscovered}</div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="flex items-center gap-4 p-4 flex-wrap">
-        <Card className="flex-1 min-w-[140px]">
-          <CardContent className="p-3 flex items-center gap-3">
-            <Users className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <div className="text-lg font-bold" data-testid="text-stat-staffers">{stats.staffers}</div>
-              <div className="text-xs text-muted-foreground">Staffers Mapped</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="flex-1 min-w-[140px]">
-          <CardContent className="p-3 flex items-center gap-3">
-            <FileText className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <div className="text-lg font-bold" data-testid="text-stat-bills">{stats.bills}</div>
-              <div className="text-xs text-muted-foreground">Bills Linked</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="flex-1 min-w-[140px]">
-          <CardContent className="p-3 flex items-center gap-3">
-            <Link2 className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <div className="text-lg font-bold" data-testid="text-stat-total">{stats.total}</div>
-              <div className="text-xs text-muted-foreground">Total Links</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="flex-1 min-w-[140px]">
-          <CardContent className="p-3 flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <div className="text-lg font-bold" data-testid="text-stat-ai">{stats.aiDiscovered}</div>
-              <div className="text-xs text-muted-foreground">AI Discovered</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="px-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search staffers, bills, roles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden p-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList data-testid="tabs-view-mode">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList data-testid="tabs-view-mode" className="self-start">
             <TabsTrigger value="by-staffer" data-testid="tab-by-staffer">
               <Users className="w-4 h-4 mr-2" />
               By Staffer
@@ -228,67 +218,113 @@ export default function BillMappingPage() {
               Timeline
             </TabsTrigger>
           </TabsList>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search staffers, bills, roles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-search"
+            />
+          </div>
+        </div>
 
-          <TabsContent value="by-staffer" className="mt-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full" />)}
+        <TabsContent value="by-staffer" className="mt-4">
+          {isLoading ? (
+            <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Card key={i}>
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-3 w-1/5" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ) : groupedByStaffer.length === 0 ? (
-              <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
-            ) : (
-              <ScrollArea className="h-[calc(100vh-380px)]">
-                <div className="space-y-4 pr-4">
-                  {groupedByStaffer.map(group => (
-                    <StafferCard
-                      key={`${group.type}-${group.id}`}
-                      group={group}
-                      onDelete={(id) => deleteMutation.mutate(id)}
-                      onSelect={setSelectedAssociation}
-                    />
-                  ))}
+          ) : groupedByStaffer.length === 0 ? (
+            <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
+          ) : (
+            <ScrollArea className="h-[calc(100vh-380px)] min-h-[360px]">
+              <div className="space-y-4 pr-4">
+                {groupedByStaffer.map(group => (
+                  <StafferCard
+                    key={`${group.type}-${group.id}`}
+                    group={group}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                    onSelect={setSelectedAssociation}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="by-bill" className="mt-4">
+          {isLoading ? (
+            <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Card key={i}>
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-3 w-1/5" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+          ) : groupedByBill.length === 0 ? (
+            <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
+          ) : (
+            <ScrollArea className="h-[calc(100vh-380px)] min-h-[360px]">
+              <div className="space-y-4 pr-4">
+                {groupedByBill.map((group, i) => (
+                  <BillCard
+                    key={i}
+                    group={group}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex items-start gap-3 p-2">
+                  <Skeleton className="mt-1 h-2 w-2 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
                 </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
-
-          <TabsContent value="by-bill" className="mt-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full" />)}
-              </div>
-            ) : groupedByBill.length === 0 ? (
-              <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
-            ) : (
-              <ScrollArea className="h-[calc(100vh-380px)]">
-                <div className="space-y-4 pr-4">
-                  {groupedByBill.map((group, i) => (
-                    <BillCard
-                      key={i}
-                      group={group}
-                      onDelete={(id) => deleteMutation.mutate(id)}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </TabsContent>
-
-          <TabsContent value="timeline" className="mt-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full" />)}
-              </div>
-            ) : filteredAssociations.length === 0 ? (
-              <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
-            ) : (
-              <ScrollArea className="h-[calc(100vh-380px)]">
-                <TimelineView associations={filteredAssociations} />
-              </ScrollArea>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+              ))}
+            </div>
+          ) : filteredAssociations.length === 0 ? (
+            <EmptyState onAdd={() => setShowAddDialog(true)} onAiDiscover={() => setShowAiDialog(true)} />
+          ) : (
+            <ScrollArea className="h-[calc(100vh-380px)] min-h-[360px]">
+              <TimelineView associations={filteredAssociations} />
+            </ScrollArea>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <AddAssociationDialog
         open={showAddDialog}
@@ -304,28 +340,26 @@ export default function BillMappingPage() {
         contacts={contacts}
         legistormStaffers={legistormStaffers}
       />
-    </div>
+    </PageShell>
   );
 }
 
 function EmptyState({ onAdd, onAiDiscover }: { onAdd: () => void; onAiDiscover: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4">
-      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-        <Link2 className="w-8 h-8 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Link2 className="h-5 w-5 text-muted-foreground" />
       </div>
-      <div className="text-center">
-        <h3 className="text-lg font-semibold">No Staffer-Bill Connections Yet</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-md">
-          Start mapping staffers to the bills they worked on. You can add connections manually or let AI discover them.
-        </p>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={onAiDiscover} data-testid="button-empty-ai">
-          <Sparkles className="w-4 h-4 mr-2" />
-          AI Discover
+      <h3 className="mt-4 text-sm font-semibold">No staffer–bill connections yet</h3>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        Map staffers to the bills they worked on — link them by hand, or discover connections from LegiStorm and Congress.gov.
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Button variant="outline" size="sm" onClick={onAiDiscover} data-testid="button-empty-ai">
+          <Search className="w-4 h-4 mr-2" />
+          Discover connections
         </Button>
-        <Button onClick={onAdd} data-testid="button-empty-add">
+        <Button size="sm" onClick={onAdd} data-testid="button-empty-add">
           <Plus className="w-4 h-4 mr-2" />
           Link Staffer to Bill
         </Button>
@@ -351,46 +385,48 @@ function StafferCard({ group, onDelete, onSelect }: {
 
   return (
     <Card data-testid={`card-staffer-${group.id}`}>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 p-5 pb-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
             <Users className="w-4 h-4 text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <CardTitle className="text-base">{group.name}</CardTitle>
             <p className="text-xs text-muted-foreground">{group.bills.length} bill{group.bills.length !== 1 ? "s" : ""} linked</p>
           </div>
         </div>
-        <Badge variant="outline" className="text-xs">{group.type === "legistorm" ? "LegiStorm" : "Contact"}</Badge>
+        <Badge variant="outline" className="shrink-0 text-xs font-normal text-muted-foreground">{group.type === "legistorm" ? "LegiStorm" : "Contact"}</Badge>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="p-5 pt-0">
         <div className="space-y-3">
           {positions.map(([posLabel, bills], pi) => (
             <div key={pi}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm font-medium">{posLabel}</span>
+              <div className="flex items-start gap-2 mb-1">
+                <Briefcase className="w-3.5 h-3.5 shrink-0 text-muted-foreground mt-0.5" />
+                <span className="text-sm font-medium min-w-0">{posLabel}</span>
               </div>
-              <div className="ml-6 space-y-1">
+              <div className="ml-5 divide-y divide-border/60">
                 {bills.map(bill => (
                   <div key={bill.id} className="flex items-center justify-between gap-2 group py-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <ConfidenceDot confidence={bill.confidence} />
-                      <span className="text-sm truncate">{formatBillId(bill.billType, bill.billNumber, bill.congress)}</span>
+                      <span className="text-sm font-medium whitespace-nowrap">{formatBillId(bill.billType, bill.billNumber, bill.congress)}</span>
                       <span className="text-xs text-muted-foreground truncate hidden sm:inline">{bill.billTitle}</span>
                       <RoleBadge role={bill.role} />
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       {bill.yearStart && (
-                        <span className="text-xs text-muted-foreground">{bill.yearStart}{bill.yearEnd && bill.yearEnd !== bill.yearStart ? `-${bill.yearEnd}` : ""}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{bill.yearStart}{bill.yearEnd && bill.yearEnd !== bill.yearStart ? `–${bill.yearEnd}` : ""}</span>
                       )}
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => onDelete(bill.id)}
+                        aria-label="Remove link"
                         data-testid={`button-delete-${bill.id}`}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -410,41 +446,43 @@ function BillCard({ group, onDelete }: {
 }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 p-5 pb-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
             <FileText className="w-4 h-4 text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <CardTitle className="text-base">{formatBillId(group.billType, group.billNumber, group.congress)}</CardTitle>
-            <p className="text-xs text-muted-foreground truncate max-w-md">{group.title}</p>
+            <p className="text-sm text-muted-foreground truncate max-w-xl">{group.title}</p>
           </div>
         </div>
-        <Badge variant="outline" className="text-xs">{group.staffers.length} staffer{group.staffers.length !== 1 ? "s" : ""}</Badge>
+        <Badge variant="outline" className="shrink-0 text-xs font-normal text-muted-foreground">{group.staffers.length} staffer{group.staffers.length !== 1 ? "s" : ""}</Badge>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-1.5">
+      <CardContent className="p-5 pt-0">
+        <div className="divide-y divide-border/60">
           {group.staffers.map(s => (
             <div key={s.id} className="flex items-center justify-between gap-2 group py-1">
               <div className="flex items-center gap-2 min-w-0">
                 <ConfidenceDot confidence={s.confidence} />
-                <span className="text-sm font-medium">{s.stafferName}</span>
+                <span className="text-sm font-medium truncate">{s.stafferName}</span>
                 <RoleBadge role={s.role} />
                 {s.positionTitle && (
-                  <span className="text-xs text-muted-foreground hidden sm:inline">as {s.positionTitle}</span>
+                  <span className="text-xs text-muted-foreground truncate hidden sm:inline">as {s.positionTitle}</span>
                 )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 {s.yearStart && (
-                  <span className="text-xs text-muted-foreground">{s.yearStart}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">{s.yearStart}</span>
                 )}
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   onClick={() => onDelete(s.id)}
+                  aria-label="Remove link"
                   data-testid={`button-delete-bill-${s.id}`}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
@@ -482,8 +520,8 @@ function TimelineView({ associations }: { associations: StafferBillAssociation[]
           <div key={year}>
             <div className="relative flex items-center gap-3 mb-3">
               <div className="absolute -left-4 w-3 h-3 rounded-full bg-primary border-2 border-background" style={{ transform: "translateX(-50%)" }} />
-              <h3 className="text-lg font-bold">{year}</h3>
-              <Badge variant="secondary" className="text-xs">{items.length}</Badge>
+              <h3 className="text-base font-semibold tabular-nums">{year}</h3>
+              <Badge variant="secondary" className="text-xs font-normal">{items.length}</Badge>
             </div>
             <div className="space-y-2 ml-2">
               {items.map(a => (
@@ -667,7 +705,7 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium mb-2 block">Staffer Source</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant={stafferSource === "manual" ? "default" : "outline"} onClick={() => { setStafferSource("manual"); setSelectedStaffers([]); }} data-testid="button-source-manual">Manual</Button>
               <Button size="sm" variant={stafferSource === "contact" ? "default" : "outline"} onClick={() => { setStafferSource("contact"); setSelectedStaffers([]); setStafferName(""); }} data-testid="button-source-contact">From Contacts</Button>
               <Button size="sm" variant={stafferSource === "legistorm" ? "default" : "outline"} onClick={() => { setStafferSource("legistorm"); setSelectedStaffers([]); setStafferName(""); }} data-testid="button-source-legistorm">LegiStorm</Button>
@@ -772,7 +810,7 @@ function AddAssociationDialog({ open, onOpenChange, trackedBills, contacts }: {
 
           <div>
             <Label className="text-sm font-medium mb-2 block">Bill Source</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant={billSource === "tracked" ? "default" : "outline"} onClick={() => setBillSource("tracked")}>Tracked Bills</Button>
               <Button size="sm" variant={billSource === "manual" ? "default" : "outline"} onClick={() => setBillSource("manual")}>Manual Entry</Button>
             </div>
@@ -985,12 +1023,11 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setResult(null); setStafferSearch(""); setSelectedStafferId(""); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            AI Bill Discovery
+          <DialogTitle>
+            Discover connections
           </DialogTitle>
           <DialogDescription>
-            Cross-references LegiStorm employment history with Congress.gov bill data, then uses AI to analyze likely involvement.
+            Cross-references LegiStorm employment history with Congress.gov bill data to find the bills a staffer likely worked on.
           </DialogDescription>
         </DialogHeader>
 
@@ -998,7 +1035,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium mb-2 block">Research Focus</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant={mode === "staffer" ? "default" : "outline"} onClick={() => setMode("staffer")} data-testid="button-mode-staffer">
                   Research a Staffer
                 </Button>
@@ -1107,7 +1144,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
 
                 {stafferSource === "legistorm" && selectedStafferId && (
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
+                    <Link2 className="w-3 h-3" />
                     Will cross-reference employment history with Congress.gov bill data for richer results
                   </div>
                 )}
@@ -1146,11 +1183,11 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
               {discoverMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Researching (cross-referencing APIs)...
+                  Cross-referencing sources…
                 </>
               ) : (
                 <>
-                  <Bot className="w-4 h-4 mr-2" />
+                  <Search className="w-4 h-4 mr-2" />
                   Discover Connections
                 </>
               )}
@@ -1159,10 +1196,10 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
         ) : (
           <div className="space-y-4">
             {result.enrichedData?.positionsFound && (
-              <div className="bg-primary/10 rounded-md p-3">
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <FileText className="w-4 h-4" />
-                  <span className="text-sm font-medium">Data Sources Used</span>
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">Data sources used</span>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <div className="flex items-center gap-1">
@@ -1180,10 +1217,9 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
               </div>
             )}
 
-            <div className="bg-muted/50 rounded-md p-4">
-              <h4 className="font-medium mb-2 flex items-center gap-2">
-                <Bot className="w-4 h-4" />
-                Research Results
+            <div className="rounded-md border bg-muted/30 p-4">
+              <h4 className="text-sm font-semibold mb-2">
+                Research results
               </h4>
               <div className="text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-ai-results">
                 {result.research}
@@ -1192,9 +1228,8 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
 
             {result.enrichedData?.memberBills && result.enrichedData.memberBills.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Member Bills Found ({result.enrichedData.memberBills.length})
+                <h4 className="text-sm font-semibold mb-2">
+                  Member bills found ({result.enrichedData.memberBills.length})
                 </h4>
                 <ScrollArea className="max-h-48">
                   <div className="space-y-1">
@@ -1214,7 +1249,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
 
             {result.citations && result.citations.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium mb-1">Sources</h4>
+                <h4 className="text-sm font-semibold mb-1">Sources</h4>
                 <div className="space-y-1">
                   {result.citations.map((cite, i) => (
                     <a
@@ -1222,10 +1257,10 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
                       href={cite}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary min-w-0"
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      {cite}
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{cite}</span>
                     </a>
                   ))}
                 </div>

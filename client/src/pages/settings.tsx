@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings, User, Shield, LogOut, Mail, Link2, CheckCircle2, ExternalLink, Copy, Share2 } from "lucide-react";
+import { Shield, Mail, CheckCircle2, ExternalLink, Copy } from "lucide-react";
+import { PageHeader, PageShell } from "@/components/page-header";
 import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -65,14 +66,14 @@ export default function SettingsPage() {
     const miroResult = params.get("miro");
     if (miroResult === "success") {
       toast({
-        title: "Miro Connected",
-        description: "Your Miro account has been successfully connected!",
+        title: "Miro connected",
+        description: "Your Miro account is now connected.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/miro/status"] });
       window.history.replaceState({}, "", "/settings");
     } else if (miroResult === "error") {
       toast({
-        title: "Connection Failed",
+        title: "Couldn't connect Miro",
         description: params.get("message") || "Failed to connect to Miro",
         variant: "destructive",
       });
@@ -95,49 +96,47 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold font-serif" data-testid="text-settings-title">
-          Settings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account and preferences
-        </p>
-      </div>
+    <PageShell width="narrow" className="space-y-6">
+      <PageHeader
+        eyebrow="Workspace"
+        title={<span data-testid="text-settings-title">Settings</span>}
+        description="Manage your profile, connected services and how the app looks."
+        className="mb-0"
+      />
 
       {/* Profile Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Profile
-          </CardTitle>
+          <CardTitle className="text-base">Profile</CardTitle>
           <CardDescription>Your account information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
+          <div className="flex min-w-0 items-center gap-4">
+            <Avatar className="h-14 w-14 shrink-0">
               <AvatarImage src={user?.profileImageUrl || undefined} />
               <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
             </Avatar>
-            <div>
-              <h3 className="font-semibold text-lg" data-testid="text-user-name">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold" data-testid="text-user-name">
                 {getDisplayName()}
               </h3>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span data-testid="text-user-email">{user?.email || "No email"}</span>
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="truncate" data-testid="text-user-email">{user?.email || "No email"}</span>
               </div>
             </div>
           </div>
           <Separator />
           <div className="grid gap-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="font-medium">Role</p>
+                <p className="text-sm font-medium">Role</p>
                 <p className="text-sm text-muted-foreground">Your access level</p>
               </div>
-              <Badge variant={userRole?.isSuperAdmin ? "default" : "secondary"}>
+              <Badge
+                variant="secondary"
+                className={`shrink-0 capitalize shadow-none ${userRole?.isSuperAdmin ? "bg-primary/10 text-primary" : ""}`}
+              >
                 {userRole?.isSuperAdmin ? (
                   <span className="flex items-center gap-1">
                     <Shield className="h-3 w-3" />
@@ -149,12 +148,12 @@ export default function SettingsPage() {
               </Badge>
             </div>
             {userRole?.clientName && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-medium">Organization</p>
-                  <p className="text-sm text-muted-foreground">Your client firm</p>
+                  <p className="text-sm font-medium">Organization</p>
+                  <p className="text-sm text-muted-foreground">Your firm</p>
                 </div>
-                <span className="text-sm">{userRole.clientName}</span>
+                <span className="min-w-0 truncate text-right text-sm">{userRole.clientName}</span>
               </div>
             )}
           </div>
@@ -164,20 +163,17 @@ export default function SettingsPage() {
       {/* Integrations Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5" />
-            Integrations
-          </CardTitle>
+          <CardTitle className="text-base">Integrations</CardTitle>
           <CardDescription>Connect external services</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded bg-yellow-500 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">M</span>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border bg-muted">
+                <span className="text-base font-semibold text-foreground">M</span>
               </div>
-              <div>
-                <p className="font-medium">Miro</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Miro</p>
                 <p className="text-sm text-muted-foreground">
                   {miroStatus?.connected 
                     ? `Connected${miroStatus.user?.name ? ` as ${miroStatus.user.name}` : ""}`
@@ -187,7 +183,7 @@ export default function SettingsPage() {
               </div>
             </div>
             {miroStatus?.connected ? (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="shrink-0 gap-1 bg-primary/10 text-primary shadow-none">
                 <CheckCircle2 className="h-3 w-3" />
                 Connected
               </Badge>
@@ -198,12 +194,12 @@ export default function SettingsPage() {
                 disabled={connectMiro.isPending}
                 data-testid="button-connect-miro"
               >
-                {connectMiro.isPending ? "Connecting..." : "Connect"}
+                {connectMiro.isPending ? "Connecting…" : "Connect"}
                 <ExternalLink className="h-3 w-3 ml-1" />
               </Button>
             ) : (
-              <Badge variant="outline" className="text-muted-foreground">
-                Not Configured
+              <Badge variant="outline" className="shrink-0 text-muted-foreground shadow-none">
+                Not configured
               </Badge>
             )}
           </div>
@@ -213,10 +209,7 @@ export default function SettingsPage() {
       {/* Invite & Share Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Share2 className="h-5 w-5" />
-            Invite & Share
-          </CardTitle>
+          <CardTitle className="text-base">Invite &amp; share</CardTitle>
           <CardDescription>Share this link so others can sign up for an account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -254,16 +247,13 @@ export default function SettingsPage() {
       {/* Appearance Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Appearance
-          </CardTitle>
+          <CardTitle className="text-base">Appearance</CardTitle>
           <CardDescription>Customize how the app looks</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="font-medium">Theme</p>
+              <p className="text-sm font-medium">Theme</p>
               <p className="text-sm text-muted-foreground">Switch between light and dark mode</p>
             </div>
             <ThemeToggle />
@@ -274,28 +264,26 @@ export default function SettingsPage() {
       {/* Account Actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-destructive">
-            <LogOut className="h-5 w-5" />
-            Account Actions
-          </CardTitle>
+          <CardTitle className="text-base">Account</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="font-medium">Sign Out</p>
+              <p className="text-sm font-medium">Sign out</p>
               <p className="text-sm text-muted-foreground">Sign out of your account on this device</p>
             </div>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="outline"
+              className="shrink-0"
               onClick={() => logout()}
               disabled={isLoggingOut}
               data-testid="button-logout"
             >
-              {isLoggingOut ? "Signing out..." : "Sign Out"}
+              {isLoggingOut ? "Signing out…" : "Sign out"}
             </Button>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

@@ -82,6 +82,12 @@ export default {
           offline: "rgb(156 163 175)",
         },
       },
+      // Source Sans 3 sets narrower than Open Sans did; nudge the small sizes
+      // up so dense UI text stays comfortable to read.
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.125rem" }],
+        sm: ["0.90625rem", { lineHeight: "1.375rem" }],
+      },
       fontFamily: {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],

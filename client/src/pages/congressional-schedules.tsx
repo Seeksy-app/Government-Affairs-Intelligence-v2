@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Calendar,
-  Building2,
   Clock,
   MapPin,
   Users,
@@ -48,6 +47,7 @@ import { format, parseISO, isWithinInterval, addDays } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ClientPortal } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 interface CommitteeMeeting {
   eventId: number;
@@ -194,15 +194,14 @@ export default function CongressionalSchedules() {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "scheduled":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300";
+        return "border-primary/20 bg-primary/5 text-primary";
       case "canceled":
-        return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300";
+        return "border-transparent bg-muted text-muted-foreground line-through decoration-muted-foreground/60";
       case "postponed":
-        return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300";
       case "rescheduled":
-        return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
+        return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400";
       default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+        return "border-transparent bg-muted text-muted-foreground";
     }
   };
 
@@ -245,70 +244,72 @@ export default function CongressionalSchedules() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Calendar className="h-6 w-6 flex-shrink-0" />
-            Congressional Schedules
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Track session calendar, committee meetings, and floor activity
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Select value={chamber} onValueChange={(val) => {
-            setChamber(val);
-            setSearchText("");
-          }}>
-            <SelectTrigger className="w-[130px]" data-testid="select-chamber">
-              <SelectValue placeholder="Chamber" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="house">House</SelectItem>
-              <SelectItem value="senate">Senate</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={() => {
-              refetchCalendar();
-              refetchMeetings();
-              refetchFloor();
-            }}
-            data-testid="button-refresh-schedule"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Monitor"
+        title="Hearings & Schedules"
+        description="Monitor the session calendar, committee hearings and floor activity to plan when to reach members."
+        className="mb-0"
+        actions={
+          <>
+            <Select value={chamber} onValueChange={(val) => {
+              setChamber(val);
+              setSearchText("");
+            }}>
+              <SelectTrigger className="w-[130px]" data-testid="select-chamber">
+                <SelectValue placeholder="Chamber" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="house">House</SelectItem>
+                <SelectItem value="senate">Senate</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => {
+                refetchCalendar();
+                refetchMeetings();
+                refetchFloor();
+              }}
+              data-testid="button-refresh-schedule"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {/* Current Status Banner */}
       {calendarData?.currentPeriod && (
-        <Card className={calendarData.currentPeriod.type === "session" 
-          ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
-          : "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+        <Card className={calendarData.currentPeriod.type === "session"
+          ? "border-primary/20 bg-primary/5 shadow-none"
+          : "bg-muted/40 shadow-none"
         }>
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              {calendarData.currentPeriod.type === "session" ? (
-                <Building className="h-5 w-5 text-green-600 dark:text-green-400" />
-              ) : (
-                <Plane className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              )}
-              <div>
-                <p className="font-medium">
-                  Congress is currently {calendarData.currentPeriod.type === "session" ? "IN SESSION" : "IN RECESS"}
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${calendarData.currentPeriod.type === "session" ? "bg-primary/10" : "bg-muted"}`}>
+                {calendarData.currentPeriod.type === "session" ? (
+                  <Building className="h-4 w-4 text-primary" />
+                ) : (
+                  <Plane className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  Congress is currently {calendarData.currentPeriod.type === "session" ? "in session" : "in recess"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {calendarData.currentPeriod.description} ({format(parseISO(calendarData.currentPeriod.start), "MMM d")} - {format(parseISO(calendarData.currentPeriod.end), "MMM d, yyyy")})
+                  {calendarData.currentPeriod.description} ({format(parseISO(calendarData.currentPeriod.start), "MMM d")} – {format(parseISO(calendarData.currentPeriod.end), "MMM d, yyyy")})
                 </p>
               </div>
-              <Badge className={`ml-auto ${calendarData.currentPeriod.type === "session" 
-                ? "bg-green-600" 
-                : "bg-blue-600"
-              }`}>
+              <Badge
+                variant="outline"
+                className={calendarData.currentPeriod.type === "session"
+                  ? "border-primary/20 bg-card text-primary"
+                  : "bg-card text-muted-foreground"
+                }
+              >
                 {calendarData.currentPeriod.type === "session" ? "Members in DC" : "Members in Districts"}
               </Badge>
             </div>
@@ -317,38 +318,46 @@ export default function CongressionalSchedules() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4" />
-            Session Calendar
-          </TabsTrigger>
-          <TabsTrigger value="committee" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Committee Meetings
-          </TabsTrigger>
-          <TabsTrigger value="floor" className="flex items-center gap-2">
-            <Gavel className="h-4 w-4" />
-            Floor Activity
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Session Calendar
+            </TabsTrigger>
+            <TabsTrigger value="committee" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Committee Meetings
+            </TabsTrigger>
+            <TabsTrigger value="floor" className="flex items-center gap-2">
+              <Gavel className="h-4 w-4" />
+              Floor Activity
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="calendar" className="mt-4">
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5" />
+              <CardHeader className="p-5">
+                <CardTitle className="text-base">
                   2026 Congressional Calendar
                 </CardTitle>
                 <CardDescription>
-                  119th Congress, 2nd Session - Session periods vs. District Work Periods
+                  119th Congress, 2nd Session — session weeks and district work periods
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-5 pt-0">
                 {calendarLoading ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-12 w-full" />
+                      <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                        <Skeleton className="h-4 w-4 rounded" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-1/3" />
+                          <Skeleton className="h-3 w-1/4" />
+                        </div>
+                        <Skeleton className="h-5 w-14 rounded-full" />
+                      </div>
                     ))}
                   </div>
                 ) : calendarData?.periods ? (
@@ -362,38 +371,39 @@ export default function CongressionalSchedules() {
                             key={idx}
                             className={`p-3 rounded-lg border flex items-center gap-3 ${
                               isCurrent
-                                ? period.type === "session"
-                                  ? "bg-green-100 border-green-300 dark:bg-green-950 dark:border-green-700"
-                                  : "bg-blue-100 border-blue-300 dark:bg-blue-950 dark:border-blue-700"
+                                ? "border-primary/30 bg-primary/5"
                                 : isUpcoming
-                                  ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800"
+                                  ? "bg-muted/40"
                                   : ""
                             }`}
                             data-testid={`calendar-period-${idx}`}
                           >
                             {period.type === "session" ? (
-                              <Building className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              <Building className="h-4 w-4 text-primary flex-shrink-0" />
                             ) : (
-                              <Plane className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                              <Plane className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium">{period.description}</span>
+                                <span className="text-sm font-medium">{period.description}</span>
                                 {isCurrent && (
-                                  <Badge variant="outline" className="text-xs">Current</Badge>
+                                  <Badge variant="outline" className="border-primary/30 text-xs text-primary">Current</Badge>
                                 )}
                                 {isUpcoming && !isCurrent && (
-                                  <Badge variant="outline" className="text-xs bg-yellow-100 dark:bg-yellow-900">Upcoming</Badge>
+                                  <Badge variant="outline" className="text-xs text-muted-foreground">Upcoming</Badge>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">
-                                {format(parseISO(period.start), "MMM d")} - {format(parseISO(period.end), "MMM d, yyyy")}
+                                {format(parseISO(period.start), "MMM d")} – {format(parseISO(period.end), "MMM d, yyyy")}
                               </p>
                             </div>
-                            <Badge className={period.type === "session" 
-                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" 
-                              : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                            }>
+                            <Badge
+                              variant="outline"
+                              className={period.type === "session"
+                                ? "shrink-0 border-primary/20 bg-primary/5 text-primary"
+                                : "shrink-0 border-transparent bg-muted text-muted-foreground"
+                              }
+                            >
                               {period.type === "session" ? "In DC" : "District"}
                             </Badge>
                           </div>
@@ -402,37 +412,40 @@ export default function CongressionalSchedules() {
                     </div>
                   </ScrollArea>
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    Calendar data not available
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="mt-4 text-sm font-semibold">Calendar data not available</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Try refreshing in a moment.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Info className="h-4 w-4" />
+                <CardHeader className="p-5">
+                  <CardTitle className="text-base">
                     Meeting Planning Tips
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2">
-                      <Building className="h-4 w-4 text-green-600 mt-0.5" />
+                <CardContent className="p-5 pt-0">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2.5">
+                      <Building className="h-4 w-4 shrink-0 text-primary mt-0.5" />
                       <div>
                         <p className="font-medium text-sm">During Session</p>
-                        <p className="text-xs text-muted-foreground">
-                          Members are in Washington, D.C. Best for meetings at Capitol Hill offices. Tuesday-Thursday are typically busiest.
+                        <p className="text-sm text-muted-foreground">
+                          Members are in Washington, D.C. Best for meetings at Capitol Hill offices. Tuesday–Thursday are typically busiest.
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Plane className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <div className="flex items-start gap-2.5">
+                      <Plane className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
                       <div>
                         <p className="font-medium text-sm">During Recess</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           Members return to home districts. Ideal for local meetings and town halls.
                         </p>
                       </div>
@@ -443,21 +456,20 @@ export default function CongressionalSchedules() {
 
               {calendarData?.nextPeriod && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Clock className="h-4 w-4" />
+                  <CardHeader className="p-5">
+                    <CardTitle className="text-base">
                       Coming Up
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-5 pt-0">
                     <div className="flex items-center gap-3">
                       {calendarData.nextPeriod.type === "session" ? (
-                        <Building className="h-5 w-5 text-green-600" />
+                        <Building className="h-4 w-4 shrink-0 text-primary" />
                       ) : (
-                        <Plane className="h-5 w-5 text-blue-600" />
+                        <Plane className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       <div>
-                        <p className="font-medium">{calendarData.nextPeriod.description}</p>
+                        <p className="text-sm font-medium">{calendarData.nextPeriod.description}</p>
                         <p className="text-sm text-muted-foreground">
                           Starts {format(parseISO(calendarData.nextPeriod.start), "MMMM d, yyyy")}
                         </p>
@@ -472,32 +484,29 @@ export default function CongressionalSchedules() {
 
         <TabsContent value="committee" className="mt-4">
           <Card>
-            <CardHeader className="pb-4">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
+            <CardHeader className="p-5 space-y-0">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <CardTitle className="text-base">
                   {chamber === "house" ? "House" : "Senate"} Committee Meetings
                 </CardTitle>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by title, committee, witness..."
-                      value={searchText}
-                      onChange={(e) => setSearchText(e.target.value)}
-                      className="pl-9 w-[250px]"
-                      data-testid="input-meeting-search"
-                    />
-                  </div>
+                <div className="relative w-full lg:w-[300px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by title, committee, witness..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    className="pl-9 w-full"
+                    data-testid="input-meeting-search"
+                  />
                 </div>
               </div>
-              
-              <div className="flex flex-wrap items-end gap-3 mt-3 pt-3 border-t">
-                <div className="flex items-center gap-2">
-                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Date Range:</span>
+
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-4 pt-4 border-t">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarRange className="h-4 w-4" />
+                  <span className="font-medium">Date range</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div>
                     <Label htmlFor="start-date" className="sr-only">Start Date</Label>
                     <Input
@@ -509,7 +518,7 @@ export default function CongressionalSchedules() {
                       data-testid="input-start-date"
                     />
                   </div>
-                  <span className="text-muted-foreground">to</span>
+                  <span className="text-sm text-muted-foreground">to</span>
                   <div>
                     <Label htmlFor="end-date" className="sr-only">End Date</Label>
                     <Input
@@ -522,10 +531,11 @@ export default function CongressionalSchedules() {
                     />
                   </div>
                   {(startDate || endDate) && (
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="icon"
                       onClick={clearDateRange}
+                      aria-label="Clear date range"
                       data-testid="button-clear-dates"
                     >
                       <X className="h-4 w-4" />
@@ -533,19 +543,23 @@ export default function CongressionalSchedules() {
                   )}
                 </div>
               </div>
-              
-              <p className="text-sm text-muted-foreground mt-2">
-                {startDate || endDate 
+
+              <p className="text-sm text-muted-foreground mt-3">
+                {startDate || endDate
                   ? `Showing meetings ${startDate ? `from ${format(parseISO(startDate), "MMM d, yyyy")}` : ""} ${endDate ? `to ${format(parseISO(endDate), "MMM d, yyyy")}` : ""}`
                   : "Showing up to 30 most recent meetings with full details"
                 }
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-0">
               {meetingsLoading ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="p-4 border rounded-lg space-y-2">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </div>
                       <Skeleton className="h-5 w-3/4" />
                       <Skeleton className="h-4 w-1/2" />
                       <Skeleton className="h-4 w-1/3" />
@@ -554,57 +568,57 @@ export default function CongressionalSchedules() {
                 </div>
               ) : committeeMeetings && committeeMeetings.length > 0 ? (
                 <ScrollArea className="h-[600px]">
-                  <div className="space-y-4 pr-4">
+                  <div className="space-y-3 pr-4">
                     {committeeMeetings.map((meeting) => (
                       <Card
                         key={meeting.eventId}
-                        className="hover-elevate"
+                        className="hover-elevate shadow-none"
                         data-testid={`meeting-card-${meeting.eventId}`}
                       >
                         <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 {meeting.meetingStatus && (
-                                  <Badge className={getStatusColor(meeting.meetingStatus)}>
+                                  <Badge variant="outline" className={`text-xs font-medium ${getStatusColor(meeting.meetingStatus)}`}>
                                     {meeting.meetingStatus}
                                   </Badge>
                                 )}
                                 {meeting.type && (
-                                  <Badge variant="outline">
+                                  <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
                                     {meeting.type}
                                   </Badge>
                                 )}
                               </div>
-                              
+
                               {meeting.committees && meeting.committees.length > 0 && (
-                                <h3 className="font-semibold text-lg mb-1">
+                                <h3 className="font-semibold text-base leading-snug mb-1">
                                   {meeting.committees[0].name}
                                 </h3>
                               )}
-                              
+
                               {meeting.title && (
-                                <p className="text-muted-foreground mb-2 line-clamp-2">
+                                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                                   {meeting.title}
                                 </p>
                               )}
 
-                              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                 {meeting.date && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
+                                  <span className="flex items-center gap-1.5">
+                                    <Calendar className="h-3.5 w-3.5" />
                                     {formatMeetingDate(meeting.date)}
                                   </span>
                                 )}
                                 {meeting.date && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4" />
+                                  <span className="flex items-center gap-1.5">
+                                    <Clock className="h-3.5 w-3.5" />
                                     {formatMeetingTime(meeting.date)}
                                   </span>
                                 )}
                                 {meeting.location && (meeting.location.room || meeting.location.building) && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-4 w-4" />
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin className="h-3.5 w-3.5" />
                                     {meeting.location.room && `Room ${meeting.location.room}`}
                                     {meeting.location.room && meeting.location.building && ", "}
                                     {meeting.location.building}
@@ -620,13 +634,15 @@ export default function CongressionalSchedules() {
                                   </p>
                                   <div className="flex flex-wrap gap-1">
                                     {meeting.witnesses.slice(0, 4).map((witness, idx) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs">
-                                        {witness.name}
-                                        {witness.position && ` - ${witness.position}`}
+                                      <Badge key={idx} variant="secondary" className="max-w-full text-xs font-normal">
+                                        <span className="truncate">
+                                          {witness.name}
+                                          {witness.position && ` - ${witness.position}`}
+                                        </span>
                                       </Badge>
                                     ))}
                                     {meeting.witnesses.length > 4 && (
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
                                         +{meeting.witnesses.length - 4} more
                                       </Badge>
                                     )}
@@ -640,6 +656,7 @@ export default function CongressionalSchedules() {
                                   href={getMeetingUrl(meeting)}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  aria-label="Open on Congress.gov"
                                   data-testid={`link-meeting-${meeting.eventId}`}
                                 >
                                   <ExternalLink className="h-4 w-4" />
@@ -647,9 +664,10 @@ export default function CongressionalSchedules() {
                               </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
+                                  <Button
+                                    variant="ghost"
                                     size="icon"
+                                    aria-label="Meeting actions"
                                     data-testid={`button-meeting-actions-${meeting.eventId}`}
                                   >
                                     <MoreVertical className="h-4 w-4" />
@@ -672,7 +690,7 @@ export default function CongressionalSchedules() {
                                         >
                                           <span>{portal.name}</span>
                                           {isMeetingAssigned(meeting.eventId, portal.id, meeting.chamber) && (
-                                            <Check className="h-4 w-4 text-green-500" />
+                                            <Check className="h-4 w-4 text-primary" />
                                           )}
                                         </DropdownMenuItem>
                                       ))}
@@ -693,21 +711,25 @@ export default function CongressionalSchedules() {
                   </div>
                 </ScrollArea>
               ) : meetingsError ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50 text-destructive" />
-                  <p className="font-medium text-destructive">Failed to load committee meetings</p>
-                  <p className="text-sm mb-4">Please try again later</p>
-                  <Button variant="outline" onClick={() => refetchMeetings()}>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                    <Calendar className="h-5 w-5 text-destructive" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">Failed to load committee meetings</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Please try again in a moment.</p>
+                  <Button variant="outline" size="sm" className="mt-4" onClick={() => refetchMeetings()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Retry
                   </Button>
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No committee meetings found</p>
-                  <p className="text-sm">
-                    {searchText ? "Try a different search term" : "Check back later for updates"}
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">No committee meetings found</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {searchText ? "Try a different search term." : "Check back later for updates."}
                   </p>
                 </div>
               )}
@@ -718,33 +740,30 @@ export default function CongressionalSchedules() {
         <TabsContent value="floor" className="mt-4">
           {/* Session Status Context */}
           {calendarData?.currentPeriod && calendarData.currentPeriod.type === "recess" && (
-            <Card className="mb-4 border-blue-500 bg-blue-50 dark:bg-blue-950/30">
-              <CardContent className="py-4">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium text-blue-900 dark:text-blue-100">
-                      Congress is currently in recess
-                    </p>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Floor activity is typically paused during {calendarData.currentPeriod.description}. 
-                      Members return on {calendarData.nextPeriod ? format(parseISO(calendarData.nextPeriod.start), "MMMM d, yyyy") : "their next scheduled session"}.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">
+                  Congress is currently in recess
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Floor activity is typically paused during {calendarData.currentPeriod.description}.
+                  Members return on {calendarData.nextPeriod ? format(parseISO(calendarData.nextPeriod.start), "MMMM d, yyyy") : "their next scheduled session"}.
+                </p>
+              </div>
+            </div>
           )}
-          
-          <div className="grid gap-6 md:grid-cols-2">
+
+          <div className="grid gap-4 md:grid-cols-2">
             {floorLoading ? (
               <>
                 {[1, 2].map((i) => (
                   <Card key={i}>
-                    <CardHeader>
-                      <Skeleton className="h-6 w-1/2" />
+                    <CardHeader className="p-5">
+                      <Skeleton className="h-5 w-1/2" />
+                      <Skeleton className="h-4 w-2/3" />
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="p-5 pt-0 space-y-3">
                       {[1, 2, 3].map((j) => (
                         <div key={j} className="p-3 border rounded-lg space-y-2">
                           <Skeleton className="h-4 w-full" />
@@ -758,24 +777,26 @@ export default function CongressionalSchedules() {
             ) : floorActivity && floorActivity.length > 0 ? (
               floorActivity.map((feed, idx) => (
                 <Card key={idx}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Gavel className="h-5 w-5" />
+                  <CardHeader className="p-5">
+                    <CardTitle className="text-base">
                       {feed.source}
                     </CardTitle>
                     <CardDescription>
-                      Real-time updates from congressional RSS feeds
+                      Latest updates from congressional RSS feeds
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-5 pt-0">
                     {feed.error ? (
-                      <div className="text-center py-6">
-                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50 text-destructive" />
-                        <p className="text-muted-foreground text-sm">Failed to load feed</p>
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                          <FileText className="h-5 w-5 text-destructive" />
+                        </div>
+                        <p className="mt-4 text-sm font-semibold">Failed to load feed</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Try refreshing in a moment.</p>
                       </div>
                     ) : feed.items && feed.items.length > 0 ? (
                       <ScrollArea className="h-[400px]">
-                        <div className="space-y-3 pr-4">
+                        <div className="space-y-2 pr-4">
                           {feed.items.map((item, itemIdx) => (
                             <div
                               key={itemIdx}
@@ -786,7 +807,7 @@ export default function CongressionalSchedules() {
                                 href={item.link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-medium hover:text-primary hover:underline line-clamp-2"
+                                className="text-sm font-medium hover:text-primary line-clamp-2"
                               >
                                 {item.title}
                               </a>
@@ -806,13 +827,15 @@ export default function CongressionalSchedules() {
                         </div>
                       </ScrollArea>
                     ) : (
-                      <div className="text-center py-6">
-                        <Gavel className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-muted-foreground text-sm">No recent floor activity</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {calendarData?.currentPeriod?.type === "recess" 
-                            ? "Activity resumes when Congress returns to session" 
-                            : "Check back for updates during session"}
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                          <Gavel className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <p className="mt-4 text-sm font-semibold">No recent floor activity</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {calendarData?.currentPeriod?.type === "recess"
+                            ? "Activity resumes when Congress returns to session."
+                            : "Check back for updates during session."}
                         </p>
                       </div>
                     )}
@@ -820,28 +843,33 @@ export default function CongressionalSchedules() {
                 </Card>
               ))
             ) : floorError ? (
-              <Card className="col-span-2">
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50 text-destructive" />
-                  <p className="font-medium text-destructive">Failed to load floor activity</p>
-                  <p className="text-sm mb-4">Please try again later</p>
-                  <Button variant="outline" onClick={() => refetchFloor()}>
+              <Card className="md:col-span-2">
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                    <FileText className="h-5 w-5 text-destructive" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">Failed to load floor activity</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Please try again in a moment.</p>
+                  <Button variant="outline" size="sm" className="mt-4" onClick={() => refetchFloor()}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Retry
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <Card className="col-span-2">
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No floor activity data available</p>
+              <Card className="md:col-span-2">
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">No floor activity data available</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Floor updates will appear here as the chambers post them.</p>
                 </CardContent>
               </Card>
             )}
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

@@ -24,6 +24,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StafferProfileDialog } from "@/components/staffer-profile-dialog";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { PageHeader, PageShell } from "@/components/page-header";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-4 text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 function renderInlineMarkdown(text: string) {
   const parts = text.replace(/\[\d+\]/g, "").split(/(\*\*[^*]+\*\*)/g);
@@ -393,16 +419,18 @@ function VeteransSearch() {
     return result;
   }, [veteranMembers, veteranMemberSearch, veteranChamberFilter, congressMembers]);
 
+  // Service branches share one calm style; the label carries the meaning.
+  const BRANCH_BADGE = "border-border text-foreground/80";
   const branchColors: Record<string, string> = {
-    "army": "border-green-600 text-green-700 dark:text-green-400",
-    "navy": "border-blue-700 text-blue-700 dark:text-blue-400",
-    "marine": "border-red-700 text-red-700 dark:text-red-400",
-    "marines": "border-red-700 text-red-700 dark:text-red-400",
-    "marine corps": "border-red-700 text-red-700 dark:text-red-400",
-    "air force": "border-sky-600 text-sky-700 dark:text-sky-400",
-    "coast guard": "border-orange-600 text-orange-700 dark:text-orange-400",
-    "space force": "border-indigo-600 text-indigo-700 dark:text-indigo-400",
-    "national guard": "border-yellow-600 text-yellow-700 dark:text-yellow-400",
+    "army": BRANCH_BADGE,
+    "navy": BRANCH_BADGE,
+    "marine": BRANCH_BADGE,
+    "marines": BRANCH_BADGE,
+    "marine corps": BRANCH_BADGE,
+    "air force": BRANCH_BADGE,
+    "coast guard": BRANCH_BADGE,
+    "space force": BRANCH_BADGE,
+    "national guard": BRANCH_BADGE,
   };
 
   const getBranchColor = (branch: string | null) => {
@@ -420,8 +448,7 @@ function VeteransSearch() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2" data-testid="text-veterans-title">
-                <Shield className="h-5 w-5" />
+              <CardTitle className="text-base font-semibold" data-testid="text-veterans-title">
                 Veteran Members of Congress
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
@@ -499,12 +526,12 @@ function VeteransSearch() {
                     <Card key={vet.id} className="hover-elevate cursor-pointer" onClick={() => setSelectedVeteran(vet)} data-testid={`card-veteran-${vet.bioguideId}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          <Avatar className="h-12 w-12">
+                          <Avatar className="h-10 w-10 shrink-0">
                             <AvatarImage src={getAvatarUrl(vet.memberName, member?.imageUrl)} alt={vet.memberName} />
-                            <AvatarFallback>{vet.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">{vet.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate" data-testid={`text-veteran-name-${vet.bioguideId}`}>{vet.memberName}</p>
+                            <p className="text-sm font-semibold truncate" data-testid={`text-veteran-name-${vet.bioguideId}`}>{vet.memberName}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {vet.serviceBranch && (
                                 <Badge variant="outline" className={`text-xs ${getBranchColor(vet.serviceBranch)}`} data-testid={`badge-branch-${vet.bioguideId}`}>
@@ -534,7 +561,7 @@ function VeteransSearch() {
                                   {p && (
                                     <Badge
                                       variant="outline"
-                                      className={`text-xs ${p === "R" ? "border-red-500 text-red-600 dark:text-red-400" : p === "D" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}`}
+                                      className={`text-xs ${p === "R" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300" : p === "D" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" : ""}`}
                                     >
                                       {p === "R" ? "Republican" : p === "D" ? "Democrat" : "Independent"}
                                     </Badge>
@@ -545,7 +572,7 @@ function VeteransSearch() {
                               ) : null;
                             })()}
                             <div className="flex items-center gap-1 mt-1">
-                              <Badge variant="outline" className={`text-xs ${vet.confidence === 'high' ? 'border-green-500 text-green-600' : vet.confidence === 'medium' ? 'border-yellow-500 text-yellow-600' : 'border-gray-500 text-gray-500'}`}>
+                              <Badge variant="outline" className={`text-xs ${vet.confidence === 'high' ? 'border-primary/30 bg-primary/5 text-primary' : vet.confidence === 'medium' ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                                 {vet.confidence} confidence
                               </Badge>
                             </div>
@@ -654,14 +681,15 @@ function VeteransSearch() {
               </div>
             </>
           ) : (
-            <div className="text-center py-8">
-              <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                {veteranMembers && veteranMembers.length > 0
-                  ? "No veterans match your search"
-                  : "No veteran data yet. Click \"Discover Veterans\" to research members of Congress for military service."}
-              </p>
-            </div>
+            <EmptyState
+              icon={Shield}
+              title={veteranMembers && veteranMembers.length > 0 ? "No veterans match your search" : "No veteran data yet"}
+              description={
+                veteranMembers && veteranMembers.length > 0
+                  ? "Try a different name, branch, or rank."
+                  : "Click \"Discover Veterans\" to research members of Congress for military service."
+              }
+            />
           )}
         </CardContent>
       </Card>
@@ -678,13 +706,13 @@ function VeteransSearch() {
                     <SheetTitle className="flex items-center gap-3">
                       <Avatar className="h-16 w-16">
                         <AvatarImage src={getAvatarUrl(selectedVeteran.memberName, member?.imageUrl)} alt={selectedVeteran.memberName} />
-                        <AvatarFallback>{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{selectedVeteran.memberName.split(' ').map(n => n[0]).join('').substring(0, 2)}</AvatarFallback>
                       </Avatar>
                       <div>
                         <span className="text-lg">{selectedVeteran.memberName}</span>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {p && (
-                          <Badge variant="outline" className={`text-xs ${p === "R" ? "border-red-500 text-red-600 dark:text-red-400" : p === "D" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}`}>
+                          <Badge variant="outline" className={`text-xs ${p === "R" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300" : p === "D" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" : ""}`}>
                             {p === "R" ? "Republican" : p === "D" ? "Democrat" : "Independent"}
                           </Badge>
                         )}
@@ -822,7 +850,7 @@ function VeteransSearch() {
                       {selectedVeteran.confidence && (
                         <div>
                           <p className="text-xs text-muted-foreground">Confidence</p>
-                          <Badge variant="outline" className={`mt-1 text-xs ${selectedVeteran.confidence === 'high' ? 'border-green-500 text-green-600' : selectedVeteran.confidence === 'medium' ? 'border-yellow-500 text-yellow-600' : 'border-gray-500'}`}>
+                          <Badge variant="outline" className={`mt-1 text-xs ${selectedVeteran.confidence === 'high' ? 'border-primary/30 bg-primary/5 text-primary' : selectedVeteran.confidence === 'medium' ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                             {selectedVeteran.confidence}
                           </Badge>
                         </div>
@@ -1521,20 +1549,16 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
   const recentContacts = contacts?.slice(0, 10) || [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-serif" data-testid="text-network-title">
-            Network
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Visualize career paths and connections
-          </p>
-        </div>
-      </div>
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Reach"
+        title={<span data-testid="text-network-title">Members of Congress</span>}
+        description="Find any member by name, state, or party, then reach the staff who run their office."
+        className="mb-0"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
           <TabsTrigger value="network" data-testid="tab-network">
             <Users className="h-4 w-4 mr-2" />
             Network
@@ -1550,42 +1574,20 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
         </TabsList>
 
         <TabsContent value="network" className="space-y-6 mt-4">
-        <div className="flex justify-end">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search staffers by name, title, or org..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
-              data-testid="input-search-staffers"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery("")}
-                data-testid="button-clear-search"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
 
       {/* Members Search Section */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Landmark className="h-5 w-5" />
+        <CardHeader className="p-5 pb-4">
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-base font-semibold">
               Search Members
             </CardTitle>
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8 text-muted-foreground"
               onClick={() => setShowMemberSearch(!showMemberSearch)}
+              aria-label={showMemberSearch ? "Collapse member search" : "Expand member search"}
               data-testid="button-toggle-member-search"
             >
               {showMemberSearch ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1593,11 +1595,11 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           </div>
         </CardHeader>
         {showMemberSearch && (
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1 flex gap-2">
-                  <div className="relative flex-1">
+          <CardContent className="p-5 pt-0">
+            <div className="space-y-5">
+              <div className="flex flex-col md:flex-row md:flex-wrap gap-3">
+                <div className="relative flex-1 flex gap-2 md:min-w-[280px]">
+                  <div className="relative flex-1 min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search by name (e.g. Johnson, Mike Johnson)..."
@@ -1674,16 +1676,26 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
                     <div key={i} className="p-4 rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="flex-1">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                        <div className="flex-1 space-y-2">
                           <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-24 mt-1" />
+                          <div className="flex gap-2">
+                            <Skeleton className="h-5 w-20" />
+                            <Skeleton className="h-5 w-10" />
+                          </div>
+                          <Skeleton className="h-3 w-24" />
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+              ) : searchTrigger === 0 && !hasFilters ? (
+                <EmptyState
+                  icon={Landmark}
+                  title="Search 535 members of Congress"
+                  description="Look up any senator or representative by name, or narrow by chamber, party, or state."
+                />
               ) : congressMembers && congressMembers.length > 0 ? (
                 <div>
                   <p className="text-sm text-muted-foreground mb-3">
@@ -1693,28 +1705,28 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                     {congressMembers.slice(0, 50).map((member) => (
                       <div
                         key={member.bioguideId}
-                        className="p-4 rounded-lg border hover-elevate cursor-pointer"
+                        className="min-w-0 p-4 rounded-lg border bg-card hover-elevate cursor-pointer"
                         onClick={() => handleSelectMember(member)}
                         data-testid={`member-card-${member.bioguideId}`}
                       >
                         <div className="flex items-start gap-3">
-                          <Avatar className="h-12 w-12">
+                          <Avatar className="h-10 w-10 shrink-0">
                             <AvatarImage src={getAvatarUrl(member.name, member.imageUrl)} alt={member.name} />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                               {member.firstName?.[0]}{member.lastName?.[0]}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{member.firstName} {member.lastName}</p>
+                            <p className="text-sm font-semibold truncate">{member.firstName} {member.lastName}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <Badge 
                                 variant="outline" 
                                 className={
                                   member.party === "D" 
-                                    ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" 
                                     : member.party === "R" 
-                                    ? "border-red-500 text-red-600 dark:text-red-400"
-                                    : "border-gray-500"
+                                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                                    : "text-muted-foreground"
                                 }
                               >
                                 {member.party === "D" ? "Democrat" : member.party === "R" ? "Republican" : "Independent"}
@@ -1730,10 +1742,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         </div>
                         
                         {member.leadership && member.leadership.length > 0 && (
-                          <div className="mt-2 pt-2 border-t">
+                          <div className="mt-3 pt-3 border-t">
                             <div className="flex flex-wrap gap-1">
                               {member.leadership.map((role, idx) => (
-                                <Badge key={idx} variant="default" className="text-xs">
+                                <Badge key={idx} variant="secondary" className="text-xs">
                                   {role}
                                 </Badge>
                               ))}
@@ -1742,16 +1754,16 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         )}
                         
                         {(member.phone || member.website) && (
-                          <div className="mt-2 pt-2 border-t space-y-1">
+                          <div className="mt-3 pt-3 border-t space-y-1">
                             {member.phone && (
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                <span>{member.phone}</span>
+                                <Phone className="h-3 w-3 shrink-0" />
+                                <span className="tabular-nums">{member.phone}</span>
                               </div>
                             )}
                             {member.website && (
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Globe className="h-3 w-3" />
+                              <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                                <Globe className="h-3 w-3 shrink-0" />
                                 <a 
                                   href={member.website} 
                                   target="_blank" 
@@ -1769,11 +1781,11 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Landmark className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No members found</p>
-                  <p className="text-sm">Try adjusting your filters or search term</p>
-                </div>
+                <EmptyState
+                  icon={Search}
+                  title="No members found"
+                  description="Try adjusting your filters or search term"
+                />
               )}
             </div>
           </CardContent>
@@ -1783,13 +1795,12 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
       {/* Favorite Congress Members */}
       {favorites && favorites.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              Favorite Members ({favorites.length})
+          <CardHeader className="p-5 pb-4">
+            <CardTitle className="text-base font-semibold">
+              Favorite Members <span className="font-normal text-muted-foreground tabular-nums">({favorites.length})</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5 pt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {favorites.map((fav) => (
                 <div 
@@ -1812,9 +1823,9 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                   data-testid={`card-favorite-${fav.bioguideId}`}
                 >
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={getAvatarUrl(fav.name, fav.imageUrl)} alt={fav.name} />
-                      <AvatarFallback>{fav.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">{fav.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{fav.name}</p>
@@ -1822,8 +1833,8 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            fav.party === "D" ? "border-blue-500 text-blue-600" : 
-                            fav.party === "R" ? "border-red-500 text-red-600" : ""
+                            fav.party === "D" ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" : 
+                            fav.party === "R" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300" : ""
                           }`}
                         >
                           {fav.party}
@@ -1929,7 +1940,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
             <SheetTitle className="flex items-center gap-3">
               <Avatar className="h-16 w-16">
                 <AvatarImage src={getAvatarUrl(selectedMember?.name || "", memberDetails?.imageUrl || selectedMember?.imageUrl)} alt={selectedMember?.name || ""} />
-                <AvatarFallback className="text-lg">
+                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
                   {selectedMember?.firstName?.[0]}{selectedMember?.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
@@ -1952,7 +1963,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         data-testid="button-toggle-favorite"
                       >
                         <Star 
-                          className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} 
+                          className={`h-5 w-5 ${isFavorite(selectedMember.bioguideId) ? "fill-primary text-primary" : "text-muted-foreground"}`} 
                         />
                       </Button>
                       {portals && portals.length > 0 ? (() => {
@@ -2021,10 +2032,10 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                     variant="outline" 
                     className={
                       (memberDetails?.party || selectedMember?.party) === "D" 
-                        ? "border-blue-500 text-blue-600 dark:text-blue-400" 
+                        ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300" 
                         : (memberDetails?.party || selectedMember?.party) === "R" 
-                        ? "border-red-500 text-red-600 dark:text-red-400"
-                        : "border-gray-500"
+                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                        : "text-muted-foreground"
                     }
                   >
                     {(memberDetails?.party || selectedMember?.party) === "D" ? "Democrat" : 
@@ -2167,7 +2178,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                             Official Directory
                           </Badge>
                         ) : (
-                          <Badge variant="destructive" className="text-xs" data-testid="badge-source-ai">
+                          <Badge variant="outline" className="text-xs border-primary/20 bg-primary/5 text-primary" data-testid="badge-source-ai">
                             <AlertTriangle className="h-3 w-3 mr-1" />
                             AI Research - Verify Names
                           </Badge>
@@ -2175,7 +2186,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         <span className="text-xs text-muted-foreground">{staffers.length} staff found</span>
                       </div>
                       {!isOfficial && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400">Names from AI research may be inaccurate. Verify against official sources before use.</p>
+                        <p className="text-xs text-muted-foreground">Names from AI research may be inaccurate. Verify against official sources before use.</p>
                       )}
                       {staffers.length > 0 ? (
                         <div className="space-y-2">
@@ -2421,6 +2432,6 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
           staffers={networkDialogData.staffers}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

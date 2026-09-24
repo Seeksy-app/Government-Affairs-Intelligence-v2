@@ -21,9 +21,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  ArrowLeft, Sparkles, Copy, Check, Lock, Share2, ExternalLink, RefreshCw,
-  Edit3, Clock, CheckCircle, XCircle, FileText, Eye, Plus, Trash2, AlertCircle,
+  ArrowLeft, Copy, Check, Lock, Share2, ExternalLink, RefreshCw,
+  Edit3, Clock, CheckCircle, XCircle, FileText, Eye, Plus, Trash2, AlertCircle, Loader2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader, PageShell } from "@/components/page-header";
 import type { Brief, BriefSource, BriefContent } from "@shared/schema";
 import { BottomLine } from "@/components/briefs/bottom-line";
 
@@ -84,11 +86,11 @@ function CitedText({ text, sources }: { text: string; sources: BriefSource[] }) 
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "ready")
-    return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200"><CheckCircle className="h-3 w-3 mr-1" />Ready</Badge>;
+    return <Badge className="border-transparent bg-emerald-50 text-emerald-700 shadow-none dark:bg-emerald-900/30 dark:text-emerald-300"><CheckCircle className="h-3 w-3 mr-1" />Ready</Badge>;
   if (status === "generating")
-    return <Badge variant="secondary"><div className="animate-spin w-3 h-3 border-2 border-current border-t-transparent rounded-full mr-1" />Generating</Badge>;
+    return <Badge variant="secondary"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Generating</Badge>;
   if (status === "failed")
-    return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
+    return <Badge className="border-transparent bg-destructive/10 text-destructive shadow-none"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
   return <Badge variant="outline"><Clock className="h-3 w-3 mr-1" />Draft</Badge>;
 }
 
@@ -260,7 +262,7 @@ export default function BriefDetail() {
       toast({ title: "Generation started — this may take a minute" });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Couldn't start the brief", description: err.message, variant: "destructive" });
     },
   });
 
@@ -276,17 +278,44 @@ export default function BriefDetail() {
 
   if (isLoading) {
     return (
-      <div className="p-6 max-w-3xl mx-auto space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-32 rounded-lg bg-muted animate-pulse" />
-        ))}
-      </div>
+      <PageShell width="narrow">
+        <Skeleton className="mb-4 h-4 w-24" />
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-3 w-12" />
+          <Skeleton className="h-7 w-3/4" />
+          <div className="flex gap-2 pt-2">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-lg" />
+          ))}
+        </div>
+      </PageShell>
     );
   }
 
   if (!brief) {
     return (
-      <div className="p-6 text-center text-muted-foreground">Brief not found.</div>
+      <PageShell width="narrow">
+        <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h2 className="mt-4 text-sm font-semibold">Brief not found</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            It may have been deleted, or the link is out of date.
+          </p>
+          <Link href="/briefs">
+            <Button variant="outline" size="sm" className="mt-4">
+              <ArrowLeft className="h-4 w-4 mr-1.5" />
+              All briefs
+            </Button>
+          </Link>
+        </div>
+      </PageShell>
     );
   }
 
@@ -298,28 +327,20 @@ export default function BriefDetail() {
   const canGenerate = !isGenerating;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <PageShell width="narrow">
       {/* Header */}
-      <div className="mb-6">
-        <Link href="/briefs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-4 w-4" />
-          All Briefs
-        </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <StatusBadge status={brief.status} />
-              <Badge variant="outline" className="text-xs">
-                {brief.sensitivity === "internal" ? (
-                  <><Lock className="h-3 w-3 mr-1" />Internal</>
-                ) : (
-                  <><Share2 className="h-3 w-3 mr-1" />Shareable</>
-                )}
-              </Badge>
-            </div>
-            <h1 className="text-2xl font-semibold leading-tight break-words">{brief.title}</h1>
-          </div>
-          <div className="flex gap-2 shrink-0">
+      <Link
+        href="/briefs"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        All briefs
+      </Link>
+      <PageHeader
+        eyebrow="Brief"
+        title={<span className="break-words">{brief.title}</span>}
+        actions={
+          <>
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Edit3 className="h-4 w-4 mr-1.5" />
               Edit
@@ -329,7 +350,7 @@ export default function BriefDetail() {
                 {copied ? (
                   <><Check className="h-4 w-4 mr-1.5" />Copied</>
                 ) : (
-                  <><Copy className="h-4 w-4 mr-1.5" />Share Link</>
+                  <><Copy className="h-4 w-4 mr-1.5" />Share link</>
                 )}
               </Button>
             )}
@@ -339,26 +360,37 @@ export default function BriefDetail() {
               disabled={!canGenerate || generateMutation.isPending}
             >
               <RefreshCw className={`h-4 w-4 mr-1.5 ${isGenerating ? "animate-spin" : ""}`} />
-              {isGenerating ? "Generating..." : "Regenerate"}
+              {isGenerating ? "Generating…" : "Regenerate"}
             </Button>
-          </div>
+          </>
+        }
+      >
+        <div className="-mt-1 flex flex-wrap items-center gap-2">
+          <StatusBadge status={brief.status} />
+          <Badge variant="outline" className="text-xs shadow-none">
+            {brief.sensitivity === "internal" ? (
+              <><Lock className="h-3 w-3 mr-1" />Internal</>
+            ) : (
+              <><Share2 className="h-3 w-3 mr-1" />Shareable</>
+            )}
+          </Badge>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Generating state */}
       {isGenerating && <GeneratingSteps sources={brief.sources} />}
 
       {/* Interrupted run (e.g. the server restarted mid-generation) */}
       {isStale && (
-        <Card className="mb-6 border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
+        <Card className="mb-6 border-primary/20 bg-primary/5 shadow-none">
           <CardContent className="py-5 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="font-medium">This is taking longer than expected</p>
               <p className="text-sm text-muted-foreground mt-1">The run was probably interrupted. Start it again:</p>
               <Button size="sm" className="mt-3" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
                 <RefreshCw className="h-4 w-4 mr-1.5" />
-                Try Again
+                Try again
               </Button>
             </div>
           </CardContent>
@@ -378,7 +410,7 @@ export default function BriefDetail() {
                 )}
                 <Button size="sm" className="mt-3" onClick={() => generateMutation.mutate()}>
                   <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Try Again
+                  Try again
                 </Button>
               </div>
             </div>
@@ -388,16 +420,18 @@ export default function BriefDetail() {
 
       {/* Draft state (no content yet) */}
       {brief.status === "draft" && !content && (
-        <Card className="mb-6 border-dashed">
-          <CardContent className="py-10 text-center">
-            <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-medium">Draft saved</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">
-              Click Regenerate to generate the brief content.
+        <Card className="mb-6">
+          <CardContent className="flex flex-col items-center px-6 py-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="mt-4 text-sm font-semibold">Draft saved</p>
+            <p className="mt-1 mb-4 text-sm text-muted-foreground">
+              Generate the brief when your sources are ready.
             </p>
             <Button onClick={() => generateMutation.mutate()}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate Brief
+              <FileText className="h-4 w-4 mr-2" />
+              Generate brief
             </Button>
           </CardContent>
         </Card>
@@ -446,22 +480,22 @@ export default function BriefDetail() {
             <div className="space-y-3">
               <ResponseOption
                 label="Cautious"
-                color="text-blue-600 dark:text-blue-400"
-                bg="bg-blue-50 dark:bg-blue-950/30"
+                color="text-primary"
+                bg="border border-border bg-muted/40"
                 text={content.responses.cautious}
                 sources={brief.sources}
               />
               <ResponseOption
                 label="Moderate"
-                color="text-amber-600 dark:text-amber-400"
-                bg="bg-amber-50 dark:bg-amber-950/30"
+                color="text-amber-700 dark:text-amber-400"
+                bg="border border-border bg-muted/40"
                 text={content.responses.moderate}
                 sources={brief.sources}
               />
               <ResponseOption
                 label="Aggressive"
-                color="text-red-600 dark:text-red-400"
-                bg="bg-red-50 dark:bg-red-950/30"
+                color="text-[#A53B39] dark:text-red-400"
+                bg="border border-border bg-muted/40"
                 text={content.responses.aggressive}
                 sources={brief.sources}
               />
@@ -472,7 +506,7 @@ export default function BriefDetail() {
           {brief.sources.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <CardTitle className="text-sm font-semibold">
                   Sources
                 </CardTitle>
               </CardHeader>
@@ -510,7 +544,7 @@ export default function BriefDetail() {
       )}
 
       <EditDialog brief={brief} open={editOpen} onOpenChange={setEditOpen} />
-    </div>
+    </PageShell>
   );
 }
 

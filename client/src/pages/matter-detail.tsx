@@ -18,10 +18,10 @@ import {
   Building,
   Building2,
   Bot,
-  Sparkles,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -38,15 +38,15 @@ import type { Matter, ResearchDocument, ResearchConversation, ResearchMessage } 
 function getDocTypeIcon(type: string) {
   switch (type) {
     case "youtube":
-      return <Youtube className="h-4 w-4 text-red-500" />;
+      return <Youtube className="h-4 w-4 text-muted-foreground" />;
     case "url":
-      return <Globe className="h-4 w-4 text-blue-500" />;
+      return <Globe className="h-4 w-4 text-muted-foreground" />;
     case "pdf":
     case "docx":
-      return <File className="h-4 w-4 text-orange-500" />;
+      return <File className="h-4 w-4 text-muted-foreground" />;
     case "agent":
     case "extract":
-      return <Sparkles className="h-4 w-4 text-purple-500" />;
+      return <Search className="h-4 w-4 text-primary" />;
     default:
       return <FileText className="h-4 w-4" />;
   }
@@ -256,47 +256,54 @@ export default function MatterDetailPage() {
 
   if (!matter) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-48" />
-          <div className="h-64 bg-muted rounded" />
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-64 max-w-full" />
         </div>
+        <Skeleton className="mt-6 h-64 w-full rounded-lg" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full">
-      <div className="w-80 border-r flex flex-col">
-        <div className="p-4 border-b">
-          <Link href="/matters">
-            <Button variant="ghost" size="sm" className="mb-2" data-testid="button-back-to-matters">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Matters
-            </Button>
-          </Link>
-          <h2 className="font-semibold text-lg">{matter.name}</h2>
-          {matter.description && (
-            <p className="text-sm text-muted-foreground mt-1">{matter.description}</p>
-          )}
-        </div>
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="border-b px-4 pb-5 pt-4 sm:px-6 lg:px-8">
+        <Link href="/matters">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2 mb-2 h-8 px-2 text-muted-foreground hover:text-foreground"
+            data-testid="button-back-to-matters"
+          >
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            All projects
+          </Button>
+        </Link>
+        <PageHeader
+          eyebrow="Research Projects"
+          title={<span className="break-words">{matter.name}</span>}
+          description={matter.description || undefined}
+          className="mb-0"
+        />
+      </div>
 
+    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+      <div className="flex w-full flex-col border-b md:w-80 md:shrink-0 md:border-b-0 md:border-r">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium">Research Documents</h3>
+            <h3 className="text-sm font-semibold">Documents</h3>
             <div className="flex gap-1">
               <Dialog open={isAgentResearchOpen} onOpenChange={setIsAgentResearchOpen}>
                 <DialogTrigger asChild>
-                  <Button size="icon" variant="ghost" title="AI Agent Research" data-testid="button-agent-research">
+                  <Button size="icon" variant="ghost" title="Web research" aria-label="Web research" data-testid="button-agent-research">
                     <Bot className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-purple-500" />
-                      AI Agent Research
-                    </DialogTitle>
+                    <DialogTitle>Web research</DialogTitle>
                   </DialogHeader>
                   <Tabs defaultValue="entity" className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
@@ -306,7 +313,7 @@ export default function MatterDetailPage() {
                     </TabsList>
                     <TabsContent value="entity" className="space-y-4 mt-4">
                       <p className="text-sm text-muted-foreground">
-                        Use Firecrawl's AI agent to research a person, organization, or company and gather structured intelligence.
+                        Research a person, organization, or company across the web and gather the key details.
                       </p>
                       <div className="space-y-2">
                         <Label htmlFor="entityName">Entity Name</Label>
@@ -364,7 +371,7 @@ export default function MatterDetailPage() {
                     </TabsContent>
                     <TabsContent value="custom" className="space-y-4 mt-4">
                       <p className="text-sm text-muted-foreground">
-                        Run a custom AI agent query to gather any information from the web.
+                        Ask any research question and gather the answer from the web.
                       </p>
                       <div className="space-y-2">
                         <Label htmlFor="agentPrompt">Research Query</Label>
@@ -398,7 +405,7 @@ export default function MatterDetailPage() {
                     </TabsContent>
                     <TabsContent value="extract" className="space-y-4 mt-4">
                       <p className="text-sm text-muted-foreground">
-                        Extract structured data from specific URLs using AI.
+                        Pull structured details out of specific pages.
                       </p>
                       <div className="space-y-2">
                         <Label htmlFor="extractUrls">URLs (one per line)</Label>
@@ -449,13 +456,13 @@ export default function MatterDetailPage() {
               </Dialog>
               <Dialog open={isAddUrlOpen} onOpenChange={setIsAddUrlOpen}>
                 <DialogTrigger asChild>
-                  <Button size="icon" variant="ghost" title="Add URL" data-testid="button-add-document">
+                  <Button size="icon" variant="ghost" title="Add a link" aria-label="Add a link" data-testid="button-add-document">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add Research Document</DialogTitle>
+                    <DialogTitle>Add a document</DialogTitle>
                   </DialogHeader>
                   <form
                     onSubmit={(e) => {
@@ -488,7 +495,7 @@ export default function MatterDetailPage() {
                           Extracting content...
                         </>
                       ) : (
-                        "Add Document"
+                        "Add document"
                       )}
                     </Button>
                   </form>
@@ -500,14 +507,14 @@ export default function MatterDetailPage() {
           <ScrollArea className="h-48">
             {documents.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No documents yet. Add URLs to build your research.
+                No documents yet. Add links to build your research.
               </p>
             ) : (
               <div className="space-y-2">
                 {documents.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex items-center justify-between p-2 rounded hover-elevate bg-muted/50"
+                    className="flex items-center justify-between gap-2 rounded-md bg-muted/50 p-2 hover-elevate"
                     data-testid={`doc-item-${doc.id}`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -519,11 +526,12 @@ export default function MatterDetailPage() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6"
+                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => deleteDocument.mutate(doc.id)}
+                      aria-label="Remove document"
                       data-testid={`button-delete-doc-${doc.id}`}
                     >
-                      <Trash2 className="h-3 w-3 text-destructive" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
@@ -534,10 +542,12 @@ export default function MatterDetailPage() {
 
         <div className="p-4 flex-1 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium">Conversations</h3>
+            <h3 className="text-sm font-semibold">Conversations</h3>
             <Button
               size="icon"
               variant="ghost"
+              title="New conversation"
+              aria-label="New conversation"
               onClick={() => createConversation.mutate()}
               data-testid="button-new-conversation"
             >
@@ -570,29 +580,27 @@ export default function MatterDetailPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-h-[28rem] min-w-0 flex-1 flex-col md:min-h-0">
         {!selectedConversation ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Card className="max-w-md">
-              <CardHeader className="text-center">
-                <MessageCircle className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-                <CardTitle>Research Agent</CardTitle>
-                <CardDescription>
-                  Add documents and start a conversation to get AI-powered insights from your research.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <Button onClick={() => createConversation.mutate()} data-testid="button-start-conversation">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Start Conversation
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="flex max-w-sm flex-col items-center text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <MessageCircle className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <h3 className="mt-4 text-sm font-semibold">Ask questions across your research</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add documents, then start a conversation to ask about them.
+              </p>
+              <Button className="mt-4" onClick={() => createConversation.mutate()} data-testid="button-start-conversation">
+                <Plus className="mr-2 h-4 w-4" />
+                Start conversation
+              </Button>
+            </div>
           </div>
         ) : (
           <>
             <div className="border-b p-4">
-              <h3 className="font-medium">
+              <h3 className="text-sm font-semibold">
                 {conversations.find((c) => c.id === selectedConversation)?.title || "Conversation"}
               </h3>
               <p className="text-sm text-muted-foreground">
@@ -613,7 +621,7 @@ export default function MatterDetailPage() {
                         msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
                     </div>
                   </div>
                 ))}
@@ -621,7 +629,7 @@ export default function MatterDetailPage() {
                 {streamingResponse && (
                   <div className="flex justify-start">
                     <div className="max-w-[80%] rounded-lg p-3 bg-muted">
-                      <p className="whitespace-pre-wrap">{streamingResponse}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm">{streamingResponse}</p>
                     </div>
                   </div>
                 )}
@@ -661,6 +669,7 @@ export default function MatterDetailPage() {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 }

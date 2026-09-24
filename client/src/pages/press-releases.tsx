@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Newspaper } from "lucide-react";
 import { format } from "date-fns";
 import type { GovernmentPressRelease } from "@shared/schema";
+import { PageHeader, PageShell } from "@/components/page-header";
 
 export default function PressReleasesPage() {
   const { data: releases, isLoading } = useQuery<GovernmentPressRelease[]>({
@@ -18,40 +19,47 @@ export default function PressReleasesPage() {
   });
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Newspaper className="h-5 w-5 text-primary" />
-        <h1 className="text-2xl font-semibold">Press Releases</h1>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Monitor"
+        title="Press Releases"
+        description="Monitor the latest releases from federal departments and agencies."
+      />
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+        <div className="overflow-hidden rounded-lg border bg-card">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
+              <Skeleton className="h-3 w-20 shrink-0" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="hidden h-3 w-20 shrink-0 sm:block" />
+            </div>
           ))}
         </div>
       ) : !releases || releases.length === 0 ? (
-        <div className="text-center py-20">
-          <Newspaper className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-lg font-medium mb-1">No press releases yet</h2>
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Newspaper className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h2 className="mt-4 text-sm font-semibold">No press releases yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Press releases will appear here once ingestion runs.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-36">Agency</TableHead>
+                <TableHead className="w-28 sm:w-36">Agency</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead className="w-36">Published</TableHead>
+                <TableHead className="w-32 text-right">Published</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {releases.map((r) => (
                 <TableRow key={r.id} className="hover:bg-muted/50">
-                  <TableCell className="font-mono text-xs font-medium uppercase text-muted-foreground">
+                  <TableCell className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {r.departmentSlug}
                   </TableCell>
                   <TableCell>
@@ -59,12 +67,12 @@ export default function PressReleasesPage() {
                       href={r.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-primary transition-colors line-clamp-1"
+                      className="line-clamp-2 text-sm font-medium transition-colors hover:text-primary sm:line-clamp-1"
                     >
                       {r.title}
                     </a>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap text-right text-sm tabular-nums text-muted-foreground">
                     {r.publishedAt
                       ? format(new Date(r.publishedAt), "MMM d, yyyy")
                       : "—"}
@@ -75,6 +83,6 @@ export default function PressReleasesPage() {
           </Table>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
