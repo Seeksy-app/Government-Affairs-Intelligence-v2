@@ -65,8 +65,12 @@ the live guide wins — re-vendor it here.
   sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
   650–700 weight title, one plain sentence of description, actions on the
   right. No decorative icons beside page titles, no serif, no gradient text.
-- **Navigation:** flat sidebar sections named for the job (Brief, Monitor,
-  Reach, Clients, Workspace); every page listed exactly once.
+- **Navigation (Sep 2026):** a 72px icon rail (Home, Brief, Monitor, Reach,
+  Clients; Workspace gear + account at the bottom). Clicking a section opens
+  a 240px flyout with its pages; the flyout follows you between sections,
+  collapses with its « button or ⌘\, and remembers its state. Phones get the
+  full list in a slide-out sheet. Every page is listed exactly once.
+  Source: `client/src/components/app-nav.tsx`.
 - **Color discipline:** red/destructive only for errors and destructive
   actions. Relevance scores and "new update" notices use the Signal Blue
   tint (`bg-primary/10 text-primary`), never alarm red. Concern levels are
