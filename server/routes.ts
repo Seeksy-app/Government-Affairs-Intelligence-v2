@@ -37,6 +37,7 @@ import { kalshiApi } from "./services/kalshi-api";
 import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
 import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail, renderBrandedEmail } from "./services/email-service";
+import { isStateBill, US_STATES, LEGISCAN_ATTRIBUTION, trackedBillLabel, jurisdictionName, trackedBillUrl } from "@shared/bill-label";
 
 declare module "express-session" {
   interface SessionData {
@@ -3856,6 +3857,14 @@ Format your response as a structured summary with clear sections.`;
       
       res.json(sharedBills.map(b => ({
         id: b.id,
+        // The portal UI renders billId / chamber / lastActionDate; they were
+        // never sent, so bill labels rendered blank. Keep the raw fields too.
+        billId: trackedBillLabel(b),
+        chamber: jurisdictionName(b),
+        jurisdiction: b.jurisdiction,
+        isStateBill: isStateBill(b),
+        url: trackedBillUrl(b),
+        lastActionDate: b.latestActionDate,
         congress: b.congress,
         billType: b.billType,
         billNumber: b.billNumber,
@@ -4676,10 +4685,23 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
     }
   });
 
+  // Loads a tracked bill only if it belongs to the caller's firm.
+  const getOwnedTrackedBill = async (req: any) => {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const bill = await storage.getTrackedBill(req.params.id);
+    return bill && bill.clientId === clientId ? bill : null;
+  };
+
   // Update tracked bill
   app.patch("/api/tracked-bills/:id", isAuthenticated, async (req, res) => {
     try {
-      const bill = await storage.updateTrackedBill(req.params.id, req.body);
+      const owned = await getOwnedTrackedBill(req);
+      if (!owned) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+      const { clientId: _ignored, ...updates } = req.body ?? {};
+      const bill = await storage.updateTrackedBill(req.params.id, updates);
       if (!bill) {
         return res.status(404).json({ message: "Bill not found" });
       }
@@ -4690,17 +4712,44 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
     }
   });
 
-  // Sync tracked bill with Congress.gov and detect changes
+  // Sync tracked bill with its source (Congress.gov or LegiScan) and detect changes
   app.post("/api/tracked-bills/:id/sync", isAuthenticated, async (req, res) => {
     try {
+      const bill = await getOwnedTrackedBill(req);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+
+      if (isStateBill(bill)) {
+        if (!bill.legiscanBillId) {
+          return res.status(400).json({ message: "This state bill has no LegiScan ID to sync from" });
+        }
+        const { getStateBill } = await import("./services/legiscan-api");
+        const detail = await getStateBill(bill.legiscanBillId);
+        const changed = !!detail.lastAction && detail.lastAction !== bill.latestAction;
+        if (changed) {
+          await storage.createBillChange({
+            trackedBillId: bill.id,
+            changeType: "action_update",
+            previousValue: bill.latestAction,
+            newValue: detail.lastAction,
+            description: `New action: ${detail.lastAction}`,
+          });
+        }
+        const updated = await storage.updateTrackedBill(bill.id, {
+          title: detail.title,
+          status: detail.status ?? undefined,
+          latestAction: detail.lastAction ?? undefined,
+          latestActionDate: detail.lastActionDate ?? undefined,
+          changeHash: detail.changeHash ?? undefined,
+          lastSyncedAt: new Date(),
+        });
+        return res.json({ ...updated, changed, changesDetected: changed ? 1 : 0 });
+      }
+
       const apiKey = process.env.CONGRESS_API_KEY;
       if (!apiKey) {
         return res.status(500).json({ message: "Congress API key not configured" });
-      }
-
-      const bill = await storage.getTrackedBill(req.params.id);
-      if (!bill) {
-        return res.status(404).json({ message: "Bill not found" });
       }
 
       const api = new CongressAPI(apiKey);
@@ -4739,15 +4788,105 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       });
 
       res.json({ ...updated, changed, changesDetected: changes.length });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error syncing tracked bill:", error);
-      res.status(500).json({ message: "Failed to sync bill" });
+      res.status(500).json({ message: error?.userFacing ? error.message : "Failed to sync bill" });
+    }
+  });
+
+  // Search current-session state bills via LegiScan
+  app.get("/api/state-bills/search", isAuthenticated, async (req, res) => {
+    try {
+      const state = String(req.query.state || "").toUpperCase();
+      const q = String(req.query.q || "").trim();
+      if (!US_STATES[state]) {
+        return res.status(400).json({ message: "Choose a state" });
+      }
+      if (q.length < 2) {
+        return res.status(400).json({ message: "Enter a keyword or bill number" });
+      }
+      const { searchStateBills } = await import("./services/legiscan-api");
+      const bills = await searchStateBills(state, q);
+      res.json({ bills: bills.slice(0, 50), attribution: LEGISCAN_ATTRIBUTION });
+    } catch (error: any) {
+      console.error("Error searching state bills:", error);
+      res.status(error?.userFacing ? 503 : 500).json({
+        message: error?.userFacing ? error.message : "State bill search failed",
+      });
+    }
+  });
+
+  // Track a state bill. Details come from LegiScan (one getBill query), not
+  // from the client, so the stored record is authoritative.
+  app.post("/api/tracked-bills/state", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) {
+        return res.status(403).json({ message: "Not assigned to a client" });
+      }
+      const legiscanBillId = Number(req.body?.legiscanBillId);
+      if (!Number.isInteger(legiscanBillId) || legiscanBillId <= 0) {
+        return res.status(400).json({ message: "Invalid bill" });
+      }
+
+      const existing = await storage.getTrackedBillByNumber(clientId, 0, "state", legiscanBillId);
+      if (existing) {
+        return res.status(400).json({ message: "Bill already tracked" });
+      }
+
+      const { getStateBill } = await import("./services/legiscan-api");
+      const detail = await getStateBill(legiscanBillId);
+      const bill = await storage.createTrackedBill({
+        clientId,
+        congress: 0,
+        billType: "state",
+        billNumber: detail.legiscanBillId,
+        jurisdiction: detail.state,
+        legiscanBillId: detail.legiscanBillId,
+        legiscanSessionId: detail.legiscanSessionId,
+        billLabel: detail.billLabel,
+        changeHash: detail.changeHash,
+        sourceUrl: detail.sourceUrl,
+        stateUrl: detail.stateUrl,
+        title: detail.title,
+        status: detail.status,
+        sponsor: detail.sponsor,
+        sponsorParty: detail.sponsorParty,
+        introducedDate: detail.introducedDate,
+        latestAction: detail.lastAction,
+        latestActionDate: detail.lastActionDate,
+        policyArea: detail.subject,
+      });
+      res.json(bill);
+    } catch (error: any) {
+      console.error("Error tracking state bill:", error);
+      res.status(error?.userFacing ? 503 : 500).json({
+        message: error?.userFacing ? error.message : "Failed to track bill",
+      });
+    }
+  });
+
+  // LegiScan query spend this month (super admin only)
+  app.get("/api/legiscan/usage", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const superAdmin = userId ? await storage.getSuperAdminByUserId(userId) : null;
+      if (!superAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { getLegiScanUsage, isLegiScanConfigured } = await import("./services/legiscan-api");
+      res.json({ configured: isLegiScanConfigured(), ...(await getLegiScanUsage()) });
+    } catch (error: any) {
+      console.error("Error reading LegiScan usage:", error);
+      res.status(500).json({ message: "Failed to read LegiScan usage" });
     }
   });
 
   // Delete tracked bill
   app.delete("/api/tracked-bills/:id", isAuthenticated, async (req, res) => {
     try {
+      const owned = await getOwnedTrackedBill(req);
+      if (!owned) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
       await storage.deleteTrackedBill(req.params.id);
       res.json({ success: true });
     } catch (error) {

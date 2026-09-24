@@ -670,13 +670,23 @@ export const insertYoutubeWatchListSchema = createInsertSchema(youtubeWatchList)
 export type InsertYoutubeWatchList = z.infer<typeof insertYoutubeWatchListSchema>;
 export type YoutubeWatchList = typeof youtubeWatchList.$inferSelect;
 
-// Bill tracking for clients
+// Bill tracking for clients. Federal bills come from Congress.gov; state bills
+// (jurisdiction = two-letter state code) come from LegiScan and are stored with
+// congress = 0, billType = "state", billNumber = LegiScan bill_id so the
+// existing (congress, billType, billNumber) duplicate check still works.
 export const trackedBills = pgTable("tracked_bills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull(),
-  congress: integer("congress").notNull(), // e.g., 119
-  billType: text("bill_type").notNull(), // hr, s, hjres, sjres, etc.
+  congress: integer("congress").notNull(), // e.g., 119; 0 for state bills
+  billType: text("bill_type").notNull(), // hr, s, hjres, sjres, etc.; "state" for state bills
   billNumber: integer("bill_number").notNull(),
+  jurisdiction: text("jurisdiction").notNull().default("US"), // "US" or state code, e.g. "TX"
+  legiscanBillId: integer("legiscan_bill_id"),
+  legiscanSessionId: integer("legiscan_session_id"),
+  billLabel: text("bill_label"), // display label for state bills, e.g. "TX HB 1234"
+  changeHash: text("change_hash"), // LegiScan change_hash from the last sync
+  sourceUrl: text("source_url"), // LegiScan bill page
+  stateUrl: text("state_url"), // official state legislature page
   title: text("title"),
   sponsor: text("sponsor"),
   sponsorParty: text("sponsor_party"),
@@ -700,6 +710,15 @@ export const insertTrackedBillSchema = createInsertSchema(trackedBills).omit({
 
 export type InsertTrackedBill = z.infer<typeof insertTrackedBillSchema>;
 export type TrackedBill = typeof trackedBills.$inferSelect;
+
+// LegiScan query spend per calendar month ("YYYY-MM"). The public API allows
+// 10,000 queries/month (from Oct 2026); every call is counted here so the app
+// can stop before the limit instead of risking the key.
+export const legiscanUsage = pgTable("legiscan_usage", {
+  month: varchar("month").primaryKey(),
+  queryCount: integer("query_count").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Bill change history (to track what changed in tracked bills)
 export const billChangeHistory = pgTable("bill_change_history", {

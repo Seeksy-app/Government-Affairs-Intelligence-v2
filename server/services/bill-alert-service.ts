@@ -1,6 +1,9 @@
 import { storage } from "../storage";
-import { CongressAPI, formatBillId } from "./congress-api";
+import { CongressAPI } from "./congress-api";
 import { sendEmail, renderBrandedEmail } from "./email-service";
+import { getSessionChangeHashes, getStateBill, isLegiScanConfigured } from "./legiscan-api";
+import { isStateBill, trackedBillLabel, LEGISCAN_ATTRIBUTION } from "@shared/bill-label";
+import type { TrackedBill } from "@shared/schema";
 
 // Scheduled bill-change detection + email alerts. Mirrors the manual
 // POST /api/tracked-bills/:id/sync logic, but runs across every tracked bill
@@ -11,6 +14,58 @@ interface BillAlert {
   billLabel: string;
   title: string;
   description: string;
+  isState: boolean;
+}
+
+// One getMasterListRaw per LegiScan session tells us every bill's current
+// change_hash; getBill is spent only on tracked bills whose hash moved.
+async function syncStateBills(
+  bills: TrackedBill[],
+  recordChange: (bill: TrackedBill, latestAction: string | null) => Promise<void>,
+): Promise<void> {
+  const bySession = new Map<number, TrackedBill[]>();
+  const noSession: TrackedBill[] = [];
+  for (const bill of bills) {
+    if (bill.legiscanSessionId) {
+      bySession.set(bill.legiscanSessionId, [...(bySession.get(bill.legiscanSessionId) ?? []), bill]);
+    } else {
+      noSession.push(bill);
+    }
+  }
+
+  const changedBills: TrackedBill[] = [...noSession];
+  for (const [sessionId, sessionBills] of Array.from(bySession)) {
+    try {
+      const hashes = await getSessionChangeHashes(sessionId);
+      for (const bill of sessionBills) {
+        const hash = hashes.get(bill.legiscanBillId!);
+        if (hash && hash !== bill.changeHash) changedBills.push(bill);
+      }
+    } catch (err) {
+      console.error(`[bill-alerts] LegiScan master list failed for session ${sessionId}:`, err);
+    }
+  }
+
+  for (const bill of changedBills) {
+    try {
+      const detail = await getStateBill(bill.legiscanBillId!);
+      if (detail.lastAction && detail.lastAction !== bill.latestAction) {
+        await recordChange(bill, detail.lastAction);
+      }
+      await storage.updateTrackedBill(bill.id, {
+        title: detail.title,
+        status: detail.status ?? undefined,
+        latestAction: detail.lastAction ?? undefined,
+        latestActionDate: detail.lastActionDate ?? undefined,
+        changeHash: detail.changeHash ?? undefined,
+        legiscanSessionId: detail.legiscanSessionId ?? undefined,
+        lastSyncedAt: new Date(),
+      });
+    } catch (err) {
+      console.error(`[bill-alerts] LegiScan sync failed for tracked bill ${bill.id}:`, err);
+    }
+  }
+  console.log(`[bill-alerts] state bills: ${bills.length} tracked, ${changedBills.length} fetched after change-hash check`);
 }
 
 export async function syncTrackedBillsAndAlert(): Promise<{
@@ -18,56 +73,60 @@ export async function syncTrackedBillsAndAlert(): Promise<{
   changesDetected: number;
   emailSent: boolean;
 }> {
-  const apiKey = process.env.CONGRESS_API_KEY;
-  if (!apiKey) {
-    console.log("[bill-alerts] CONGRESS_API_KEY not set; skipping sync");
-    return { billsChecked: 0, changesDetected: 0, emailSent: false };
-  }
-
-  const api = new CongressAPI(apiKey);
   const bills = await storage.getAllTrackedBills();
+  const federalBills = bills.filter((b) => !isStateBill(b));
+  const stateBills = bills.filter((b) => isStateBill(b) && b.legiscanBillId);
   const alerts: BillAlert[] = [];
   let changesDetected = 0;
 
-  for (const bill of bills) {
-    try {
-      const details = await api.getBillDetails(bill.congress, bill.billType, bill.billNumber);
-      const latestAction = details.bill.latestAction?.text || null;
+  // Records the change and queues an email alert unless the bill's alert
+  // preferences opt out (no preference row means defaults: email on, alert
+  // on new action).
+  const recordChange = async (bill: TrackedBill, latestAction: string | null) => {
+    changesDetected++;
+    const description = `New action: ${latestAction || "Unknown"}`;
+    await storage.createBillChange({
+      trackedBillId: bill.id,
+      changeType: "action_update",
+      previousValue: bill.latestAction,
+      newValue: latestAction,
+      description,
+    });
+    const pref = await storage.getBillTrackingAlert(bill.id);
+    if (pref && (pref.emailNotification === false || pref.alertOnNewAction === false)) return;
+    alerts.push({ billLabel: trackedBillLabel(bill), title: bill.title || "", description, isState: isStateBill(bill) });
+  };
 
-      if (bill.latestAction === latestAction) continue;
+  const congressKey = process.env.CONGRESS_API_KEY;
+  if (!congressKey && federalBills.length > 0) {
+    console.log("[bill-alerts] CONGRESS_API_KEY not set; skipping federal bills");
+  }
+  if (congressKey) {
+    const api = new CongressAPI(congressKey);
+    for (const bill of federalBills) {
+      try {
+        const details = await api.getBillDetails(bill.congress, bill.billType, bill.billNumber);
+        const latestAction = details.bill.latestAction?.text || null;
+        if (bill.latestAction === latestAction) continue;
 
-      changesDetected++;
-      const description = `New action: ${latestAction || "Unknown"}`;
-
-      await storage.createBillChange({
-        trackedBillId: bill.id,
-        changeType: "action_update",
-        previousValue: bill.latestAction,
-        newValue: latestAction,
-        description,
-      });
-
-      await storage.updateTrackedBill(bill.id, {
-        title: details.bill.title,
-        latestAction: latestAction ?? undefined,
-        latestActionDate: details.bill.latestAction?.actionDate,
-        lastSyncedAt: new Date(),
-      });
-
-      // Respect per-bill alert preferences; no preference row means defaults
-      // (email on, alert on new action).
-      const pref = await storage.getBillTrackingAlert(bill.id);
-      if (pref && (pref.emailNotification === false || pref.alertOnNewAction === false)) {
-        continue;
+        await recordChange(bill, latestAction);
+        await storage.updateTrackedBill(bill.id, {
+          title: details.bill.title,
+          latestAction: latestAction ?? undefined,
+          latestActionDate: details.bill.latestAction?.actionDate,
+          lastSyncedAt: new Date(),
+        });
+      } catch (err) {
+        console.error(`[bill-alerts] sync failed for tracked bill ${bill.id}:`, err);
       }
+    }
+  }
 
-      alerts.push({
-        billLabel: formatBillId(bill.congress, bill.billType, bill.billNumber),
-        title: bill.title || "",
-        description,
-      });
-    } catch (err) {
-      console.error(`[bill-alerts] sync failed for tracked bill ${bill.id}:`, err);
+  if (stateBills.length > 0) {
+    if (!isLegiScanConfigured()) {
+      console.log("[bill-alerts] LEGISCAN_API_KEY not set; skipping state bills");
+    } else {
+      await syncStateBills(stateBills, recordChange);
     }
   }
 
@@ -120,6 +179,8 @@ function buildAlertHtml(alerts: BillAlert[]): string {
     heading: "Tracked bill activity",
     bodyHtml: rows,
     cta: { label: "View in Bill Tracking", url: "https://app.governmentaffairs.io/bills" },
-    footerNote: "You're receiving this because bill alerts are enabled for tracked legislation.",
+    footerNote:
+      "You're receiving this because bill alerts are enabled for tracked legislation." +
+      (alerts.some((a) => a.isState) ? ` ${LEGISCAN_ATTRIBUTION}` : ""),
   });
 }
