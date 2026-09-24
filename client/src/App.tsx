@@ -3,12 +3,11 @@ import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppNav, MobileNav } from "@/components/app-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
-import { Users, X, Eye } from "lucide-react";
+import { Users, X, Eye, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalAIChat } from "@/components/global-ai-chat";
@@ -206,10 +205,7 @@ function HomeRedirect() {
 function AuthenticatedLayout() {
   const { toast } = useToast();
   const [location, navigate] = useLocation();
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  };
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const { data: userRole } = useQuery<{
     isSuperAdmin: boolean;
@@ -238,10 +234,11 @@ function AuthenticatedLayout() {
   const [bannerHidden, setBannerHidden] = useState(false);
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <>
       <div className="flex h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <AppNav />
+        <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {isImpersonating && !bannerHidden && (
             <div className="bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between gap-2" data-testid="banner-impersonation">
               <div className="flex items-center gap-2">
@@ -274,7 +271,17 @@ function AuthenticatedLayout() {
             </div>
           )}
           <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-card px-3 sm:px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-muted-foreground" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground md:hidden"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+              data-testid="button-sidebar-toggle"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="hidden w-9 md:block" aria-hidden />
             <div className="flex flex-1 justify-center">
               <GlobalSearch />
             </div>
@@ -291,7 +298,7 @@ function AuthenticatedLayout() {
           </main>
         </div>
       </div>
-    </SidebarProvider>
+    </>
   );
 }
 
