@@ -155,8 +155,13 @@ Working end-to-end:
     staffers.tsx…). Don't try to fix wholesale; keep new files clean.
 
 ## Working Agreements
-- Branch + PR for everything; Andrew merges. **Never push to a branch after
-  its PR merges** — new branch + new PR (bitten twice).
+- Branch + PR for everything. **Claude may merge its own PRs** (Andrew,
+  2026-09-24; `main` protection = PR required, 0 approvals): wait for the
+  CodeRabbit check to finish and address real findings, build/tsc clean,
+  then `gh pr merge <n> --merge`, then verify the Render deploy live. Ask
+  Andrew first for risky merges: DB schema/SQL, auth/sessions, billing,
+  env-var dependencies, or anything destructive. **Never push to a branch
+  after its PR merges** — new branch + new PR (bitten twice).
 - Render deploys main automatically; verify via Render Logs (search
   `[ai-providers]`, `[morning-brief]`, `[Kalshi]`, `[grounded-chat]`).
 - SQL: Supabase Dashboard SQL Editor (paste blocks in chat for Andrew), or
