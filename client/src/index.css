@@ -9,30 +9,33 @@
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
-  --background: 48 24% 96%;
+  /* "Fresh" light theme (Sep 2026): near-white canvas, white sidebar with
+     navy text and a Signal Blue tint for the active item. Dark mode below
+     keeps the navy look. */
+  --background: 220 20% 98.5%;
   --foreground: 214 51% 16%;
   --border: 220 13% 91%;
   --card: 0 0% 100%;
   --card-foreground: 222 15% 12%;
-  --card-border: 220 13% 94%;
-  --sidebar: 214 51% 16%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 214 35% 24%;
+  --card-border: 220 13% 91%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 215 25% 27%;
+  --sidebar-border: 220 13% 91%;
   --sidebar-primary: 199 93% 41%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 214 35% 24%;
-  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-accent: 200 80% 95%;
+  --sidebar-accent-foreground: 200 93% 30%;
   --sidebar-ring: 199 93% 41%;
-  --popover: 220 15% 94%;
+  --popover: 0 0% 100%;
   --popover-foreground: 222 15% 12%;
   --popover-border: 220 13% 90%;
   --primary: 199 93% 41%;
   --primary-foreground: 210 40% 98%;
   --secondary: 220 15% 90%;
   --secondary-foreground: 222 15% 15%;
-  --muted: 220 15% 92%;
+  --muted: 220 14% 95%;
   --muted-foreground: 222 12% 40%;
-  --accent: 220 18% 94%;
+  --accent: 210 30% 96%;
   --accent-foreground: 222 15% 15%;
   --destructive: 0 84% 40%;
   --destructive-foreground: 0 85% 97%;

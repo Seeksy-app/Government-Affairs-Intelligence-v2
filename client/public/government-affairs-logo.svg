@@ -1,7 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="728" height="120" viewBox="0 0 728 120" role="img" aria-labelledby="title desc">
-  <title id="title">GovernmentAffairs.co logo</title>
-  <desc id="desc">GA monogram beside the GovernmentAffairs.co wordmark</desc>
-  <rect width="120" height="120" fill="#14253D"/>
-  <text x="60" y="75" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="800" text-anchor="middle">GA</text>
-  <text x="158" y="76" fill="#14253D" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800">GovernmentAffairs.co</text>
+  <title id="title">GovernmentAffairs.io logo</title>
+  <desc id="desc">GA dome mark beside the GovernmentAffairs.io wordmark</desc>
+  <g transform="scale(0.6)">
+    <rect width="200" height="200" rx="44" fill="#14253D"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="24" transform="translate(10 10) scale(0.9)">
+      <path d="M80.6 77.4A32 32 0 1 0 90 100H66"/>
+      <path d="M124 144V92A24 24 0 0 1 172 92V144M124 118H172"/>
+    </g>
+  </g>
+  <text x="148" y="76" fill="#14253D" font-family="'Source Sans 3', Arial, Helvetica, sans-serif" font-size="42" font-weight="800">GovernmentAffairs<tspan fill="#078ACB">.io</tspan></text>
 </svg>

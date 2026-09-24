@@ -171,11 +171,16 @@ Working end-to-end:
   Never point local dev at prod with service-role keys.
 
 ## Brand System (full guide: docs/BRAND.md; original vendored at docs/brand-guide.html)
-Capitol Navy `#14253D` (authority/sidebar), Signal Blue `#078ACB` (actions),
-Paper `#F7F6F2` (surfaces), Stone `#E9ECEC`, Civic Red `#A53B39` (editorial
-accent only). Font: Source Sans 3 (headlines 650 weight, −4% tracking).
-GA mark: navy square + white "GA" (inverted to white square + navy GA on dark
-backgrounds). Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
+Capitol Navy `#14253D` (authority, GA mark), Signal Blue `#078ACB` (actions),
+Paper `#F7F6F2` (marketing surfaces), Stone `#E9ECEC`, Civic Red `#A53B39`
+(editorial accent; also the "Act now" concern level). Font: Source Sans 3
+(headlines 650 weight, −4% tracking). App shell is **"Fresh"** (Sep 2026,
+Andrew's call): light mode = white sidebar + near-white canvas; dark mode
+keeps the navy shell. GA mark = **"Dome"** (round G + Capitol-arch A) —
+use `<GaMark />` (client/src/components/ga-mark.tsx; auto-inverts in dark
+mode); favicon.svg/png + government-affairs-logo.svg match it. The V0 landing
+page still has the old typeset GA mark until it's updated there.
+Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
 Signature line: "Find the path to the people who shape policy."
 
 ## API Integrations (all keys in Render env)

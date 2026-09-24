@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { GaMark } from "@/components/ga-mark";
 import { Building2, Users, Network, Newspaper, LayoutDashboard, Settings, ChevronUp, ChevronRight, LogOut, Shield, FolderOpen, Book, Lock, Share2, Bot, Database, ClipboardList, FileText, BarChart3, Briefcase, Calendar, Rocket, Zap, MapPin, Target, Landmark, ScrollText, Globe, Crosshair, MonitorPlay, Eye, Radio, Sunrise } from "lucide-react";
 
 interface UserRole {
@@ -177,15 +178,13 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-[13px] font-extrabold tracking-tight text-[#14253D]">
-            GA
-          </div>
+          <GaMark size={32} />
           <div className="leading-tight">
-            <span className="text-sm font-semibold">
+            <span className="text-sm font-semibold text-sidebar-foreground">
               GovernmentAffairs<span className="text-[#078ACB]">.io</span>
             </span>
             {(isSuperAdmin && !isImpersonating) && (
-              <p className="text-xs text-[#9FB0C4]">Super Admin</p>
+              <p className="text-xs text-muted-foreground">Super Admin</p>
             )}
           </div>
         </div>

@@ -22,19 +22,63 @@ const PUBLICATION_NAMES: Record<string, string> = {
   "defensenews.com": "Defense News",
   "rollcall.com": "Roll Call",
   "axios.com": "Axios",
+  "washingtonpost.com": "The Washington Post",
+  "npr.org": "NPR",
+  "cnn.com": "CNN",
+  "cnbc.com": "CNBC",
+  "nbcnews.com": "NBC News",
+  "cbsnews.com": "CBS News",
+  "abcnews.go.com": "ABC News",
+  "foxnews.com": "Fox News",
+  "ft.com": "Financial Times",
+  "economist.com": "The Economist",
+  "news.bloomberglaw.com": "Bloomberg Law",
+  "law360.com": "Law360",
+  "govexec.com": "Government Executive",
+  "federalnewsnetwork.com": "Federal News Network",
+  "statnews.com": "STAT",
+  "modernhealthcare.com": "Modern Healthcare",
+  "kff.org": "KFF",
   "congress.gov": "Congress.gov",
+  "crsreports.congress.gov": "Congressional Research Service",
+  "house.gov": "U.S. House",
+  "senate.gov": "U.S. Senate",
+  "whitehouse.gov": "The White House",
+  "federalregister.gov": "Federal Register",
+  "regulations.gov": "Regulations.gov",
+  "gao.gov": "GAO",
+  "cbo.gov": "Congressional Budget Office",
+  "dol.gov": "U.S. Department of Labor",
+  "hhs.gov": "HHS",
+  "cms.gov": "CMS",
+  "va.gov": "Department of Veterans Affairs",
+  "ed.gov": "Department of Education",
+  "treasury.gov": "U.S. Treasury",
+  "irs.gov": "IRS",
+  "commerce.gov": "Department of Commerce",
+  "justice.gov": "Department of Justice",
+  "defense.gov": "Department of Defense",
+  "dhs.gov": "Department of Homeland Security",
+  "state.gov": "State Department",
+  "energy.gov": "Department of Energy",
+  "usda.gov": "USDA",
+  "transportation.gov": "Department of Transportation",
+  "epa.gov": "EPA",
+  "sec.gov": "SEC",
+  "ftc.gov": "FTC",
+  "fcc.gov": "FCC",
+  "ustr.gov": "USTR",
+  "supremecourt.gov": "U.S. Supreme Court",
 };
 
+// Known outlets and agencies get their real names; anything else shows its
+// plain domain ("jacksonlewis.com") rather than a guessed name ("Jacksonlewis").
 function publicationName(url: string): string {
   const domain = extractDomain(url);
-  return (
-    PUBLICATION_NAMES[domain] ??
-    domain
-      .split(".")
-      .slice(0, -1)
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-      .join(" ")
-  );
+  if (PUBLICATION_NAMES[domain]) return PUBLICATION_NAMES[domain];
+  // Agency subdomains, e.g. "www.whd.dol.gov" → "dol.gov".
+  const parent = domain.split(".").slice(-2).join(".");
+  return PUBLICATION_NAMES[parent] ?? domain;
 }
 
 // ─── Claude prompt ────────────────────────────────────────────────────────────
@@ -59,6 +103,7 @@ RULES (enforce strictly):
 - Use phrases like "according to [source]" and "as reported by [source]" throughout.
 - Do not speculate or introduce facts not present in the sources.
 - If client context is provided, tailor "Why It Matters" to that context specifically.
+- When the topic itself names a client, industry, or sector, that takes priority over general firm background. Never remark that a topic falls outside the firm's focus areas.
 - If the topic is a question, answer it directly. If the sources don't settle it, say plainly what is and isn't known.
 - Ignore any source that turns out to be unrelated to the topic; never cite it.
 
