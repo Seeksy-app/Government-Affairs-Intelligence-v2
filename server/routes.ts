@@ -9866,6 +9866,70 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // POST /api/briefs/ask — "Should I be worried?": free-text question, headline,
+  // link, or bill number → sources are found automatically, then the brief is
+  // generated. Returns immediately; the client polls GET /api/briefs/:id.
+  const askBriefSchema = z.object({
+    question: z.string().trim().min(3).max(1000),
+    clientContext: z.string().trim().max(2000).nullable().optional(),
+    sensitivity: z.enum(["internal", "shareable"]).default("internal"),
+  });
+  const ASKS_PER_DAY = 40; // per firm — protects Parallel/Anthropic credit
+
+  app.post("/api/briefs/ask", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+
+      const parsed = askBriefSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Type a question, headline, link, or bill number (at least 3 characters)." });
+      }
+      if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
+        return res.status(503).json({ message: "Answers are unavailable right now: the Anthropic key isn't configured." });
+      }
+
+      const { db } = await import("./db");
+      const { briefs } = await import("@shared/schema");
+      const { and, eq, gte, count } = await import("drizzle-orm");
+      const { randomUUID } = await import("crypto");
+
+      const [{ n }] = await db
+        .select({ n: count() })
+        .from(briefs)
+        .where(and(eq(briefs.clientId, clientId), gte(briefs.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))));
+      if (n >= ASKS_PER_DAY) {
+        return res.status(429).json({ message: `Your firm has created ${ASKS_PER_DAY} briefs in the last 24 hours — please try again later.` });
+      }
+
+      const { question, clientContext, sensitivity } = parsed.data;
+      const [brief] = await db
+        .insert(briefs)
+        .values({
+          clientId,
+          createdByUserId: userId,
+          publicUuid: randomUUID(),
+          title: question,
+          clientContext: clientContext || null,
+          sensitivity,
+          status: "generating",
+        })
+        .returning();
+
+      const { answerQuestion } = await import("./services/ask-service");
+      answerQuestion(brief.id).catch((err) =>
+        console.error(`[ask] answerQuestion(${brief.id}) failed:`, err.message ?? err),
+      );
+
+      res.status(201).json({ ...brief, sources: [] });
+    } catch (err: any) {
+      console.error("POST /api/briefs/ask error:", err);
+      res.status(500).json({ message: "Couldn't start the answer — please try again." });
+    }
+  });
+
   // GET /api/briefs — list briefs for client
   app.get("/api/briefs", isAuthenticated, async (req, res) => {
     try {
@@ -10015,21 +10079,44 @@ Format your response with clear headers and bullet points. Be specific and data-
       const { eq, and } = await import("drizzle-orm");
 
       const [existing] = await db
-        .select({ id: briefs.id, status: briefs.status })
+        .select({ id: briefs.id, status: briefs.status, updatedAt: briefs.updatedAt })
         .from(briefs)
         .where(and(eq(briefs.id, req.params.id), eq(briefs.clientId, clientId)))
         .limit(1);
 
       if (!existing) return res.status(404).json({ message: "Brief not found" });
-      if (existing.status === "generating") {
+      // A run interrupted by a deploy/restart stays "generating" forever; after
+      // 5 minutes it's safe to assume it died and allow a retry.
+      const stale =
+        !existing.updatedAt || Date.now() - new Date(existing.updatedAt).getTime() > 5 * 60 * 1000;
+      if (existing.status === "generating" && !stale) {
         return res.status(409).json({ message: "Brief is already generating" });
       }
 
-      // Fire and forget — client polls GET /api/briefs/:id for status
-      const { generateBrief } = await import("./services/brief-service");
-      generateBrief(existing.id).catch((err) =>
-        console.error(`generateBrief(${existing.id}) failed:`, err),
-      );
+      const { briefSources } = await import("@shared/schema");
+      const [hasSource] = await db
+        .select({ id: briefSources.id })
+        .from(briefSources)
+        .where(eq(briefSources.briefId, existing.id))
+        .limit(1);
+
+      // Fire and forget — client polls GET /api/briefs/:id for status.
+      // No sources = an "ask" brief whose discovery failed: rerun discovery.
+      if (!hasSource) {
+        await db
+          .update(briefs)
+          .set({ status: "generating", generationError: null, updatedAt: new Date() })
+          .where(eq(briefs.id, existing.id));
+        const { answerQuestion } = await import("./services/ask-service");
+        answerQuestion(existing.id).catch((err) =>
+          console.error(`[ask] answerQuestion(${existing.id}) failed:`, err.message ?? err),
+        );
+      } else {
+        const { generateBrief } = await import("./services/brief-service");
+        generateBrief(existing.id).catch((err) =>
+          console.error(`generateBrief(${existing.id}) failed:`, err),
+        );
+      }
 
       res.status(202).json({ message: "Generation started", briefId: existing.id });
     } catch (err: any) {

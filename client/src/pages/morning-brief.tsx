@@ -30,7 +30,10 @@ import {
   Info,
   RefreshCw,
   ChevronRight,
+  Loader2,
+  ShieldQuestion,
 } from "lucide-react";
+import { useAskBrief } from "@/components/briefs/ask-box";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,11 +125,15 @@ function ItemPanel({
   open,
   onClose,
   onCreateBrief,
+  onAsk,
+  isAsking,
 }: {
   item: RankedItem | null;
   open: boolean;
   onClose: () => void;
   onCreateBrief: (item: RankedItem) => void;
+  onAsk: (item: RankedItem) => void;
+  isAsking: boolean;
 }) {
   if (!item) return null;
 
@@ -237,10 +244,18 @@ function ItemPanel({
                 </a>
               </Button>
             )}
+            <Button size="sm" onClick={() => onAsk(item)} disabled={isAsking}>
+              {isAsking ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ShieldQuestion className="h-4 w-4 mr-2" />
+              )}
+              Should I be worried?
+            </Button>
             {item.url && (
-              <Button size="sm" onClick={() => onCreateBrief(item)}>
+              <Button variant="ghost" size="sm" onClick={() => onCreateBrief(item)}>
                 <FileText className="h-4 w-4 mr-2" />
-                Create Brief from This
+                Brief from this article only
               </Button>
             )}
           </div>
@@ -391,19 +406,30 @@ export default function MorningBriefPage() {
     }
   }, [brief]);
 
+  function contextFor(item: RankedItem): string | null {
+    if (!brief) return null;
+    const lines: string[] = [];
+    lines.push(`Client: ${brief.clientName}`);
+    if (brief.industries?.length) lines.push(`Industries: ${brief.industries.join(", ")}`);
+    if (brief.watchlistTopics?.length) lines.push(`Watchlist topics: ${brief.watchlistTopics.join(", ")}`);
+    if (item.whyItMatters) lines.push(`\nWhy this item matters: ${item.whyItMatters}`);
+    return lines.join("\n").slice(0, 2000);
+  }
+
   function handleCreateBrief(item: RankedItem) {
     const params = new URLSearchParams();
     if (item.url) params.set("url0", item.url);
     params.set("title", item.title.slice(0, 120));
-    if (brief) {
-      const lines: string[] = [];
-      lines.push(`Client: ${brief.clientName}`);
-      if (brief.industries?.length) lines.push(`Industries: ${brief.industries.join(", ")}`);
-      if (brief.watchlistTopics?.length) lines.push(`Watchlist topics: ${brief.watchlistTopics.join(", ")}`);
-      if (item.whyItMatters) lines.push(`\nWhy this item matters: ${item.whyItMatters}`);
-      params.set("clientContext", lines.join("\n"));
-    }
+    const context = contextFor(item);
+    if (context) params.set("clientContext", context);
     navigate(`/briefs/new?${params.toString()}`);
+  }
+
+  // The headline (plus its link) goes through automatic source discovery.
+  const ask = useAskBrief();
+  function handleAsk(item: RankedItem) {
+    const question = [item.title, item.url].filter(Boolean).join("\n").slice(0, 1000);
+    ask.mutate({ question, clientContext: contextFor(item) });
   }
 
   const generatedAt = brief?.generatedAt
@@ -573,6 +599,8 @@ export default function MorningBriefPage() {
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         onCreateBrief={handleCreateBrief}
+        onAsk={handleAsk}
+        isAsking={ask.isPending}
       />
     </div>
   );

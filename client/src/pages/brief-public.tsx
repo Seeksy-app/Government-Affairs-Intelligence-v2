@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ExternalLink, FileText, Mail } from "lucide-react";
 import type { BriefContent, BriefSource } from "@shared/schema";
+import { BottomLine } from "@/components/briefs/bottom-line";
 
 type PublicBrief = {
   id: string;
@@ -182,6 +183,14 @@ function BriefReadingView({ brief }: { brief: PublicBrief }) {
 
         {/* Divider */}
         <hr className="border-border mb-8" />
+
+        {content.bottomLine && (
+          <div className="mb-8">
+            <BottomLine level={content.bottomLine.level}>
+              <CitedText text={content.bottomLine.answer} sources={brief.sources} />
+            </BottomLine>
+          </div>
+        )}
 
         {/* 5 sections */}
         <div className="space-y-8">

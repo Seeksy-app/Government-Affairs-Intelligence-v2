@@ -25,6 +25,10 @@ import {
   Edit3, Clock, CheckCircle, XCircle, FileText, Eye, Plus, Trash2, AlertCircle,
 } from "lucide-react";
 import type { Brief, BriefSource, BriefContent } from "@shared/schema";
+import { BottomLine } from "@/components/briefs/bottom-line";
+
+// Matches the server's cutoff for treating an interrupted run as dead.
+const STALE_GENERATING_MS = 5 * 60 * 1000;
 
 type BriefWithSources = Brief & { sources: BriefSource[] };
 
@@ -287,8 +291,11 @@ export default function BriefDetail() {
   }
 
   const content = brief.content as BriefContent | null;
-  const canGenerate = brief.status !== "generating";
-  const isGenerating = brief.status === "generating";
+  const isStale =
+    brief.status === "generating" &&
+    (!brief.updatedAt || Date.now() - new Date(brief.updatedAt).getTime() > STALE_GENERATING_MS);
+  const isGenerating = brief.status === "generating" && !isStale;
+  const canGenerate = !isGenerating;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -310,7 +317,7 @@ export default function BriefDetail() {
                 )}
               </Badge>
             </div>
-            <h1 className="text-2xl font-semibold leading-tight">{brief.title}</h1>
+            <h1 className="text-2xl font-semibold leading-tight break-words">{brief.title}</h1>
           </div>
           <div className="flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
@@ -341,12 +348,53 @@ export default function BriefDetail() {
       {/* Generating state */}
       {isGenerating && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
-          <CardContent className="py-8 text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="font-medium">Generating your brief...</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ingesting sources and calling Claude. This takes about 30–60 seconds.
-            </p>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+              {brief.sources.length === 0 ? (
+                <>
+                  <p className="font-medium">Finding sources…</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Checking Congress.gov, agency press releases, and recent news coverage.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">
+                    Reading {brief.sources.length} source{brief.sources.length === 1 ? "" : "s"} and writing the brief…
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">This usually takes 30–60 seconds.</p>
+                </>
+              )}
+            </div>
+            {brief.sources.length > 0 && (
+              <ul className="mt-5 mx-auto max-w-lg space-y-1.5">
+                {brief.sources.map((s) => (
+                  <li key={s.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">{s.title ?? s.url}</span>
+                    {s.publication && <span className="shrink-0 text-xs">· {s.publication}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Interrupted run (e.g. the server restarted mid-generation) */}
+      {isStale && (
+        <Card className="mb-6 border-amber-300/60 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="py-5 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">This is taking longer than expected</p>
+              <p className="text-sm text-muted-foreground mt-1">The run was probably interrupted. Start it again:</p>
+              <Button size="sm" className="mt-3" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                Try Again
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -392,6 +440,12 @@ export default function BriefDetail() {
       {/* Brief content */}
       {content && (
         <div className="space-y-4">
+          {content.bottomLine && (
+            <BottomLine level={content.bottomLine.level}>
+              <CitedText text={content.bottomLine.answer} sources={brief.sources} />
+            </BottomLine>
+          )}
+
           <Section title="The Situation">
             <p className="text-sm leading-relaxed">
               <CitedText text={content.situation} sources={brief.sources} />
@@ -546,7 +600,7 @@ function ViewCount({ briefId }: { briefId: string }) {
         <Eye className="h-4 w-4" />
         <span>
           Viewed {data.length} time{data.length !== 1 ? "s" : ""} by{" "}
-          {[...new Set(data.map((v) => v.email))].join(", ")}
+          {Array.from(new Set(data.map((v) => v.email))).join(", ")}
         </span>
       </CardContent>
     </Card>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Brief } from "@shared/schema";
+import { AskBox } from "@/components/briefs/ask-box";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "ready")
@@ -64,11 +65,15 @@ export default function BriefsList() {
           <h1 className="text-2xl font-semibold">Decision Briefs</h1>
         </div>
         <Link href="/briefs/new">
-          <Button>
+          <Button variant="outline">
             <Plus className="h-4 w-4 mr-2" />
-            New Brief
+            Brief from your own links
           </Button>
         </Link>
+      </div>
+
+      <div className="mb-8 max-w-3xl">
+        <AskBox />
       </div>
 
       {isLoading ? (
@@ -78,18 +83,12 @@ export default function BriefsList() {
           ))}
         </div>
       ) : !briefs || briefs.length === 0 ? (
-        <div className="text-center py-20">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <div className="text-center py-12">
+          <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <h2 className="text-lg font-medium mb-1">No briefs yet</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Create your first AI-generated decision brief.
+          <p className="text-sm text-muted-foreground">
+            Ask about a headline or bill above. Your briefs will be listed here.
           </p>
-          <Link href="/briefs/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Brief
-            </Button>
-          </Link>
         </div>
       ) : (
         <div className="rounded-lg border">
