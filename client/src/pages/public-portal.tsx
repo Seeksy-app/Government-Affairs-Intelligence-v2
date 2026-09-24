@@ -17,7 +17,7 @@ import {
   Activity, AlertCircle, Rss
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
-import { LEGISCAN_ATTRIBUTION } from "@shared/bill-label";
+import { LegiScanAttribution } from "@/components/legiscan-attribution";
 
 interface PortalInfo {
   id: string;
@@ -954,12 +954,7 @@ export default function PublicPortal() {
                   </Card>
                 ))}
                 {bills.some((b) => b.isStateBill) && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    {LEGISCAN_ATTRIBUTION}{" "}
-                    <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
-                    {" · "}
-                    <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
-                  </p>
+                  <LegiScanAttribution className="text-center" />
                 )}
               </div>
             )}

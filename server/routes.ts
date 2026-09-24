@@ -37,7 +37,7 @@ import { kalshiApi } from "./services/kalshi-api";
 import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
 import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail, renderBrandedEmail } from "./services/email-service";
-import { isStateBill, US_STATES, LEGISCAN_ATTRIBUTION, trackedBillLabel, jurisdictionName, trackedBillUrl } from "@shared/bill-label";
+import { isStateBill, US_STATES, LEGISCAN_ATTRIBUTION, trackedBillLabel, jurisdictionName, trackedBillUrl, normalizeTag } from "@shared/bill-label";
 
 declare module "express-session" {
   interface SessionData {
@@ -4701,6 +4701,24 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
         return res.status(404).json({ message: "Bill not found" });
       }
       const { clientId: _ignored, ...updates } = req.body ?? {};
+      if (updates.tags !== undefined) {
+        if (!Array.isArray(updates.tags)) {
+          return res.status(400).json({ message: "tags must be a list" });
+        }
+        // Normalize (lowercase, hyphenated), dedupe; cap count.
+        updates.tags = Array.from(new Set(
+          updates.tags
+            .filter((t: unknown): t is string => typeof t === "string")
+            .map(normalizeTag)
+            .filter(Boolean),
+        )).slice(0, 20);
+      }
+      if (updates.matterId) {
+        const matter = await storage.getMatter(updates.matterId);
+        if (!matter || matter.clientId !== owned.clientId) {
+          return res.status(400).json({ message: "Research project not found" });
+        }
+      }
       const bill = await storage.updateTrackedBill(req.params.id, updates);
       if (!bill) {
         return res.status(404).json({ message: "Bill not found" });
@@ -4914,6 +4932,9 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get change history for a specific bill
   app.get("/api/tracked-bills/:id/changes", isAuthenticated, async (req, res) => {
     try {
+      if (!(await getOwnedTrackedBill(req))) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
       const changes = await storage.getBillChangeHistory(req.params.id);
       res.json(changes);
     } catch (error) {
@@ -4936,6 +4957,9 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get/update alert settings for a bill
   app.get("/api/tracked-bills/:id/alerts", isAuthenticated, async (req, res) => {
     try {
+      if (!(await getOwnedTrackedBill(req))) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
       const alert = await storage.getBillTrackingAlert(req.params.id);
       res.json(alert || { 
         alertOnStatusChange: true, 
@@ -4952,21 +4976,29 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
 
   app.patch("/api/tracked-bills/:id/alerts", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      const clientUser = await storage.getClientUserByUserId(userId!);
-      if (!clientUser) {
-        return res.status(403).json({ message: "Not authorized" });
+      // Ownership via getClientId also makes this work while a super admin is
+      // impersonating a firm (the old client_users lookup refused them).
+      const bill = await getOwnedTrackedBill(req);
+      if (!bill) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
+
+      // Only the preference flags are writable.
+      const allowed = ["alertOnStatusChange", "alertOnNewAction", "alertOnAmendment", "alertOnCosponsorChange", "emailNotification"] as const;
+      const prefs: Record<string, boolean> = {};
+      for (const key of allowed) {
+        if (typeof req.body?.[key] === "boolean") prefs[key] = req.body[key];
       }
 
       const existing = await storage.getBillTrackingAlert(req.params.id);
       if (existing) {
-        const updated = await storage.updateBillTrackingAlert(existing.id, req.body);
+        const updated = await storage.updateBillTrackingAlert(existing.id, prefs);
         res.json(updated);
       } else {
         const newAlert = await storage.createBillTrackingAlert({
-          trackedBillId: req.params.id,
-          clientId: clientUser.clientId,
-          ...req.body,
+          trackedBillId: bill.id,
+          clientId: bill.clientId,
+          ...prefs,
         });
         res.json(newAlert);
       }
@@ -4981,6 +5013,9 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get portals a bill is shared with
   app.get("/api/tracked-bills/:id/portals", isAuthenticated, async (req, res) => {
     try {
+      if (!(await getOwnedTrackedBill(req))) {
+        return res.status(404).json({ message: "Bill not found" });
+      }
       const assignments = await storage.getPortalTrackedBillsByBill(req.params.id);
       res.json(assignments);
     } catch (error) {
@@ -5036,6 +5071,11 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       const bill = await storage.getTrackedBill(req.params.id);
       if (!bill || bill.clientId !== clientId) {
         return res.status(403).json({ message: "Bill not found or unauthorized" });
+      }
+      // The assignment must belong to this bill, not just any bill.
+      const assignments = await storage.getPortalTrackedBillsByBill(bill.id);
+      if (!assignments.some((a) => a.id === req.params.assignmentId)) {
+        return res.status(404).json({ message: "Assignment not found" });
       }
 
       await storage.deletePortalTrackedBill(req.params.assignmentId);

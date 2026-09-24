@@ -687,6 +687,7 @@ export const trackedBills = pgTable("tracked_bills", {
   changeHash: text("change_hash"), // LegiScan change_hash from the last sync
   sourceUrl: text("source_url"), // LegiScan bill page
   stateUrl: text("state_url"), // official state legislature page
+  tags: text("tags").array(), // firm-defined labels, lowercase
   title: text("title"),
   sponsor: text("sponsor"),
   sponsorParty: text("sponsor_party"),

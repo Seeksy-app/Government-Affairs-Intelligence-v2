@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Bell, ExternalLink, RefreshCw, Trash2, AlertCircle, Clock, Briefcase, FolderOpen } from "lucide-react";
+import { friendlyError } from "@/lib/api-errors";
+import { BillDetailSheet, formatBillDate, statusBadgeClass } from "@/components/bills/bill-detail-sheet";
+import { BillOrganizeMenu } from "@/components/bills/bill-organize-menu";
+import { BillAlertsDialog } from "@/components/bills/bill-alerts-dialog";
+import { Search, Plus, Bell, RefreshCw, AlertCircle, Clock, FolderOpen, Check, ChevronRight, X } from "lucide-react";
 
 // Congress sessions with their year ranges (most recent first)
 const CONGRESS_SESSIONS = [
@@ -26,26 +28,11 @@ const CONGRESS_SESSIONS = [
   { congress: 111, years: "2009-2011", label: "111th Congress (2009-2011)" },
   { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
 ];
-import type { TrackedBill, BillChangeHistory, BillTrackingAlert, Matter, ClientPortal, PortalTrackedBill } from "@shared/schema";
-import { US_STATES, LEGISCAN_ATTRIBUTION, isStateBill, trackedBillLabel, trackedBillUrl, jurisdictionName } from "@shared/bill-label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Share2, Users } from "lucide-react";
+import type { TrackedBill, BillChangeHistory, Matter } from "@shared/schema";
+import { US_STATES, isStateBill, trackedBillLabel, jurisdictionName } from "@shared/bill-label";
+import { LegiScanAttribution } from "@/components/legiscan-attribution";
 
 const STATE_OPTIONS = Object.entries(US_STATES).sort((a, b) => a[1].localeCompare(b[1]));
-
-// apiRequest errors read like `503: {"message":"..."}`; show just the message.
-function friendlyError(error: Error): string {
-  const json = error.message.match(/\{[\s\S]*\}\s*$/)?.[0];
-  if (json) {
-    try {
-      const parsed = JSON.parse(json);
-      if (typeof parsed?.message === "string") return parsed.message;
-    } catch {
-      // fall through to the raw text
-    }
-  }
-  return error.message.replace(/^\d{3}:\s*/, "");
-}
 
 interface StateBillSearchResult {
   legiscanBillId: number;
@@ -74,7 +61,13 @@ export default function BillTrackingPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<BillSearchResult[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedBill, setSelectedBill] = useState<TrackedBill | null>(null);
+  // Detail panel: keep only the id so the panel always shows fresh data.
+  const [openBillId, setOpenBillId] = useState<string | null>(null);
+  const [focusTags, setFocusTags] = useState(false);
+  const [alertsBill, setAlertsBill] = useState<TrackedBill | null>(null);
+  const [filterText, setFilterText] = useState("");
+  const [filterScope, setFilterScope] = useState<"all" | "federal" | "state">("all");
+  const [filterTag, setFilterTag] = useState<string | null>(null);
   const [searchSource, setSearchSource] = useState<"federal" | "state">("federal");
   const [selectedState, setSelectedState] = useState("");
   const [stateResults, setStateResults] = useState<StateBillSearchResult[]>([]);
@@ -92,62 +85,36 @@ export default function BillTrackingPage() {
     queryKey: ["/api/matters"],
   });
 
-  const { data: portals } = useQuery<ClientPortal[]>({
-    queryKey: ["/api/portals"],
-  });
+  const openBill = trackedBills?.find((b) => b.id === openBillId) ?? null;
+  const openBillPanel = (bill: TrackedBill, options: { focusTags?: boolean } = {}) => {
+    setFocusTags(!!options.focusTags);
+    setOpenBillId(bill.id);
+  };
 
-  const { data: selectedBillPortals } = useQuery<PortalTrackedBill[]>({
-    queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"],
-    queryFn: async () => {
-      if (!selectedBill) return [];
-      const res = await apiRequest("GET", `/api/tracked-bills/${selectedBill.id}/portals`);
-      return res.json();
-    },
-    enabled: !!selectedBill,
-  });
+  const allTags = useMemo(
+    () => Array.from(new Set((trackedBills ?? []).flatMap((b) => b.tags ?? []))).sort(),
+    [trackedBills],
+  );
 
-  const shareBillMutation = useMutation({
-    mutationFn: async ({ billId, portalId }: { billId: string; portalId: string }) => {
-      const res = await apiRequest("POST", `/api/tracked-bills/${billId}/portals`, { portalId });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Bill Shared", description: "Bill is now visible in the client portal." });
-      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to Share", description: friendlyError(error), variant: "destructive" });
-    },
-  });
+  const visibleBills = useMemo(() => {
+    const q = filterText.trim().toLowerCase();
+    return (trackedBills ?? []).filter((bill) => {
+      if (filterScope === "federal" && isStateBill(bill)) return false;
+      if (filterScope === "state" && !isStateBill(bill)) return false;
+      if (filterTag && !(bill.tags ?? []).includes(filterTag)) return false;
+      if (!q) return true;
+      return [trackedBillLabel(bill), bill.title, bill.sponsor, bill.latestAction, bill.policyArea, jurisdictionName(bill), ...(bill.tags ?? [])]
+        .some((field) => field?.toLowerCase().includes(q));
+    });
+  }, [trackedBills, filterText, filterScope, filterTag]);
 
-  const unshareBillMutation = useMutation({
-    mutationFn: async ({ billId, assignmentId }: { billId: string; assignmentId: string }) => {
-      await apiRequest("DELETE", `/api/tracked-bills/${billId}/portals/${assignmentId}`);
-    },
-    onSuccess: () => {
-      toast({ title: "Bill Unshared", description: "Bill removed from client portal." });
-      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills", selectedBill?.id, "portals"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to Unshare", description: friendlyError(error), variant: "destructive" });
-    },
-  });
+  const isFiltering = !!filterText.trim() || filterScope !== "all" || !!filterTag;
 
-  const assignMatterMutation = useMutation({
-    mutationFn: async ({ billId, matterId }: { billId: string; matterId: string | null }) => {
-      const res = await apiRequest("PATCH", `/api/tracked-bills/${billId}`, { matterId });
-      return res.json();
-    },
-    onSuccess: (updatedBill: TrackedBill) => {
-      toast({ title: "Matter Assigned", description: "Bill has been assigned to the matter." });
-      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
-      // Update selectedBill state to reflect the change immediately
-      setSelectedBill(updatedBill);
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to Assign", description: friendlyError(error), variant: "destructive" });
-    },
-  });
+  // Already-tracked checks for search results, so they show "Tracking" instead of "Track".
+  const isFederalTracked = (r: BillSearchResult) =>
+    !!trackedBills?.some((b) => !isStateBill(b) && b.congress === r.congress && b.billType === r.type.toLowerCase() && b.billNumber === Number(r.number));
+  const isStateTracked = (r: StateBillSearchResult) =>
+    !!trackedBills?.some((b) => b.legiscanBillId === r.legiscanBillId);
 
   const searchBillsMutation = useMutation({
     mutationFn: async ({ query, congress }: { query: string; congress: number }) => {
@@ -249,7 +216,11 @@ export default function BillTrackingPage() {
     },
     onSuccess: () => {
       toast({ title: "Bill Removed", description: "Bill is no longer being tracked." });
+      setOpenBillId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Couldn't stop tracking", description: friendlyError(error), variant: "destructive" });
     },
   });
 
@@ -267,16 +238,8 @@ export default function BillTrackingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills/changes/unread"] });
     },
-  });
-
-  const updateAlertsMutation = useMutation({
-    mutationFn: async ({ billId, alerts }: { billId: string; alerts: Partial<BillTrackingAlert> }) => {
-      const res = await apiRequest("PATCH", `/api/tracked-bills/${billId}/alerts`, alerts);
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Alert Settings Updated" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
+    onError: (error: Error) => {
+      toast({ title: "Couldn't check for updates", description: friendlyError(error), variant: "destructive" });
     },
   });
 
@@ -426,81 +389,83 @@ export default function BillTrackingPage() {
                 
                 {searchSource === "state" && (
                   <div className="max-h-96 overflow-y-auto space-y-2">
-                    {stateResults.map((bill) => (
-                      <Card
-                        key={bill.legiscanBillId}
-                        className="hover-elevate cursor-pointer"
-                        onClick={() => !trackStateBillMutation.isPending && trackStateBillMutation.mutate(bill)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="outline">{bill.billLabel}</Badge>
-                                {bill.lastActionDate && (
-                                  <span className="text-xs text-muted-foreground">Last action {bill.lastActionDate}</span>
-                                )}
-                              </div>
-                              <p className="text-sm font-medium line-clamp-2">{bill.title}</p>
-                              {bill.lastAction && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{bill.lastAction}</p>
+                    {stateResults.map((bill) => {
+                      const tracked = isStateTracked(bill);
+                      return (
+                        <div key={bill.legiscanBillId} className="flex items-start gap-3 rounded-lg border p-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <Badge variant="outline" className="font-semibold">{bill.billLabel}</Badge>
+                              {bill.lastActionDate && (
+                                <span className="text-xs text-muted-foreground">Last action {formatBillDate(bill.lastActionDate)}</span>
                               )}
                             </div>
+                            <p className="text-sm font-medium leading-snug line-clamp-2">{bill.title}</p>
+                            {bill.lastAction && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{bill.lastAction}</p>
+                            )}
+                          </div>
+                          {tracked ? (
+                            <Badge variant="secondary" className="shrink-0 gap-1 py-1"><Check className="w-3 h-3" /> Tracking</Badge>
+                          ) : (
                             <Button
                               size="sm"
-                              variant="outline"
+                              className="shrink-0"
+                              onClick={() => trackStateBillMutation.mutate(bill)}
                               disabled={trackStateBillMutation.isPending}
                               data-testid={`button-track-state-bill-${bill.legiscanBillId}`}
                             >
-                              <Plus className="w-4 h-4" />
+                              <Plus className="w-4 h-4 mr-1" /> Track
                             </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          )}
+                        </div>
+                      );
+                    })}
                     {stateResults.length === 0 && hasSearched && !isSearching && (
                       <p className="text-center text-muted-foreground py-4">No bills found. Try a different search.</p>
                     )}
                     {stateResults.length > 0 && (
-                      <p className="text-center text-xs text-muted-foreground pt-1">
-                        {LEGISCAN_ATTRIBUTION}{" "}
-                        <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
-                        {" · "}
-                        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
-                      </p>
+                      <LegiScanAttribution className="text-center pt-1" />
                     )}
                   </div>
                 )}
 
                 {searchSource === "federal" && (
                 <div className="max-h-96 overflow-y-auto space-y-2">
-                  {searchResults.map((bill, index) => (
-                    <Card key={index} className="hover-elevate cursor-pointer" onClick={() => trackBillMutation.mutate(bill)}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline">
-                                {getBillTypeLabel(bill.type)} {bill.number}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {bill.congress}th Congress
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium line-clamp-2">{bill.title}</p>
-                            {bill.sponsors?.[0] && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Sponsor: {bill.sponsors[0].firstName} {bill.sponsors[0].lastName} ({bill.sponsors[0].party}-{bill.sponsors[0].state})
-                              </p>
-                            )}
+                  {searchResults.map((bill, index) => {
+                    const tracked = isFederalTracked(bill);
+                    return (
+                      <div key={index} className="flex items-start gap-3 rounded-lg border p-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <Badge variant="outline" className="font-semibold">
+                              {getBillTypeLabel(bill.type)} {bill.number}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{bill.congress}th Congress</span>
                           </div>
-                          <Button size="sm" variant="outline" data-testid={`button-track-bill-${bill.number}`}>
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                          <p className="text-sm font-medium leading-snug line-clamp-2">{bill.title}</p>
+                          {bill.sponsors?.[0] && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Sponsor: {bill.sponsors[0].firstName} {bill.sponsors[0].lastName} ({bill.sponsors[0].party}-{bill.sponsors[0].state})
+                            </p>
+                          )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        {tracked ? (
+                          <Badge variant="secondary" className="shrink-0 gap-1 py-1"><Check className="w-3 h-3" /> Tracking</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => trackBillMutation.mutate(bill)}
+                            disabled={trackBillMutation.isPending}
+                            data-testid={`button-track-bill-${bill.number}`}
+                          >
+                            <Plus className="w-4 h-4 mr-1" /> Track
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {searchResults.length === 0 && hasSearched && !isSearching && (
                     <p className="text-center text-muted-foreground py-4">No bills found. Try a different search.</p>
                   )}
@@ -523,17 +488,71 @@ export default function BillTrackingPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {unreadChanges.slice(0, 5).map((change) => (
-              <div key={change.id} className="flex items-center justify-between p-2 bg-background rounded-md">
-                <div>
+              <button
+                key={change.id}
+                type="button"
+                onClick={() => openBillPanel(change.bill)}
+                className="flex w-full items-center justify-between gap-3 rounded-md bg-background p-2 text-left hover:bg-muted/60"
+              >
+                <div className="min-w-0">
                   <span className="font-medium">{trackedBillLabel(change.bill)}</span>
-                  <span className="text-muted-foreground"> - </span>
+                  <span className="text-muted-foreground"> · </span>
                   <span className="text-sm">{change.description}</span>
                 </div>
-                <Badge variant="secondary">{change.changeType.replace("_", " ")}</Badge>
-              </div>
+                <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+              </button>
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {/* Filter bar */}
+      {trackedBills && trackedBills.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                placeholder="Filter tracked bills by number, title, sponsor, or tag…"
+                className="pl-9"
+                data-testid="input-filter-bills"
+              />
+            </div>
+            <div className="inline-flex rounded-md border p-0.5 self-start" role="tablist" aria-label="Jurisdiction">
+              {(["all", "federal", "state"] as const).map((scope) => (
+                <Button
+                  key={scope}
+                  type="button"
+                  size="sm"
+                  variant={filterScope === scope ? "default" : "ghost"}
+                  onClick={() => setFilterScope(scope)}
+                  role="tab"
+                  aria-selected={filterScope === scope}
+                >
+                  {scope === "all" ? "All" : scope === "federal" ? "Federal" : "State"}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground mr-1">Tags:</span>
+              {allTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={filterTag === tag ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                  data-testid={`filter-tag-${tag}`}
+                >
+                  #{tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Tracked Bills */}
@@ -552,94 +571,108 @@ export default function BillTrackingPage() {
           ))}
         </div>
       ) : trackedBills && trackedBills.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {trackedBills.map((bill) => (
-            <Card key={bill.id} className="hover-elevate">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-sm">
-                      {trackedBillLabel(bill)}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {isStateBill(bill) ? jurisdictionName(bill) : "Federal"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => refreshBillMutation.mutate(bill.id)}
-                      disabled={refreshBillMutation.isPending}
-                      data-testid={`button-refresh-${bill.id}`}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${refreshBillMutation.isPending ? 'animate-spin' : ''}`} />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setSelectedBill(bill)}
-                      data-testid={`button-settings-${bill.id}`}
-                    >
-                      <Bell className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <CardTitle className="text-base line-clamp-2">{bill.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2 text-sm">
-                  {bill.sponsor && (
-                    <p className="text-muted-foreground">
-                      Sponsor: {bill.sponsor} {bill.sponsorParty && `(${bill.sponsorParty}${bill.sponsorState ? `-${bill.sponsorState}` : ""})`}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {bill.policyArea && (
-                      <Badge variant="secondary" className="text-xs">{bill.policyArea}</Badge>
+        visibleBills.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {visibleBills.map((bill) => {
+              const matterName = bill.matterId ? matters?.find((m) => m.id === bill.matterId)?.name : null;
+              return (
+                <Card
+                  key={bill.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openBillPanel(bill)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openBillPanel(bill);
+                    }
+                  }}
+                  className="hover-elevate cursor-pointer flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`card-bill-${bill.id}`}
+                >
+                  <CardHeader className="pb-2 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="font-semibold">{trackedBillLabel(bill)}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {isStateBill(bill) ? jurisdictionName(bill) : "Federal"}
+                        </Badge>
+                        {bill.status && (
+                          <Badge variant="outline" className={`text-xs ${statusBadgeClass(bill.status)}`}>{bill.status}</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center -mr-2 -mt-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <BillOrganizeMenu bill={bill} onAddTags={() => openBillPanel(bill, { focusTags: true })} />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Alert settings"
+                          title="Alert settings"
+                          onClick={() => setAlertsBill(bill)}
+                          data-testid={`button-alerts-${bill.id}`}
+                        >
+                          <Bell className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardTitle className="text-base leading-snug line-clamp-2">{bill.title}</CardTitle>
+                    {bill.sponsor && (
+                      <p className="text-sm text-muted-foreground line-clamp-1">
+                        {bill.sponsor}
+                        {bill.sponsorParty && ` (${bill.sponsorParty}${bill.sponsorState ? `-${bill.sponsorState}` : ""})`}
+                      </p>
                     )}
-                    {bill.matterId && matters && (
-                      <Badge variant="outline" className="text-xs flex items-center gap-1">
-                        <FolderOpen className="w-3 h-3" />
-                        {matters.find(m => m.id === bill.matterId)?.name || "Assigned"}
-                      </Badge>
+                  </CardHeader>
+                  <CardContent className="mt-auto space-y-3">
+                    {bill.latestAction && (
+                      <div className="rounded-md bg-muted/60 p-2">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Latest action{bill.latestActionDate ? ` · ${formatBillDate(bill.latestActionDate)}` : ""}
+                        </p>
+                        <p className="text-sm line-clamp-2">{bill.latestAction}</p>
+                      </div>
                     )}
-                  </div>
-                </div>
-                
-                {bill.latestAction && (
-                  <div className="p-2 bg-muted rounded-md">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Latest Action {bill.latestActionDate && `(${bill.latestActionDate})`}
+                    {(matterName || (bill.tags?.length ?? 0) > 0) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {matterName && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <FolderOpen className="w-3 h-3" /> {matterName}
+                          </Badge>
+                        )}
+                        {bill.tags?.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs">#{tag}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-primary flex items-center gap-0.5">
+                      View details <ChevronRight className="w-3 h-3" />
                     </p>
-                    <p className="text-sm line-clamp-2">{bill.latestAction}</p>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <a
-                    href={trackedBillUrl(bill)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary flex items-center gap-1 hover:underline"
-                  >
-                    {isStateBill(bill) ? "View on LegiScan" : "View on Congress.gov"} <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => untrackBillMutation.mutate(bill.id)}
-                    data-testid={`button-untrack-${bill.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-10 text-center space-y-3">
+              <p className="text-muted-foreground">No tracked bills match your filters.</p>
+              {isFiltering && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilterText("");
+                    setFilterScope("all");
+                    setFilterTag(null);
+                  }}
+                >
+                  <X className="w-4 h-4 mr-1" /> Clear filters
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -648,7 +681,7 @@ export default function BillTrackingPage() {
             </div>
             <h3 className="font-medium mb-2">No Bills Being Tracked</h3>
             <p className="text-muted-foreground text-sm mb-4">
-              Search for bills to track and get notified when they change.
+              Search federal or state bills to track and get notified when they change.
             </p>
             <Button onClick={() => setShowAddDialog(true)} data-testid="button-start-tracking">
               <Plus className="w-4 h-4 mr-2" />
@@ -659,151 +692,20 @@ export default function BillTrackingPage() {
       )}
 
       {hasStateBills && (
-        <p className="text-xs text-muted-foreground text-center" data-testid="text-legiscan-attribution">
-          {LEGISCAN_ATTRIBUTION}{" "}
-          <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
-          {" · "}
-          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
-        </p>
+        <LegiScanAttribution className="text-center" />
       )}
 
-      {/* Bill Settings Dialog */}
-      <Dialog open={!!selectedBill} onOpenChange={(open) => !open && setSelectedBill(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bill Settings</DialogTitle>
-            <DialogDescription>
-              Configure {selectedBill && trackedBillLabel(selectedBill)}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedBill && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="matter-select" className="flex flex-col gap-1">
-                  <span className="flex items-center gap-1">
-                    <FolderOpen className="w-4 h-4" />
-                    Assign to Research Project
-                  </span>
-                  <span className="text-xs text-muted-foreground font-normal">Link this bill to a research project for organization</span>
-                </Label>
-                <Select
-                  value={selectedBill.matterId || "none"}
-                  onValueChange={(value) => {
-                    assignMatterMutation.mutate({
-                      billId: selectedBill.id,
-                      matterId: value === "none" ? null : value
-                    });
-                  }}
-                >
-                  <SelectTrigger data-testid="select-matter">
-                    <SelectValue placeholder="Select a matter..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No matter assigned</SelectItem>
-                    {matters?.map((matter) => (
-                      <SelectItem key={matter.id} value={matter.id}>
-                        {matter.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="border-t pt-4">
-                <Label className="flex flex-col gap-1 mb-3">
-                  <span className="flex items-center gap-1">
-                    <Share2 className="w-4 h-4" />
-                    Share with Client Portals
-                  </span>
-                  <span className="text-xs text-muted-foreground font-normal">Make this bill visible to selected client portals</span>
-                </Label>
-                {portals && portals.length > 0 ? (
-                  <div className="space-y-2">
-                    {portals.map((portal) => {
-                      const assignment = selectedBillPortals?.find(a => a.portalId === portal.id);
-                      const isShared = !!assignment;
-                      return (
-                        <div key={portal.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/50">
-                          <Checkbox
-                            id={`portal-${portal.id}`}
-                            checked={isShared}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                shareBillMutation.mutate({ billId: selectedBill.id, portalId: portal.id });
-                              } else if (assignment) {
-                                unshareBillMutation.mutate({ billId: selectedBill.id, assignmentId: assignment.id });
-                              }
-                            }}
-                            data-testid={`checkbox-portal-${portal.id}`}
-                          />
-                          <Label htmlFor={`portal-${portal.id}`} className="flex-1 cursor-pointer">
-                            <span className="text-sm">{portal.name}</span>
-                            {portal.description && (
-                              <span className="text-xs text-muted-foreground block">{portal.description}</span>
-                            )}
-                          </Label>
-                          {isShared && <Badge variant="secondary" className="text-xs">Shared</Badge>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No client portals configured yet.</p>
-                )}
-              </div>
+      <BillDetailSheet
+        bill={openBill}
+        focusTags={focusTags}
+        onClose={() => setOpenBillId(null)}
+        onRefresh={(bill) => refreshBillMutation.mutate(bill.id)}
+        refreshing={refreshBillMutation.isPending}
+        onUntrack={(bill) => untrackBillMutation.mutate(bill.id)}
+        onOpenAlerts={(bill) => setAlertsBill(bill)}
+      />
 
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium mb-3">Alert Settings</h4>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="status-change" className="flex flex-col gap-1">
-                  <span>Status Changes</span>
-                  <span className="text-xs text-muted-foreground font-normal">When the bill moves to a new stage</span>
-                </Label>
-                <Switch
-                  id="status-change"
-                  defaultChecked={true}
-                  onCheckedChange={(checked) => updateAlertsMutation.mutate({ billId: selectedBill.id, alerts: { alertOnStatusChange: checked } })}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="new-action" className="flex flex-col gap-1">
-                  <span>New Actions</span>
-                  <span className="text-xs text-muted-foreground font-normal">Any new legislative action on the bill</span>
-                </Label>
-                <Switch
-                  id="new-action"
-                  defaultChecked={true}
-                  onCheckedChange={(checked) => updateAlertsMutation.mutate({ billId: selectedBill.id, alerts: { alertOnNewAction: checked } })}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="amendments" className="flex flex-col gap-1">
-                  <span>Amendments</span>
-                  <span className="text-xs text-muted-foreground font-normal">When new amendments are proposed</span>
-                </Label>
-                <Switch
-                  id="amendments"
-                  defaultChecked={true}
-                  onCheckedChange={(checked) => updateAlertsMutation.mutate({ billId: selectedBill.id, alerts: { alertOnAmendment: checked } })}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="email-notify" className="flex flex-col gap-1">
-                  <span>Email Notifications</span>
-                  <span className="text-xs text-muted-foreground font-normal">Receive alerts via email</span>
-                </Label>
-                <Switch
-                  id="email-notify"
-                  defaultChecked={true}
-                  onCheckedChange={(checked) => updateAlertsMutation.mutate({ billId: selectedBill.id, alerts: { emailNotification: checked } })}
-                />
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BillAlertsDialog bill={alertsBill} onClose={() => setAlertsBill(null)} />
     </div>
   );
 }
