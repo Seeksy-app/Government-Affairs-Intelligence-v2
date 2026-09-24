@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarUrl } from "@/lib/avatar-utils";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Users, 
@@ -272,6 +272,18 @@ export default function StaffersPage() {
   const [lsPage, setLsPage] = useState(0);
   const [lsSelectedId, setLsSelectedId] = useState<number | null>(null);
   const [lsResearchResult, setLsResearchResult] = useState<string | null>(null);
+
+  // Global search links here as /staffers?staffer=<legistormId>: open that
+  // staffer's profile, then drop the param.
+  const urlSearch = useSearch();
+  useEffect(() => {
+    const id = Number(new URLSearchParams(urlSearch).get("staffer"));
+    if (Number.isInteger(id) && id > 0) {
+      setActiveTab("legistorm");
+      setLsSelectedId(id);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [urlSearch]);
   const [linkedinLookupLoading, setLinkedinLookupLoading] = useState(false);
 
   const [vetStafferSearch, setVetStafferSearch] = useState("");

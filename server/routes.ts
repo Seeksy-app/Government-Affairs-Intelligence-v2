@@ -4812,6 +4812,20 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
     }
   });
 
+  // Global search (header / ⌘K). Firm-scoped sources use getClientId; a super
+  // admin who isn't impersonating still gets the shared staffer directory.
+  app.get("/api/search", isAuthenticated, async (req, res) => {
+    try {
+      const q = String(req.query.q ?? "").slice(0, 100);
+      const clientId = await getClientId(req);
+      const { globalSearch } = await import("./services/global-search");
+      res.json({ query: q, groups: await globalSearch(clientId, q) });
+    } catch (error) {
+      console.error("Error in global search:", error);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
   // Search current-session state bills via LegiScan
   app.get("/api/state-bills/search", isAuthenticated, async (req, res) => {
     try {
