@@ -27,8 +27,20 @@ const CONGRESS_SESSIONS = [
   { congress: 110, years: "2007-2009", label: "110th Congress (2007-2009)" },
 ];
 import type { TrackedBill, BillChangeHistory, BillTrackingAlert, Matter, ClientPortal, PortalTrackedBill } from "@shared/schema";
+import { US_STATES, LEGISCAN_ATTRIBUTION, isStateBill, trackedBillLabel, trackedBillUrl, jurisdictionName } from "@shared/bill-label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Share2, Users } from "lucide-react";
+
+const STATE_OPTIONS = Object.entries(US_STATES).sort((a, b) => a[1].localeCompare(b[1]));
+
+interface StateBillSearchResult {
+  legiscanBillId: number;
+  state: string;
+  billLabel: string;
+  title: string;
+  lastAction: string | null;
+  lastActionDate: string | null;
+}
 
 interface BillSearchResult {
   congress: number;
@@ -49,6 +61,10 @@ export default function BillTrackingPage() {
   const [searchResults, setSearchResults] = useState<BillSearchResult[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedBill, setSelectedBill] = useState<TrackedBill | null>(null);
+  const [searchSource, setSearchSource] = useState<"federal" | "state">("federal");
+  const [selectedState, setSelectedState] = useState("");
+  const [stateResults, setStateResults] = useState<StateBillSearchResult[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const { data: trackedBills, isLoading } = useQuery<TrackedBill[]>({
     queryKey: ["/api/tracked-bills"],
@@ -167,6 +183,7 @@ export default function BillTrackingPage() {
       setShowAddDialog(false);
       setSearchResults([]);
       setSearchQuery("");
+      setHasSearched(false);
     },
     onError: (error: Error) => {
       toast({
@@ -174,6 +191,39 @@ export default function BillTrackingPage() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const searchStateBillsMutation = useMutation({
+    mutationFn: async ({ query, state }: { query: string; state: string }) => {
+      const res = await apiRequest("GET", `/api/state-bills/search?state=${state}&q=${encodeURIComponent(query)}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setStateResults(data.bills || []);
+      setIsSearching(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Search Failed", description: error.message, variant: "destructive" });
+      setIsSearching(false);
+    },
+  });
+
+  const trackStateBillMutation = useMutation({
+    mutationFn: async (bill: StateBillSearchResult) => {
+      const res = await apiRequest("POST", "/api/tracked-bills/state", { legiscanBillId: bill.legiscanBillId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Bill Added", description: "State bill is now being tracked for changes." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tracked-bills"] });
+      setShowAddDialog(false);
+      setStateResults([]);
+      setSearchQuery("");
+      setHasSearched(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to Track Bill", description: error.message, variant: "destructive" });
     },
   });
 
@@ -216,10 +266,31 @@ export default function BillTrackingPage() {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
+    if (searchSource === "state") {
+      if (!selectedState) {
+        toast({ title: "Choose a state", description: "Pick which state legislature to search." });
+        return;
+      }
+      setStateResults([]);
+      setIsSearching(true);
+      setHasSearched(true);
+      searchStateBillsMutation.mutate({ query: searchQuery, state: selectedState });
+      return;
+    }
     setSearchResults([]); // Clear old results before new search
     setIsSearching(true);
+    setHasSearched(true);
     searchBillsMutation.mutate({ query: searchQuery, congress: selectedCongress });
   };
+
+  const switchSource = (source: "federal" | "state") => {
+    setSearchSource(source);
+    setSearchResults([]);
+    setStateResults([]);
+    setHasSearched(false);
+  };
+
+  const hasStateBills = !!trackedBills?.some((b) => isStateBill(b));
 
   const getBillTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -240,7 +311,7 @@ export default function BillTrackingPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Bill Tracking</h1>
-          <p className="text-muted-foreground">Track congressional bills and get notified of changes</p>
+          <p className="text-muted-foreground">Track federal and state bills and get notified of changes</p>
         </div>
         <div className="flex items-center gap-2">
           {unreadChanges && unreadChanges.length > 0 && (
@@ -260,30 +331,73 @@ export default function BillTrackingPage() {
               <DialogHeader>
                 <DialogTitle>Search and Track a Bill</DialogTitle>
                 <DialogDescription>
-                  Search for congressional bills by keyword or bill number (e.g., "HR 1234" or "climate")
+                  {searchSource === "federal"
+                    ? 'Search congressional bills by keyword or bill number (e.g., "HR 1234" or "climate")'
+                    : 'Search current-session state bills by keyword or bill number (e.g., "HB 1234" or "veterans")'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Select 
-                    value={selectedCongress.toString()} 
-                    onValueChange={(value) => setSelectedCongress(parseInt(value))}
+                <div className="inline-flex rounded-md border p-0.5" role="tablist" aria-label="Bill source">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={searchSource === "federal" ? "default" : "ghost"}
+                    onClick={() => switchSource("federal")}
+                    role="tab"
+                    aria-selected={searchSource === "federal"}
+                    data-testid="toggle-source-federal"
                   >
-                    <SelectTrigger className="w-[240px]" data-testid="select-congress">
-                      <SelectValue placeholder="Select Congress" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONGRESS_SESSIONS.map((session) => (
-                        <SelectItem key={session.congress} value={session.congress.toString()}>
-                          {session.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    Federal
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={searchSource === "state" ? "default" : "ghost"}
+                    onClick={() => switchSource("state")}
+                    role="tab"
+                    aria-selected={searchSource === "state"}
+                    data-testid="toggle-source-state"
+                  >
+                    State
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  {searchSource === "federal" ? (
+                    <Select
+                      value={selectedCongress.toString()}
+                      onValueChange={(value) => setSelectedCongress(parseInt(value))}
+                    >
+                      <SelectTrigger className="w-[240px]" data-testid="select-congress">
+                        <SelectValue placeholder="Select Congress" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONGRESS_SESSIONS.map((session) => (
+                          <SelectItem key={session.congress} value={session.congress.toString()}>
+                            {session.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Select value={selectedState} onValueChange={setSelectedState}>
+                      <SelectTrigger className="w-[240px]" data-testid="select-state">
+                        <SelectValue placeholder="Select a state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATE_OPTIONS.map(([code, name]) => (
+                          <SelectItem key={code} value={code}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Search bills by keyword or number (e.g., HR 1234, climate)..."
+                    placeholder={searchSource === "federal"
+                      ? "Search bills by keyword or number (e.g., HR 1234, climate)..."
+                      : "Search state bills by keyword or number (e.g., HB 1234, veterans)..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -294,6 +408,55 @@ export default function BillTrackingPage() {
                   </Button>
                 </div>
                 
+                {searchSource === "state" && (
+                  <div className="max-h-96 overflow-y-auto space-y-2">
+                    {stateResults.map((bill) => (
+                      <Card
+                        key={bill.legiscanBillId}
+                        className="hover-elevate cursor-pointer"
+                        onClick={() => !trackStateBillMutation.isPending && trackStateBillMutation.mutate(bill)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline">{bill.billLabel}</Badge>
+                                {bill.lastActionDate && (
+                                  <span className="text-xs text-muted-foreground">Last action {bill.lastActionDate}</span>
+                                )}
+                              </div>
+                              <p className="text-sm font-medium line-clamp-2">{bill.title}</p>
+                              {bill.lastAction && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{bill.lastAction}</p>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={trackStateBillMutation.isPending}
+                              data-testid={`button-track-state-bill-${bill.legiscanBillId}`}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {stateResults.length === 0 && hasSearched && !isSearching && (
+                      <p className="text-center text-muted-foreground py-4">No bills found. Try a different search.</p>
+                    )}
+                    {stateResults.length > 0 && (
+                      <p className="text-center text-xs text-muted-foreground pt-1">
+                        {LEGISCAN_ATTRIBUTION}{" "}
+                        <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
+                        {" · "}
+                        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {searchSource === "federal" && (
                 <div className="max-h-96 overflow-y-auto space-y-2">
                   {searchResults.map((bill, index) => (
                     <Card key={index} className="hover-elevate cursor-pointer" onClick={() => trackBillMutation.mutate(bill)}>
@@ -322,10 +485,11 @@ export default function BillTrackingPage() {
                       </CardContent>
                     </Card>
                   ))}
-                  {searchResults.length === 0 && searchQuery && !isSearching && (
+                  {searchResults.length === 0 && hasSearched && !isSearching && (
                     <p className="text-center text-muted-foreground py-4">No bills found. Try a different search.</p>
                   )}
                 </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -345,7 +509,7 @@ export default function BillTrackingPage() {
             {unreadChanges.slice(0, 5).map((change) => (
               <div key={change.id} className="flex items-center justify-between p-2 bg-background rounded-md">
                 <div>
-                  <span className="font-medium">{getBillTypeLabel(change.bill.billType)} {change.bill.billNumber}</span>
+                  <span className="font-medium">{trackedBillLabel(change.bill)}</span>
                   <span className="text-muted-foreground"> - </span>
                   <span className="text-sm">{change.description}</span>
                 </div>
@@ -377,9 +541,14 @@ export default function BillTrackingPage() {
             <Card key={bill.id} className="hover-elevate">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-sm">
-                    {getBillTypeLabel(bill.billType)} {bill.billNumber}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-sm">
+                      {trackedBillLabel(bill)}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {isStateBill(bill) ? jurisdictionName(bill) : "Federal"}
+                    </Badge>
+                  </div>
                   <div className="flex items-center gap-1">
                     <Button
                       size="icon"
@@ -434,12 +603,12 @@ export default function BillTrackingPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t">
                   <a
-                    href={`https://www.congress.gov/bill/${bill.congress}th-congress/${bill.billType === "hr" ? "house-bill" : bill.billType === "s" ? "senate-bill" : bill.billType}/${bill.billNumber}`}
+                    href={trackedBillUrl(bill)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-primary flex items-center gap-1 hover:underline"
                   >
-                    View on Congress.gov <ExternalLink className="w-3 h-3" />
+                    {isStateBill(bill) ? "View on LegiScan" : "View on Congress.gov"} <ExternalLink className="w-3 h-3" />
                   </a>
                   <Button
                     size="sm"
@@ -473,13 +642,22 @@ export default function BillTrackingPage() {
         </Card>
       )}
 
+      {hasStateBills && (
+        <p className="text-xs text-muted-foreground text-center" data-testid="text-legiscan-attribution">
+          {LEGISCAN_ATTRIBUTION}{" "}
+          <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
+          {" · "}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
+        </p>
+      )}
+
       {/* Bill Settings Dialog */}
       <Dialog open={!!selectedBill} onOpenChange={(open) => !open && setSelectedBill(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Bill Settings</DialogTitle>
             <DialogDescription>
-              Configure {selectedBill && `${getBillTypeLabel(selectedBill.billType)} ${selectedBill.billNumber}`}
+              Configure {selectedBill && trackedBillLabel(selectedBill)}
             </DialogDescription>
           </DialogHeader>
           {selectedBill && (

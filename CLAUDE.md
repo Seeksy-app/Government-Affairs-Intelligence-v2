@@ -103,6 +103,17 @@ Working end-to-end:
 - **Email** via `RESEND_API_KEY` (+ optional `RESEND_FROM_EMAIL`, default
   no-reply@governmentaffairs.io). Password reset works. The old Replit
   connector email path is deleted.
+- **State bill tracking (LegiScan)**: Bills page has a Federal / State toggle.
+  State bills live in `tracked_bills` with `jurisdiction` = state code,
+  `congress = 0`, `billType = "state"`, `billNumber = legiscan bill_id`; label/
+  URL helpers in `shared/bill-label.ts`. Client: `server/services/legiscan-api.ts`
+  — every call counted in `legiscan_usage`, refused past
+  `LEGISCAN_MONTHLY_BUDGET` (default 9,000; free tier is 10,000/mo). Alerts
+  (bill-alert-service, every 6h) do one `getMasterListRaw` per tracked
+  session and `getBill` only for bills whose `change_hash` moved. Honor the
+  LegiScan survey declarations (see memory `legiscan-api-terms`): CC BY 4.0
+  attribution wherever the data shows (`LEGISCAN_ATTRIBUTION`), serve users
+  from our DB, calls only from Render. Don't call LegiScan from a laptop.
 - **Security (PR #7)**: morning-brief IDOR fixed (client-scope check);
   first-login super-admin auto-promotion removed; demo seeder gated out of
   production. Note: ~300 routes exist; only ~170 call getClientId — a full
@@ -123,7 +134,8 @@ Working end-to-end:
    press-release search.
 5. `client_profiles` is per-FIRM not per-end-client — schema change needed
    before per-client briefs.
-6. Bill tracking never alerts (alerts written, never read/sent).
+6. ~~Bill tracking never alerts~~ — fixed (PR #20: bill-alert-service emails
+   `ALERT_EMAIL` every 6h). Alerts still go to one address, not per-firm users.
 7. File uploads dead (Replit object storage; route registration commented out).
 8. Off-thesis modules dilute demos: sports, marketing intel, influencers,
    social, rank tracking, local-gov, Miro. Candidates to feature-flag/hide.
@@ -156,7 +168,8 @@ backgrounds). Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
 Signature line: "Find the path to the people who shape policy."
 
 ## API Integrations (all keys in Render env)
-Congress.gov v3 (bills/members — most load-bearing), LegiStorm v2 (staff
+Congress.gov v3 (bills/members — most load-bearing), LegiScan (state bills,
+`LEGISCAN_API_KEY`), LegiStorm v2 (staff
 directory), Perplexity, Parallel.ai, Firecrawl, PDL, Kalshi (RSA-signed),
 SearchAPI, Influencers.club, Miro (optional), Resend.
 

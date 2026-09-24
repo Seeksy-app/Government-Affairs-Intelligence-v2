@@ -19,7 +19,7 @@ export default function TermsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl" data-testid="text-terms-title">Terms and Conditions</CardTitle>
-            <p className="text-muted-foreground text-sm">Last updated: August 12, 2026</p>
+            <p className="text-muted-foreground text-sm">Last updated: September 24, 2026</p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
             <section>
@@ -74,7 +74,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold">7. Third-Party Integrations and Content</h2>
               <p className="text-muted-foreground">
-                The Service integrates with third-party services including but not limited to Congress.gov, LegiStorm, Kalshi, AI providers (such as Anthropic, Perplexity, and Parallel.ai), People Data Labs, and identity providers such as LinkedIn. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
+                The Service integrates with third-party services including but not limited to Congress.gov, LegiScan, LegiStorm, Kalshi, AI providers (such as Anthropic, Perplexity, and Parallel.ai), People Data Labs, and identity providers such as LinkedIn. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
               </p>
               <p className="text-muted-foreground mt-2">
                 Portions of the Service's output — including briefs, summaries, relevance scores, and research answers — are generated with the assistance of artificial intelligence. This content is provided for informational purposes only, may contain errors or omissions, and should be independently verified before you rely on it. It does not constitute legal, financial, or investment advice.

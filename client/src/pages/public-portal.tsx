@@ -17,6 +17,7 @@ import {
   Activity, AlertCircle, Rss
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
+import { LEGISCAN_ATTRIBUTION } from "@shared/bill-label";
 
 interface PortalInfo {
   id: string;
@@ -58,12 +59,15 @@ interface PortalBill {
   id: string;
   billId: string;
   title: string;
-  status: string;
-  sponsor: string;
+  status: string | null;
+  sponsor: string | null;
   chamber: string;
   congress: number;
-  priority: string;
-  lastActionDate: string;
+  priority?: string | null;
+  lastActionDate: string | null;
+  latestAction?: string | null;
+  isStateBill?: boolean;
+  url?: string;
 }
 
 interface PortalStats {
@@ -740,9 +744,13 @@ export default function PublicPortal() {
                               <p className="font-medium text-sm">{bill.billId}</p>
                               <p className="text-xs text-muted-foreground line-clamp-1">{bill.title}</p>
                             </div>
-                            <Badge variant={bill.priority === "high" ? "destructive" : bill.priority === "medium" ? "default" : "secondary"} className="text-xs shrink-0">
-                              {bill.priority}
-                            </Badge>
+                            {bill.priority ? (
+                              <Badge variant={bill.priority === "high" ? "destructive" : bill.priority === "medium" ? "default" : "secondary"} className="text-xs shrink-0">
+                                {bill.priority}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs shrink-0">{bill.chamber}</Badge>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -912,20 +920,31 @@ export default function PublicPortal() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold">{bill.billId}</span>
+                            {bill.url ? (
+                              <a href={bill.url} target="_blank" rel="noopener noreferrer" className="font-bold hover:underline">
+                                {bill.billId}
+                              </a>
+                            ) : (
+                              <span className="font-bold">{bill.billId}</span>
+                            )}
                             <Badge variant="outline" className="text-xs">{bill.chamber}</Badge>
-                            <Badge 
-                              variant={bill.priority === "high" ? "destructive" : bill.priority === "medium" ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {bill.priority} priority
-                            </Badge>
+                            {bill.priority && (
+                              <Badge
+                                variant={bill.priority === "high" ? "destructive" : bill.priority === "medium" ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                {bill.priority} priority
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm">{bill.title}</p>
+                          {bill.latestAction && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{bill.latestAction}</p>
+                          )}
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                            <span>Sponsor: {bill.sponsor}</span>
-                            <span>Status: {bill.status}</span>
-                            {bill.lastActionDate && (
+                            {bill.sponsor && <span>Sponsor: {bill.sponsor}</span>}
+                            {bill.status && <span>Status: {bill.status}</span>}
+                            {bill.lastActionDate && !isNaN(new Date(bill.lastActionDate).getTime()) && (
                               <span>Last action: {format(new Date(bill.lastActionDate), "MMM d, yyyy")}</span>
                             )}
                           </div>
@@ -934,6 +953,14 @@ export default function PublicPortal() {
                     </CardContent>
                   </Card>
                 ))}
+                {bills.some((b) => b.isStateBill) && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {LEGISCAN_ATTRIBUTION}{" "}
+                    <a href="https://legiscan.com" target="_blank" rel="noopener noreferrer" className="underline">LegiScan</a>
+                    {" · "}
+                    <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
+                  </p>
+                )}
               </div>
             )}
           </TabsContent>
