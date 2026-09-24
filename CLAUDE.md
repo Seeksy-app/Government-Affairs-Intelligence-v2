@@ -94,6 +94,18 @@ Working end-to-end:
   removed (dead /network?search routes — /network ignores the param).
 - **Decision Briefs** (/briefs): paste URLs → Parallel extract → Claude brief
   → magic-link public share. Exercised and working.
+- **"Should I be worried?"** (ask box on dashboard + /briefs; "Should I be
+  worried?" button on Morning Brief items): `POST /api/briefs/ask` →
+  `server/services/ask-service.ts` plans (one small Claude call) → Congress.gov
+  bill data + stored `government_press_releases` + Parallel **v1** web search
+  (`webSearch()`; the older v1beta search/extract calls still serve the brief
+  pipeline) → ≤6 sources saved with pre-filled content/excerpts →
+  `generateBrief()`. Sources that already carry `extracted_content` skip
+  Extract. Every brief now has an optional `bottomLine {level: low|watch|act,
+  answer}` (calm, calibrated). Capped at 40 briefs/firm/24h. A brief with no
+  sources re-runs discovery on "Try again"; a "generating" run older than
+  5 min is treated as dead (deploy restarts). Grep Render logs for `[ask]`.
+  Not yet covered: state bills (would spend LegiScan queries).
 - **Prediction markets** (dashboard + /predictions): Kalshi elections API.
   `ensureMarketsCache()` = ONE nested-events crawl (with_nested_markets=true,
   ~8 requests / 5-min cache) serving ALL category tabs; activity-sorted
@@ -120,10 +132,9 @@ Working end-to-end:
   authz audit is still open backlog.
 
 ## Known Issues / Backlog (prioritized)
-1. **Phase 1 flagship**: "Should I be worried?" box — free-text question/bill#/
-   headline → auto source discovery (Parallel search + Congress.gov +
-   gov press) → existing brief-service pipeline → cited answer. The output
-   schema in brief-service.ts is already right; only retrieval is missing.
+1. ~~**Phase 1 flagship**: "Should I be worried?" box~~ — shipped (see
+   Feature State). Next: state-bill discovery, and tune source mix from
+   real usage (`[ask]` log lines show counts per source kind).
 2. **Path Builder** (marketing hero promises it): co-tenure graph from
    `legistorm_staffers.positions` JSONB (person/office/date tuples) + BFS
    from known contacts to target office; `findSchedulerForMember()` in

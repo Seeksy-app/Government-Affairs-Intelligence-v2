@@ -7,6 +7,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/score-badge";
+import { AskBox } from "@/components/briefs/ask-box";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 
@@ -230,6 +231,9 @@ export default function ClientDashboard() {
             </div>
           )}
         </div>
+
+        {/* Flagship: a scary headline → a calm, cited answer */}
+        <AskBox />
 
         {/* Prediction Markets */}
         <div data-testid="section-predictions">

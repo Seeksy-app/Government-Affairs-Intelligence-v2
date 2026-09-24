@@ -1,5 +1,11 @@
 const SEARCH_URL = "https://api.parallel.ai/v1beta/search";
 const EXTRACT_URL = "https://api.parallel.ai/v1beta/extract";
+// v1 is Parallel's current Search API; the v1beta calls above predate it.
+const SEARCH_V1_URL = "https://api.parallel.ai/v1/search";
+
+export function isParallelConfigured(): boolean {
+  return !!process.env.PARALLEL_API_KEY;
+}
 
 function getApiKey(): string {
   const key = process.env.PARALLEL_API_KEY;
@@ -101,6 +107,45 @@ export async function searchTopic(
     excerpts: Array.isArray(r.excerpts) ? r.excerpts : [],
     domain: r.domain ?? extractDomain(r.url ?? ""),
   }));
+}
+
+// ─── Web search (v1) — open-web discovery for "Should I be worried?" ─────────
+
+export interface WebSearchResult {
+  url: string;
+  title: string | null;
+  publishDate: string | null;
+  excerpts: string[];
+}
+
+export async function webSearch(opts: {
+  objective: string;
+  searchQueries: string[];
+  maxResults?: number;
+  afterDate?: string;           // YYYY-MM-DD
+  excludeDomains?: string[];
+}): Promise<WebSearchResult[]> {
+  const sourcePolicy: Record<string, unknown> = {};
+  if (opts.afterDate) sourcePolicy.after_date = opts.afterDate;
+  if (opts.excludeDomains?.length) sourcePolicy.exclude_domains = opts.excludeDomains;
+
+  const data = await parallelPost(SEARCH_V1_URL, {
+    objective: opts.objective,
+    search_queries: opts.searchQueries,
+    advanced_settings: {
+      max_results: opts.maxResults ?? 10,
+      ...(Object.keys(sourcePolicy).length > 0 ? { source_policy: sourcePolicy } : {}),
+    },
+  });
+
+  return ((data.results ?? []) as any[])
+    .filter((r) => typeof r.url === "string" && r.url)
+    .map((r) => ({
+      url: r.url,
+      title: r.title ?? null,
+      publishDate: r.publish_date ?? null,
+      excerpts: Array.isArray(r.excerpts) ? r.excerpts : [],
+    }));
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

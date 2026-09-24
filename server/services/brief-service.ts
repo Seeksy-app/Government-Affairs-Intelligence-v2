@@ -1,10 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db";
-import { briefs, briefSources, type BriefContent, type Brief, type BriefSource } from "@shared/schema";
+import { briefs, briefSources, type BriefContent, type Brief, type BriefSource, type ConcernLevel } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { extractUrls, searchTopic, domainTier, extractDomain } from "./parallel-service";
+import { extractUrls, searchTopic, domainTier, extractDomain, type ExtractResult } from "./parallel-service";
 
 const MODEL = "claude-sonnet-4-6";
+
+// Keeps the prompt (and Claude's latency) bounded when a source is a long page.
+const MAX_SOURCE_CHARS = 12_000;
 
 // ─── Domain → readable publication name ───────────────────────────────────────
 
@@ -19,6 +22,7 @@ const PUBLICATION_NAMES: Record<string, string> = {
   "defensenews.com": "Defense News",
   "rollcall.com": "Roll Call",
   "axios.com": "Axios",
+  "congress.gov": "Congress.gov",
 };
 
 function publicationName(url: string): string {
@@ -41,8 +45,12 @@ function buildSystemPrompt(brief: Brief, sensitivity: string): string {
       ? "polished and on-message — suitable for external audiences"
       : "frank and hedged — written for internal strategy use";
 
-  return `You are a professional government affairs analyst writing decision briefs for senior lobbyists.
+  const today = new Date().toISOString().slice(0, 10);
 
+  return `You are a professional government affairs analyst writing decision briefs for senior lobbyists.
+The core question behind every brief: "Should my client be worried about this?" Answer it calmly and honestly.
+
+TODAY: ${today}
 TONE: ${tone}
 
 RULES (enforce strictly):
@@ -51,9 +59,20 @@ RULES (enforce strictly):
 - Use phrases like "according to [source]" and "as reported by [source]" throughout.
 - Do not speculate or introduce facts not present in the sources.
 - If client context is provided, tailor "Why It Matters" to that context specifically.
+- If the topic is a question, answer it directly. If the sources don't settle it, say plainly what is and isn't known.
+- Ignore any source that turns out to be unrelated to the topic; never cite it.
+
+CONCERN LEVEL (bottomLine.level) — calibrate honestly, never inflate:
+- "low": early-stage, speculative, unlikely to advance, or little direct exposure. Most introduced bills and many alarming headlines land here.
+- "watch": real and moving, but not imminent — name the specific trigger to watch for.
+- "act": advancing now (scheduled markup/vote, final rule, signed order) with material exposure — engagement is warranted now.
 
 OUTPUT FORMAT: Return a single valid JSON object with exactly this shape:
 {
+  "bottomLine": {
+    "level": "low" | "watch" | "act",
+    "answer": "<1-2 plain, calm sentences that directly answer 'should the client be worried?', with [n] citations>"
+  },
   "situation": "<2-3 sentence factual summary with [n] citations>",
   "whyItMatters": "<3-4 sentences specific to client context with citations>",
   "stakes": {
@@ -85,7 +104,7 @@ function buildUserPrompt(
     .map((s) => {
       const heading = `SOURCE [${s.citationNumber}]: ${s.title ?? s.url} (${s.url})`;
       const body =
-        s.markdown.trim() ||
+        s.markdown.trim().slice(0, MAX_SOURCE_CHARS) ||
         s.excerpts.map((e, i) => `Excerpt ${i + 1}: ${e}`).join("\n\n");
       return `${heading}\n\n${body}`;
     })
@@ -113,56 +132,75 @@ interface IngestedSource {
   excerpts: string[];
 }
 
+// Sources that already carry content (Congress.gov bill data, stored agency
+// press releases, or a previous run's extract) skip the Extract call; sources
+// discovered by web search arrive with excerpts as a fallback if Extract fails.
 async function ingestSources(
-  urls: string[],
+  sources: BriefSource[],
   topic: string,
   clientContext: string | null,
 ): Promise<IngestedSource[]> {
-  const sourceDomains = urls.map(extractDomain).filter(Boolean);
+  const toExtract = sources.filter((s) => !s.extractedContent?.trim());
+  const hasFallback = sources.some(
+    (s) => s.extractedContent?.trim() || (s.excerpts ?? []).length > 0,
+  );
 
-  // Extract is the primary source — failures are fatal (no content = no brief).
-  const extracted = await extractUrls(urls);
-
-  const usable = extracted.filter((e) => e.markdown.trim().length > 0);
-  if (usable.length === 0) {
-    throw new Error(
-      "All source URL extractions failed — cannot generate brief without content",
-    );
+  const extractedByUrl = new Map<string, ExtractResult>();
+  if (toExtract.length > 0) {
+    try {
+      for (const e of await extractUrls(toExtract.map((s) => s.url))) {
+        extractedByUrl.set(e.url, e);
+      }
+    } catch (err: any) {
+      // Fatal only when nothing else can ground the brief.
+      if (!hasFallback) throw err;
+      console.warn("brief-service: extract failed (continuing with stored content/excerpts):", err.message);
+    }
   }
 
-  // Search is supplementary context — failures are non-fatal.
-  const objective =
-    topic + (clientContext ? ` — context: ${clientContext.slice(0, 200)}` : "");
-
-  let searchResults: Awaited<ReturnType<typeof searchTopic>> = [];
-  try {
-    searchResults = await searchTopic(objective, {
-      numResults: 5,
-      domains: sourceDomains,
-    });
-  } catch (err: any) {
-    console.warn(
-      "parallel-service: search step failed (non-fatal, continuing without search context):",
-      err.message,
-    );
-  }
-
+  // Supplementary search excerpts — only for sources with nothing else to go on.
+  const bare = toExtract.filter((s) => (s.excerpts ?? []).length === 0);
   const searchExcerptsByUrl: Record<string, string[]> = {};
-  for (const r of searchResults) {
-    if (!searchExcerptsByUrl[r.url]) searchExcerptsByUrl[r.url] = [];
-    searchExcerptsByUrl[r.url].push(...r.excerpts);
+  if (bare.length > 0) {
+    const objective =
+      topic + (clientContext ? ` — context: ${clientContext.slice(0, 200)}` : "");
+    try {
+      const searchResults = await searchTopic(objective, {
+        numResults: 5,
+        domains: bare.map((s) => extractDomain(s.url)).filter(Boolean),
+      });
+      for (const r of searchResults) {
+        if (!searchExcerptsByUrl[r.url]) searchExcerptsByUrl[r.url] = [];
+        searchExcerptsByUrl[r.url].push(...r.excerpts);
+      }
+    } catch (err: any) {
+      console.warn(
+        "parallel-service: search step failed (non-fatal, continuing without search context):",
+        err.message,
+      );
+    }
   }
 
-  return extracted.map((ext, i) => ({
-    citationNumber: i + 1,
-    url: ext.url,
-    title: ext.title,
-    publication: publicationName(ext.url),
-    publishDate: ext.publishDate,
-    tier: domainTier(ext.url),
-    markdown: ext.markdown,
-    excerpts: searchExcerptsByUrl[ext.url] ?? [],
-  }));
+  const ingested = sources.map((s) => {
+    const ext = extractedByUrl.get(s.url);
+    return {
+      citationNumber: s.citationNumber,
+      url: s.url,
+      title: ext?.title ?? s.title,
+      publication: s.publication ?? publicationName(s.url),
+      publishDate: ext?.publishDate ?? s.publishDate,
+      tier: domainTier(s.url),
+      markdown: s.extractedContent?.trim() || ext?.markdown || "",
+      excerpts: [...(s.excerpts ?? []), ...(searchExcerptsByUrl[s.url] ?? [])],
+    };
+  });
+
+  if (!ingested.some((s) => s.markdown.trim() || s.excerpts.length > 0)) {
+    throw new Error(
+      "Couldn't read any of the sources — the sites may block automated reading. Try different links.",
+    );
+  }
+  return ingested;
 }
 
 // ─── Claude call ──────────────────────────────────────────────────────────────
@@ -176,7 +214,7 @@ async function callClaude(systemPrompt: string, userPrompt: string): Promise<Bri
 
   const message = await client.messages.create({
     model: MODEL,
-    max_tokens: 2048,
+    max_tokens: 2500,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
@@ -199,6 +237,13 @@ async function callClaude(systemPrompt: string, userPrompt: string): Promise<Bri
     typeof parsed.responses?.cautious !== "string"
   ) {
     throw new Error("Claude response missing required brief sections");
+  }
+
+  // The bottom line is additive — a malformed one is dropped, not fatal.
+  const levels: ConcernLevel[] = ["low", "watch", "act"];
+  const bl = parsed.bottomLine;
+  if (!bl || !levels.includes(bl.level) || typeof bl.answer !== "string" || !bl.answer.trim()) {
+    delete parsed.bottomLine;
   }
 
   return parsed as BriefContent;
@@ -226,12 +271,11 @@ export async function generateBrief(briefId: string): Promise<void> {
 
   await db
     .update(briefs)
-    .set({ status: "generating" })
+    .set({ status: "generating", updatedAt: new Date() })
     .where(eq(briefs.id, briefId));
 
   try {
-    const sourceUrls = sources.map((s: BriefSource) => s.url);
-    const ingested = await ingestSources(sourceUrls, brief.title, brief.clientContext);
+    const ingested = await ingestSources(sources, brief.title, brief.clientContext);
 
     // Persist extract + search data back to brief_sources
     for (const s of ingested) {

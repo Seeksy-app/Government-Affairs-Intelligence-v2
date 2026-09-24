@@ -1633,7 +1633,12 @@ export type DemoAccessLog = typeof demoAccessLogs.$inferSelect;
 
 // BriefContent: the 5 enforced sections stored as JSONB on the brief row.
 // [n] citation markers live inline in the strings; they map to brief_sources.citationNumber.
+export type ConcernLevel = "low" | "watch" | "act";
+
 export interface BriefContent {
+  // "Should I be worried?" — direct answer + calibrated concern level.
+  // Optional: briefs generated before Sep 2026 don't have it.
+  bottomLine?: { level: ConcernLevel; answer: string };
   situation: string;                                          // 2-3 sentences
   whyItMatters: string;                                      // 3-4 sentences
   stakes: { business: string; reputational: string; values: string };
