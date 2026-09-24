@@ -346,41 +346,7 @@ export default function BriefDetail() {
       </div>
 
       {/* Generating state */}
-      {isGenerating && (
-        <Card className="mb-6 border-primary/30 bg-primary/5">
-          <CardContent className="py-8">
-            <div className="text-center">
-              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3" />
-              {brief.sources.length === 0 ? (
-                <>
-                  <p className="font-medium">Finding sources…</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Checking Congress.gov, agency press releases, and recent news coverage.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-medium">
-                    Reading {brief.sources.length} source{brief.sources.length === 1 ? "" : "s"} and writing the brief…
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">This usually takes 30–60 seconds.</p>
-                </>
-              )}
-            </div>
-            {brief.sources.length > 0 && (
-              <ul className="mt-5 mx-auto max-w-lg space-y-1.5">
-                {brief.sources.map((s) => (
-                  <li key={s.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="truncate">{s.title ?? s.url}</span>
-                    {s.publication && <span className="shrink-0 text-xs">· {s.publication}</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {isGenerating && <GeneratingSteps sources={brief.sources} />}
 
       {/* Interrupted run (e.g. the server restarted mid-generation) */}
       {isStale && (
@@ -549,6 +515,62 @@ export default function BriefDetail() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+type StepState = "done" | "active" | "todo";
+
+// Progress while a brief generates. Every source gets a publication name once
+// it has been read, so that marks the hand-off from reading to writing.
+function GeneratingSteps({ sources }: { sources: BriefSource[] }) {
+  const found = sources.length > 0;
+  const read = found && sources.every((s) => s.publication);
+  const steps: Array<{ label: string; detail: string; state: StepState }> = [
+    {
+      label: found ? `Found ${sources.length} source${sources.length === 1 ? "" : "s"}` : "Finding sources",
+      detail: "Congress.gov, agency press releases, and recent news",
+      state: found ? "done" : "active",
+    },
+    { label: "Reading them", detail: "Pulling the full text of each source", state: read ? "done" : found ? "active" : "todo" },
+    { label: "Writing the answer", detail: "Every claim cited to a source", state: read ? "active" : "todo" },
+  ];
+
+  return (
+    <Card className="mb-6">
+      <CardContent className="py-5 space-y-4">
+        <ol className="space-y-3">
+          {steps.map((step) => (
+            <li key={step.detail} className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                {step.state === "done" ? (
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                ) : step.state === "active" ? (
+                  <span className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                ) : (
+                  <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />
+                )}
+              </span>
+              <div className={step.state === "todo" ? "text-muted-foreground" : ""}>
+                <p className="text-sm font-medium">{step.label}</p>
+                <p className="text-xs text-muted-foreground">{step.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        {found && (
+          <ul className="border-t pt-3 space-y-1.5">
+            {sources.map((s) => (
+              <li key={s.id} className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                <span className="text-xs font-semibold text-primary shrink-0">[{s.citationNumber}]</span>
+                <span className="truncate">{s.title ?? s.url}</span>
+                {s.publication && <span className="shrink-0 text-xs">· {s.publication}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-muted-foreground">Usually about a minute. You can leave this page; the brief keeps going.</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

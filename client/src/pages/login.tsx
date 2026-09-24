@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { GaMark } from "@/components/ga-mark";
 
 const loginSchema = z.object({
   email: z.string().email("Valid email is required"),
@@ -43,13 +44,7 @@ const PANELS = [
 function Wordmark({ className = "", onDark = true }: { className?: string; onDark?: boolean }) {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <div
-        className={`grid h-10 w-10 place-items-center rounded-[6px] text-[15px] font-extrabold tracking-tight ${
-          onDark ? "bg-white text-[#14253D]" : "bg-[#14253D] text-white"
-        }`}
-      >
-        GA
-      </div>
+      <GaMark size={40} inverted={onDark} />
       <span className="text-xl font-extrabold tracking-tight">
         GovernmentAffairs<span className="text-[#078ACB]">.io</span>
       </span>

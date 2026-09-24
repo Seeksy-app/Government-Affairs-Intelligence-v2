@@ -392,7 +392,8 @@ async function firmContext(clientId: string): Promise<string | null> {
     profile.relevantCommittees.length ? `Committees: ${profile.relevantCommittees.join(", ")}` : null,
   ].filter(Boolean);
   if (parts.length === 0) return null;
-  return `Our firm's focus areas — ${parts.join(". ")}`.slice(0, 1200);
+  // Background only: a question that names its own client/industry wins (see brief-service rules).
+  return `Firm background (general focus areas; the question's own client or industry takes priority) — ${parts.join(". ")}`.slice(0, 1200);
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────

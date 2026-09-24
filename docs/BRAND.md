@@ -20,9 +20,9 @@ the live guide wins — re-vendor it here.
 
 | Name | Hex | Role |
 |---|---|---|
-| Capitol Navy | `#14253D` | Primary / authority (sidebar, headers) |
-| Signal Blue | `#078ACB` | Actions and pathways (buttons, links) |
-| Paper | `#F7F6F2` | Background / reading surfaces |
+| Capitol Navy | `#14253D` | Primary / authority (headings, GA mark, dark-mode sidebar) |
+| Signal Blue | `#078ACB` | Actions and pathways (buttons, links, active nav tint) |
+| Paper | `#F7F6F2` | Editorial/marketing reading surfaces |
 | Stone | `#E9ECEC` | Secondary surfaces, borders |
 | Civic Red | `#A53B39` | Reserved editorial accent — never primary CTAs |
 
@@ -42,8 +42,12 @@ the live guide wins — re-vendor it here.
 
 - **Lockup:** GA mark + "GovernmentAffairs.io" wordmark, Source Sans 3
   ExtraBold/800. The ".co" renders in Signal Blue.
-- **GA mark:** navy square, white "GA". On dark backgrounds it inverts:
-  white square, navy "GA".
+- **GA mark ("Dome", Sep 2026):** a navy rounded tile (corner radius 22%)
+  holding a round geometric G and an arched A whose top echoes the Capitol
+  dome, drawn as uniform white strokes. On dark backgrounds it inverts: white
+  tile, navy glyph. Source of truth: `client/src/components/ga-mark.tsx`
+  (`<GaMark />` flips automatically in dark mode) and
+  `client/public/favicon.svg`. The earlier typeset "GA" square is retired.
 - **Clear space:** at least half the GA mark's width on every side.
 - **Minimum size:** full lockup 180px digital; mark alone 28px (favicons are
   the accepted exception).
@@ -52,6 +56,10 @@ the live guide wins — re-vendor it here.
 
 ## Interface language
 
+- **App shell ("Fresh", Sep 2026):** light mode uses a near-white canvas,
+  a white sidebar with navy text, and a pale Signal Blue tint for the active
+  item; cards are white with hairline borders. Dark mode keeps the navy
+  shell. Tokens live in `client/src/index.css`.
 - **Radius:** 3–6px — avoid soft, inflated card shapes.
 - **Spacing:** 8px base rhythm, generous section spacing.
 - **Icons:** simple outlined icons at 16, 20, or 24px.
