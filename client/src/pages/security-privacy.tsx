@@ -386,8 +386,8 @@ export default function SecurityPrivacyPage() {
           <div className="text-center py-6 text-sm text-muted-foreground">
             <p>
               Questions about our security practices? Contact us at{" "}
-              <a href="mailto:security@governmentaffairs.co" className="text-primary hover:underline">
-                security@governmentaffairs.co
+              <a href="mailto:security@governmentaffairs.io" className="text-primary hover:underline">
+                security@governmentaffairs.io
               </a>
             </p>
           </div>

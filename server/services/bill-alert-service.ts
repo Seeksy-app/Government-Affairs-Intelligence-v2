@@ -119,7 +119,7 @@ function buildAlertHtml(alerts: BillAlert[]): string {
     kicker: "Bill Tracking",
     heading: "Tracked bill activity",
     bodyHtml: rows,
-    cta: { label: "View in Bill Tracking", url: "https://app.governmentaffairs.co/bills" },
+    cta: { label: "View in Bill Tracking", url: "https://app.governmentaffairs.io/bills" },
     footerNote: "You're receiving this because bill alerts are enabled for tracked legislation.",
   });
 }
