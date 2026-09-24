@@ -129,6 +129,11 @@ function AuthenticatedRouter() {
       
       {/* Default redirect based on role */}
       <Route path="/" component={HomeRedirect} />
+      {/* Logged-out-only pages: a signed-in user reaching them (e.g. the
+          landing page's "Log in" button) goes home instead of a 404. */}
+      <Route path="/login" component={HomeRedirect} />
+      <Route path="/signup" component={HomeRedirect} />
+      <Route path="/forgot-password" component={HomeRedirect} />
       
       {/* Fallback */}
       <Route component={NotFound} />
@@ -298,7 +303,12 @@ function AppContent() {
   }, []);
 
   // Public routes - accessible without authentication
-  if (location.startsWith("/portal/") || location.startsWith("/brief/") || location === "/terms" || location === "/privacy" || location === "/security-privacy" || location === "/demo") {
+  // Pages that render the same whether or not the visitor is signed in.
+  // Email links (reset/set password, verify email) belong here too — a
+  // signed-in user clicking one used to get a 404.
+  const publicPath = location.replace(/\/+$/, "") || "/";
+  const alwaysPublic = ["/terms", "/privacy", "/security-privacy", "/demo", "/reset-password", "/set-password", "/verify-email"];
+  if (location.startsWith("/portal/") || location.startsWith("/brief/") || alwaysPublic.includes(publicPath)) {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
@@ -307,6 +317,9 @@ function AppContent() {
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />
         <Route path="/demo" component={DemoPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route path="/set-password" component={SetPasswordPage} />
+        <Route path="/verify-email" component={VerifyEmailPage} />
         <Route component={NotFound} />
       </Switch>
     );
