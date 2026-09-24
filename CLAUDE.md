@@ -15,32 +15,43 @@ Tenancy naming (important): `clients` = the lobbying FIRM (SaaS licensee);
 `clients`, drives Morning Brief scoring (industries, watchlistTopics,
 relevantAgencies, relevantCommittees).
 
-## Domains & Hosting (current as of 2026-09-03 — mid domain migration .co → .io)
+## Domains & Hosting (current as of 2026-09-24)
 | Surface | URL | Host |
 |---|---|---|
-| Marketing landing (V0-built, separate codebase) | governmentaffairs.io | Vercel project `v0-project` |
-| The app (this repo: frontend + Express API together) | app.governmentaffairs.io *(pending DNS — see below)* | **Render** web service `gov-affairs-app` |
+| Marketing landing (V0-built, separate codebase) | governmentaffairs.io (+ www) | Vercel project `government-affairs` (team `podlogix`) |
+| The app (this repo: frontend + Express API together) | app.governmentaffairs.io | **Render** web service `gov-affairs-app` |
 
-- **Domain migration in progress (started 2026-09-03):** the company domain
-  moved from `governmentaffairs.co` to `governmentaffairs.io`. Resend and the
-  Vercel landing project (`v0-project`, formerly `govaffairs`) are already on
-  `.io`. **`app.governmentaffairs.io` has no DNS yet** — Render's app is still
-  only reachable at `app.governmentaffairs.co` until someone adds an `app`
-  CNAME for `governmentaffairs.io` at GoDaddy (same playbook as the original
-  setup — see `RENDER_DEPLOY.md`) and attaches the custom domain in Render.
-  All code (email sender/footer, in-app links, LinkedIn OAuth callback — which
-  is built from the live request host, not hardcoded) already targets `.io`.
-  The old `govaffairs` Vercel project survives, renamed to
-  `govaffairs-old-landing`, as an instant rollback if needed.
+- **Domain migration .co → .io is COMPLETE (2026-09-24).** `governmentaffairs.co`
+  and `www.governmentaffairs.co` sit on the same Vercel project as permanent
+  (308) redirects to their `.io` equivalents. `app.governmentaffairs.co` still
+  resolves to Render too, but all code, email (Resend sender
+  `no-reply@governmentaffairs.io`) and links target `.io`. LinkedIn OAuth's
+  redirect_uri is built from the live request host, not hardcoded.
+- **One landing project only.** V0 publishes to Vercel project
+  `government-affairs` (id `prj_i5KERafBo3fOwHs3bxOmXcRVNd7K`, preview URL
+  govaffairs.vercel.app), and the real domains live on that same project, so
+  V0 "Publish" goes straight to production. The duplicate `v0-project` was
+  deleted 2026-09-24 after a V0 edit landed there instead of on the live
+  domain — if landing edits "don't show up", first check which project V0
+  published to vs. which project holds `governmentaffairs.io`.
+- Moving a domain between Vercel projects fails with 409 while another domain
+  on the source project redirects to it: move the redirecting domains first,
+  then re-set the redirect (`vercel api /v9/projects/<p>/domains/<d> -X PATCH
+  -f redirect=<target> -F redirectStatusCode=308`). Domain changes are blocked
+  for Claude by the auto-mode classifier — hand Andrew the commands. When
+  giving `www.` commands, use `W=www; … $W.governmentaffairs.io` — the chat
+  UI turns bare `www.` addresses into markdown links on copy.
 - **The old Hostinger VPS (187.77.217.123) and the old Vercel app project are
   RETIRED/DELETED.** Do not reference them.
 - Render auto-deploys on push to `main` (~3 min). Blueprint: `render.yaml`.
   Deploy guide: `RENDER_DEPLOY.md`.
-- DNS is at GoDaddy. `app` CNAME → `gov-affairs-app.onrender.com` (still only
-  set up for the `.co` zone — see migration note above).
+- DNS is at GoDaddy. `app` CNAME → `gov-affairs-app.onrender.com` (both the
+  `.io` and `.co` zones).
 - Landing-page changes happen in V0 (chat), not this repo. Its "Log in" buttons
-  point at app.governmentaffairs.io; login page "Book a demo" →
-  calendly.com/smartloads/gov-affairs-demo.
+  point at app.governmentaffairs.io/login; "Book a demo" →
+  calendly.com/smartloads/gov-affairs-demo. The homepage video section was
+  removed (it was an empty placeholder); plan is a click-to-open modal from
+  "See how it works" + a shareable /demo page once the demo video exists.
 
 ## Stack
 - Frontend: React 18 + Vite + TypeScript + Tailwind + shadcn (client/)
