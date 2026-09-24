@@ -170,10 +170,12 @@ app.use((req, res, next) => {
       // Government press release sync — every 6 hours, production only
       if (process.env.NODE_ENV === "production") {
         const SIX_HOURS = 6 * 60 * 60 * 1000;
-        setInterval(async () => {
+        const runPressSync = async () => {
           try {
             log("Running government press release sync...");
-            const { syncAllSources } = await import("./services/government-press-service");
+            const { syncAllSources, ensureDefaultSources } = await import("./services/government-press-service");
+            const added = await ensureDefaultSources();
+            if (added > 0) log(`Government press: registered ${added} new source(s)`);
             const results = await syncAllSources();
             const inserted = results.reduce((s, r) => s + r.releasesInserted, 0);
             const updated = results.reduce((s, r) => s + r.releasesUpdated, 0);
@@ -181,8 +183,11 @@ app.use((req, res, next) => {
           } catch (err: any) {
             console.error("Government press sync error:", err);
           }
-        }, SIX_HOURS);
-        log("Government press sync scheduled (every 6 hours)");
+        };
+        // First run 2 minutes after boot so new sources fill in right after a deploy.
+        setTimeout(runPressSync, 2 * 60 * 1000);
+        setInterval(runPressSync, SIX_HOURS);
+        log("Government press sync scheduled (2 min after boot, then every 6 hours)");
 
         // Bill tracking alerts — detect changes on tracked bills and email
         // ALERT_EMAIL. Every 6 hours, first run 5 minutes after boot.

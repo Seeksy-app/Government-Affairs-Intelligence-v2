@@ -213,7 +213,7 @@ export interface IStorage {
   deleteContactConnection(id: string): Promise<void>;
 
   // News Articles
-  getNewsArticles(clientId: string): Promise<NewsArticle[]>;
+  getNewsArticles(clientId: string, limit?: number): Promise<NewsArticle[]>;
   getNewsArticle(id: string): Promise<NewsArticle | undefined>;
   createNewsArticle(article: InsertNewsArticle): Promise<NewsArticle>;
   updateNewsArticle(id: string, article: Partial<InsertNewsArticle>): Promise<NewsArticle | undefined>;
@@ -624,12 +624,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // News Articles
-  async getNewsArticles(clientId: string): Promise<NewsArticle[]> {
+  // Most recent first, capped: the hourly feed adds ~200 articles a day per
+  // firm, and every caller only needs recent news.
+  async getNewsArticles(clientId: string, limit = 1000): Promise<NewsArticle[]> {
     return db
       .select()
       .from(newsArticles)
       .where(eq(newsArticles.clientId, clientId))
-      .orderBy(desc(newsArticles.createdAt));
+      .orderBy(desc(newsArticles.createdAt))
+      .limit(limit);
   }
 
   async getNewsArticle(id: string): Promise<NewsArticle | undefined> {

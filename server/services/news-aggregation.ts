@@ -2,7 +2,7 @@ import Parser from "rss-parser";
 import axios from "axios";
 import { db } from "../db";
 import { rssFeeds, newsArticles } from "@shared/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 
 interface AggregatedArticle {
   externalId: string;
@@ -454,18 +454,26 @@ export async function saveArticlesToDatabase(
   }
 ): Promise<number> {
   let savedCount = 0;
-  
+
+  // Dedupe per firm: every firm keeps its own copy (read/flag/bookmark state
+  // is per firm). One lookup per batch instead of one table scan per article.
+  const known = new Set<string>();
+  const ids = Array.from(new Set(articles.map((a) => a.externalId).filter(Boolean)));
+  for (let i = 0; i < ids.length; i += 500) {
+    const rows = await db
+      .select({ externalId: newsArticles.externalId })
+      .from(newsArticles)
+      .where(and(eq(newsArticles.clientId, clientId), inArray(newsArticles.externalId, ids.slice(i, i + 500))));
+    for (const r of rows) if (r.externalId) known.add(r.externalId);
+  }
+
   for (const article of articles) {
     try {
-      // Check if article already exists
-      const existing = await db
-        .select({ id: newsArticles.id })
-        .from(newsArticles)
-        .where(eq(newsArticles.externalId, article.externalId))
-        .limit(1);
-      
-      if (existing.length > 0) continue;
-      
+      if (article.externalId) {
+        if (known.has(article.externalId)) continue;
+        known.add(article.externalId); // also skips repeats within this batch
+      }
+
       // Calculate relevance score
       const { score, matchedTopics } = scoreArticleRelevance(article, relevanceContext);
       
