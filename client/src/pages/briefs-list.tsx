@@ -61,7 +61,7 @@ export default function BriefsList() {
   return (
     <PageShell className="space-y-8">
       <PageHeader
-        eyebrow="Brief"
+        eyebrow="Home"
         title="Should I be worried?"
         description="Ask about a headline, a bill, or a link and get a calm, cited answer."
         className="mb-0"

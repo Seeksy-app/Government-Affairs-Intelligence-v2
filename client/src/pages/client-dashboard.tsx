@@ -16,7 +16,6 @@ import { getCategoryIcon, resolveAccentColor, formatCloseLabel, formatVolume } f
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ScoreBadge } from "@/components/score-badge";
-import { AskBox } from "@/components/briefs/ask-box";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -247,9 +246,6 @@ export default function ClientDashboard() {
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-10">
-
-            {/* Flagship: a scary headline → a calm, cited answer */}
-            <AskBox />
 
             {/* Today's brief */}
             <section data-testid="section-morning-brief">

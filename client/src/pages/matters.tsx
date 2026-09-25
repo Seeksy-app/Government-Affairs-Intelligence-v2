@@ -74,7 +74,7 @@ export default function MattersPage() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Brief"
+        eyebrow="Work"
         title="Research Projects"
         description="Keep the documents, notes and research for each client issue in one place."
         className="mb-0"

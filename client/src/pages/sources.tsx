@@ -210,7 +210,7 @@ export default function SourcesPage() {
   return (
     <PageShell width="default" className="space-y-6">
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow="Settings"
         title={<span data-testid="text-sources-title">Sources</span>}
         description="Every data source and service behind your bills, briefs and directory, in one list."
         className="mb-0"

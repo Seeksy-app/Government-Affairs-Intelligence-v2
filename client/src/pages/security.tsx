@@ -43,7 +43,7 @@ export default function Security() {
 
   const header = (
     <PageHeader
-      eyebrow="Workspace"
+      eyebrow="Settings"
       title="Security"
       description="See how your firm's data is protected and which security controls are in place."
       className="mb-0"
