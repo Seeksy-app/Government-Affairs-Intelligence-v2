@@ -106,6 +106,17 @@ Working end-to-end:
   sources re-runs discovery on "Try again"; a "generating" run older than
   5 min is treated as dead (deploy restarts). Grep Render logs for `[ask]`.
   Not yet covered: state bills (would spend LegiScan queries).
+- **Weather watch** (Today page, top of the right rail): `GET /api/weather-watch`
+  → `server/services/weather-watch.ts`. Free official sources, no key: NWS
+  active alerts (api.weather.gov — needs a User-Agent), NHC CurrentStorms.json,
+  OpenFEMA DisasterDeclarationsSummaries (last 14 days). 20-min in-memory
+  cache; a failed source falls back to the last good copy. Items: D.C.
+  weather (votes/hearings/fly-ins), tropical warnings on U.S. land, FEMA
+  DR/EM/FM declarations, other severe land alerts (routine river/coastal
+  floods excluded). "Your states" = tracked state-bill jurisdictions +
+  contacts' states. Impact lines are fixed rules — no model call. AccuWeather
+  was evaluated (developer API: Prime $250/mo is the cheapest tier with
+  alerts + tropical; logo attribution required on every screen) — deferred.
 - **Prediction markets** (dashboard + /predictions): Kalshi elections API.
   `ensureMarketsCache()` = ONE nested-events crawl (with_nested_markets=true,
   ~8 requests / 5-min cache) serving ALL category tabs; activity-sorted

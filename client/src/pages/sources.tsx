@@ -39,6 +39,27 @@ const DATA_SOURCES: DataSource[] = [
     status: "active",
   },
   {
+    name: "National Weather Service",
+    category: "government",
+    description: "Severe weather alerts for every state, used in Weather watch to flag storms that can disrupt Congress or a firm's states.",
+    url: "https://www.weather.gov",
+    status: "active",
+  },
+  {
+    name: "National Hurricane Center",
+    category: "government",
+    description: "Active tropical storms and hurricanes with official advisories.",
+    url: "https://www.nhc.noaa.gov",
+    status: "active",
+  },
+  {
+    name: "FEMA disaster declarations",
+    category: "government",
+    description: "Major disaster, emergency and fire declarations from OpenFEMA, the first step toward federal aid and supplemental funding.",
+    url: "https://www.fema.gov/about/openfema/data-sets",
+    status: "active",
+  },
+  {
     name: "Federal Register",
     category: "government",
     description: "Daily journal of the U.S. Government: rules, proposed rules, and public notices.",

@@ -10222,6 +10222,20 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Weather watch ───────────────────────────────────────────────────────
+  // GET /api/weather-watch — severe weather, storms and FEMA declarations that
+  // move the political calendar, with the firm's states flagged.
+  app.get("/api/weather-watch", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      const { getWeatherWatch } = await import("./services/weather-watch");
+      res.json(await getWeatherWatch(clientId ?? null));
+    } catch (err: any) {
+      console.error("GET /api/weather-watch error:", err);
+      res.status(500).json({ message: "Weather watch is unavailable right now." });
+    }
+  });
+
   // ─── Government Press Releases — List ────────────────────────────────────
   // GET /api/government-press/releases?scope=mine|all
   // "mine" (default) = the agencies in the firm's client profile. Falls back to
