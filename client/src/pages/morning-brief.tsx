@@ -36,6 +36,7 @@ import {
 import { useAskBrief } from "@/components/briefs/ask-box";
 import { PageHeader } from "@/components/page-header";
 import { AtAGlance, RecentBriefs, MarketsPanel } from "@/components/today/today-rail";
+import { WeatherWatchCard } from "@/components/today/weather-watch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -562,6 +563,7 @@ export default function MorningBriefPage() {
           </div>
 
           <aside className="space-y-6">
+            <WeatherWatchCard />
             <AtAGlance />
             <RecentBriefs />
             <MarketsPanel />
