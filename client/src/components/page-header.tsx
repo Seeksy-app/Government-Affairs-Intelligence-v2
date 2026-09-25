@@ -52,8 +52,13 @@ export function PageShell({
   width?: "narrow" | "default" | "wide";
   className?: string;
 }) {
-  // Use the room: pages run near full width (capped only for ultra-wide
-  // monitors). "narrow" is for forms and long single-column reading.
-  const max = width === "narrow" ? "max-w-5xl" : "max-w-[1760px]";
-  return <div className={`mx-auto w-full ${max} px-4 py-6 sm:px-6 lg:px-8 lg:py-8 ${className}`}>{children}</div>;
+  // Use the room, with breathing space: pages run wide, side padding grows
+  // with the screen, and a 1600px cap keeps ultra-wide monitors readable.
+  // "narrow" is for forms only.
+  const max = width === "narrow" ? "max-w-5xl" : "max-w-[1600px]";
+  return (
+    <div className={`mx-auto w-full ${max} px-4 py-6 sm:px-6 lg:px-10 lg:py-8 xl:px-14 2xl:px-20 ${className}`}>
+      {children}
+    </div>
+  );
 }
