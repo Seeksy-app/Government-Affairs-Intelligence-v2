@@ -3500,7 +3500,7 @@ Format your response as a structured summary with clear sections.`;
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-      const clientId = await getClientId(req, userId);
+      const clientId = await getClientId(req);
       if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
 
       const client = await storage.getClient(clientId);
@@ -3510,6 +3510,71 @@ Format your response as a structured summary with clear sections.`;
     } catch (error) {
       console.error("Error getting client info:", error);
       res.status(500).json({ message: "Failed to get client info" });
+    }
+  });
+
+  // Your own name (email changes go through sign-in and aren't editable here).
+  app.patch("/api/me", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const parsed = z
+        .object({ firstName: z.string().trim().min(1).max(80), lastName: z.string().trim().max(80) })
+        .safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Add at least a first name." });
+      const { db } = await import("./db");
+      const { users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const [row] = await db
+        .update(users)
+        .set({ firstName: parsed.data.firstName, lastName: parsed.data.lastName || null, updatedAt: new Date() })
+        .where(eq(users.id, userId))
+        .returning({ id: users.id, firstName: users.firstName, lastName: users.lastName });
+      if (!row) return res.status(404).json({ message: "User not found" });
+      res.json(row);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Couldn't save your name." });
+    }
+  });
+
+  // Firm details: firm admins (or a super admin viewing as the firm) only.
+  app.patch("/api/client/info", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const clientId = await getClientId(req, userId);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const superAdmin = await storage.getSuperAdminByUserId(userId);
+      const membership = await storage.getClientUserByUserId(userId);
+      const isFirmAdmin = membership?.clientId === clientId && membership.role === "admin";
+      if (!superAdmin && !isFirmAdmin) return res.status(403).json({ message: "Only your firm's admins can change firm details." });
+      const parsed = z
+        .object({
+          name: z.string().trim().min(1).max(160),
+          address: z.string().trim().max(300).nullable().optional(),
+          phone: z.string().trim().max(40).nullable().optional(),
+        })
+        .safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "The firm needs a name." });
+      const { db } = await import("./db");
+      const { clients } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const [row] = await db
+        .update(clients)
+        .set({
+          name: parsed.data.name,
+          // Only touch fields the request sent; "" or null clears one.
+          ...(parsed.data.address !== undefined && { address: parsed.data.address || null }),
+          ...(parsed.data.phone !== undefined && { phone: parsed.data.phone || null }),
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientId))
+        .returning();
+      res.json({ client: row });
+    } catch (error) {
+      console.error("Error updating client info:", error);
+      res.status(500).json({ message: "Couldn't save firm details." });
     }
   });
 
