@@ -48,6 +48,9 @@ interface DcDay {
 }
 
 interface DcOutlook {
+  provider?: "accuweather" | "nws";
+  headline?: string | null;
+  providerUrl?: string | null;
   days: DcDay[];
   federalStatus: { summary: string; message: string; url: string } | null;
   hillNote: string | null;
@@ -74,13 +77,13 @@ function iconFor(item: WeatherItem): LucideIcon {
 function forecastIcon(d: DcDay): LucideIcon {
   const f = d.short.toLowerCase();
   const night = d.high === null;
-  if (/snow|sleet|ice|freezing|wintry|blizzard/.test(f)) return CloudSnow;
-  if (/thunder/.test(f)) return CloudLightning;
+  if (/snow|sleet|\bice\b|freezing|wintry|blizzard|flurries/.test(f)) return CloudSnow;
+  if (/thunder|t-storm/.test(f)) return CloudLightning;
   if (/drizzle|slight chance/.test(f)) return CloudDrizzle;
   if (/rain|showers/.test(f)) return CloudRain;
   if (/fog|haze|smoke/.test(f)) return CloudFog;
-  if (/partly|mostly sunny|mostly clear/.test(f)) return night ? CloudMoon : CloudSun;
-  if (/cloud|overcast/.test(f)) return Cloud;
+  if (/partly|mostly sunny|mostly clear|intermittent clouds|hazy/.test(f)) return night ? CloudMoon : CloudSun;
+  if (/cloud|overcast|dreary/.test(f)) return Cloud;
   return night ? Moon : Sun;
 }
 
@@ -117,7 +120,8 @@ function DcForecast({ dc }: { dc: DcOutlook }) {
           </a>
         )}
       </div>
-      <div className="grid grid-cols-4 gap-1.5">
+      {dc.headline && <p className="mb-2 text-xs text-muted-foreground">{dc.headline}</p>}
+      <div className={`grid gap-1.5 ${dc.days.length >= 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {dc.days.map((d) => {
           const Icon = forecastIcon(d);
           return (
@@ -144,6 +148,20 @@ function DcForecast({ dc }: { dc: DcOutlook }) {
         })}
       </div>
       {dc.hillNote && <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{dc.hillNote}</p>}
+      {/* AccuWeather's terms require visible, linked attribution wherever their data shows. */}
+      <a
+        href={dc.providerUrl ?? (dc.provider === "accuweather" ? "https://www.accuweather.com" : "https://www.weather.gov")}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 inline-block text-[11px] text-muted-foreground hover:text-primary"
+        data-testid="forecast-attribution"
+      >
+        {dc.provider === "accuweather" ? (
+          <>Forecast by <span className="font-bold text-[#F05514]">AccuWeather</span></>
+        ) : (
+          <>Forecast: National Weather Service</>
+        )}
+      </a>
     </div>
   );
 }
