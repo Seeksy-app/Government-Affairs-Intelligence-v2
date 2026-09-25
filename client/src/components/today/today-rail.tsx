@@ -92,12 +92,12 @@ export function RecentBriefs() {
   return (
     <Card>
       <CardContent className="p-0">
-        <RailLabel action={<Link href="/briefs" className="text-xs font-semibold text-primary hover:underline">All briefs</Link>}>
-          Recent briefs
+        <RailLabel action={<Link href="/briefs" className="text-xs font-semibold text-primary hover:underline">See all</Link>}>
+          Recent questions
         </RailLabel>
         {recent.length === 0 ? (
           <p className="px-4 pb-4 text-sm text-muted-foreground">
-            Answers you ask for appear here, ready to share with clients.
+            Questions you ask appear here with their answers, ready to share with clients.
           </p>
         ) : (
           <div className="divide-y">

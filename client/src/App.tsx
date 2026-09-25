@@ -4,7 +4,7 @@ import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-quer
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppNav, MobileNav } from "@/components/app-nav";
-import { TopBarLinks, AskButton } from "@/components/top-bar-links";
+import { TopBarLinks } from "@/components/top-bar-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
@@ -292,7 +292,6 @@ function AuthenticatedLayout() {
               <GlobalSearch />
             </div>
             <div className="flex items-center gap-2">
-              <AskButton />
               <GlobalAIChat />
               <ThemeToggle />
             </div>

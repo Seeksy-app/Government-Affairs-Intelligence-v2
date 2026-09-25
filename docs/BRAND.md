@@ -65,13 +65,16 @@ the live guide wins — re-vendor it here.
   sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
   650–700 weight title, one plain sentence of description, actions on the
   right. No decorative icons beside page titles, no serif, no gradient text.
-- **Navigation (Sep 2026, v4):** top bar = News · Press · Markets links,
-  search, a "Should I be worried?" button (opens the ask box over any page),
-  Research assistant. Icon rail = Today · Briefs | Bills, Hearings | People,
-  Strategy, Research | Clients | Knowledge, with Settings and the account
-  menu at the bottom; Bills, People and Settings open floating menus. The
-  phone menu lists everything, including the top-bar feeds.
-  Source: `client/src/components/app-nav.tsx`, `top-bar-links.tsx`.
+- **Navigation (Sep 2026, v5):** top bar = News · Press · Markets ·
+  Should I be worried? (icon above label), search, Research assistant.
+  Icon rail = Today | People ▸ (Contacts, Staff Directory, Members of
+  Congress, Power Search, Client Portals), Strategy, Research | Bills ▸,
+  Hearings | Knowledge, with Settings ▸ and the account menu at the bottom.
+  "Should I be worried?" items are questions/answers — never call them
+  "briefs" in the UI. Source: `app-nav.tsx`, `top-bar-links.tsx`.
+- **Color:** Capitol Navy panels mark the two hero moments — the Today
+  greeting banner and the "Should I be worried?" ask box (white input,
+  Signal Blue button). Everything else stays white/near-white.
 - **Today (`/dashboard`)** is the home page: the Morning Brief is the page
   body, with a right rail of At a glance, Recent briefs and Prediction
   markets (`components/today/today-rail.tsx`). `/morning-brief` redirects.
