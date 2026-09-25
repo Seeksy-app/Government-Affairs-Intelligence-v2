@@ -106,6 +106,28 @@ Working end-to-end:
   sources re-runs discovery on "Try again"; a "generating" run older than
   5 min is treated as dead (deploy restarts). Grep Render logs for `[ask]`.
   Not yet covered: state bills (would spend LegiScan queries).
+- **Firm onboarding** (`/onboarding`, full-screen; migration
+  `migrations/0003_firm_onboarding.sql`): welcome → Your practice (role,
+  policy areas → `industries`, specific issues → `watchlistTopics`,
+  agencies stored as short labels VA/HHS/CMS… so `agencySlugsFor` and
+  `AGENCY_ALIASES` both resolve them, committees, `states`) → How you work
+  (trigger moments, weather, markets, AI comfort → `client_profiles.onboarding`
+  jsonb) → Your clients (`firm_clients`, 4 layers each: who/business,
+  goals·relationship·friction, proactive + "what not to say" (`avoid`) +
+  client AI comfort, sharing portal/direct/mix) → Review → "building your
+  dashboard" animation that narrates `POST /api/onboarding/complete` (folds
+  client industries in, rescoring 14 days of news, counts releases, creates
+  portals **switched off** — a live portal is public and names the client).
+  Questions live in `shared/onboarding.ts`; every question must change
+  something (no decorative questions). Effects: Today hides weather
+  (rarely) / markets (not "yes"); morning-brief ranking prompt gets
+  represented clients + triggers; Weather watch "your states" includes
+  profile states; ask box "About: <client>" sends `firmClientId` → client
+  context incl. `LANGUAGE TO AVOID` (hard rule in brief-service); proactive
+  "yes" clients get "Get ahead of it" chips. A firm with no profile is
+  redirected to /onboarding from Today; profiled-but-never-onboarded firms
+  get an invite card. Edit anytime: Settings → Your practice, People → Your
+  Clients. `firm_clients` has RLS enabled (app connects as owner).
 - **Weather watch** (Today page, top of the right rail): `GET /api/weather-watch`
   → `server/services/weather-watch.ts`. Free official sources, no key: NWS
   active alerts (api.weather.gov — needs a User-Agent), NHC CurrentStorms.json,

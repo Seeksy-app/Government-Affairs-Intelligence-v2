@@ -101,6 +101,7 @@ const CLIENT_GROUPS: RailGroup[] = [
         icon: Users,
         pages: [
           page("Contacts", "/contacts", Users, "contacts"),
+          page("Your Clients", "/onboarding?step=clients", Building2, "firm-clients"),
           page("Staff Directory", "/staffers", Briefcase, "staffers"),
           page("Members of Congress", "/network", Landmark, "network"),
           page("Power Search", "/power-search", Zap, "power-search"),

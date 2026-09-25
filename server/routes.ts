@@ -9866,12 +9866,119 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Onboarding: the firm's practice and its own clients ──────────────────
+  // All scoped to the caller's firm. See server/services/onboarding-service.ts.
+  const firmScope = async (req: any, res: any): Promise<string | null> => {
+    const clientId = await getClientId(req);
+    if (!clientId) {
+      res.status(403).json({ message: "Your account isn't linked to a firm yet." });
+      return null;
+    }
+    return clientId;
+  };
+
+  app.get("/api/onboarding", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { getOnboarding } = await import("./services/onboarding-service");
+      res.json(await getOnboarding(clientId));
+    } catch (err: any) {
+      console.error("GET /api/onboarding error:", err);
+      res.status(500).json({ message: "Couldn't load your setup." });
+    }
+  });
+
+  app.put("/api/onboarding/firm", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { firmInputSchema, saveFirm } = await import("./services/onboarding-service");
+      const parsed = firmInputSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Some answers couldn't be saved — check the highlighted fields." });
+      res.json(await saveFirm(clientId, parsed.data));
+    } catch (err: any) {
+      console.error("PUT /api/onboarding/firm error:", err);
+      res.status(500).json({ message: "Couldn't save your answers." });
+    }
+  });
+
+  app.post("/api/onboarding/complete", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { completeOnboarding } = await import("./services/onboarding-service");
+      res.json(await completeOnboarding(clientId));
+    } catch (err: any) {
+      console.error("POST /api/onboarding/complete error:", err);
+      res.status(500).json({ message: err.message ?? "Couldn't finish setting up." });
+    }
+  });
+
+  app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { getOnboarding } = await import("./services/onboarding-service");
+      res.json((await getOnboarding(clientId)).clients);
+    } catch (err: any) {
+      console.error("GET /api/firm-clients error:", err);
+      res.status(500).json({ message: "Couldn't load your clients." });
+    }
+  });
+
+  app.post("/api/firm-clients", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { firmClientInputSchema, createFirmClient } = await import("./services/onboarding-service");
+      const parsed = firmClientInputSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Give this client a name." });
+      res.status(201).json(await createFirmClient(clientId, parsed.data));
+    } catch (err: any) {
+      console.error("POST /api/firm-clients error:", err);
+      res.status(500).json({ message: "Couldn't add the client." });
+    }
+  });
+
+  app.patch("/api/firm-clients/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { firmClientInputSchema, updateFirmClient } = await import("./services/onboarding-service");
+      const parsed = firmClientInputSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Some details couldn't be saved." });
+      const row = await updateFirmClient(clientId, String(req.params.id), parsed.data);
+      if (!row) return res.status(404).json({ message: "Client not found" });
+      res.json(row);
+    } catch (err: any) {
+      console.error("PATCH /api/firm-clients error:", err);
+      res.status(500).json({ message: "Couldn't save the client." });
+    }
+  });
+
+  app.delete("/api/firm-clients/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { deleteFirmClient } = await import("./services/onboarding-service");
+      if (!(await deleteFirmClient(clientId, String(req.params.id)))) return res.status(404).json({ message: "Client not found" });
+      res.status(204).end();
+    } catch (err: any) {
+      console.error("DELETE /api/firm-clients error:", err);
+      res.status(500).json({ message: "Couldn't remove the client." });
+    }
+  });
+
   // POST /api/briefs/ask — "Should I be worried?": free-text question, headline,
   // link, or bill number → sources are found automatically, then the brief is
   // generated. Returns immediately; the client polls GET /api/briefs/:id.
   const askBriefSchema = z.object({
     question: z.string().trim().min(3).max(1000),
     clientContext: z.string().trim().max(2000).nullable().optional(),
+    // One of the firm's own clients (firm_clients): their profile and
+    // "what not to say" become the brief's client context.
+    firmClientId: z.string().max(64).nullable().optional(),
     sensitivity: z.enum(["internal", "shareable"]).default("internal"),
   });
   const ASKS_PER_DAY = 40; // per firm — protects Parallel/Anthropic credit
@@ -9904,7 +10011,13 @@ Format your response with clear headers and bullet points. Be specific and data-
         return res.status(429).json({ message: `Your firm has created ${ASKS_PER_DAY} briefs in the last 24 hours — please try again later.` });
       }
 
-      const { question, clientContext, sensitivity } = parsed.data;
+      const { question, clientContext, firmClientId, sensitivity } = parsed.data;
+      let context = clientContext || null;
+      if (firmClientId) {
+        const { clientContextFor } = await import("./services/onboarding-service");
+        const fromProfile = await clientContextFor(clientId, firmClientId);
+        if (fromProfile) context = [fromProfile, clientContext].filter(Boolean).join("\n").slice(0, 2000);
+      }
       const [brief] = await db
         .insert(briefs)
         .values({
@@ -9912,7 +10025,7 @@ Format your response with clear headers and bullet points. Be specific and data-
           createdByUserId: userId,
           publicUuid: randomUUID(),
           title: question,
-          clientContext: clientContext || null,
+          clientContext: context,
           sensitivity,
           status: "generating",
         })

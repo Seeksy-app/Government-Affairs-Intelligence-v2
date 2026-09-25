@@ -4,6 +4,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ArrowRight, Eye, Loader2, MessageCircleQuestion, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { useFirmSetup } from "@/hooks/use-firm-setup";
+import { GetAhead } from "@/components/today/setup-cards";
 import type { Brief, ConcernLevel } from "@shared/schema";
 
 const LEVEL: Record<ConcernLevel, { label: string; icon: typeof Eye; pill: string; bar: string }> = {
@@ -27,6 +29,7 @@ export function RecentQuestions() {
     refetchInterval: (q) => ((q.state.data as Brief[] | undefined)?.some((b) => b.status === "generating") ? 5000 : false),
   });
   const recent = (briefs ?? []).slice(0, 3);
+  const { data: setup } = useFirmSetup();
 
   return (
     <section className="mb-8" data-testid="section-recent-questions">
@@ -51,6 +54,8 @@ export function RecentQuestions() {
           </Button>
         </div>
       </div>
+
+      <GetAhead clients={setup?.clients ?? []} />
 
       {isLoading ? null : recent.length === 0 ? (
         <Link
