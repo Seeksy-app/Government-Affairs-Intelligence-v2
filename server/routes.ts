@@ -10222,6 +10222,46 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Top-bar counts ──────────────────────────────────────────────────────
+  // GET /api/top-bar-counts — what's new today (Eastern time) for the badges
+  // on News, Press and "Should I be worried?".
+  app.get("/api/top-bar-counts", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.json({ news: 0, press: 0, questions: 0 });
+      const { db } = await import("./db");
+      const { newsArticles, governmentPressReleases, briefs, clientProfiles } = await import("@shared/schema");
+      const { and, eq, gte, inArray, count, sql } = await import("drizzle-orm");
+      const { agencySlugsFor } = await import("./services/government-press-service");
+
+      // Midnight in Washington, as a UTC instant.
+      const [{ since }] = (await db.execute(
+        sql`select (date_trunc('day', now() at time zone 'America/New_York') at time zone 'America/New_York') as since`,
+      )).rows as Array<{ since: Date }>;
+      const midnight = new Date(since);
+
+      const [profile] = await db.select().from(clientProfiles).where(eq(clientProfiles.clientId, clientId)).limit(1);
+      const slugs = agencySlugsFor(profile?.relevantAgencies ?? []);
+
+      const [[news], [press], [questions]] = await Promise.all([
+        // Only the stories worth reading: the firm's high-relevance news.
+        db.select({ n: count() }).from(newsArticles).where(
+          and(eq(newsArticles.clientId, clientId), gte(newsArticles.createdAt, midnight), gte(newsArticles.relevanceScore, 50)),
+        ),
+        db.select({ n: count() }).from(governmentPressReleases).where(
+          slugs.length > 0
+            ? and(gte(governmentPressReleases.publishedAt, midnight), inArray(governmentPressReleases.departmentSlug, slugs))
+            : gte(governmentPressReleases.publishedAt, midnight),
+        ),
+        db.select({ n: count() }).from(briefs).where(and(eq(briefs.clientId, clientId), gte(briefs.generatedAt, midnight))),
+      ]);
+      res.json({ news: news.n, press: press.n, questions: questions.n });
+    } catch (err: any) {
+      console.error("GET /api/top-bar-counts error:", err);
+      res.json({ news: 0, press: 0, questions: 0 });
+    }
+  });
+
   // ─── Weather watch ───────────────────────────────────────────────────────
   // GET /api/weather-watch — severe weather, storms and FEMA declarations that
   // move the political calendar, with the firm's states flagged.
@@ -10263,16 +10303,21 @@ Format your response with clear headers and bullet points. Be specific and data-
       const hasMine = mySlugs.some((slug) => collected.has(slug));
       const scope = mySlugs.length === 0 ? "all" : "mine";
 
+      // Optional search (?q=): title or summary, within the same agencies.
+      const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+      const { ilike, or } = await import("drizzle-orm");
+      const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const conditions = [
+        isNotNull(governmentPressReleases.publishedAt),
+        ...(scope === "mine" ? [inArray(governmentPressReleases.departmentSlug, mySlugs)] : []),
+        ...(q ? [or(ilike(governmentPressReleases.title, pattern), ilike(governmentPressReleases.summary, pattern))!] : []),
+      ];
       const releases = await db
         .select()
         .from(governmentPressReleases)
-        .where(
-          scope === "mine"
-            ? and(isNotNull(governmentPressReleases.publishedAt), inArray(governmentPressReleases.departmentSlug, mySlugs))
-            : isNotNull(governmentPressReleases.publishedAt),
-        )
+        .where(and(...conditions))
         .orderBy(desc(governmentPressReleases.publishedAt))
-        .limit(75);
+        .limit(q ? 150 : 75);
 
       res.json({ scope, hasMine, agencies, releases });
     } catch (err: any) {

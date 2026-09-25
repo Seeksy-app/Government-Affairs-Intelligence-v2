@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -8,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Newspaper } from "lucide-react";
+import { Newspaper, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import type { GovernmentPressRelease } from "@shared/schema";
 import { PageHeader, PageShell } from "@/components/page-header";
@@ -30,8 +32,17 @@ function agencyLabel(slug: string) {
 }
 
 export default function PressReleasesPage() {
-  const { data, isLoading } = useQuery<ReleasesResponse>({
-    queryKey: ["/api/government-press/releases"],
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  // Debounce typing into the server search.
+  useEffect(() => {
+    const t = setTimeout(() => setQ(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, isFetching } = useQuery<ReleasesResponse>({
+    queryKey: [q ? `/api/government-press/releases?q=${encodeURIComponent(q)}` : "/api/government-press/releases"],
+    placeholderData: (prev) => prev,
   });
 
   const releases = data?.releases ?? [];
@@ -63,6 +74,32 @@ export default function PressReleasesPage() {
         )}
       </PageHeader>
 
+      <div className="relative mb-4 max-w-xl">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search releases by keyword, program or place…"
+          className="pl-9 pr-9"
+          data-testid="input-search-press"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {q && !isFetching && (
+        <p className="mb-3 text-sm text-muted-foreground" data-testid="text-press-results">
+          {releases.length} result{releases.length === 1 ? "" : "s"} for “{q}”
+        </p>
+      )}
+
       {isLoading ? (
         <div className="overflow-hidden rounded-lg border bg-card">
           {[...Array(8)].map((_, i) => (
@@ -78,9 +115,11 @@ export default function PressReleasesPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Newspaper className="h-5 w-5 text-muted-foreground" />
           </div>
-          <h2 className="mt-4 text-sm font-semibold">No releases from your agencies yet</h2>
+          <h2 className="mt-4 text-sm font-semibold">
+            {q ? `No releases match “${q}”` : "No releases from your agencies yet"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            New releases are collected every few hours.
+            {q ? "Try a different word or clear the search." : "New releases are collected every few hours."}
           </p>
         </div>
       ) : (
