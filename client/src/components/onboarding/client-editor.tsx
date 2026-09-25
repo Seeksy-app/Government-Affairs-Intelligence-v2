@@ -41,7 +41,8 @@ const fromClient = (c: FirmClient | null): Draft => ({
   friction: c?.friction ?? "",
   proactive: c?.proactive ?? "ask",
   avoid: c?.avoid ?? "",
-  aiComfort: c?.aiComfort ?? null,
+  // "never" predates the client-specific choices; it means the same as wary.
+  aiComfort: c?.aiComfort === "never" ? "dislikes" : c?.aiComfort ?? null,
   sharing: c?.sharing ?? "mix",
 });
 

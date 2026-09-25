@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Info, Loader2, Plus, Sparkles, Undo2, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -282,6 +283,7 @@ export function AssistTextarea({
   onChange,
   context,
   testId,
+  className,
   ...props
 }: {
   field: AssistField;
@@ -293,14 +295,19 @@ export function AssistTextarea({
   const { toast } = useToast();
   const [busy, setBusy] = useState<AssistAction | null>(null);
   const [previous, setPrevious] = useState<string | null>(null);
+  // Latest text, so a slow response never overwrites what was typed meanwhile.
+  const latest = useRef(value);
+  latest.current = value;
   const empty = !value.trim();
 
   const run = async (action: AssistAction) => {
     setBusy(action);
+    const sent = value;
     try {
-      const res = await apiRequest("POST", "/api/onboarding/assist", { field, action, text: value, ...context });
+      const res = await apiRequest("POST", "/api/onboarding/assist", { field, action, text: sent, ...context });
       const { text } = (await res.json()) as { text: string };
-      setPrevious(value);
+      if (latest.current !== sent) return; // edited while waiting: keep the edit
+      setPrevious(sent);
       onChange(text);
     } catch (err) {
       toast({ title: "Writing help didn't work", description: friendlyError(err as Error), variant: "destructive" });
@@ -318,7 +325,16 @@ export function AssistTextarea({
 
   return (
     <div className="relative">
-      <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="pr-12 text-[15px]" data-testid={testId} {...props} />
+      <Textarea
+        value={value}
+        onChange={(e) => {
+          setPrevious(null); // Undo only restores an untouched result
+          onChange(e.target.value);
+        }}
+        className={cn("text-[15px]", className, "pr-12")}
+        data-testid={testId}
+        {...props}
+      />
       <div className="absolute right-2 top-2 flex items-center gap-1">
         {previous !== null && !busy && (
           <button
