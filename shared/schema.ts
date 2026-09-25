@@ -1854,3 +1854,24 @@ export const firmClients = pgTable("firm_clients", {
 });
 
 export type FirmClient = typeof firmClients.$inferSelect;
+
+// ─── Team invites ─────────────────────────────────────────────────────────────
+// A firm admin invites a colleague by email; the emailed link (token stored
+// only as a SHA-256 hash) creates their account inside the firm. Single use,
+// 7-day expiry, revocable.
+
+export const firmInvites = pgTable("firm_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").$type<"member" | "admin">().notNull().default("member"),
+  tokenHash: text("token_hash").notNull(),
+  invitedByUserId: varchar("invited_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  acceptedUserId: varchar("accepted_user_id"),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export type FirmInvite = typeof firmInvites.$inferSelect;

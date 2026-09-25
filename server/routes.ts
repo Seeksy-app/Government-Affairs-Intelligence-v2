@@ -10078,6 +10078,151 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Team: members and invites ──────────────────────────────────────────
+  // Invite links always point at our own app host (never an arbitrary Host header).
+  const appBaseUrl = (req: any) => {
+    const host = String(req.headers.host ?? "");
+    if (/^localhost(:\d+)?$/.test(host)) return `http://${host}`;
+    if (/^app\.governmentaffairs\.(io|co)$/.test(host)) return `https://${host}`;
+    return "https://app.governmentaffairs.io";
+  };
+  const firmAdminScope = async (req: any, res: any): Promise<{ clientId: string; userId: string } | null> => {
+    const userId = getUserId(req);
+    const clientId = await getClientId(req);
+    if (!userId || !clientId) {
+      res.status(403).json({ message: "Your account isn't linked to a firm yet." });
+      return null;
+    }
+    const membership = await storage.getClientUserByUserId(userId);
+    const isAdmin = (membership?.clientId === clientId && membership.role === "admin") || !!(await storage.getSuperAdminByUserId(userId));
+    if (!isAdmin) {
+      res.status(403).json({ message: "Only your firm's admins can manage the team." });
+      return null;
+    }
+    return { clientId, userId };
+  };
+  const inviterName = (req: any) =>
+    [req.user?.claims?.first_name, req.user?.claims?.last_name].filter(Boolean).join(" ") || "A colleague";
+  const teamError = (res: any, err: any, fallback: string) => {
+    if (err?.name === "TeamError" || typeof err?.status === "number") return res.status(err.status ?? 400).json({ message: err.message });
+    console.error(fallback, err);
+    return res.status(500).json({ message: fallback });
+  };
+
+  app.get("/api/team", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const userId = getUserId(req)!;
+      const { listTeam } = await import("./services/team-service");
+      const membership = await storage.getClientUserByUserId(userId);
+      const canManage = (membership?.clientId === clientId && membership.role === "admin") || !!(await storage.getSuperAdminByUserId(userId));
+      res.json({ ...(await listTeam(clientId)), canManage, me: userId });
+    } catch (err) {
+      teamError(res, err, "Couldn't load your team.");
+    }
+  });
+
+  app.post("/api/team/invites", isAuthenticated, async (req, res) => {
+    try {
+      const scope = await firmAdminScope(req, res);
+      if (!scope) return;
+      const parsed = z.object({ email: z.string().trim().email().max(200), role: z.enum(["member", "admin"]).default("member") }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Enter a valid email address." });
+      const { createInvite } = await import("./services/team-service");
+      const invite = await createInvite({ ...scope, inviterId: scope.userId, inviterName: inviterName(req), ...parsed.data, baseUrl: appBaseUrl(req) });
+      res.status(201).json(invite);
+    } catch (err) {
+      teamError(res, err, "Couldn't send the invite.");
+    }
+  });
+
+  app.post("/api/team/invites/:id/resend", isAuthenticated, async (req, res) => {
+    try {
+      const scope = await firmAdminScope(req, res);
+      if (!scope) return;
+      const { resendInvite } = await import("./services/team-service");
+      await resendInvite(scope.clientId, String(req.params.id), appBaseUrl(req), inviterName(req));
+      res.json({ success: true });
+    } catch (err) {
+      teamError(res, err, "Couldn't resend the invite.");
+    }
+  });
+
+  app.delete("/api/team/invites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const scope = await firmAdminScope(req, res);
+      if (!scope) return;
+      const { revokeInvite } = await import("./services/team-service");
+      await revokeInvite(scope.clientId, String(req.params.id));
+      res.status(204).end();
+    } catch (err) {
+      teamError(res, err, "Couldn't cancel the invite.");
+    }
+  });
+
+  app.patch("/api/team/members/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const scope = await firmAdminScope(req, res);
+      if (!scope) return;
+      const parsed = z.object({ role: z.enum(["member", "admin"]) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Role must be member or admin." });
+      const { setMemberRole } = await import("./services/team-service");
+      await setMemberRole(scope.clientId, String(req.params.userId), parsed.data.role);
+      res.json({ success: true });
+    } catch (err) {
+      teamError(res, err, "Couldn't change the role.");
+    }
+  });
+
+  app.delete("/api/team/members/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const scope = await firmAdminScope(req, res);
+      if (!scope) return;
+      const { removeMember } = await import("./services/team-service");
+      await removeMember(scope.clientId, String(req.params.userId));
+      res.status(204).end();
+    } catch (err) {
+      teamError(res, err, "Couldn't remove them.");
+    }
+  });
+
+  // Public: the accept-invite page. A valid token is the only key.
+  app.get("/api/invites/:token", async (req, res) => {
+    try {
+      const { describeInvite } = await import("./services/team-service");
+      const info = await describeInvite(String(req.params.token));
+      if (!info) return res.status(404).json({ message: "This invite link has expired or was already used. Ask for a new one." });
+      res.json({ ...info, signedInAs: req.user ? (req.user as any)?.claims?.email ?? null : null });
+    } catch (err) {
+      teamError(res, err, "Couldn't open the invite.");
+    }
+  });
+
+  app.post("/api/invites/:token/accept", async (req, res) => {
+    try {
+      const parsed = z
+        .object({ firstName: z.string().max(80).optional(), lastName: z.string().max(80).optional(), password: z.string().max(200).optional() })
+        .safeParse(req.body ?? {});
+      if (!parsed.success) return res.status(400).json({ message: "Check your details and try again." });
+      const { acceptInvite } = await import("./services/team-service");
+      const user = await acceptInvite(String(req.params.token), parsed.data, getUserId(req) ?? null);
+      const sessionUser = {
+        claims: { sub: user.id, email: user.email, first_name: user.firstName, last_name: user.lastName },
+        expires_at: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+      };
+      req.login(sessionUser, (err) => {
+        if (err) {
+          console.error("Invite session error:", err);
+          return res.status(500).json({ message: "You're on the team, but we couldn't sign you in. Sign in with your new password." });
+        }
+        res.json({ success: true });
+      });
+    } catch (err) {
+      teamError(res, err, "Couldn't accept the invite.");
+    }
+  });
+
   app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
     try {
       const clientId = await firmScope(req, res);

@@ -201,6 +201,13 @@ Working end-to-end:
    server/services/help-docs.ts and are inserted once when no client-scope
    article exists — edit them at /admin/kb afterwards, and keep them true
    when features change. Link to one with /kb?a=<slug>.
+   Team invites (migration 0004, `firm_invites`, server/services/team-service.ts):
+   Settings → Team. Firm admins invite by email (token stored as SHA-256,
+   single use, 7 days, 25/firm/day), resend/cancel, change roles, remove
+   members (never the last admin). Public /accept-invite creates the account
+   with the invited email and signs in; an existing passworded account must
+   be signed in to accept; one firm per user. Invite links use a fixed host
+   (never the raw Host header).
 10. tsc has ~296 pre-existing errors in legacy pages (network.tsx,
     staffers.tsx…). Don't try to fix wholesale; keep new files clean.
 

@@ -210,7 +210,7 @@ Agency missing? Add it in **Settings → Practice & Today → Agencies**, and te
 - **Profile:** edit your first and last name. Your email is how you sign in.
 - **Firm:** name, address and phone. Firm admins can edit these; members see them read-only.
 - **Practice & Today:** your setup answers, with quick switches for weather alerts and prediction markets.
-- **Sign-up link:** for someone who wants their own firm account. To add a colleague to *your* firm, email support@governmentaffairs.io.
+- **Team:** see who's at your firm. Admins invite colleagues by email (the link works once and expires in 7 days), change roles and remove people. The sign-up link below it is for someone who wants their own, separate firm account.
 - **Appearance:** light or dark mode.
 
 Forgot your password? Use **Forgot password** on the sign-in page and we'll email you a reset link.`,
