@@ -5627,6 +5627,12 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
     const portal = await storage.getClientPortal(id);
     return portal && portal.clientId === clientId ? portal : null;
   };
+  const ownMatter = async (req: any, id: string) => {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const matter = await storage.getMatter(id);
+    return matter && matter.clientId === clientId ? matter : null;
+  };
 
   // Get all customers for client
   app.get("/api/customers", isAuthenticated, async (req, res) => {
@@ -5693,6 +5699,9 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       if (portalId && !(await ownPortal(req, String(portalId)))) {
         return res.status(404).json({ message: "Portal not found" });
       }
+      if (matterId && !(await ownMatter(req, String(matterId)))) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
 
       // Check if already exists (for congress_member or staffer with sourceId)
       if (sourceId && sourceType !== 'manual') {
@@ -5737,6 +5746,12 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
 
       // Never let an edit move the record to another firm or rewrite its id.
       const { id: _id, clientId: _clientId, createdAt: _createdAt, ...changes } = req.body ?? {};
+      if (changes.portalId && !(await ownPortal(req, String(changes.portalId)))) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+      if (changes.matterId && !(await ownMatter(req, String(changes.matterId)))) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
       const updated = await storage.updateCustomer(customer.id, changes);
       res.json(updated);
     } catch (error) {
