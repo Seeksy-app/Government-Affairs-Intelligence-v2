@@ -4,7 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
 import { runAutoSync } from "./services/social-tracker";
-import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext } from "./services/news-aggregation";
+import { initializeRssFeeds, aggregateAllNews, saveArticlesToDatabase, getClientRelevanceContext, rescoreRecentArticles } from "./services/news-aggregation";
 import { syncHouseDirectoryToDb, getDirectoryStats } from "./services/house-directory-service";
 import { resumeInterruptedSync } from "./services/legistorm-service";
 import { db } from "./db";
@@ -246,7 +246,10 @@ app.use((req, res, next) => {
             for (const client of allClients) {
               const context = await getClientRelevanceContext(client.id);
               const saved = await saveArticlesToDatabase(client.id, articles, context);
-              log(`News aggregation: ${saved} articles saved for client ${client.name}`);
+              // Keep the last two weeks scored against the firm's current
+              // profile (profiles and scoring rules change between deploys).
+              const rescored = await rescoreRecentArticles(client.id, context);
+              log(`News aggregation: ${saved} articles saved, ${rescored} rescored for client ${client.name}`);
             }
           }
           
