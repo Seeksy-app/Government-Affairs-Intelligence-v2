@@ -8,6 +8,7 @@ import {
   legistormStaffers,
 } from "@shared/schema";
 import { eq, gte, and, ilike, or, desc, isNotNull } from "drizzle-orm";
+import { agencySlugsFor } from "./government-press-service";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -110,6 +111,8 @@ async function fetchRecentItems(clientId: string, windowHours: number) {
     )
     .orderBy(desc(governmentPressReleases.publishedAt));
 
+  // This firm's own copy of the news (every firm has one), most relevant
+  // first — the per-firm relevance score already reflects its profile.
   const articles = await db
     .select({
       id: newsArticles.id,
@@ -118,15 +121,18 @@ async function fetchRecentItems(clientId: string, windowHours: number) {
       url: newsArticles.url,
       publishedAt: newsArticles.publishedAt,
       source: newsArticles.source,
+      relevanceScore: newsArticles.relevanceScore,
     })
     .from(newsArticles)
     .where(
       and(
+        eq(newsArticles.clientId, clientId),
         isNotNull(newsArticles.publishedAt),
         gte(newsArticles.publishedAt, since),
       ),
     )
-    .orderBy(desc(newsArticles.publishedAt));
+    .orderBy(desc(newsArticles.relevanceScore), desc(newsArticles.publishedAt))
+    .limit(80);
 
   return { pressReleases, articles };
 }
@@ -375,12 +381,39 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
   // Single Claude call to score all items.
   // Cap the batch so the prompt stays bounded (and can't blow past rate limits
   // or silently truncate the JSON ranking output as the corpus grows).
+  // Choose the candidates deliberately rather than "newest 40": duplicates
+  // out, press releases from the firm's agencies first, then news in
+  // relevance order (fetchRecentItems already sorted it).
   const MAX_ITEMS_PER_RENDER = 40;
-  if (inputItems.length > MAX_ITEMS_PER_RENDER) {
-    console.log(`[morning-brief] ${clientId}: capping ${inputItems.length} items to ${MAX_ITEMS_PER_RENDER}`);
-    inputItems.sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
-    inputItems.length = MAX_ITEMS_PER_RENDER;
+  const MAX_PRESS = 15;
+  const seen = new Set<string>();
+  const dedupeKey = (i: InputItem) =>
+    (i.url || i.title).toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "").replace(/\/+$/, "") ||
+    i.title.toLowerCase();
+  const unique = inputItems.filter((i) => {
+    const k = dedupeKey(i);
+    const t = `t:${i.title.toLowerCase().trim()}`;
+    if (seen.has(k) || seen.has(t)) return false;
+    seen.add(k);
+    seen.add(t);
+    return true;
+  });
+  const firmSlugs = new Set(agencySlugsFor(profile.relevantAgencies ?? []));
+  const press = unique
+    .filter((i) => i.type === "press_release")
+    .sort((a, b) => {
+      const af = firmSlugs.has(a.source.toLowerCase()) ? 1 : 0;
+      const bf = firmSlugs.has(b.source.toLowerCase()) ? 1 : 0;
+      return bf - af || (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
+    })
+    .slice(0, MAX_PRESS);
+  const news = unique.filter((i) => i.type === "news");
+  const candidates = [...press, ...news].slice(0, MAX_ITEMS_PER_RENDER);
+  if (candidates.length < inputItems.length) {
+    console.log(`[morning-brief] ${clientId}: ${inputItems.length} items → ${unique.length} unique → ${candidates.length} candidates`);
   }
+  inputItems.length = 0;
+  inputItems.push(...candidates);
 
   const { system, user } = buildRankingPrompt(profile, inputItems);
   console.log(`[morning-brief] ${clientId}: ranking ${inputItems.length} items (window ${windowHours}h)...`);
@@ -418,10 +451,11 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
   let highRelevanceRaw = scored.filter((i) => i.score >= 70);
   let worthWatchingRaw = scored.filter((i) => i.score >= 40 && i.score < 70);
 
-  // Fallback: if high-relevance empty, take top 3 regardless of score
-  if (highRelevanceRaw.length === 0 && scored.length > 0) {
-    highRelevanceRaw = scored.slice(0, 3);
-    worthWatchingRaw = scored.slice(3).filter((i) => i.score >= 40 && i.score < 70);
+  // Fallback: if nothing reached 70, promote the best "worth watching" items
+  // — never unscored filler (Claude omits items below 40 entirely).
+  if (highRelevanceRaw.length === 0 && worthWatchingRaw.length > 0) {
+    highRelevanceRaw = worthWatchingRaw.slice(0, 3);
+    worthWatchingRaw = worthWatchingRaw.slice(3);
   }
 
   // Cap sizes
