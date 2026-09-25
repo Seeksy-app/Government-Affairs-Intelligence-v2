@@ -109,7 +109,10 @@ Working end-to-end:
 - **Weather watch** (Today page, top of the right rail): `GET /api/weather-watch`
   → `server/services/weather-watch.ts`. Free official sources, no key: NWS
   active alerts (api.weather.gov — needs a User-Agent), NHC CurrentStorms.json,
-  OpenFEMA DisasterDeclarationsSummaries (last 14 days). 20-min in-memory
+  OpenFEMA DisasterDeclarationsSummaries (last 14 days), plus a D.C. strip:
+  NWS forecast for the Capitol (gridpoints/LWX/98,71 — hardcoded; re-derive
+  via /points/38.8899,-77.0091 if NWS ever moves the grid) and OPM's D.C.
+  federal operating status (opm.gov/json/operatingstatus.json). 20-min in-memory
   cache; a failed source falls back to the last good copy. Items: D.C.
   weather (votes/hearings/fly-ins), tropical warnings on U.S. land, FEMA
   DR/EM/FM declarations, other severe land alerts (routine river/coastal

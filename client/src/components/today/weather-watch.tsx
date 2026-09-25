@@ -2,6 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudMoon,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Moon,
   CloudLightning,
   CloudRainWind,
   ExternalLink,
@@ -30,8 +38,24 @@ interface WeatherItem {
   source: string;
 }
 
+interface DcDay {
+  name: string;
+  high: number | null;
+  low: number | null;
+  short: string;
+  precipChance: number | null;
+  hazard: string | null;
+}
+
+interface DcOutlook {
+  days: DcDay[];
+  federalStatus: { summary: string; message: string; url: string } | null;
+  hillNote: string | null;
+}
+
 interface WeatherWatchData {
   updatedAt: string;
+  dc: DcOutlook | null;
   items: WeatherItem[];
   tracking: Array<{ name: string; classification: string; basin: string; windMph: number; url: string }>;
   yourStates: string[];
@@ -45,6 +69,83 @@ function iconFor(item: WeatherItem): LucideIcon {
   if (/winter|blizzard|ice|cold/i.test(item.title)) return Snowflake;
   if (/heat/i.test(item.title)) return Sun;
   return CloudLightning;
+}
+
+function forecastIcon(d: DcDay): LucideIcon {
+  const f = d.short.toLowerCase();
+  const night = d.high === null;
+  if (/snow|sleet|ice|freezing|wintry|blizzard/.test(f)) return CloudSnow;
+  if (/thunder/.test(f)) return CloudLightning;
+  if (/drizzle|slight chance/.test(f)) return CloudDrizzle;
+  if (/rain|showers/.test(f)) return CloudRain;
+  if (/fog|haze|smoke/.test(f)) return CloudFog;
+  if (/partly|mostly sunny|mostly clear/.test(f)) return night ? CloudMoon : CloudSun;
+  if (/cloud|overcast/.test(f)) return Cloud;
+  return night ? Moon : Sun;
+}
+
+function shortDay(name: string) {
+  if (/^today|^tonight|^this/i.test(name)) return name.replace(/^This /, "");
+  return name.slice(0, 3);
+}
+
+// Washington, D.C.: the Capitol forecast plus OPM's federal operating status —
+// what decides whether votes, hearings and fly-ins happen.
+function DcForecast({ dc }: { dc: DcOutlook }) {
+  const open = !dc.federalStatus || /^open$/i.test(dc.federalStatus.summary.trim());
+  return (
+    <div className="border-b px-4 pb-3" data-testid="dc-forecast">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-sm font-semibold">
+          <Landmark className="h-4 w-4 text-primary" />
+          Washington, D.C.
+        </p>
+        {dc.federalStatus && (
+          <a
+            href={dc.federalStatus.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={dc.federalStatus.message}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              open
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                : "bg-[#A53B39]/10 text-[#A53B39] dark:text-red-300"
+            }`}
+            data-testid="federal-status"
+          >
+            Federal offices: {dc.federalStatus.summary}
+          </a>
+        )}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {dc.days.map((d) => {
+          const Icon = forecastIcon(d);
+          return (
+            <div
+              key={d.name}
+              title={d.short}
+              className={`flex flex-col items-center rounded-md px-1 py-2 text-center ${
+                d.hazard ? "bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800" : "bg-muted/60"
+              }`}
+            >
+              <span className="text-[11px] font-semibold text-muted-foreground">{shortDay(d.name)}</span>
+              <Icon className={`my-1 h-5 w-5 ${d.hazard ? "text-amber-600" : "text-foreground/70"}`} />
+              <span className="text-sm font-bold tabular-nums leading-none">
+                {d.high !== null ? `${d.high}°` : `${d.low}°`}
+              </span>
+              {d.high !== null && d.low !== null && (
+                <span className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{d.low}°</span>
+              )}
+              {d.precipChance !== null && d.precipChance >= 20 && (
+                <span className="mt-0.5 text-[10px] font-semibold text-primary">{d.precipChance}%</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {dc.hillNote && <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{dc.hillNote}</p>}
+    </div>
+  );
 }
 
 // Severe weather and disasters that move the political calendar. Sources are
@@ -69,6 +170,8 @@ export function WeatherWatchCard() {
           )}
         </div>
 
+        {data?.dc && data.dc.days.length > 0 && <DcForecast dc={data.dc} />}
+
         {isLoading ? (
           <div className="space-y-3 px-4 pb-4">
             {[1, 2].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
@@ -76,7 +179,7 @@ export function WeatherWatchCard() {
         ) : error || !data || !Array.isArray(data.items) ? (
           <p className="px-4 pb-4 text-sm text-muted-foreground">Weather data is unavailable right now.</p>
         ) : data.items.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted-foreground">
+          <p className="px-4 py-3 text-sm text-muted-foreground">
             No severe weather or new disaster declarations affecting Congress or your states.
           </p>
         ) : (

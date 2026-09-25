@@ -53,6 +53,13 @@ const DATA_SOURCES: DataSource[] = [
     status: "active",
   },
   {
+    name: "OPM operating status",
+    category: "government",
+    description: "Whether federal offices in the Washington, D.C. area are open, delayed or closed — shown with the D.C. forecast.",
+    url: "https://www.opm.gov/policy-data-oversight/snow-dismissal-procedures/current-status/",
+    status: "active",
+  },
+  {
     name: "FEMA disaster declarations",
     category: "government",
     description: "Major disaster, emergency and fire declarations from OpenFEMA, the first step toward federal aid and supplemental funding.",
