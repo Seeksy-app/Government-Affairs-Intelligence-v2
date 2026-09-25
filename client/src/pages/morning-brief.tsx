@@ -504,7 +504,8 @@ export default function MorningBriefPage() {
                 </div>
               )}
             </div>
-            {weatherPref !== "rarely" && <BannerWeather />}
+            {/* The forecast always shows; the weather answer only moves the alerts card. */}
+            <BannerWeather />
           </div>
         </div>
 

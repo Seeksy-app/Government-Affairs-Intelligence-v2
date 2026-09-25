@@ -119,8 +119,11 @@ Working end-to-end:
   client industries in, rescoring 14 days of news, counts releases, creates
   portals **switched off** — a live portal is public and names the client).
   Questions live in `shared/onboarding.ts`; every question must change
-  something (no decorative questions). Effects: Today hides weather
-  (rarely) / markets (not "yes"); morning-brief ranking prompt gets
+  something (no decorative questions). Free-text client answers have a
+  "Writing help" menu (draft/polish/shorter/longer → `POST
+  /api/onboarding/assist`, 40/user/hour, drafts leave [blanks] rather than
+  invent facts). Effects: weather "rarely" hides only the alerts card (the
+  banner D.C. forecast always shows), markets hide unless "yes"; morning-brief ranking prompt gets
   represented clients + triggers; Weather watch "your states" includes
   profile states; ask box "About: <client>" sends `firmClientId` → client
   context incl. `LANGUAGE TO AVOID` (hard rule in brief-service); proactive
