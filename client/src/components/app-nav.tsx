@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -6,23 +6,21 @@ import {
   Book,
   Briefcase,
   Building2,
-  Calendar,
-  ChevronsLeft,
+  CalendarDays,
   ClipboardList,
   Database,
   Eye,
   FolderOpen,
+  House,
   Landmark,
   LayoutDashboard,
   Lock,
   LogOut,
   MapPin,
+  Megaphone,
   MonitorPlay,
   Newspaper,
-  Radar,
-  Radio,
   Rocket,
-  Route,
   ScrollText,
   Settings,
   Share2,
@@ -49,106 +47,128 @@ import {
 
 // ─── Navigation model ─────────────────────────────────────────────────────────
 
-interface NavItem {
+interface NavPage {
   title: string;
   url: string;
   icon: LucideIcon;
   tourId: string;
 }
 
-interface NavSection {
+// One icon on the rail. A single page navigates on click; several pages open
+// a floating menu (the page underneath stays put).
+interface RailItem {
   key: string;
   label: string;
   icon: LucideIcon;
-  items: NavItem[];
+  pages: NavPage[];
 }
 
-// Sections are named for the jobs lobbyists do (brand verbs). Every page
-// appears exactly once; off-thesis modules stay unlisted.
-const CLIENT_SECTIONS: NavSection[] = [
+interface RailGroup {
+  label?: string; // shown as a divider label in the mobile menu
+  items: RailItem[];
+}
+
+const page = (title: string, url: string, icon: LucideIcon, tourId: string): NavPage => ({ title, url, icon, tourId });
+
+const CLIENT_GROUPS: RailGroup[] = [
   {
-    key: "home",
     label: "Home",
-    icon: LayoutDashboard,
     items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, tourId: "dashboard" },
-      { title: "Morning Brief", url: "/morning-brief", icon: Sunrise, tourId: "morning-brief" },
+      {
+        key: "home",
+        label: "Home",
+        icon: House,
+        pages: [
+          page("Dashboard", "/dashboard", LayoutDashboard, "dashboard"),
+          page("Morning Brief", "/morning-brief", Sunrise, "morning-brief"),
+          page("Should I be worried?", "/briefs", ShieldQuestion, "briefs"),
+        ],
+      },
     ],
   },
   {
-    key: "brief",
-    label: "Brief",
-    icon: ShieldQuestion,
-    items: [
-      { title: "Should I be worried?", url: "/briefs", icon: ShieldQuestion, tourId: "briefs" },
-      { title: "Research Projects", url: "/matters", icon: FolderOpen, tourId: "matters" },
-      { title: "Knowledge Base", url: "/kb", icon: Book, tourId: "kb" },
-    ],
-  },
-  {
-    key: "monitor",
     label: "Monitor",
-    icon: Radar,
     items: [
-      { title: "Bills", url: "/bills", icon: ScrollText, tourId: "bills" },
-      { title: "Hearings & Schedules", url: "/schedules", icon: Calendar, tourId: "schedules" },
-      { title: "Bill Mapping", url: "/bill-mapping", icon: MapPin, tourId: "bill-mapping" },
-      { title: "News", url: "/news", icon: Newspaper, tourId: "news" },
-      { title: "Press Releases", url: "/press-releases", icon: Radio, tourId: "press-releases" },
-      { title: "Prediction Markets", url: "/predictions", icon: BarChart3, tourId: "predictions" },
+      {
+        key: "bills",
+        label: "Bills",
+        icon: ScrollText,
+        pages: [
+          page("Tracked Bills", "/bills", ScrollText, "bills"),
+          page("Bill Mapping", "/bill-mapping", MapPin, "bill-mapping"),
+        ],
+      },
+      { key: "hearings", label: "Hearings", icon: CalendarDays, pages: [page("Hearings & Schedules", "/schedules", CalendarDays, "schedules")] },
+      { key: "news", label: "News", icon: Newspaper, pages: [page("News", "/news", Newspaper, "news")] },
+      { key: "press", label: "Press", icon: Megaphone, pages: [page("Press Releases", "/press-releases", Megaphone, "press-releases")] },
+      { key: "markets", label: "Markets", icon: BarChart3, pages: [page("Prediction Markets", "/predictions", BarChart3, "predictions")] },
     ],
   },
   {
-    key: "reach",
     label: "Reach",
-    icon: Route,
     items: [
-      { title: "Staff Directory", url: "/staffers", icon: Briefcase, tourId: "staffers" },
-      { title: "Members of Congress", url: "/network", icon: Landmark, tourId: "network" },
-      { title: "Contacts", url: "/contacts", icon: Users, tourId: "contacts" },
-      { title: "Power Search", url: "/power-search", icon: Zap, tourId: "power-search" },
-      { title: "Strategy Board", url: "/strategy", icon: Target, tourId: "strategy" },
+      {
+        key: "people",
+        label: "People",
+        icon: Users,
+        pages: [
+          page("Staff Directory", "/staffers", Briefcase, "staffers"),
+          page("Members of Congress", "/network", Landmark, "network"),
+          page("Contacts", "/contacts", Users, "contacts"),
+          page("Power Search", "/power-search", Zap, "power-search"),
+        ],
+      },
+      { key: "strategy", label: "Strategy", icon: Target, pages: [page("Strategy Board", "/strategy", Target, "strategy")] },
     ],
   },
   {
-    key: "clients",
-    label: "Clients",
-    icon: Share2,
-    items: [{ title: "Client Portals", url: "/portals", icon: Share2, tourId: "portals" }],
+    label: "Work",
+    items: [
+      { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
+      { key: "knowledge", label: "Knowledge", icon: Book, pages: [page("Knowledge Base", "/kb", Book, "kb")] },
+      { key: "clients", label: "Clients", icon: Share2, pages: [page("Client Portals", "/portals", Share2, "portals")] },
+    ],
   },
 ];
 
-// Lives at the bottom of the rail (gear), not with the job sections.
-const WORKSPACE_SECTION: NavSection = {
-  key: "workspace",
-  label: "Workspace",
+// Pinned to the bottom of the rail.
+const SETTINGS_ITEM: RailItem = {
+  key: "settings",
+  label: "Settings",
   icon: Settings,
-  items: [
-    { title: "Sources", url: "/sources", icon: Database, tourId: "sources" },
-    { title: "Security", url: "/security", icon: Lock, tourId: "security" },
-    { title: "Settings", url: "/settings", icon: Settings, tourId: "settings" },
+  pages: [
+    page("Settings", "/settings", Settings, "settings"),
+    page("Sources", "/sources", Database, "sources"),
+    page("Security", "/security", Lock, "security"),
   ],
 };
 
-const ADMIN_SECTION: NavSection = {
-  key: "admin",
-  label: "Admin",
-  icon: Shield,
-  items: [
-    { title: "Dashboard", url: "/admin", icon: LayoutDashboard, tourId: "admin-dashboard" },
-    { title: "Business Dev", url: "/admin/business-dev", icon: Rocket, tourId: "admin-business-dev" },
-    { title: "Applications", url: "/admin/applications", icon: ClipboardList, tourId: "admin-applications" },
-    { title: "Clients", url: "/admin/clients", icon: Building2, tourId: "admin-clients" },
-    { title: "Users", url: "/admin/users", icon: Users, tourId: "admin-users" },
-    { title: "Sources", url: "/sources", icon: Database, tourId: "admin-sources" },
-    { title: "Knowledge Base", url: "/admin/kb", icon: Book, tourId: "admin-kb" },
-    { title: "Tech Stack", url: "/admin/tech", icon: Zap, tourId: "admin-tech" },
-    { title: "Demo Videos", url: "/admin/demos", icon: MonitorPlay, tourId: "admin-demos" },
-    { title: "Demo Access Log", url: "/admin/demo-access", icon: Eye, tourId: "admin-demo-access" },
-    { title: "Security", url: "/admin/security", icon: Lock, tourId: "admin-security" },
-    { title: "Settings", url: "/admin/settings", icon: Settings, tourId: "admin-settings" },
-  ],
-};
+const ADMIN_GROUPS: RailGroup[] = [
+  {
+    label: "Admin",
+    items: [
+      {
+        key: "admin",
+        label: "Admin",
+        icon: Shield,
+        pages: [
+          page("Dashboard", "/admin", LayoutDashboard, "admin-dashboard"),
+          page("Business Dev", "/admin/business-dev", Rocket, "admin-business-dev"),
+          page("Applications", "/admin/applications", ClipboardList, "admin-applications"),
+          page("Clients", "/admin/clients", Building2, "admin-clients"),
+          page("Users", "/admin/users", Users, "admin-users"),
+          page("Sources", "/sources", Database, "admin-sources"),
+          page("Knowledge Base", "/admin/kb", Book, "admin-kb"),
+          page("Tech Stack", "/admin/tech", Zap, "admin-tech"),
+          page("Demo Videos", "/admin/demos", MonitorPlay, "admin-demos"),
+          page("Demo Access Log", "/admin/demo-access", Eye, "admin-demo-access"),
+          page("Security", "/admin/security", Lock, "admin-security"),
+          page("Settings", "/admin/settings", Settings, "admin-settings"),
+        ],
+      },
+    ],
+  },
+];
 
 interface UserRole {
   isSuperAdmin: boolean;
@@ -163,36 +183,16 @@ function isActiveUrl(location: string, url: string) {
 }
 
 // Longest matching URL wins, so "/admin/kb" doesn't count as "/admin".
-function sectionForLocation(sections: NavSection[], location: string): string | null {
+function itemForLocation(items: RailItem[], location: string): string | null {
   let best: { key: string; len: number } | null = null;
-  for (const s of sections) {
-    for (const item of s.items) {
-      if (isActiveUrl(location, item.url) && (!best || item.url.length > best.len)) {
-        best = { key: s.key, len: item.url.length };
+  for (const item of items) {
+    for (const p of item.pages) {
+      if (isActiveUrl(location, p.url) && (!best || p.url.length > best.len)) {
+        best = { key: item.key, len: p.url.length };
       }
     }
   }
   return best?.key ?? null;
-}
-
-const PANEL_KEY = "ga-nav-panel";
-
-function readPanel(): string | null | undefined {
-  try {
-    const v = localStorage.getItem(PANEL_KEY);
-    if (v === null) return undefined; // never set → default open
-    return v === "closed" ? null : v;
-  } catch {
-    return undefined;
-  }
-}
-
-function writePanel(v: string | null) {
-  try {
-    localStorage.setItem(PANEL_KEY, v ?? "closed");
-  } catch {
-    // Private mode etc. — the panel just won't remember its state.
-  }
 }
 
 function useNavModel() {
@@ -203,8 +203,8 @@ function useNavModel() {
   const isImpersonating = isSuperAdmin && !!userRole?.impersonatingClientId;
   const isClientView = !isSuperAdmin || isImpersonating;
 
-  const sections = isClientView ? CLIENT_SECTIONS : [ADMIN_SECTION];
-  const all = isClientView ? [...CLIENT_SECTIONS, WORKSPACE_SECTION] : [ADMIN_SECTION];
+  const groups = isClientView ? CLIENT_GROUPS : ADMIN_GROUPS;
+  const allItems = [...groups.flatMap((g) => g.items), ...(isClientView ? [SETTINGS_ITEM] : [])];
   const workspaceName = !isClientView
     ? "Platform admin"
     : (isImpersonating ? userRole?.impersonatingClientName : userRole?.clientName) || "";
@@ -216,32 +216,32 @@ function useNavModel() {
   const displayName = user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || "User";
   const roleLabel = isSuperAdmin ? "Super admin" : userRole?.role || "Member";
 
-  return { sections, all, isClientView, workspaceName, user, logout, initials, displayName, roleLabel };
+  return { groups, allItems, isClientView, workspaceName, user, logout, initials, displayName, roleLabel };
 }
 
 // ─── Pieces ───────────────────────────────────────────────────────────────────
 
-function NavLinks({ section, location, onNavigate }: { section: NavSection; location: string; onNavigate?: () => void }) {
+function PageLinks({ pages, location, onNavigate }: { pages: NavPage[]; location: string; onNavigate?: () => void }) {
   return (
     <ul className="space-y-0.5">
-      {section.items.map((item) => {
-        const active = isActiveUrl(location, item.url);
+      {pages.map((p) => {
+        const active = isActiveUrl(location, p.url);
         return (
-          <li key={item.url}>
+          <li key={p.url}>
             <Link
-              href={item.url}
+              href={p.url}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              data-testid={`nav-${item.tourId}`}
-              data-tour={item.tourId}
-              className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+              data-testid={`nav-${p.tourId}`}
+              data-tour={p.tourId}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                 active
                   ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
                   : "text-sidebar-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              <item.icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-muted-foreground"}`} />
-              <span className="truncate">{item.title}</span>
+              <p.icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-muted-foreground"}`} />
+              <span className="truncate">{p.title}</span>
             </Link>
           </li>
         );
@@ -257,7 +257,7 @@ function UserMenu({ side = "right" }: { side?: "right" | "top" }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded-full outline-none ring-offset-2 ring-offset-card focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Account menu"
           data-testid="button-user-menu"
         >
@@ -292,132 +292,150 @@ function UserMenu({ side = "right" }: { side?: "right" | "top" }) {
   );
 }
 
-// ─── Desktop: icon rail + flyout panel ───────────────────────────────────────
+// ─── Desktop: icon rail + floating menus ─────────────────────────────────────
 
 function RailButton({
-  section,
-  open,
+  item,
   current,
-  onClick,
+  menuOpen,
+  onOpenMenu,
 }: {
-  section: NavSection;
-  open: boolean;
+  item: RailItem;
   current: boolean;
-  onClick: () => void;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
 }) {
+  const hasMenu = item.pages.length > 1;
+  const className = `flex w-[60px] flex-col items-center gap-1 rounded-lg py-1.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+    current
+      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+      : menuOpen
+        ? "bg-muted text-foreground"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+  }`;
+  const content = (
+    <>
+      <item.icon className="h-5 w-5" strokeWidth={current ? 2.1 : 1.75} />
+      <span className={`text-[11px] leading-none ${current ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+    </>
+  );
+
+  if (!hasMenu) {
+    const p = item.pages[0];
+    return (
+      <Link
+        href={p.url}
+        className={className}
+        aria-current={current ? "page" : undefined}
+        aria-label={p.title}
+        title={p.title}
+        data-testid={`nav-${p.tourId}`}
+        data-tour={p.tourId}
+      >
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-expanded={open}
-      aria-controls="nav-flyout"
-      aria-label={section.label}
-      data-testid={`nav-section-${section.key}`}
-      className={`group flex w-14 flex-col items-center gap-1 rounded-lg py-2 transition-colors ${
-        open
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : current
-            ? "text-primary hover:bg-muted"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      }`}
+      onClick={onOpenMenu}
+      aria-haspopup="menu"
+      aria-expanded={menuOpen}
+      aria-label={item.label}
+      className={className}
+      data-testid={`nav-section-${item.key}`}
     >
-      <section.icon className="h-5 w-5" strokeWidth={current || open ? 2.1 : 1.75} />
-      <span className={`text-[11px] leading-none ${current || open ? "font-semibold" : "font-medium"}`}>{section.label}</span>
+      {content}
     </button>
   );
 }
 
 export function AppNav() {
   const [location] = useLocation();
-  const { sections, all, isClientView, workspaceName } = useNavModel();
+  const { groups, allItems, isClientView, workspaceName } = useNavModel();
+  const [menu, setMenu] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
 
-  const currentSection = sectionForLocation(all, location);
-  const [panel, setPanelState] = useState<string | null>(() => {
-    const saved = readPanel();
-    return saved === undefined ? currentSection ?? "home" : saved;
-  });
-  const setPanel = (v: string | null) => {
-    setPanelState(v);
-    writePanel(v);
-  };
+  const currentItem = itemForLocation(allItems, location);
+  const openItem = allItems.find((i) => i.key === menu) ?? null;
 
-  // While the panel is open it follows you: navigating (sidebar, search,
-  // in-page links) into another section shows that section's pages.
+  // The menu floats over the page: picking a page, clicking away or Esc closes it.
+  useEffect(() => setMenu(null), [location]);
   useEffect(() => {
-    if (panel && currentSection && currentSection !== panel) setPanelState(currentSection);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
-
-  // ⌘\ / Ctrl+\ toggles the panel.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
-        e.preventDefault();
-        setPanel(panel ? null : currentSection ?? sections[0].key);
-      }
+    if (!menu) return;
+    const onDown = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setMenu(null);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
 
-  const openSection = all.find((s) => s.key === panel) ?? null;
-  const toggle = (key: string) => setPanel(panel === key ? null : key);
+  const toggle = (key: string) => setMenu(menu === key ? null : key);
 
   return (
-    <nav className="hidden h-full shrink-0 md:flex" aria-label="Main">
+    <nav ref={navRef} className="relative z-40 hidden h-full shrink-0 md:flex" aria-label="Main">
       {/* Rail */}
-      <div className="flex w-[72px] flex-col items-center border-r bg-card py-3">
-        <Link href={isClientView ? "/dashboard" : "/admin"} title={workspaceName || "GovernmentAffairs.io"} className="mb-3 rounded-lg">
+      <div className="flex w-[76px] flex-col items-center border-r bg-card">
+        <Link
+          href={isClientView ? "/dashboard" : "/admin"}
+          title={workspaceName || "GovernmentAffairs.io"}
+          className="mt-3 mb-2 shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <GaMark size={34} />
         </Link>
-        <div className="flex flex-col items-center gap-1">
-          {sections.map((s) => (
-            <RailButton
-              key={s.key}
-              section={s}
-              open={panel === s.key}
-              current={currentSection === s.key}
-              onClick={() => toggle(s.key)}
-            />
+
+        <div className="flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overflow-x-hidden py-1">
+          {groups.map((g, gi) => (
+            <div key={g.label ?? gi} className="flex w-full flex-col items-center gap-0.5">
+              {gi > 0 && <div className="my-1.5 h-px w-8 bg-border" aria-hidden />}
+              {g.items.map((item) => (
+                <RailButton
+                  key={item.key}
+                  item={item}
+                  current={currentItem === item.key}
+                  menuOpen={menu === item.key}
+                  onOpenMenu={() => toggle(item.key)}
+                />
+              ))}
+            </div>
           ))}
         </div>
-        <div className="mt-auto flex flex-col items-center gap-2">
+
+        <div className="flex shrink-0 flex-col items-center gap-2 border-t pb-3 pt-2">
           {isClientView && (
             <RailButton
-              section={WORKSPACE_SECTION}
-              open={panel === WORKSPACE_SECTION.key}
-              current={currentSection === WORKSPACE_SECTION.key}
-              onClick={() => toggle(WORKSPACE_SECTION.key)}
+              item={SETTINGS_ITEM}
+              current={currentItem === SETTINGS_ITEM.key}
+              menuOpen={menu === SETTINGS_ITEM.key}
+              onOpenMenu={() => toggle(SETTINGS_ITEM.key)}
             />
           )}
           <UserMenu />
         </div>
       </div>
 
-      {/* Flyout panel — stays open while you work in that section */}
-      {openSection && (
+      {/* Floating menu — overlays the page instead of pushing it */}
+      {openItem && (
         <div
-          id="nav-flyout"
-          className="flex w-60 flex-col border-r bg-card animate-in fade-in-0 slide-in-from-left-2 duration-150"
+          role="menu"
+          aria-label={openItem.label}
+          className="absolute left-[76px] top-0 flex h-full w-60 flex-col border-r bg-card shadow-xl animate-in fade-in-0 slide-in-from-left-2 duration-150"
         >
-          <div className="flex items-start justify-between gap-2 px-4 pb-3 pt-4">
-            <div className="min-w-0">
-              <p className="text-[15px] font-bold tracking-tight">{openSection.label}</p>
-              {workspaceName && <p className="truncate text-xs text-muted-foreground">{workspaceName}</p>}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPanel(null)}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Collapse menu"
-              title="Collapse menu (⌘\)"
-              data-testid="button-collapse-nav"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </button>
+          <div className="px-4 pb-3 pt-4">
+            <p className="text-[15px] font-bold tracking-tight">{openItem.label}</p>
+            {workspaceName && <p className="truncate text-xs text-muted-foreground">{workspaceName}</p>}
           </div>
           <div className="flex-1 overflow-y-auto px-2 pb-4">
-            <NavLinks section={openSection} location={location} />
+            <PageLinks pages={openItem.pages} location={location} onNavigate={() => setMenu(null)} />
           </div>
         </div>
       )}
@@ -429,8 +447,12 @@ export function AppNav() {
 
 export function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [location] = useLocation();
-  const { all, workspaceName } = useNavModel();
+  const { groups, isClientView, workspaceName, displayName, roleLabel } = useNavModel();
   const close = () => onOpenChange(false);
+  const sections = [
+    ...groups.map((g) => ({ label: g.label ?? "", pages: g.items.flatMap((i) => i.pages) })),
+    ...(isClientView ? [{ label: "Settings", pages: SETTINGS_ITEM.pages }] : []),
+  ];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -446,30 +468,23 @@ export function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange:
           </div>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto px-2 py-4">
-          {all.map((s) => (
-            <div key={s.key}>
+          {sections.map((s) => (
+            <div key={s.label}>
               <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 {s.label}
               </p>
-              <NavLinks section={s} location={location} onNavigate={close} />
+              <PageLinks pages={s.pages} location={location} onNavigate={close} />
             </div>
           ))}
         </div>
         <div className="flex items-center gap-3 border-t px-4 py-3">
           <UserMenu side="top" />
-          <MobileUserName />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{displayName}</p>
+            <p className="truncate text-xs text-muted-foreground">{roleLabel}</p>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function MobileUserName() {
-  const { displayName, roleLabel } = useNavModel();
-  return (
-    <div className="min-w-0">
-      <p className="truncate text-sm font-semibold">{displayName}</p>
-      <p className="truncate text-xs text-muted-foreground">{roleLabel}</p>
-    </div>
   );
 }

@@ -98,7 +98,7 @@ export default function SettingsPage() {
   return (
     <PageShell width="narrow" className="space-y-6">
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow="Settings"
         title={<span data-testid="text-settings-title">Settings</span>}
         description="Manage your profile, connected services and how the app looks."
         className="mb-0"

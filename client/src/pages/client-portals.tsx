@@ -142,7 +142,7 @@ export default function ClientPortals() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Clients"
+        eyebrow="Work"
         title="Client Portals"
         description="Share bills, briefs and research with each client on a page of their own."
         className="mb-0"

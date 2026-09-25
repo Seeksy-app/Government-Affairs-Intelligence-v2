@@ -72,7 +72,7 @@ export default function KnowledgeBase() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Brief"
+        eyebrow="Work"
         title="Knowledge Base"
         description="Find how-to guides and reference articles for your team."
         className="mb-0"

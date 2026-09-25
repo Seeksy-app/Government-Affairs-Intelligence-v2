@@ -65,11 +65,14 @@ the live guide wins — re-vendor it here.
   sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
   650–700 weight title, one plain sentence of description, actions on the
   right. No decorative icons beside page titles, no serif, no gradient text.
-- **Navigation (Sep 2026):** a 72px icon rail (Home, Brief, Monitor, Reach,
-  Clients; Workspace gear + account at the bottom). Clicking a section opens
-  a 240px flyout with its pages; the flyout follows you between sections,
-  collapses with its « button or ⌘\, and remembers its state. Phones get the
-  full list in a slide-out sheet. Every page is listed exactly once.
+- **Navigation (Sep 2026, v2):** a 76px icon rail grouped by thin dividers —
+  Home | Bills, Hearings, News, Press, Markets | People, Strategy | Research,
+  Knowledge, Clients — with Settings and the account menu pinned at the
+  bottom. An icon with one page navigates directly; an icon with several
+  (Home, Bills, People, Settings) opens a floating menu over the page, which
+  closes on selection, click-away or Esc. Phones get the full list in a
+  slide-out sheet. Every page appears exactly once. Page eyebrows use the
+  group names (Home / Monitor / Reach / Work / Settings).
   Source: `client/src/components/app-nav.tsx`.
 - **Color discipline:** red/destructive only for errors and destructive
   actions. Relevance scores and "new update" notices use the Signal Blue
