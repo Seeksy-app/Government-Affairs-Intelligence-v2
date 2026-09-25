@@ -61,21 +61,18 @@ export function AskBox({
     ask.mutate({ question: trimmed, clientContext: clientContext.trim() || null, firmClientId: forClient });
   };
 
-  // Capitol Navy panel: the one place in the app that asks the user to act.
+  // A light card: one field with its button inside, options underneath.
   return (
-    <div
-      className="rounded-xl bg-[#14253D] p-5 text-white shadow-md sm:p-6 dark:bg-[#0F1D31] dark:ring-1 dark:ring-white/10"
-      data-testid="card-ask-box"
-    >
+    <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6" data-testid="card-ask-box">
       {showHeading && (
         <div className="mb-1 flex items-center gap-2">
-          <MessageCircleQuestion className="h-5 w-5 shrink-0 text-[#6CC3EE]" />
-          <h2 className="text-lg font-semibold tracking-tight text-white">Should I be worried?</h2>
+          <MessageCircleQuestion className="h-5 w-5 shrink-0 text-primary" />
+          <h2 className="text-lg font-semibold tracking-tight">Should I be worried?</h2>
         </div>
       )}
-      <p className="mb-4 text-sm text-white/75">
-        Paste a headline, a link, or a bill number, or just ask. We find the sources and write a calm,
-        cited answer in about a minute.
+      <p className="mb-3 text-sm text-muted-foreground">
+        Paste a headline, a link, or a bill number, or just ask. We find the sources and write a calm, cited answer in
+        about a minute.
         {wary && " Every sentence links to the source it came from, so you can check each claim yourself."}
       </p>
 
@@ -84,97 +81,95 @@ export function AskBox({
           e.preventDefault();
           submit();
         }}
-        className="space-y-3"
       >
-        <Textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder={`e.g. "${EXAMPLES[0]}"`}
-          rows={2}
-          maxLength={1000}
-          className="resize-none border-transparent bg-white text-base text-[#14253D] placeholder:text-slate-400 focus-visible:border-[#6CC3EE] focus-visible:ring-[#6CC3EE]/30"
-          data-testid="input-ask-question"
-        />
-        {firmClients.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Which client is this about?">
-            <span className="mr-0.5 text-xs font-semibold text-white/70">About:</span>
-            {[{ id: null as string | null, name: "No client" }, ...firmClients].map((c) => {
-              const on = forClient === c.id;
-              return (
-                <button
-                  key={c.id ?? "none"}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => setForClient(c.id)}
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
-                    on ? "bg-white text-[#14253D]" : "border border-white/25 text-white/80 hover:bg-white/10"
-                  }`}
-                  data-testid={`ask-for-${c.id ?? "none"}`}
-                >
-                  {c.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {showContext && (
-          <Input
-            value={clientContext}
-            onChange={(e) => setClientContext(e.target.value)}
-            placeholder="Who is this for? e.g. a regional hospital system worried about Medicaid cuts"
-            maxLength={2000}
-            className="border-transparent bg-white text-[#14253D] placeholder:text-slate-400"
-            data-testid="input-ask-context"
-          />
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (showContext) setClientContext("");
-              setShowContext(!showContext);
+        <div className="rounded-lg border bg-background transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+          <Textarea
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+              }
             }}
-            className="text-xs font-semibold text-white/70 transition-colors hover:text-white"
-          >
-            {showContext ? "Remove client context" : "+ Add client context"}
-          </button>
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            className="border-[#078ACB] bg-[#078ACB] text-white hover:bg-[#0679b0] disabled:opacity-60"
-            data-testid="button-ask-submit"
-          >
-            {ask.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Starting…
-              </>
-            ) : (
-              <>
-                Get the answer
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
+            placeholder={`e.g. "${EXAMPLES[0]}"`}
+            rows={2}
+            maxLength={1000}
+            className="resize-none border-0 bg-transparent text-base shadow-none focus-visible:ring-0"
+            data-testid="input-ask-question"
+          />
+          {showContext && (
+            <Input
+              value={clientContext}
+              onChange={(e) => setClientContext(e.target.value)}
+              placeholder="Who is this for? e.g. a regional hospital system worried about Medicaid cuts"
+              maxLength={2000}
+              className="mx-3 mb-2 w-[calc(100%-1.5rem)]"
+              data-testid="input-ask-context"
+            />
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {firmClients.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Which client is this about?">
+                  <span className="text-xs font-semibold text-muted-foreground">About:</span>
+                  {[{ id: null as string | null, name: "No client" }, ...firmClients].map((c) => {
+                    const on = forClient === c.id;
+                    return (
+                      <button
+                        key={c.id ?? "none"}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setForClient(c.id)}
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                          on ? "bg-primary text-primary-foreground" : "border text-muted-foreground hover:text-foreground"
+                        }`}
+                        data-testid={`ask-for-${c.id ?? "none"}`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (showContext) setClientContext("");
+                  setShowContext(!showContext);
+                }}
+                className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {showContext ? "Remove context" : "+ Add context"}
+              </button>
+            </div>
+            <Button type="submit" size="sm" disabled={!canSubmit} data-testid="button-ask-submit">
+              {ask.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  Get the answer
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
 
       {showExamples && !trimmed && (
-        <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-white/60">Try:</span>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Try:</span>
           {EXAMPLES.map((ex) => (
             <button
               key={ex}
               type="button"
               onClick={() => setQuestion(ex)}
-              className="max-w-full truncate rounded-full border border-white/25 px-2.5 py-0.5 text-xs text-white/85 transition-colors hover:bg-white/10"
+              className="max-w-full truncate rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               {ex}
             </button>

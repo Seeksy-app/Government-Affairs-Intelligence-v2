@@ -42,6 +42,8 @@ export function openAIChat(prefillMessage?: string) {
   window.dispatchEvent(new CustomEvent("open-ai-chat", { detail: { message: prefillMessage } }));
 }
 
+// On large screens the top bar's "Research assistant" item opens this panel
+// (openAIChat), so the button here only shows on smaller screens.
 export function GlobalAIChat() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -160,7 +162,7 @@ export function GlobalAIChat() {
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2" data-testid="button-global-ai-chat">
+          <Button variant="outline" size="sm" className="gap-2 lg:hidden" data-testid="button-global-ai-chat">
             <MessageSquareText className="w-4 h-4 text-primary" />
             <span className="hidden sm:inline">Research assistant</span>
             {chatMessages.length > 0 && (

@@ -255,7 +255,42 @@ function PageLinks({ pages, location, onNavigate }: { pages: NavPage[]; location
   );
 }
 
-function UserMenu({ side = "right" }: { side?: "right" | "top" }) {
+// Settings, Sources and Security, from the top bar.
+export function SettingsMenu() {
+  const { isClientView } = useNavModel();
+  const [location] = useLocation();
+  const pages = isClientView ? SETTINGS_ITEM.pages : [page("Settings", "/admin/settings", Settings, "admin-settings")];
+  const active = pages.some((p) => isActiveUrl(location, p.url));
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`flex h-9 w-9 items-center justify-center rounded-md outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring ${
+            active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+          aria-label="Settings"
+          title="Settings"
+          data-testid="button-settings-menu"
+        >
+          <Settings className="h-[18px] w-[18px]" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {pages.map((p) => (
+          <DropdownMenuItem key={p.url} asChild>
+            <Link href={p.url} data-testid={`menu-${p.tourId}`}>
+              <p.icon className="mr-2 h-4 w-4" />
+              {p.title}
+            </Link>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function UserMenu({ side = "bottom" }: { side?: "right" | "top" | "bottom" }) {
   const { user, logout, initials, displayName, roleLabel, workspaceName } = useNavModel();
   return (
     <DropdownMenu>
@@ -415,17 +450,7 @@ export function AppNav() {
           ))}
         </div>
 
-        <div className="flex shrink-0 flex-col items-center gap-2 border-t border-foreground/15 pb-3 pt-2">
-          {isClientView && (
-            <RailButton
-              item={SETTINGS_ITEM}
-              current={currentItem === SETTINGS_ITEM.key}
-              menuOpen={menu === SETTINGS_ITEM.key}
-              onOpenMenu={() => toggle(SETTINGS_ITEM.key)}
-            />
-          )}
-          <UserMenu />
-        </div>
+        {/* Settings and the account menu live in the top bar (top right). */}
       </div>
 
       {/* Floating menu — overlays the page instead of pushing it */}

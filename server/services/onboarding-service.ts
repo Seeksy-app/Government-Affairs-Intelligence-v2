@@ -37,6 +37,7 @@ export const firmInputSchema = z.object({
       markets: z.enum(["yes", "sometimes", "no"]).optional(),
       aiComfort: z.enum(["daily", "apis", "never", "dislikes", "unsure"]).optional(),
       step: z.number().int().min(0).max(10).optional(),
+      shortcuts: z.array(z.string().max(40)).max(12).optional(),
     })
     .optional(),
 });

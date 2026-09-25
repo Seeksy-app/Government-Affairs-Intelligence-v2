@@ -127,7 +127,7 @@ export function GlobalSearch() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-full max-w-md items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground hover:bg-muted/60 transition-colors"
+        className="flex h-10 w-full max-w-2xl items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground hover:bg-muted/60 transition-colors"
         data-testid="button-global-search"
       >
         <Search className="h-4 w-4 shrink-0" />

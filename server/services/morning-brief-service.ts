@@ -77,10 +77,7 @@ function cacheIfCurrent(clientId: string, version: number, result: RankedBriefRe
 function getCached(clientId: string): RankedBriefResult | null {
   const entry = cache.get(clientId);
   if (!entry) return null;
-  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
-    cache.delete(clientId);
-    return null;
-  }
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null; // kept for stale-while-revalidate
   return entry.result;
 }
 
@@ -355,9 +352,43 @@ async function findRelevantStaffers(
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export async function rankItemsForClient(clientId: string): Promise<RankedBriefResult> {
+// Stale-while-revalidate: a ranking up to 12 hours old is served instantly
+// (Today never waits on a Claude call just because 10 minutes passed) and
+// refreshed in the background. Only a firm with no ranking yet, a profile
+// change (clearCachedBrief) or an explicit refresh waits for a fresh one.
+const STALE_OK_MS = 12 * 60 * 60 * 1000;
+const inflight = new Map<string, Promise<RankedBriefResult>>();
+
+function refreshRanking(clientId: string): Promise<RankedBriefResult> {
+  const running = inflight.get(clientId);
+  if (running) return running;
+  const p = computeRanking(clientId).finally(() => inflight.delete(clientId));
+  inflight.set(clientId, p);
+  return p;
+}
+
+export async function rankItemsForClient(clientId: string, opts: { fresh?: boolean } = {}): Promise<RankedBriefResult> {
+  if (opts.fresh) return refreshRanking(clientId);
   const cached = getCached(clientId);
   if (cached) return cached;
+  const stale = cache.get(clientId);
+  if (stale && Date.now() - stale.cachedAt <= STALE_OK_MS) {
+    refreshRanking(clientId).catch((err) => console.error(`[morning-brief] background refresh for ${clientId} failed:`, err.message));
+    return stale.result;
+  }
+  return refreshRanking(clientId);
+}
+
+// Rank every firm once after a deploy, so the first visit is instant.
+export async function warmBriefs(): Promise<void> {
+  const rows = await db.select({ clientId: clientProfiles.clientId }).from(clientProfiles);
+  for (const { clientId } of rows) {
+    await refreshRanking(clientId).catch((err) => console.warn(`[morning-brief] warm ${clientId} failed:`, err.message));
+  }
+  console.log(`[morning-brief] warmed ${rows.length} firm briefs`);
+}
+
+async function computeRanking(clientId: string): Promise<RankedBriefResult> {
   const version = cacheVersion.get(clientId) ?? 0;
 
   const profile = await getClientProfile(clientId);

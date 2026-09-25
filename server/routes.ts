@@ -10578,7 +10578,7 @@ Format your response with clear headers and bullet points. Be specific and data-
       }
 
       const { rankItemsForClient } = await import("./services/morning-brief-service");
-      const result = await rankItemsForClient(req.params.clientId);
+      const result = await rankItemsForClient(String(req.params.clientId), { fresh: req.query.fresh === "1" });
       res.json(result);
     } catch (err: any) {
       console.error("GET /api/morning-brief error:", err);

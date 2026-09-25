@@ -130,6 +130,8 @@ export interface FirmOnboarding {
   weather?: "often" | "sometimes" | "rarely";
   markets?: "yes" | "sometimes" | "no";
   aiComfort?: AiComfort;
+  /** Pages pinned to Today (keys from client/src/components/today/shortcuts.tsx). */
+  shortcuts?: string[];
   /** Last chapter the user reached, so a return visit resumes there. */
   step?: number;
 }

@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowRight, Eye, Loader2, MessageCircleQuestion, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { AskBox } from "@/components/briefs/ask-box";
+import { openAIChat } from "@/components/global-ai-chat";
 import { useAuth } from "@/hooks/use-auth";
 import { useFirmSetup } from "@/hooks/use-firm-setup";
 import { GetAhead } from "@/components/today/setup-cards";
@@ -33,12 +31,11 @@ export function RecentQuestions() {
   });
   const recent = (briefs ?? []).slice(0, 3);
   const { data: setup } = useFirmSetup();
-  const [asking, setAsking] = useState(false);
 
   return (
     <section className="mb-8" data-testid="section-recent-questions">
       {/* The ask action sits with its heading (not out by the rail) and opens
-          a side panel, so asking doesn't leave Today. */}
+          the Research assistant panel, so asking doesn't leave Today. */}
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -46,7 +43,7 @@ export function RecentQuestions() {
               <MessageCircleQuestion className="h-5 w-5 text-primary" />
               Should I be worried?
             </h2>
-            <Button size="sm" onClick={() => setAsking(true)} data-testid="button-ask-question">
+            <Button size="sm" onClick={() => openAIChat()} data-testid="button-ask-question">
               Ask a question <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -59,15 +56,6 @@ export function RecentQuestions() {
         )}
       </div>
 
-      <Sheet open={asking} onOpenChange={setAsking}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl" data-testid="sheet-ask">
-          <SheetHeader className="mb-4 text-left">
-            <SheetTitle>Should I be worried?</SheetTitle>
-            <SheetDescription>Ask about a headline, a bill or a client. The answer opens when it's ready.</SheetDescription>
-          </SheetHeader>
-          <AskBox showHeading={false} />
-        </SheetContent>
-      </Sheet>
 
       <GetAhead clients={setup?.clients ?? []} />
 
