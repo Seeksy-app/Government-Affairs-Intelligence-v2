@@ -35,7 +35,9 @@ import {
 } from "lucide-react";
 import { useAskBrief } from "@/components/briefs/ask-box";
 import { PageHeader } from "@/components/page-header";
-import { AtAGlance, RecentBriefs, MarketsPanel } from "@/components/today/today-rail";
+import { AtAGlance, MarketsPanel } from "@/components/today/today-rail";
+import { RecentQuestions } from "@/components/today/recent-questions";
+import { BannerWeather } from "@/components/today/banner-weather";
 import { WeatherWatchCard } from "@/components/today/weather-watch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -477,25 +479,25 @@ export default function MorningBriefPage() {
                   <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/85">
                     {brief.scoringMetadata.totalItemsConsidered} items reviewed
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                    data-testid="button-refresh-brief"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Refresh
+                  </button>
                 </div>
               )}
             </div>
-            {brief && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                className="border-white/25 bg-white/5 text-white hover:bg-white/15"
-                data-testid="button-refresh-brief"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Refresh
-              </Button>
-            )}
+            <BannerWeather />
           </div>
         </div>
 
         <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0">
+            <RecentQuestions />
           <div className="min-w-0" data-testid="section-morning-brief">
             {/* Loading */}
             {isLoading && (
@@ -567,10 +569,11 @@ export default function MorningBriefPage() {
             )}
           </div>
 
+          </div>
+
           <aside className="space-y-6">
             <WeatherWatchCard />
             <AtAGlance />
-            <RecentBriefs />
             <MarketsPanel />
           </aside>
         </div>

@@ -38,7 +38,7 @@ interface WeatherItem {
   source: string;
 }
 
-interface DcDay {
+export interface DcDay {
   name: string;
   high: number | null;
   low: number | null;
@@ -47,7 +47,7 @@ interface DcDay {
   hazard: string | null;
 }
 
-interface DcOutlook {
+export interface DcOutlook {
   provider?: "accuweather" | "nws";
   headline?: string | null;
   providerUrl?: string | null;
@@ -56,7 +56,7 @@ interface DcOutlook {
   hillNote: string | null;
 }
 
-interface WeatherWatchData {
+export interface WeatherWatchData {
   updatedAt: string;
   dc: DcOutlook | null;
   items: WeatherItem[];
@@ -74,7 +74,7 @@ function iconFor(item: WeatherItem): LucideIcon {
   return CloudLightning;
 }
 
-function forecastIcon(d: DcDay): LucideIcon {
+export function forecastIcon(d: DcDay): LucideIcon {
   const f = d.short.toLowerCase();
   const night = d.high === null;
   if (/snow|sleet|\bice\b|freezing|wintry|blizzard|flurries/.test(f)) return CloudSnow;
@@ -87,83 +87,9 @@ function forecastIcon(d: DcDay): LucideIcon {
   return night ? Moon : Sun;
 }
 
-function shortDay(name: string) {
+export function shortDay(name: string) {
   if (/^today|^tonight|^this/i.test(name)) return name.replace(/^This /, "");
   return name.slice(0, 3);
-}
-
-// Washington, D.C.: the Capitol forecast plus OPM's federal operating status —
-// what decides whether votes, hearings and fly-ins happen.
-function DcForecast({ dc }: { dc: DcOutlook }) {
-  const open = !dc.federalStatus || /^open$/i.test(dc.federalStatus.summary.trim());
-  return (
-    <div className="border-b px-4 pb-3" data-testid="dc-forecast">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-sm font-semibold">
-          <Landmark className="h-4 w-4 text-primary" />
-          Washington, D.C.
-        </p>
-        {dc.federalStatus && (
-          <a
-            href={dc.federalStatus.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={dc.federalStatus.message}
-            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-              open
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                : "bg-[#A53B39]/10 text-[#A53B39] dark:text-red-300"
-            }`}
-            data-testid="federal-status"
-          >
-            Federal offices: {dc.federalStatus.summary}
-          </a>
-        )}
-      </div>
-      {dc.headline && <p className="mb-2 text-xs text-muted-foreground">{dc.headline}</p>}
-      <div className={`grid gap-1.5 ${dc.days.length >= 5 ? "grid-cols-5" : "grid-cols-4"}`}>
-        {dc.days.map((d) => {
-          const Icon = forecastIcon(d);
-          return (
-            <div
-              key={d.name}
-              title={d.short}
-              className={`flex flex-col items-center rounded-md px-1 py-2 text-center ${
-                d.hazard ? "bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800" : "bg-muted/60"
-              }`}
-            >
-              <span className="text-[11px] font-semibold text-muted-foreground">{shortDay(d.name)}</span>
-              <Icon className={`my-1 h-5 w-5 ${d.hazard ? "text-amber-600" : "text-foreground/70"}`} />
-              <span className="text-sm font-bold tabular-nums leading-none">
-                {d.high !== null ? `${d.high}°` : `${d.low}°`}
-              </span>
-              {d.high !== null && d.low !== null && (
-                <span className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{d.low}°</span>
-              )}
-              {d.precipChance !== null && d.precipChance >= 20 && (
-                <span className="mt-0.5 text-[10px] font-semibold text-primary">{d.precipChance}%</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {dc.hillNote && <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">{dc.hillNote}</p>}
-      {/* AccuWeather's terms require visible, linked attribution wherever their data shows. */}
-      <a
-        href={dc.providerUrl ?? (dc.provider === "accuweather" ? "https://www.accuweather.com" : "https://www.weather.gov")}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 inline-block text-[11px] text-muted-foreground hover:text-primary"
-        data-testid="forecast-attribution"
-      >
-        {dc.provider === "accuweather" ? (
-          <>Forecast by <span className="font-bold text-[#F05514]">AccuWeather</span></>
-        ) : (
-          <>Forecast: National Weather Service</>
-        )}
-      </a>
-    </div>
-  );
 }
 
 // Severe weather and disasters that move the political calendar. Sources are
@@ -187,8 +113,6 @@ export function WeatherWatchCard() {
             </span>
           )}
         </div>
-
-        {data?.dc && data.dc.days.length > 0 && <DcForecast dc={data.dc} />}
 
         {isLoading ? (
           <div className="space-y-3 px-4 pb-4">
