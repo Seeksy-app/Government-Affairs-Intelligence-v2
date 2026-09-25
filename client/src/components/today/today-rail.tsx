@@ -44,7 +44,7 @@ export function AtAGlance() {
       href: "/bills",
       icon: ScrollText,
     },
-    { label: "Decision briefs", value: Array.isArray(briefs) ? briefs.length : null, note: null, href: "/briefs", icon: FileText },
+    { label: "Should I be worried? questions", value: Array.isArray(briefs) ? briefs.length : null, note: null, href: "/briefs", icon: FileText },
     { label: "Contacts", value: Array.isArray(contacts) ? contacts.length : null, note: null, href: "/contacts", icon: Users },
     { label: "Congressional staff", value: staffStatus?.currentStaffers ?? null, note: null, href: "/staffers", icon: Briefcase },
   ];
