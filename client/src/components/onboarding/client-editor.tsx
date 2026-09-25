@@ -6,7 +6,6 @@ import { friendlyError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AVOID_EXAMPLES,
   CLIENT_AI_COMFORT,
@@ -18,7 +17,7 @@ import {
   type Sharing,
 } from "@shared/onboarding";
 import type { FirmClient } from "@shared/schema";
-import { ChipPicker, ChoiceCards, FieldLabel, Question, WhyWeAsk } from "./fields";
+import { AssistTextarea, ChipPicker, ChoiceCards, FieldLabel, Question, WhyWeAsk } from "./fields";
 
 type Draft = {
   name: string;
@@ -42,7 +41,8 @@ const fromClient = (c: FirmClient | null): Draft => ({
   friction: c?.friction ?? "",
   proactive: c?.proactive ?? "ask",
   avoid: c?.avoid ?? "",
-  aiComfort: c?.aiComfort ?? null,
+  // "never" predates the client-specific choices; it means the same as wary.
+  aiComfort: c?.aiComfort === "never" ? "dislikes" : c?.aiComfort ?? null,
   sharing: c?.sharing ?? "mix",
 });
 
@@ -65,6 +65,7 @@ export function ClientEditor({
   const [d, setD] = useState<Draft>(() => fromClient(client));
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const who = d.name.trim() || "this client";
+  const assistContext = { clientName: d.name.trim(), business: d.business.trim(), industries: d.industries };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -167,37 +168,47 @@ export function ClientEditor({
       {part === 1 && (
         <>
           <Question title={`What are your goals with ${who}?`} why="Answers about this client lead with what you're trying to achieve for them.">
-            <Textarea
+            <AssistTextarea
+              field="goals"
+              context={assistContext}
               autoFocus
               value={d.goals}
-              onChange={(e) => set("goals", e.target.value)}
+              onChange={(v) => set("goals", v)}
               placeholder="e.g. Keep the overtime threshold at 2019 levels; secure a seat on the DOL small-business roundtable"
               rows={3}
               maxLength={2000}
               className="text-[15px]"
-              data-testid="input-client-goals"
+              testId="input-client-goals"
             />
           </Question>
           <Question title="What affects your relationship with them?" subtitle="What they value, how they like to work, who calls the shots.">
-            <Textarea
+            <AssistTextarea
+              field="relationship"
+              context={assistContext}
               value={d.relationship}
-              onChange={(e) => set("relationship", e.target.value)}
+              onChange={(v) => set("relationship", v)}
               placeholder="e.g. The CEO wants a heads-up before anything hits the press; the board meets quarterly"
               rows={3}
               maxLength={2000}
               className="text-[15px]"
-              data-testid="input-client-relationship"
+              testId="input-client-relationship"
             />
           </Question>
-          <Question title="Any friction points?" subtitle="Sore spots, past disappointments, internal disagreements.">
-            <Textarea
+          <Question
+            title={`Where does friction come up with ${who}?`}
+            subtitle="Sore spots in your relationship, past disappointments, or disagreements inside their organization."
+            why="Answers about them steer around these instead of stepping on them."
+          >
+            <AssistTextarea
+              field="friction"
+              context={assistContext}
               value={d.friction}
-              onChange={(e) => set("friction", e.target.value)}
+              onChange={(v) => set("friction", v)}
               placeholder="e.g. Frustrated we didn't see the 2024 rule coming; members split on tip-credit changes"
               rows={3}
               maxLength={2000}
               className="text-[15px]"
-              data-testid="input-client-friction"
+              testId="input-client-friction"
             />
           </Question>
         </>
@@ -215,14 +226,16 @@ export function ClientEditor({
             title="Most important: what should we never say?"
             subtitle="Words, framings, topics or names to stay away from in anything written about this client."
           >
-            <Textarea
+            <AssistTextarea
+              field="avoid"
+              context={assistContext}
               value={d.avoid}
-              onChange={(e) => set("avoid", e.target.value)}
+              onChange={(v) => set("avoid", v)}
               placeholder="One per line"
               rows={4}
               maxLength={2000}
               className="text-[15px]"
-              data-testid="input-client-avoid"
+              testId="input-client-avoid"
             />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground">For example:</span>
@@ -241,7 +254,11 @@ export function ClientEditor({
               Every answer about {who} follows these as hard rules. They're private to your firm and never shown to the client.
             </WhyWeAsk>
           </Question>
-          <Question title={`How comfortable is ${who} with AI?`} why="If they're wary, answers are written in plain, firm-voice prose with no mention of AI.">
+          <Question
+            title={`How would ${who} feel about AI helping with work you share with them?`}
+            subtitle="Briefs and answers here are drafted with AI from cited sources, and you review them before anything goes out."
+            why="If they're wary, answers about them read as plain, firm-voice prose that never mentions AI."
+          >
             <ChoiceCards options={CLIENT_AI_COMFORT} value={d.aiComfort} onChange={(v) => set("aiComfort", v)} testId="choice-client-ai" />
           </Question>
         </>

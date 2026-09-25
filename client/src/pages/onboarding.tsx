@@ -15,7 +15,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Users,
   X,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -253,28 +252,26 @@ export default function OnboardingPage() {
                   minutes here decides the news we rank for you, the agencies we watch, and how we write about each client,
                   down to the words we never use.
                 </p>
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                {/* An outline, not buttons: the one thing to click is "Let's begin". */}
+                <p className="mt-8 text-sm font-semibold text-foreground">Four short chapters:</p>
+                <ol className="mt-3 space-y-2.5">
                   {[
-                    { icon: Building2, t: "Your practice", d: "Policy areas, agencies, committees and states" },
-                    { icon: Newspaper, t: "How you work", d: "What makes clients call, weather, markets, AI" },
-                    { icon: Users, t: "Your clients", d: "Goals, sore spots, what not to say, how they see your work" },
-                    { icon: MessageCircleQuestion, t: "Review", d: "Then we build your Today page while you watch" },
+                    { t: "Your practice", d: "policy areas, agencies, committees and states" },
+                    { t: "How you work", d: "what makes clients call, weather, markets, AI" },
+                    { t: "Your clients", d: "goals, sore spots, what never to say, how they see your work" },
+                    { t: "Review", d: "then we build your Today page while you watch" },
                   ].map((c, i) => (
-                    <div key={c.t} className="flex gap-3 rounded-xl border bg-card p-4">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14253D] text-white dark:bg-white/10">
-                        <c.icon className="h-[18px] w-[18px]" />
+                    <li key={c.t} className="flex items-baseline gap-3 text-[15px]">
+                      <span className="w-5 shrink-0 text-right font-semibold tabular-nums text-[#078ACB]">{i + 1}.</span>
+                      <span>
+                        <span className="font-semibold">{c.t}</span>
+                        <span className="text-muted-foreground"> — {c.d}</span>
                       </span>
-                      <div>
-                        <p className="font-semibold">
-                          <span className="text-muted-foreground">{i + 1}.</span> {c.t}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{c.d}</p>
-                      </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ol>
                 <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Lock className="h-4 w-4" /> Private to your firm. You can change any answer later in Settings.
+                  <Lock className="h-4 w-4" /> Private to your firm. Nothing is final: add or change anything later in Settings.
                 </p>
                 <Button size="lg" onClick={() => next()} className="mt-8 bg-[#078ACB] px-7 text-white hover:bg-[#0679b0]" data-testid="button-onboarding-start">
                   Let's begin <ArrowRight className="h-4 w-4" />
@@ -292,19 +289,20 @@ export default function OnboardingPage() {
               <>
                 <Question
                   title="Which policy areas do you work in?"
-                  subtitle="Pick all that apply across your clients."
+                  subtitle="Pick all that apply across your clients. Don't see one? Add your own. You can always add more later."
                   why="Your morning brief and news are ranked against these."
                 >
                   <ChipPicker
                     options={POLICY_AREAS.map((a) => ({ value: a, label: a }))}
                     value={draft.industries}
                     onChange={(v) => setDraft({ ...draft, industries: v })}
+                    allowCustom="Add your own"
                     testId="chips-policy-areas"
                   />
                 </Question>
                 <Question
                   title="Any specific issues you're watching?"
-                  subtitle="Rules, programs, bills or fights, in your own words. Press Enter after each."
+                  subtitle="Rules, programs, bills or fights, in your own words. Press Enter after each. Add more anytime."
                   why="Specific issues count most when we rank news. “Overtime rule” finds more than “Labor”."
                 >
                   <TagInput
@@ -322,6 +320,7 @@ export default function OnboardingPage() {
               <>
                 <Question
                   title="Which agencies matter to your clients?"
+                  subtitle="Pick all that apply. You can always add more later."
                   why="Their press releases fill your Press page, and a story that names one ranks higher."
                 >
                   <ChipPicker
@@ -413,7 +412,7 @@ export default function OnboardingPage() {
               <Question
                 title="How much does weather affect your work with clients?"
                 subtitle="Snow cancels fly-ins, storms postpone hearings, hurricanes become disaster-aid fights."
-                why="Decides whether D.C. weather and disaster alerts are on your Today page."
+                why="Decides where storm, fire and disaster alerts sit on your Today page. The D.C. forecast in your header always stays."
               >
                 <ChoiceCards options={WEATHER_IMPACT} value={draft.onboarding.weather} onChange={(v) => pick("weather", v)} columns={1} testId="choice-weather" />
               </Question>
@@ -421,8 +420,8 @@ export default function OnboardingPage() {
 
             {step === "markets" && (
               <Question
-                title="Do prediction markets help you read the odds?"
-                subtitle="Live betting odds on elections, shutdowns and policy outcomes."
+                title="Would prediction markets help your research or decisions?"
+                subtitle="Kalshi's live odds on elections, shutdowns and policy outcomes: a quick read on what traders expect to happen."
                 why="Decides whether market odds appear on your Today page."
               >
                 <ChoiceCards options={MARKETS_INTEREST} value={draft.onboarding.markets} onChange={(v) => pick("markets", v)} columns={1} testId="choice-markets" />
@@ -586,7 +585,7 @@ function Review({ data, draft, onEdit }: { data: OnboardingData; draft: FirmDraf
       title: "Weather watch",
       body:
         o.weather === "rarely"
-          ? "Off. You told us weather rarely matters."
+          ? "Alerts off (you told us weather rarely matters). The D.C. forecast stays in your header."
           : `D.C. forecast${draft.states.length ? ` + alerts for ${draft.states.join(", ")}` : " + national alerts"}${o.weather === "sometimes" ? ", kept compact" : ""}`,
       step: "weather",
       off: o.weather === "rarely",

@@ -1,5 +1,18 @@
-import { useState } from "react";
-import { Check, Info, Plus, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, Info, Loader2, Plus, Sparkles, Undo2, X } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/api-errors";
+import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Opt } from "@shared/onboarding";
 
 // Building blocks for the onboarding questions. Large tap targets, one clear
@@ -96,6 +109,7 @@ export function ChipPicker({
   onChange,
   testId,
   badge,
+  allowCustom,
 }: {
   options: Array<{ value: string; label: string }>;
   value: string[];
@@ -103,8 +117,18 @@ export function ChipPicker({
   testId?: string;
   /** Small marker after a label, e.g. which agencies have press feeds. */
   badge?: (value: string) => React.ReactNode;
+  /** Adds an "Add your own" pill; custom entries show as selected pills. */
+  allowCustom?: string;
 }) {
+  const [draft, setDraft] = useState("");
   const set = new Set(value.map((v) => v.toLowerCase()));
+  const known = new Set(options.map((o) => o.value.toLowerCase()));
+  const custom = allowCustom ? value.filter((v) => !known.has(v.toLowerCase())) : [];
+  const addCustom = () => {
+    const t = draft.trim().slice(0, 120);
+    if (t && !set.has(t.toLowerCase())) onChange([...value, t]);
+    setDraft("");
+  };
   const toggle = (v: string) =>
     onChange(set.has(v.toLowerCase()) ? value.filter((x) => x.toLowerCase() !== v.toLowerCase()) : [...value, v]);
   return (
@@ -129,6 +153,37 @@ export function ChipPicker({
           </button>
         );
       })}
+      {custom.map((v) => (
+        <span
+          key={v}
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#078ACB] bg-[#078ACB] py-1.5 pl-3.5 pr-2 text-sm font-medium text-white"
+        >
+          <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+          {v}
+          <button type="button" onClick={() => onChange(value.filter((x) => x !== v))} className="rounded-full p-0.5 hover:bg-white/20" aria-label={`Remove ${v}`}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      ))}
+      {allowCustom && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 bg-card pl-3 pr-1 focus-within:border-[#078ACB]">
+          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addCustom();
+              }
+            }}
+            onBlur={addCustom}
+            placeholder={allowCustom}
+            className="w-40 bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+            data-testid={testId ? `${testId}-custom` : undefined}
+          />
+        </span>
+      )}
     </div>
   );
 }
@@ -213,6 +268,118 @@ export function FieldLabel({ children, hint }: { children: React.ReactNode; hint
     <div className="mb-1.5">
       <p className="text-sm font-semibold">{children}</p>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+export type AssistField = "business" | "goals" | "relationship" | "friction" | "avoid";
+type AssistAction = "draft" | "shorter" | "longer" | "polish";
+
+// A textarea with a writing-help menu: draft it, shorten, lengthen, polish.
+// The result replaces the text in place, with one-step undo.
+export function AssistTextarea({
+  field,
+  value,
+  onChange,
+  context,
+  testId,
+  className,
+  ...props
+}: {
+  field: AssistField;
+  value: string;
+  onChange: (v: string) => void;
+  context: { clientName: string; business: string; industries: string[] };
+  testId?: string;
+} & Omit<React.ComponentProps<typeof Textarea>, "value" | "onChange">) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState<AssistAction | null>(null);
+  const [previous, setPrevious] = useState<string | null>(null);
+  // Latest text, so a slow response never overwrites what was typed meanwhile.
+  const latest = useRef(value);
+  latest.current = value;
+  const empty = !value.trim();
+
+  const run = async (action: AssistAction) => {
+    setBusy(action);
+    const sent = value;
+    try {
+      const res = await apiRequest("POST", "/api/onboarding/assist", { field, action, text: sent, ...context });
+      const { text } = (await res.json()) as { text: string };
+      if (latest.current !== sent) return; // edited while waiting: keep the edit
+      setPrevious(sent);
+      onChange(text);
+    } catch (err) {
+      toast({ title: "Writing help didn't work", description: friendlyError(err as Error), variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const items: Array<{ action: AssistAction; label: string; hint: string; needsText: boolean }> = [
+    { action: "draft", label: empty ? "Write a draft for me" : "Start over with a draft", hint: "Leaves [blanks] for facts only you know", needsText: false },
+    { action: "polish", label: "Polish the wording", hint: "Same meaning, cleaner", needsText: true },
+    { action: "shorter", label: "Make it shorter", hint: "Keep the facts, cut the rest", needsText: true },
+    { action: "longer", label: "Make it longer", hint: "Add useful detail", needsText: true },
+  ];
+
+  return (
+    <div className="relative">
+      <Textarea
+        value={value}
+        onChange={(e) => {
+          setPrevious(null); // Undo only restores an untouched result
+          onChange(e.target.value);
+        }}
+        className={cn("text-[15px]", className, "pr-12")}
+        data-testid={testId}
+        {...props}
+      />
+      <div className="absolute right-2 top-2 flex items-center gap-1">
+        {previous !== null && !busy && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange(previous);
+              setPrevious(null);
+            }}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Undo"
+            aria-label="Undo writing help"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={!!busy}
+              className="rounded-md bg-[#078ACB]/10 p-1.5 text-[#078ACB] transition-colors hover:bg-[#078ACB]/20 disabled:opacity-70 dark:text-[#6CC3EE]"
+              title="Writing help"
+              aria-label="Writing help"
+              data-testid={testId ? `${testId}-assist` : undefined}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Writing help</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {items.map((it) => (
+              <DropdownMenuItem
+                key={it.action}
+                disabled={it.needsText && empty}
+                onSelect={() => run(it.action)}
+                className="flex flex-col items-start gap-0"
+              >
+                <span className="font-medium">{it.label}</span>
+                <span className="text-xs text-muted-foreground">{it.hint}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

@@ -9991,6 +9991,21 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  app.post("/api/onboarding/assist", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { assistInputSchema, assistAnswer } = await import("./services/onboarding-service");
+      const parsed = assistInputSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Couldn't read that request." });
+      res.json({ text: await assistAnswer(getUserId(req) ?? clientId, parsed.data) });
+    } catch (err: any) {
+      if (err.status) return res.status(err.status).json({ message: err.message });
+      console.error("POST /api/onboarding/assist error:", err);
+      res.status(500).json({ message: "Writing help isn't available right now." });
+    }
+  });
+
   app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
     try {
       const clientId = await firmScope(req, res);

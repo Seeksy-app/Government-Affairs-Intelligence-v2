@@ -81,13 +81,13 @@ export const TRIGGERS: Opt[] = [
 ];
 
 export const WEATHER_IMPACT: Opt<"often" | "sometimes" | "rarely">[] = [
-  { value: "often", label: "Often", hint: "Fly-ins, hearings and votes move with the weather, or storms hit our clients' operations." },
-  { value: "sometimes", label: "Sometimes", hint: "Worth a glance — mostly when something big is coming." },
-  { value: "rarely", label: "Rarely", hint: "Keep weather off my dashboard." },
+  { value: "often", label: "Often", hint: "Storm, fire and disaster alerts near the top of Today. Fly-ins, hearings and votes move with the weather." },
+  { value: "sometimes", label: "Sometimes", hint: "Alerts stay on Today, lower down." },
+  { value: "rarely", label: "Rarely", hint: "Skip the alerts. The D.C. forecast stays in your header." },
 ];
 
 export const MARKETS_INTEREST: Opt<"yes" | "sometimes" | "no">[] = [
-  { value: "yes", label: "Yes, show them", hint: "Election and policy odds from Kalshi, on your Today page." },
+  { value: "yes", label: "Yes, show them", hint: "Live odds from Kalshi on your Today page." },
   { value: "sometimes", label: "Keep them handy", hint: "Available under Markets, not on Today." },
   { value: "no", label: "Not for us" },
 ];
@@ -101,7 +101,14 @@ export const AI_COMFORT: Opt<AiComfort>[] = [
   { value: "dislikes", label: "I'd rather not use it", hint: "I'm skeptical of it, and I want to see the sources." },
 ];
 
-export const CLIENT_AI_COMFORT: Opt<AiComfort>[] = [...AI_COMFORT, { value: "unsure", label: "Not sure" }];
+// About the client, not the firm: would they mind AI helping with what the
+// firm shares with them? Only "dislikes" and "never" change how answers read.
+export const CLIENT_AI_COMFORT: Opt<AiComfort>[] = [
+  { value: "daily", label: "Comfortable", hint: "They use AI themselves. No need to tiptoe." },
+  { value: "apis", label: "Fine, if it's accurate", hint: "They care about sources and judgment, not the tools." },
+  { value: "dislikes", label: "Wary", hint: "Keep any mention of AI out of what they see." },
+  { value: "unsure", label: "Not sure", hint: "We'll write neutrally." },
+];
 
 export type Proactive = "yes" | "ask" | "no";
 export const PROACTIVE: Opt<Proactive>[] = [
