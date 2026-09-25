@@ -1,8 +1,8 @@
 import Parser from "rss-parser";
 import axios from "axios";
 import { db } from "../db";
-import { rssFeeds, newsArticles } from "@shared/schema";
-import { and, eq, desc, inArray, sql } from "drizzle-orm";
+import { rssFeeds, newsArticles, clientProfiles } from "@shared/schema";
+import { and, eq, desc, gte, inArray, sql } from "drizzle-orm";
 
 interface AggregatedArticle {
   externalId: string;
@@ -380,6 +380,7 @@ export function scoreArticleRelevance(
     trackedStaffers?: string[];
     trackedOrganizations?: string[];
     matterKeywords?: string[];
+    profile?: FirmProfileTerms;
   } = {}
 ): { score: number; matchedTopics: string[] } {
   const searchText = `${article.title} ${article.summary} ${article.content || ""}`.toLowerCase();
@@ -427,6 +428,20 @@ export function scoreArticleRelevance(
     }
   }
   
+  // Firm profile (client_profiles): watchlist topics, agencies, committees,
+  // industries. This is what makes "High relevance" mean something for a
+  // firm before it has projects, contacts or tracked bills of its own.
+  if (context.profile) {
+    const profileText = `${article.title} ${article.summary} ${(article.content || "").slice(0, 3000)}`;
+    const p = scoreProfileMatch(article.title, profileText, context.profile);
+    score += p.score;
+    matchedTopics.push(...p.matched);
+  }
+
+  // Source and recency bonuses only lift stories that already matched
+  // something — an unrelated story stays at 0 instead of showing "10%".
+  if (score === 0) return { score: 0, matchedTopics };
+
   // Bonus for credible sources
   const highCredibilitySources = ["congress_gov", "federal_register", "department_of_defense", "white_house"];
   if (highCredibilitySources.includes(article.source)) {
@@ -443,15 +458,182 @@ export function scoreArticleRelevance(
   return { score: Math.min(score, 100), matchedTopics };
 }
 
+// ─── Firm-profile relevance ───────────────────────────────────────────────────
+
+export interface FirmProfileTerms {
+  watchlistTopics: string[];
+  industries: string[];
+  agencies: string[];
+  committees: string[];
+}
+
+const STOPWORDS = new Set([
+  "the", "and", "for", "with", "from", "into", "over", "under", "about", "of", "to", "in", "on", "a", "an",
+  "policy", "policies", "issues", "services", "service", "program", "programs", "expansion", "funding",
+  "senate", "house", "committee", "department", "affairs",
+]);
+
+// Common names for agency acronyms in client profiles. Acronyms are matched
+// case-sensitively as whole words ("VA", not "va" inside "Nevada").
+const AGENCY_ALIASES: Record<string, string[]> = {
+  va: ["VA", "veterans affairs"],
+  dod: ["DoD", "DOD", "Pentagon", "Defense Department", "Department of Defense", "Hegseth", "Department of War"],
+  hhs: ["HHS", "Health and Human Services"],
+  cms: ["CMS", "Medicare", "Medicaid", "Centers for Medicare"],
+  fda: ["FDA", "Food and Drug Administration"],
+  dot: ["DOT", "Transportation Department", "Department of Transportation", "FAA", "Federal Highway"],
+  doe: ["DOE", "Energy Department", "Department of Energy"],
+  commerce: ["Commerce Department", "Department of Commerce", "Lutnick"],
+  ntia: ["NTIA", "broadband"],
+  treasury: ["Treasury", "IRS"],
+  "white house": ["White House"],
+  dol: ["Labor Department", "Department of Labor", "DOL"],
+  dhs: ["DHS", "Homeland Security", "ICE", "FEMA"],
+  epa: ["EPA", "Environmental Protection Agency"],
+};
+
+function stemOf(word: string): string {
+  return word.length > 5 ? word.slice(0, Math.max(5, word.length - 3)) : word;
+}
+
+function tokenize(text: string): string[] {
+  return text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+}
+
+function significantTerms(phrase: string): string[] {
+  return tokenize(phrase).filter((t) => (t.length >= 3 || /^[a-z]{2}$/.test(t)) && !STOPWORDS.has(t));
+}
+
+function hasTerm(tokens: string[], term: string): boolean {
+  if (term.length <= 3) return tokens.includes(term); // short words/acronyms: exact
+  const stem = stemOf(term);
+  return tokens.some((t) => t.startsWith(stem));
+}
+
+function hasPhrase(text: string, alias: string): boolean {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // All-caps aliases (acronyms) must match case-sensitively as whole words.
+  const flags = alias === alias.toUpperCase() && alias.length <= 5 ? "" : "i";
+  return new RegExp(`\\b${escaped}\\b`, flags).test(text);
+}
+
+function agencyAliases(label: string): string[] {
+  const key = label.toLowerCase().replace(/^(u\.?s\.?\s+)?(department|dept\.?)\s+of\s+(the\s+)?/, "").trim();
+  return AGENCY_ALIASES[key] ?? [label];
+}
+
+// Points: watchlist topic 25 (all key words) / 15 (most), agency 12,
+// committee 12, industry 10, plus 5 when the match is in the headline.
+// Tuned so a clearly on-topic story lands ≥ 50 ("High relevance").
+export function scoreProfileMatch(
+  title: string,
+  text: string,
+  profile: FirmProfileTerms,
+): { score: number; matched: string[] } {
+  const tokens = tokenize(text);
+  const titleTokens = tokenize(title);
+  let score = 0;
+  const matched: string[] = [];
+
+  for (const topic of profile.watchlistTopics) {
+    const terms = significantTerms(topic);
+    if (terms.length === 0) continue;
+    const hits = terms.filter((t) => hasTerm(tokens, t)).length;
+    const needed = terms.length <= 2 ? terms.length : terms.length - 1;
+    if (hits === terms.length) score += 25;
+    else if (hits >= needed && hits >= 2) score += 15;
+    else continue;
+    if (terms.filter((t) => hasTerm(titleTokens, t)).length >= Math.min(2, terms.length)) score += 5;
+    matched.push(topic);
+  }
+
+  for (const agency of profile.agencies) {
+    const aliases = agencyAliases(agency);
+    if (aliases.some((a) => hasPhrase(text, a))) {
+      score += 12;
+      if (aliases.some((a) => hasPhrase(title, a))) score += 5;
+      matched.push(agency);
+    }
+  }
+
+  // A committee counts only when the story is about the committee itself
+  // ("House Veterans Affairs", "Armed Services Committee"), not merely the
+  // department that shares its name. Apostrophes are dropped ("Veterans'").
+  const plain = text.replace(/['\u2019]/g, "");
+  for (const committee of profile.committees) {
+    const chamber = committee.match(/^(senate|house)\s+/i)?.[1];
+    const core = committee.replace(/^(senate|house)\s+/i, "").replace(/\s+committee$/i, "");
+    // With a chamber ("Senate Armed Services") it must be that chamber's panel.
+    const aboutCommittee = chamber
+      ? hasPhrase(plain, `${chamber} ${core}`)
+      : hasPhrase(plain, `${core} Committee`) || hasPhrase(plain, `${core} panel`);
+    if (aboutCommittee) {
+      score += 12;
+      matched.push(committee);
+    }
+  }
+
+  for (const industry of profile.industries) {
+    const terms = significantTerms(industry);
+    const industryTerms = terms.length > 0 ? terms : tokenize(industry);
+    if (industryTerms.length > 0 && industryTerms.every((t) => hasTerm(tokens, t))) {
+      score += 10;
+      matched.push(industry);
+    }
+  }
+
+  return { score, matched: Array.from(new Set(matched)) };
+}
+
+// Re-score a firm's recent articles (e.g. after its profile or the scoring
+// changes). Only rows whose score or matches changed are written.
+export async function rescoreRecentArticles(
+  clientId: string,
+  context: Parameters<typeof scoreArticleRelevance>[1],
+  days = 14,
+): Promise<number> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      id: newsArticles.id,
+      title: newsArticles.title,
+      summary: newsArticles.summary,
+      content: newsArticles.content,
+      source: newsArticles.source,
+      publishedAt: newsArticles.publishedAt,
+      relevanceScore: newsArticles.relevanceScore,
+    })
+    .from(newsArticles)
+    .where(and(eq(newsArticles.clientId, clientId), gte(newsArticles.publishedAt, since)));
+
+  let updated = 0;
+  for (const r of rows) {
+    const { score, matchedTopics } = scoreArticleRelevance(
+      {
+        title: r.title,
+        summary: r.summary ?? "",
+        content: r.content ?? "",
+        source: r.source ?? "",
+        publishedAt: r.publishedAt ?? new Date(0),
+      } as AggregatedArticle,
+      context,
+    );
+    if (score !== r.relevanceScore) {
+      await db
+        .update(newsArticles)
+        .set({ relevanceScore: score, matchedTopics: matchedTopics.length > 0 ? matchedTopics : null })
+        .where(eq(newsArticles.id, r.id));
+      updated++;
+    }
+  }
+  return updated;
+}
+
 // Save aggregated articles to database for a specific client
 export async function saveArticlesToDatabase(
   clientId: string,
   articles: AggregatedArticle[],
-  relevanceContext?: {
-    trackedTopics?: string[];
-    trackedBillNumbers?: string[];
-    trackedStaffers?: string[];
-  }
+  relevanceContext?: Parameters<typeof scoreArticleRelevance>[1]
 ): Promise<number> {
   let savedCount = 0;
 
@@ -513,14 +695,34 @@ export async function getClientRelevanceContext(clientId: string): Promise<{
   trackedTopics: string[];
   trackedBillNumbers: string[];
   trackedStaffers: string[];
+  profile?: FirmProfileTerms;
 }> {
-  const context = {
-    trackedTopics: [] as string[],
-    trackedBillNumbers: [] as string[],
-    trackedStaffers: [] as string[],
+  const context: {
+    trackedTopics: string[];
+    trackedBillNumbers: string[];
+    trackedStaffers: string[];
+    profile?: FirmProfileTerms;
+  } = {
+    trackedTopics: [],
+    trackedBillNumbers: [],
+    trackedStaffers: [],
   };
   
   try {
+    const [profile] = await db
+      .select()
+      .from(clientProfiles)
+      .where(eq(clientProfiles.clientId, clientId))
+      .limit(1);
+    if (profile) {
+      context.profile = {
+        watchlistTopics: profile.watchlistTopics ?? [],
+        industries: profile.industries ?? [],
+        agencies: profile.relevantAgencies ?? [],
+        committees: profile.relevantCommittees ?? [],
+      };
+    }
+
     // Get matter keywords for topics
     const matters = await db.execute(
       sql`SELECT name, description FROM matters WHERE client_id = ${clientId} AND status = 'active'`

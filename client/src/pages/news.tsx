@@ -970,9 +970,12 @@ export default function News() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           {(article.relevanceScore || 0) > 0 && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${getRelevanceColor(article.relevanceScore || 0)}`}>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${getRelevanceColor(article.relevanceScore || 0)}`}
+                              title="Relevance to your firm's watchlist topics, agencies and committees (0–100)"
+                            >
                               <Star className="h-3 w-3 inline mr-1" />
-                              {article.relevanceScore}%
+                              {article.relevanceScore}
                             </span>
                           )}
                           {article.isFlagged && (
