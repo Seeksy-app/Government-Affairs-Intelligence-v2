@@ -82,10 +82,29 @@ const BROWSER_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
 };
 
+// hhs.gov also blocks Render's datacenter IPs outright (403 even with browser
+// headers, while the same request works from an office). When that happens,
+// fetch the feed through Firecrawl — about 1 credit per 6-hourly sync.
 async function fetchFeedXml(url: string): Promise<string> {
   const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) throw new Error(`Status code ${res.status}`);
-  return res.text();
+  if (res.ok) return res.text();
+  if (res.status === 403 && process.env.FIRECRAWL_API_KEY) return fetchViaFirecrawl(url);
+  throw new Error(`Status code ${res.status}`);
+}
+
+async function fetchViaFirecrawl(url: string): Promise<string> {
+  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ url, formats: ["rawHtml"], onlyMainContent: false }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  const body = (await res.json().catch(() => null)) as { success?: boolean; data?: { rawHtml?: string } } | null;
+  const xml = body?.data?.rawHtml ?? "";
+  if (!res.ok || !body?.success || !xml.includes("<item>")) {
+    throw new Error(`Status code 403; Firecrawl fallback failed (${res.status})`);
+  }
+  return xml;
 }
 
 function decodeEntities(s: string): string {
