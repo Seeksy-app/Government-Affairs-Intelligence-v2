@@ -46,7 +46,7 @@ export const AGENCIES: Array<{ value: string; label: string; feed: boolean }> = 
 export const COMMITTEES = [
   "House Ways and Means", "Senate Finance", "House Energy and Commerce", "Senate HELP",
   "House Appropriations", "Senate Appropriations", "House Armed Services", "Senate Armed Services",
-  "House Veterans' Affairs", "Senate Veterans' Affairs", "House Education and the Workforce",
+  "House Veterans Affairs", "Senate Veterans Affairs", "House Education and the Workforce",
   "House Financial Services", "Senate Banking", "House Judiciary", "Senate Judiciary",
   "House Transportation and Infrastructure", "Senate Commerce", "House Agriculture", "Senate Agriculture",
   "House Homeland Security", "Senate Homeland Security",
