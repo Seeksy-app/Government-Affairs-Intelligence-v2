@@ -433,7 +433,7 @@ export function scoreArticleRelevance(
   // firm before it has projects, contacts or tracked bills of its own.
   if (context.profile) {
     const profileText = `${article.title} ${article.summary} ${(article.content || "").slice(0, 3000)}`;
-    const p = scoreProfileMatch(article.title, profileText, context.profile);
+    const p = scoreProfileMatch(article.title, profileText, context.profile, article.url);
     score += p.score;
     matchedTopics.push(...p.matched);
   }
@@ -522,44 +522,119 @@ function agencyAliases(label: string): string[] {
   return AGENCY_ALIASES[key] ?? [label];
 }
 
-// Points: watchlist topic 25 (all key words) / 15 (most), agency 12,
-// committee 12, industry 10, plus 5 when the match is in the headline.
-// Tuned so a clearly on-topic story lands ≥ 50 ("High relevance").
+// Words that appear in almost every story for a veterans/health firm. On
+// their own they can't make a watchlist topic match — a topic needs at least
+// one of its distinctive words ("mental", "claims", "workforce"…).
+const GENERIC_TERMS = new Set([
+  "veteran", "veterans", "va", "military", "service", "services", "health", "healthcare", "care",
+  "benefit", "benefits", "federal", "program", "programs", "bill", "people", "support",
+]);
+
+// Headlines about decisions, money or oversight — what a lobbyist acts on —
+// as opposed to features, events and how-to posts.
+const POLICY_ACTION =
+  /\b(bill|bills|act|legislation|law|rule|rules|regulation|funding|budget|appropriations?|cuts?|contracts?|terminated|cancel(?:ed|s)?|lawsuit|sues?|court|ruling|hearing|markup|vote[sd]?|nominee|nomination|confirm(?:ed|ation)?|watchdog|audit|inspector general|gao|investigation|probe|report finds|executive order|policy|reform|layoffs?|backlog|shortage)\b/i;
+
+// Agencies' own newsrooms/blogs mention the agency in every post, so they get
+// no agency points (their posts still score on topics and policy words).
+const AGENCY_DOMAINS: Record<string, string[]> = {
+  va: ["va.gov"],
+  dod: ["defense.gov", "mil"],
+  hhs: ["hhs.gov"],
+  cms: ["cms.gov", "medicare.gov", "medicaid.gov"],
+  fda: ["fda.gov"],
+  dot: ["transportation.gov", "dot.gov"],
+  doe: ["energy.gov"],
+  commerce: ["commerce.gov"],
+  treasury: ["treasury.gov"],
+  "white house": ["whitehouse.gov"],
+  dol: ["dol.gov"],
+  dhs: ["dhs.gov"],
+  epa: ["epa.gov"],
+};
+
+function hostOf(url: string | undefined): string {
+  try {
+    return url ? new URL(url).hostname.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+function isAgencyOwnSite(agency: string, host: string): boolean {
+  if (!host) return false;
+  const key = agency.toLowerCase().replace(/^(u\.?s\.?\s+)?(department|dept\.?)\s+of\s+(the\s+)?/, "").trim();
+  return (AGENCY_DOMAINS[key] ?? []).some((d) => host === d || host.endsWith(`.${d}`));
+}
+
+// Scoring (calibrated so "High relevance" ≥ 50 means a lobbyist should read it):
+// - watchlist topics: best match 25 (all key words) / 15 (most), +5 if in the
+//   headline, +5 per extra topic (max +10) — no stacking six partial hits
+// - agencies: 25 when named in the headline, 12 in the body (max 30); none
+//   for the agency's own site
+// - committees: 12 each (max 24), only when the story is about that panel
+// - industries: 10 once
+// - +10 when a matched story's headline describes policy action
 export function scoreProfileMatch(
   title: string,
   text: string,
   profile: FirmProfileTerms,
+  url?: string,
 ): { score: number; matched: string[] } {
   const tokens = tokenize(text);
   const titleTokens = tokenize(title);
-  let score = 0;
+  const host = hostOf(url);
   const matched: string[] = [];
 
+  // Topics
+  const topicScores: number[] = [];
   for (const topic of profile.watchlistTopics) {
     const terms = significantTerms(topic);
     if (terms.length === 0) continue;
-    const hits = terms.filter((t) => hasTerm(tokens, t)).length;
-    const needed = terms.length <= 2 ? terms.length : terms.length - 1;
-    if (hits === terms.length) score += 25;
-    else if (hits >= needed && hits >= 2) score += 15;
-    else continue;
-    if (terms.filter((t) => hasTerm(titleTokens, t)).length >= Math.min(2, terms.length)) score += 5;
-    matched.push(topic);
+    const distinctive = terms.filter((t) => !GENERIC_TERMS.has(t));
+    let pts = 0;
+    if (distinctive.length === 0) {
+      // Only generic words ("veterans benefits expansion"): all must be in the headline.
+      if (terms.every((t) => hasTerm(titleTokens, t))) pts = 20;
+    } else {
+      const distinctHits = distinctive.filter((t) => hasTerm(tokens, t)).length;
+      const hits = terms.filter((t) => hasTerm(tokens, t)).length;
+      const needed = terms.length <= 2 ? terms.length : terms.length - 1;
+      if (distinctHits === 0) pts = 0;
+      else if (hits === terms.length) pts = 25;
+      else if (hits >= needed && hits >= 2) pts = 15;
+      if (pts > 0 && distinctive.some((t) => hasTerm(titleTokens, t))) pts += 5;
+    }
+    if (pts > 0) {
+      topicScores.push(pts);
+      matched.push(topic);
+    }
   }
+  topicScores.sort((a, b) => b - a);
+  const topicPoints = topicScores.length
+    ? topicScores[0] + Math.min(10, 5 * (topicScores.length - 1))
+    : 0;
 
+  // Agencies
+  let agencyPoints = 0;
   for (const agency of profile.agencies) {
+    if (isAgencyOwnSite(agency, host)) continue;
     const aliases = agencyAliases(agency);
-    if (aliases.some((a) => hasPhrase(text, a))) {
-      score += 12;
-      if (aliases.some((a) => hasPhrase(title, a))) score += 5;
+    if (aliases.some((a) => hasPhrase(title, a))) {
+      agencyPoints += 25;
+      matched.push(agency);
+    } else if (aliases.some((a) => hasPhrase(text, a))) {
+      agencyPoints += 12;
       matched.push(agency);
     }
   }
+  agencyPoints = Math.min(agencyPoints, 30);
 
   // A committee counts only when the story is about the committee itself
   // ("House Veterans Affairs", "Armed Services Committee"), not merely the
   // department that shares its name. Apostrophes are dropped ("Veterans'").
   const plain = text.replace(/['\u2019]/g, "");
+  let committeePoints = 0;
   for (const committee of profile.committees) {
     const chamber = committee.match(/^(senate|house)\s+/i)?.[1];
     const core = committee.replace(/^(senate|house)\s+/i, "").replace(/\s+committee$/i, "");
@@ -568,19 +643,29 @@ export function scoreProfileMatch(
       ? hasPhrase(plain, `${chamber} ${core}`)
       : hasPhrase(plain, `${core} Committee`) || hasPhrase(plain, `${core} panel`);
     if (aboutCommittee) {
-      score += 12;
+      committeePoints += 12;
       matched.push(committee);
     }
   }
+  committeePoints = Math.min(committeePoints, 24);
 
+  // Industries — once, not per industry
+  let industryPoints = 0;
   for (const industry of profile.industries) {
     const terms = significantTerms(industry);
     const industryTerms = terms.length > 0 ? terms : tokenize(industry);
     if (industryTerms.length > 0 && industryTerms.every((t) => hasTerm(tokens, t))) {
-      score += 10;
+      industryPoints = 10;
       matched.push(industry);
     }
   }
+
+  let score = topicPoints + agencyPoints + committeePoints + industryPoints;
+  // Industry words alone ("veterans", "healthcare") aren't a match.
+  if (topicPoints + agencyPoints + committeePoints === 0) {
+    return { score: 0, matched: [] };
+  }
+  if (POLICY_ACTION.test(title)) score += 10;
 
   return { score, matched: Array.from(new Set(matched)) };
 }
@@ -602,6 +687,7 @@ export async function rescoreRecentArticles(
       source: newsArticles.source,
       publishedAt: newsArticles.publishedAt,
       relevanceScore: newsArticles.relevanceScore,
+      url: newsArticles.url,
     })
     .from(newsArticles)
     .where(and(eq(newsArticles.clientId, clientId), gte(newsArticles.publishedAt, since)));
@@ -614,6 +700,7 @@ export async function rescoreRecentArticles(
         summary: r.summary ?? "",
         content: r.content ?? "",
         source: r.source ?? "",
+        url: r.url ?? "",
         publishedAt: r.publishedAt ?? new Date(0),
       } as AggregatedArticle,
       context,
