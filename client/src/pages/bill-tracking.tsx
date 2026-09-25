@@ -302,7 +302,7 @@ export default function BillTrackingPage() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Monitor"
+        eyebrow="Legislation"
         title="Bills"
         description="Track federal and state legislation and get notified when anything moves."
         className="mb-0"

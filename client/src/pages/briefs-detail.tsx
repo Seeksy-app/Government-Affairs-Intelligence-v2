@@ -278,7 +278,7 @@ export default function BriefDetail() {
 
   if (isLoading) {
     return (
-      <PageShell width="narrow">
+      <PageShell>
         <Skeleton className="mb-4 h-4 w-24" />
         <div className="mb-6 space-y-2">
           <Skeleton className="h-3 w-12" />
@@ -299,7 +299,7 @@ export default function BriefDetail() {
 
   if (!brief) {
     return (
-      <PageShell width="narrow">
+      <PageShell>
         <div className="flex flex-col items-center justify-center rounded-lg border bg-card px-6 py-16 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <FileText className="h-5 w-5 text-muted-foreground" />
@@ -327,7 +327,7 @@ export default function BriefDetail() {
   const canGenerate = !isGenerating;
 
   return (
-    <PageShell width="narrow">
+    <PageShell>
       {/* Header */}
       <Link
         href="/briefs"
@@ -439,7 +439,10 @@ export default function BriefDetail() {
 
       {/* Brief content */}
       {content && (
-        <div className="space-y-4">
+        // Two columns on wide screens: the brief on the left, its sources
+        // pinned alongside so citations can be checked without scrolling.
+        <div className={`grid items-start gap-6 ${brief.sources.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
+        <div className="min-w-0 space-y-4">
           {content.bottomLine && (
             <BottomLine level={content.bottomLine.level}>
               <CitedText text={content.bottomLine.answer} sources={brief.sources} />
@@ -459,7 +462,7 @@ export default function BriefDetail() {
           </Section>
 
           <Section title="Stakes Across Three Dimensions">
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-3">
               <StakeDimension label="Business" text={content.stakes.business} sources={brief.sources} />
               <StakeDimension label="Reputational" text={content.stakes.reputational} sources={brief.sources} />
               <StakeDimension label="Values" text={content.stakes.values} sources={brief.sources} />
@@ -477,7 +480,7 @@ export default function BriefDetail() {
           </Section>
 
           <Section title="Three Ways to Respond">
-            <div className="space-y-3">
+            <div className="grid gap-3 xl:grid-cols-3">
               <ResponseOption
                 label="Cautious"
                 color="text-primary"
@@ -502,7 +505,10 @@ export default function BriefDetail() {
             </div>
           </Section>
 
-          {/* Sources footer */}
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-4">
+          {/* Sources */}
           {brief.sources.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
@@ -520,7 +526,7 @@ export default function BriefDetail() {
                           href={s.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="hover:underline font-medium truncate max-w-sm"
+                          className="hover:underline font-medium line-clamp-2"
                         >
                           {s.title ?? s.url}
                         </a>
@@ -540,6 +546,7 @@ export default function BriefDetail() {
 
           {/* View analytics (if ready) */}
           {brief.status === "ready" && <ViewCount briefId={id!} />}
+        </aside>
         </div>
       )}
 

@@ -145,7 +145,7 @@ export default function BillMappingPage() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Monitor"
+        eyebrow="Legislation"
         title="Bill Mapping"
         description="Map staffers to the legislation they shaped across their careers."
         className="mb-0"

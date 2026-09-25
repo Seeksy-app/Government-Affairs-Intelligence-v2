@@ -75,7 +75,7 @@ export default function BriefsList() {
         }
       />
 
-      <div className="max-w-3xl">
+      <div>
         <AskBox showHeading={false} />
       </div>
 

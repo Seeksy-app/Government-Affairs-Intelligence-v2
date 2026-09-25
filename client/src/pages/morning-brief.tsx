@@ -445,7 +445,7 @@ export default function MorningBriefPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto w-full max-w-[1760px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {/* Masthead */}
         <PageHeader
           eyebrow={getTodayLine()}
@@ -519,9 +519,11 @@ export default function MorningBriefPage() {
 
         {/* Content */}
         {!isLoading && brief && (
-          <div className="space-y-8">
+          <div className="space-y-6">
+          {/* Side by side on wide screens: priorities left, watch list right */}
+          <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
             {/* Top Priorities */}
-            <section>
+            <section className="min-w-0">
               <h2 className="mb-3 text-lg font-semibold tracking-tight">Top priorities</h2>
               {brief.highRelevance.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -543,7 +545,7 @@ export default function MorningBriefPage() {
 
             {/* Worth Watching */}
             {brief.worthWatching.length > 0 && (
-              <section>
+              <section className="min-w-0">
                 <h2 className="mb-3 text-lg font-semibold tracking-tight">Worth watching</h2>
                 <div className="space-y-2.5">
                   {brief.worthWatching.map((item) => (
@@ -557,6 +559,8 @@ export default function MorningBriefPage() {
                 </div>
               </section>
             )}
+
+          </div>
 
             {/* Footer metadata */}
             <p className="text-xs text-muted-foreground text-center pb-4">

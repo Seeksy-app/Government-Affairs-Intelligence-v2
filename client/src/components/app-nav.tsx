@@ -89,6 +89,14 @@ const CLIENT_GROUPS: RailGroup[] = [
   {
     label: "Monitor",
     items: [
+      { key: "news", label: "News", icon: Newspaper, pages: [page("News", "/news", Newspaper, "news")] },
+      { key: "press", label: "Press", icon: Megaphone, pages: [page("Press Releases", "/press-releases", Megaphone, "press-releases")] },
+      { key: "markets", label: "Markets", icon: BarChart3, pages: [page("Prediction Markets", "/predictions", BarChart3, "predictions")] },
+    ],
+  },
+  {
+    label: "Legislation",
+    items: [
       {
         key: "bills",
         label: "Bills",
@@ -99,9 +107,6 @@ const CLIENT_GROUPS: RailGroup[] = [
         ],
       },
       { key: "hearings", label: "Hearings", icon: CalendarDays, pages: [page("Hearings & Schedules", "/schedules", CalendarDays, "schedules")] },
-      { key: "news", label: "News", icon: Newspaper, pages: [page("News", "/news", Newspaper, "news")] },
-      { key: "press", label: "Press", icon: Megaphone, pages: [page("Press Releases", "/press-releases", Megaphone, "press-releases")] },
-      { key: "markets", label: "Markets", icon: BarChart3, pages: [page("Prediction Markets", "/predictions", BarChart3, "predictions")] },
     ],
   },
   {
@@ -112,22 +117,24 @@ const CLIENT_GROUPS: RailGroup[] = [
         label: "People",
         icon: Users,
         pages: [
+          page("Contacts", "/contacts", Users, "contacts"),
           page("Staff Directory", "/staffers", Briefcase, "staffers"),
           page("Members of Congress", "/network", Landmark, "network"),
-          page("Contacts", "/contacts", Users, "contacts"),
           page("Power Search", "/power-search", Zap, "power-search"),
+          page("Client Portals", "/portals", Share2, "people-portals"),
         ],
       },
       { key: "strategy", label: "Strategy", icon: Target, pages: [page("Strategy Board", "/strategy", Target, "strategy")] },
+      { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
     ],
   },
   {
-    label: "Work",
-    items: [
-      { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
-      { key: "knowledge", label: "Knowledge", icon: Book, pages: [page("Knowledge Base", "/kb", Book, "kb")] },
-      { key: "clients", label: "Clients", icon: Share2, pages: [page("Client Portals", "/portals", Share2, "portals")] },
-    ],
+    label: "Clients",
+    items: [{ key: "clients", label: "Clients", icon: Share2, pages: [page("Client Portals", "/portals", Share2, "portals")] }],
+  },
+  {
+    label: "Knowledge",
+    items: [{ key: "knowledge", label: "Knowledge", icon: Book, pages: [page("Knowledge Base", "/kb", Book, "kb")] }],
   },
 ];
 
@@ -184,11 +191,14 @@ function isActiveUrl(location: string, url: string) {
 
 // Longest matching URL wins, so "/admin/kb" doesn't count as "/admin".
 function itemForLocation(items: RailItem[], location: string): string | null {
-  let best: { key: string; len: number } | null = null;
+  let best: { key: string; len: number; single: boolean } | null = null;
   for (const item of items) {
     for (const p of item.pages) {
-      if (isActiveUrl(location, p.url) && (!best || p.url.length > best.len)) {
-        best = { key: item.key, len: p.url.length };
+      if (!isActiveUrl(location, p.url)) continue;
+      // Ties (a page listed under two icons, e.g. Client Portals) go to the
+      // icon dedicated to that page.
+      if (!best || p.url.length > best.len || (p.url.length === best.len && item.pages.length === 1 && !best.single)) {
+        best = { key: item.key, len: p.url.length, single: item.pages.length === 1 };
       }
     }
   }
@@ -384,7 +394,7 @@ export function AppNav() {
   return (
     <nav ref={navRef} className="relative z-40 hidden h-full shrink-0 md:flex" aria-label="Main">
       {/* Rail */}
-      <div className="flex w-[76px] flex-col items-center border-r bg-card">
+      <div className="flex w-[76px] flex-col items-center border-r border-foreground/15 bg-card">
         <Link
           href={isClientView ? "/dashboard" : "/admin"}
           title={workspaceName || "GovernmentAffairs.io"}
@@ -396,7 +406,7 @@ export function AppNav() {
         <div className="flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overflow-x-hidden py-1">
           {groups.map((g, gi) => (
             <div key={g.label ?? gi} className="flex w-full flex-col items-center gap-0.5">
-              {gi > 0 && <div className="my-1.5 h-px w-8 bg-border" aria-hidden />}
+              {gi > 0 && <div className="my-1.5 h-px w-10 bg-foreground/20" aria-hidden />}
               {g.items.map((item) => (
                 <RailButton
                   key={item.key}
@@ -410,7 +420,7 @@ export function AppNav() {
           ))}
         </div>
 
-        <div className="flex shrink-0 flex-col items-center gap-2 border-t pb-3 pt-2">
+        <div className="flex shrink-0 flex-col items-center gap-2 border-t border-foreground/15 pb-3 pt-2">
           {isClientView && (
             <RailButton
               item={SETTINGS_ITEM}
@@ -428,7 +438,7 @@ export function AppNav() {
         <div
           role="menu"
           aria-label={openItem.label}
-          className="absolute left-[76px] top-0 flex h-full w-60 flex-col border-r bg-card shadow-xl animate-in fade-in-0 slide-in-from-left-2 duration-150"
+          className="absolute left-[76px] top-0 flex h-full w-60 flex-col border-r border-foreground/15 bg-card shadow-xl animate-in fade-in-0 slide-in-from-left-2 duration-150"
         >
           <div className="px-4 pb-3 pt-4">
             <p className="text-[15px] font-bold tracking-tight">{openItem.label}</p>
@@ -449,10 +459,16 @@ export function MobileNav({ open, onOpenChange }: { open: boolean; onOpenChange:
   const [location] = useLocation();
   const { groups, isClientView, workspaceName, displayName, roleLabel } = useNavModel();
   const close = () => onOpenChange(false);
+  const listed = new Set<string>();
   const sections = [
     ...groups.map((g) => ({ label: g.label ?? "", pages: g.items.flatMap((i) => i.pages) })),
     ...(isClientView ? [{ label: "Settings", pages: SETTINGS_ITEM.pages }] : []),
-  ];
+  ]
+    .map((sec) => ({
+      ...sec,
+      pages: sec.pages.filter((p) => (listed.has(p.url) ? false : (listed.add(p.url), true))),
+    }))
+    .filter((sec) => sec.pages.length > 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

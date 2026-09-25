@@ -246,7 +246,7 @@ export default function CongressionalSchedules() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Monitor"
+        eyebrow="Legislation"
         title="Hearings & Schedules"
         description="Monitor the session calendar, committee hearings and floor activity to plan when to reach members."
         className="mb-0"
