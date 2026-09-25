@@ -3562,7 +3562,13 @@ Format your response as a structured summary with clear sections.`;
       const { eq } = await import("drizzle-orm");
       const [row] = await db
         .update(clients)
-        .set({ name: parsed.data.name, address: parsed.data.address || null, phone: parsed.data.phone || null, updatedAt: new Date() })
+        .set({
+          name: parsed.data.name,
+          // Only touch fields the request sent; "" or null clears one.
+          ...(parsed.data.address !== undefined && { address: parsed.data.address || null }),
+          ...(parsed.data.phone !== undefined && { phone: parsed.data.phone || null }),
+          updatedAt: new Date(),
+        })
         .where(eq(clients.id, clientId))
         .returning();
       res.json({ client: row });
