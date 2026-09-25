@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -31,16 +30,13 @@ function agencyLabel(slug: string) {
 }
 
 export default function PressReleasesPage() {
-  const [scope, setScope] = useState<"mine" | "all">("mine");
   const { data, isLoading } = useQuery<ReleasesResponse>({
-    queryKey: [`/api/government-press/releases?scope=${scope}`],
+    queryKey: ["/api/government-press/releases"],
   });
 
   const releases = data?.releases ?? [];
   const agencies = data?.agencies ?? [];
   const notCollected = agencies.filter((a) => !a.collected);
-  // The server falls back to all agencies when none of the firm's are collected.
-  const effectiveScope = data?.scope ?? scope;
 
   return (
     <PageShell>
@@ -48,27 +44,6 @@ export default function PressReleasesPage() {
         eyebrow="Monitor"
         title="Press Releases"
         description="The latest releases from the federal agencies your firm follows."
-        actions={
-          data?.hasMine && (
-            <div className="inline-flex rounded-lg bg-muted p-1" role="tablist" aria-label="Agencies shown">
-              {(["mine", "all"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  role="tab"
-                  aria-selected={effectiveScope === s}
-                  onClick={() => setScope(s)}
-                  className={`rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
-                    effectiveScope === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  data-testid={`button-scope-${s}`}
-                >
-                  {s === "mine" ? "Your agencies" : "All agencies"}
-                </button>
-              ))}
-            </div>
-          )
-        }
       >
         {agencies.length > 0 && (
           <p className="text-sm text-muted-foreground">
@@ -79,6 +54,11 @@ export default function PressReleasesPage() {
             {notCollected.length > 0 && (
               <> · {notCollected.map((a) => agencyLabel(a.slug)).join(", ")} not collected yet</>
             )}
+          </p>
+        )}
+        {data?.scope === "all" && (
+          <p className="text-sm text-muted-foreground">
+            Showing every agency — add agencies to your firm profile to narrow this list.
           </p>
         )}
       </PageHeader>
@@ -98,7 +78,7 @@ export default function PressReleasesPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Newspaper className="h-5 w-5 text-muted-foreground" />
           </div>
-          <h2 className="mt-4 text-sm font-semibold">No releases yet</h2>
+          <h2 className="mt-4 text-sm font-semibold">No releases from your agencies yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             New releases are collected every few hours.
           </p>
