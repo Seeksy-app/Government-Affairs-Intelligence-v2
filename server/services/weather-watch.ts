@@ -35,8 +35,24 @@ export interface WeatherItem {
   when: string | null;
 }
 
+export interface DcDay {
+  name: string;            // "Today", "Tonight", "Saturday"…
+  high: number | null;     // °F
+  low: number | null;      // °F
+  short: string;           // NWS short forecast, e.g. "Chance Light Rain"
+  precipChance: number | null;
+  hazard: string | null;   // "Snow/ice", "Storms", "Heat", "Cold", "Heavy rain"
+}
+
+export interface DcOutlook {
+  days: DcDay[];
+  federalStatus: { summary: string; message: string; url: string } | null;
+  hillNote: string | null;
+}
+
 export interface WeatherWatch {
   updatedAt: string;
+  dc: DcOutlook | null;
   items: WeatherItem[];
   tracking: Array<{ name: string; classification: string; basin: string; windMph: number; url: string }>;
   yourStates: string[];
@@ -49,6 +65,8 @@ interface RawData {
   alerts: any[];
   storms: any[];
   declarations: any[];
+  dcForecast: any[];      // NWS forecast periods for the Capitol
+  opm: any | null;        // OPM D.C.-area operating status
   ok: { nws: boolean; nhc: boolean; fema: boolean };
   fetchedAt: number;
 }
@@ -80,13 +98,16 @@ async function fetchRaw(): Promise<RawData> {
     "&$orderby=declarationDate%20desc&$top=200" +
     "&$select=femaDeclarationString,disasterNumber,state,declarationType,incidentType,declarationTitle,declarationDate,designatedArea";
 
-  const [nws, nhc, fema] = await Promise.allSettled([
+  const [nws, nhc, fema, dcf, opm] = await Promise.allSettled([
     getJson("https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&severity=Extreme,Severe"),
     getJson("https://www.nhc.noaa.gov/CurrentStorms.json"),
     getJson(femaUrl),
+    // Forecast grid for the U.S. Capitol (38.8899, -77.0091 → LWX 98,71).
+    getJson("https://api.weather.gov/gridpoints/LWX/98,71/forecast"),
+    getJson("https://www.opm.gov/json/operatingstatus.json"),
   ]);
 
-  for (const [name, r] of [["NWS", nws], ["NHC", nhc], ["FEMA", fema]] as const) {
+  for (const [name, r] of [["NWS", nws], ["NHC", nhc], ["FEMA", fema], ["DC forecast", dcf], ["OPM", opm]] as const) {
     if (r.status === "rejected") console.warn(`[weather-watch] ${name} fetch failed:`, (r.reason as Error)?.message);
   }
 
@@ -94,6 +115,8 @@ async function fetchRaw(): Promise<RawData> {
     alerts: nws.status === "fulfilled" ? nws.value.features ?? [] : cache?.alerts ?? [],
     storms: nhc.status === "fulfilled" ? nhc.value.activeStorms ?? [] : cache?.storms ?? [],
     declarations: fema.status === "fulfilled" ? fema.value.DisasterDeclarationsSummaries ?? [] : cache?.declarations ?? [],
+    dcForecast: dcf.status === "fulfilled" ? dcf.value.properties?.periods ?? [] : cache?.dcForecast ?? [],
+    opm: opm.status === "fulfilled" ? opm.value : cache?.opm ?? null,
     ok: { nws: nws.status === "fulfilled", nhc: nhc.status === "fulfilled", fema: fema.status === "fulfilled" },
     fetchedAt: Date.now(),
   };
@@ -154,6 +177,69 @@ const DECLARATION_TYPE: Record<string, { label: string; impact: string }> = {
     impact: "FEMA covers part of the cost of fighting the fire; watch for a follow-on major-disaster request if damage spreads.",
   },
 };
+
+function hazardOf(short: string, high: number | null, low: number | null, pop: number | null): string | null {
+  if (/snow|sleet|freezing|ice|blizzard|wintry/i.test(short)) return "Snow/ice";
+  if (/thunderstorm|severe/i.test(short)) return "Storms";
+  if (high !== null && high >= 95) return "Heat";
+  if (low !== null && low <= 15) return "Cold";
+  if (/rain|showers/i.test(short) && pop !== null && pop >= 70 && !/chance|slight/i.test(short)) return "Heavy rain";
+  return null;
+}
+
+// Four entries: day periods with the following night's low. If the forecast
+// starts at night ("Tonight"), that night is its own first entry.
+export function buildDcOutlook(periods: any[], opm: any | null): DcOutlook | null {
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  const days: DcDay[] = [];
+  let i = 0;
+  if (periods[0] && periods[0].isDaytime === false) {
+    const p = periods[0];
+    const pop = p.probabilityOfPrecipitation?.value ?? null;
+    days.push({ name: p.name, high: null, low: p.temperature ?? null, short: p.shortForecast ?? "", precipChance: pop, hazard: hazardOf(p.shortForecast ?? "", null, p.temperature ?? null, pop) });
+    i = 1;
+  }
+  for (; i < periods.length && days.length < 4; i += 2) {
+    const day = periods[i];
+    const night = periods[i + 1];
+    if (!day) break;
+    const pop = Math.max(day.probabilityOfPrecipitation?.value ?? 0, night?.probabilityOfPrecipitation?.value ?? 0) || null;
+    const high = day.temperature ?? null;
+    const low = night?.temperature ?? null;
+    days.push({
+      name: day.name,
+      high,
+      low,
+      short: day.shortForecast ?? "",
+      precipChance: pop,
+      hazard: hazardOf(`${day.shortForecast ?? ""} ${night?.shortForecast ?? ""}`, high, low, pop),
+    });
+  }
+
+  const federalStatus = opm?.StatusSummary
+    ? {
+        summary: String(opm.StatusSummary),
+        message: String(opm.ShortStatusMessage ?? opm.StatusSummary),
+        url: String(opm.StatusWebPage ?? opm.Url ?? "https://www.opm.gov/policy-data-oversight/snow-dismissal-procedures/current-status/"),
+      }
+    : null;
+
+  // One plain line on what the forecast means for the Hill.
+  let hillNote: string | null = null;
+  const federalOpen = !federalStatus || /^open$/i.test(federalStatus.summary.trim());
+  const hazardDay = days.find((d) => d.hazard);
+  if (!federalOpen) {
+    hillNote = `Federal offices: ${federalStatus!.summary}. Expect hearings and meetings to move.`;
+  } else if (hazardDay?.hazard === "Snow/ice") {
+    hillNote = `${hazardDay.name}: snow or ice in the forecast — federal closures and schedule changes are possible; watch OPM.`;
+  } else if (hazardDay?.hazard === "Storms" || hazardDay?.hazard === "Heavy rain") {
+    hillNote = `${hazardDay.name}: storms could delay flights in and out of D.C. — allow slack around fly-ins.`;
+  } else if (hazardDay?.hazard === "Heat") {
+    hillNote = `${hazardDay.name}: extreme heat — outdoor events and pressers on the Hill may move indoors.`;
+  }
+
+  return { days, federalStatus, hillNote };
+}
 
 export function buildWeatherWatch(raw: RawData, yourStates: string[]): WeatherWatch {
   const mine = new Set(yourStates);
@@ -281,6 +367,7 @@ export function buildWeatherWatch(raw: RawData, yourStates: string[]): WeatherWa
 
   return {
     updatedAt: new Date(raw.fetchedAt).toISOString(),
+    dc: buildDcOutlook(raw.dcForecast ?? [], raw.opm ?? null),
     items: items.slice(0, 6),
     tracking,
     yourStates,
