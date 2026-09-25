@@ -10192,7 +10192,7 @@ Format your response with clear headers and bullet points. Be specific and data-
     try {
       const { describeInvite } = await import("./services/team-service");
       const info = await describeInvite(String(req.params.token));
-      if (!info) return res.status(404).json({ message: "This invite link has expired or was already used. Ask for a new one." });
+      if (!info) return res.status(404).json({ message: "This invite link has expired or was already used." });
       res.json({ ...info, signedInAs: req.user ? (req.user as any)?.claims?.email ?? null : null });
     } catch (err) {
       teamError(res, err, "Couldn't open the invite.");
