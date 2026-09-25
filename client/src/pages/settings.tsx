@@ -10,7 +10,8 @@ import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useFirmSetup } from "@/hooks/use-firm-setup";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -160,6 +161,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <PracticeCard />
+
       {/* Integrations Card */}
       <Card>
         <CardHeader>
@@ -285,5 +288,32 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </PageShell>
+  );
+}
+
+// The onboarding answers, editable any time.
+function PracticeCard() {
+  const { data: setup, isError } = useFirmSetup();
+  if (isError || !setup) return null;
+  const n = setup.clients.length;
+  return (
+    <Card data-testid="card-practice">
+      <CardHeader>
+        <CardTitle className="text-base">Your practice and clients</CardTitle>
+        <CardDescription>
+          {setup.onboarded
+            ? `The answers your Today page is built from · ${n} client${n === 1 ? "" : "s"}`
+            : "Not set up yet. About ten minutes."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        <Button asChild>
+          <Link href="/onboarding">{setup.onboarded ? "Edit your answers" : "Start setup"}</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/onboarding?step=clients">Manage clients</Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

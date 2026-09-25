@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { AiComfort, FirmOnboarding, Proactive, Sharing } from "./onboarding";
 
 // Re-export auth models
 export * from "./models/auth";
@@ -1809,6 +1810,11 @@ export const clientProfiles = pgTable("client_profiles", {
   watchlistTopics: text("watchlist_topics").array().notNull().default(sql`'{}'::text[]`),
   relevantAgencies: text("relevant_agencies").array().notNull().default(sql`'{}'::text[]`),
   relevantCommittees: text("relevant_committees").array().notNull().default(sql`'{}'::text[]`),
+  // Two-letter codes; feeds Weather watch "your states" (migration 0003).
+  states: text("states").array().notNull().default(sql`'{}'::text[]`),
+  // Onboarding answers that shape Today (see shared/onboarding.ts).
+  onboarding: jsonb("onboarding").$type<FirmOnboarding>().notNull().default(sql`'{}'::jsonb`),
+  onboardedAt: timestamp("onboarded_at"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1822,3 +1828,29 @@ export const insertClientProfileSchema = createInsertSchema(clientProfiles).omit
 
 export type InsertClientProfile = z.infer<typeof insertClientProfileSchema>;
 export type ClientProfile = typeof clientProfiles.$inferSelect;
+
+// ─── The firm's own clients ───────────────────────────────────────────────────
+// Who the firm represents (a hospitality trade group, a defense contractor…),
+// captured at onboarding. Private to the firm: "avoid" (what not to say) steers
+// answers about this client and is never shown to the client. Distinct from
+// `customers` (contacts and targets) and `client_portals` (what they can see).
+
+export const firmClients = pgTable("firm_clients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  business: text("business"),
+  industries: text("industries").array().notNull().default(sql`'{}'::text[]`),
+  goals: text("goals"),
+  relationship: text("relationship"),
+  friction: text("friction"),
+  proactive: text("proactive").$type<Proactive>().notNull().default("ask"),
+  avoid: text("avoid"),
+  aiComfort: text("ai_comfort").$type<AiComfort>(),
+  sharing: text("sharing").$type<Sharing>().notNull().default("mix"),
+  portalId: varchar("portal_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type FirmClient = typeof firmClients.$inferSelect;

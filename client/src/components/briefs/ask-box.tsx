@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFirmSetup } from "@/hooks/use-firm-setup";
 
 const EXAMPLES = [
   "Is the proposed overtime rule a problem for our hospitality clients?",
@@ -20,7 +21,7 @@ export function useAskBrief() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (input: { question: string; clientContext?: string | null }) => {
+    mutationFn: async (input: { question: string; clientContext?: string | null; firmClientId?: string | null }) => {
       const res = await apiRequest("POST", "/api/briefs/ask", input);
       return (await res.json()) as { id: string };
     },
@@ -45,14 +46,19 @@ export function AskBox({
   const [question, setQuestion] = useState("");
   const [clientContext, setClientContext] = useState("");
   const [showContext, setShowContext] = useState(false);
+  // One of the firm's own clients: their goals and "never say" list steer the answer.
+  const [forClient, setForClient] = useState<string | null>(null);
   const ask = useAskBrief();
+  const { data: setup } = useFirmSetup();
+  const firmClients = setup?.clients ?? [];
+  const wary = setup?.profile?.onboarding?.aiComfort === "never" || setup?.profile?.onboarding?.aiComfort === "dislikes";
 
   const trimmed = question.trim();
   const canSubmit = trimmed.length >= 3 && !ask.isPending;
 
   const submit = () => {
     if (!canSubmit) return;
-    ask.mutate({ question: trimmed, clientContext: clientContext.trim() || null });
+    ask.mutate({ question: trimmed, clientContext: clientContext.trim() || null, firmClientId: forClient });
   };
 
   // Capitol Navy panel: the one place in the app that asks the user to act.
@@ -70,6 +76,7 @@ export function AskBox({
       <p className="mb-4 text-sm text-white/75">
         Paste a headline, a link, or a bill number, or just ask. We find the sources and write a calm,
         cited answer in about a minute.
+        {wary && " Every sentence links to the source it came from, so you can check each claim yourself."}
       </p>
 
       <form
@@ -94,6 +101,29 @@ export function AskBox({
           className="resize-none border-transparent bg-white text-base text-[#14253D] placeholder:text-slate-400 focus-visible:border-[#6CC3EE] focus-visible:ring-[#6CC3EE]/30"
           data-testid="input-ask-question"
         />
+        {firmClients.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Which client is this about?">
+            <span className="mr-0.5 text-xs font-semibold text-white/70">About:</span>
+            {[{ id: null as string | null, name: "No client" }, ...firmClients].map((c) => {
+              const on = forClient === c.id;
+              return (
+                <button
+                  key={c.id ?? "none"}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setForClient(c.id)}
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors ${
+                    on ? "bg-white text-[#14253D]" : "border border-white/25 text-white/80 hover:bg-white/10"
+                  }`}
+                  data-testid={`ask-for-${c.id ?? "none"}`}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {showContext && (
           <Input
             value={clientContext}

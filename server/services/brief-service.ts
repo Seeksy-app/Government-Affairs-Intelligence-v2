@@ -103,6 +103,7 @@ RULES (enforce strictly):
 - Use phrases like "according to [source]" and "as reported by [source]" throughout.
 - Do not speculate or introduce facts not present in the sources.
 - If client context is provided, tailor "Why It Matters" to that context specifically.
+- If the client context has a LANGUAGE TO AVOID line, treat it as a hard rule for every field: never use those words, framings or topics, even when a source does — paraphrase around them.
 - When the topic itself names a client, industry, or sector, that takes priority over general firm background. Never remark that a topic falls outside the firm's focus areas.
 - If the topic is a question, answer it directly. If the sources don't settle it, say plainly what is and isn't known.
 - Ignore any source that turns out to be unrelated to the topic; never cite it.

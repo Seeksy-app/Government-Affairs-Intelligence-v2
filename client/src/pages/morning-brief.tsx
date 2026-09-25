@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Sheet,
@@ -38,6 +38,8 @@ import { PageHeader } from "@/components/page-header";
 import { AtAGlance, MarketsPanel } from "@/components/today/today-rail";
 import { RecentQuestions } from "@/components/today/recent-questions";
 import { BannerWeather } from "@/components/today/banner-weather";
+import { SetupInvite, WelcomeCard } from "@/components/today/setup-cards";
+import { useFirmSetup } from "@/hooks/use-firm-setup";
 import { WeatherWatchCard } from "@/components/today/weather-watch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -358,6 +360,14 @@ export default function MorningBriefPage() {
   const [, navigate] = useLocation();
   const [selectedItem, setSelectedItem] = useState<RankedItem | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const search = useSearch();
+  const [welcome, setWelcome] = useState(() => new URLSearchParams(search).get("welcome") === "1");
+
+  // Onboarding answers decide what's on this page.
+  const { data: setup } = useFirmSetup();
+  const prefs = setup?.profile?.onboarding ?? {};
+  const weatherPref = prefs.weather ?? "often";
+  const showMarkets = !prefs.markets || prefs.markets === "yes";
 
   const { data: userRole } = useQuery<UserRole>({
     queryKey: ["/api/user/role"],
@@ -448,6 +458,9 @@ export default function MorningBriefPage() {
   const { label: briefLabel } = getBriefIdentity();
   const greeting = briefLabel.startsWith("Morning") ? "Good morning" : briefLabel.startsWith("Afternoon") ? "Good afternoon" : "Good evening";
 
+  // A firm with no profile can't have a brief yet: set it up first.
+  if (setup?.needsOnboarding) return <Redirect to="/onboarding" />;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8 xl:px-14 2xl:px-20">
@@ -491,12 +504,23 @@ export default function MorningBriefPage() {
                 </div>
               )}
             </div>
-            <BannerWeather />
+            {weatherPref !== "rarely" && <BannerWeather />}
           </div>
         </div>
 
         <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0">
+            {welcome && setup ? (
+              <WelcomeCard
+                clients={setup.clients}
+                onDismiss={() => {
+                  setWelcome(false);
+                  window.history.replaceState(null, "", window.location.pathname);
+                }}
+              />
+            ) : (
+              setup && !setup.onboarded && <SetupInvite />
+            )}
             <RecentQuestions />
           <div className="min-w-0" data-testid="section-morning-brief">
             {/* Loading */}
@@ -572,9 +596,10 @@ export default function MorningBriefPage() {
           </div>
 
           <aside className="space-y-6">
-            <WeatherWatchCard />
+            {weatherPref === "often" && <WeatherWatchCard />}
             <AtAGlance />
-            <MarketsPanel />
+            {weatherPref === "sometimes" && <WeatherWatchCard />}
+            {showMarkets && <MarketsPanel />}
           </aside>
         </div>
       </div>

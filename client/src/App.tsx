@@ -71,6 +71,7 @@ import BriefDetailPage from "@/pages/briefs-detail";
 import BriefPublicPage from "@/pages/brief-public";
 import PressReleasesPage from "@/pages/press-releases";
 import MorningBriefPage from "@/pages/morning-brief";
+import OnboardingPage from "@/pages/onboarding";
 import SymbolicLogicDemoPage from "@/pages/symbolic-logic-demo";
 
 function MorningBriefRedirect() {
@@ -375,6 +376,9 @@ function AppContent() {
       </Switch>
     );
   }
+
+  // Onboarding is full-screen: no rail or top bar while the firm sets up.
+  if (location.startsWith("/onboarding")) return <OnboardingPage />;
 
   return <AuthenticatedLayout />;
 }

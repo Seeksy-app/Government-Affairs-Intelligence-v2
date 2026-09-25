@@ -9,7 +9,7 @@
 // Impact lines are fixed, factual rules — no model call, nothing invented.
 
 import { db } from "../db";
-import { contacts, trackedBills } from "@shared/schema";
+import { clientProfiles, contacts, trackedBills } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { US_STATES } from "@shared/bill-label";
 
@@ -464,13 +464,16 @@ export function buildWeatherWatch(raw: RawData, yourStates: string[]): WeatherWa
 
 // ─── Firm context ─────────────────────────────────────────────────────────────
 
-// "Your states": states of tracked state bills plus contacts' states.
+// "Your states": states chosen at onboarding, tracked state bills, and
+// contacts' states.
 async function firmStates(clientId: string): Promise<string[]> {
-  const [bills, people] = await Promise.all([
+  const [bills, people, [profile]] = await Promise.all([
     db.select({ j: trackedBills.jurisdiction }).from(trackedBills).where(eq(trackedBills.clientId, clientId)),
     db.select({ s: contacts.state }).from(contacts).where(eq(contacts.clientId, clientId)),
+    db.select({ states: clientProfiles.states }).from(clientProfiles).where(eq(clientProfiles.clientId, clientId)).limit(1),
   ]);
   const out = new Set<string>();
+  for (const s of profile?.states ?? []) if (PLACES[s]) out.add(s);
   for (const b of bills) if (b.j && b.j !== "US" && PLACES[b.j]) out.add(b.j);
   for (const p of people) {
     const s = (p.s ?? "").trim().toUpperCase();
