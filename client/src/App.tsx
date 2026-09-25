@@ -1,9 +1,10 @@
-import { Switch, Route, useLocation, Redirect } from "wouter";
+import { Switch, Route, useLocation, useSearch, Redirect } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppNav, MobileNav } from "@/components/app-nav";
+import { TopBarLinks, AskButton } from "@/components/top-bar-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
@@ -20,7 +21,6 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import AdminClients from "@/pages/admin-clients";
 import AdminKnowledgeBase from "@/pages/admin-knowledge-base";
 import AdminSecurity from "@/pages/admin-security";
-import ClientDashboard from "@/pages/client-dashboard";
 import Contacts from "@/pages/contacts";
 import News from "@/pages/news";
 import NetworkPage from "@/pages/network";
@@ -73,6 +73,11 @@ import PressReleasesPage from "@/pages/press-releases";
 import MorningBriefPage from "@/pages/morning-brief";
 import SymbolicLogicDemoPage from "@/pages/symbolic-logic-demo";
 
+function MorningBriefRedirect() {
+  const search = useSearch();
+  return <Redirect to={`/dashboard${search ? `?${search}` : ""}`} />;
+}
+
 function AuthenticatedRouter() {
   return (
     <Switch>
@@ -91,12 +96,13 @@ function AuthenticatedRouter() {
       
       {/* Client routes */}
       <Route path="/symbolic-logic-demo" component={SymbolicLogicDemoPage} />
-      <Route path="/morning-brief" component={MorningBriefPage} />
+      {/* Today (the Morning Brief) is the home page; old links forward to it. */}
+      <Route path="/morning-brief" component={MorningBriefRedirect} />
       <Route path="/press-releases" component={PressReleasesPage} />
       <Route path="/briefs/new" component={BriefsNewPage} />
       <Route path="/briefs/:id" component={BriefDetailPage} />
       <Route path="/briefs" component={BriefsListPage} />
-      <Route path="/dashboard" component={ClientDashboard} />
+      <Route path="/dashboard" component={MorningBriefPage} />
       <Route path="/contacts" component={Contacts} />
       <Route path="/news" component={News} />
       <Route path="/network" component={NetworkPage} />
@@ -281,11 +287,12 @@ function AuthenticatedLayout() {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <div className="hidden w-9 md:block" aria-hidden />
-            <div className="flex flex-1 justify-center">
+            <TopBarLinks />
+            <div className="flex min-w-0 flex-1 justify-center">
               <GlobalSearch />
             </div>
             <div className="flex items-center gap-2">
+              <AskButton />
               <GlobalAIChat />
               <ThemeToggle />
             </div>

@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useAskBrief } from "@/components/briefs/ask-box";
 import { PageHeader } from "@/components/page-header";
+import { AtAGlance, RecentBriefs, MarketsPanel } from "@/components/today/today-rail";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -404,7 +405,7 @@ export default function MorningBriefPage() {
     if (item) {
       setSelectedItem(item);
       setPanelOpen(true);
-      window.history.replaceState(null, "", "/morning-brief");
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [brief]);
 
@@ -441,18 +442,25 @@ export default function MorningBriefPage() {
       })
     : null;
 
-  const { label: briefLabel, Icon: BriefIcon } = getBriefIdentity();
+  const { label: briefLabel } = getBriefIdentity();
+  const greeting = briefLabel.startsWith("Morning") ? "Good morning" : briefLabel.startsWith("Afternoon") ? "Good afternoon" : "Good evening";
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8 xl:px-14 2xl:px-20">
-        {/* Masthead */}
+        {/* Today: the Morning Brief is the page; the rail keeps the at-a-glance pieces. */}
         <PageHeader
           eyebrow={getTodayLine()}
-          title={<span data-testid="text-brief-title">{briefLabel}</span>}
+          title={
+            <span data-testid="text-dashboard-title">
+              {greeting}
+              {user?.firstName ? `, ${user.firstName}` : ""}
+            </span>
+          }
           description={
             <>
-              Ranked for {brief?.clientName ?? "your firm"} from the last{" "}
+              <span data-testid="text-brief-title">Your {briefLabel.toLowerCase()}</span> for{" "}
+              <span className="font-semibold text-foreground">{brief?.clientName ?? "your firm"}</span>, ranked from the last{" "}
               {brief?.scoringMetadata.windowUsedHours ?? 48} hours of news and agency press releases
               {generatedAt && <> · updated {generatedAt}</>}
             </>
@@ -465,7 +473,7 @@ export default function MorningBriefPage() {
               </Button>
             )
           }
-          className="mb-8"
+          className="mb-6"
         >
           {brief && (
             <div className="flex flex-wrap items-center gap-2">
@@ -482,92 +490,83 @@ export default function MorningBriefPage() {
           )}
         </PageHeader>
 
-        {/* Loading */}
-        {isLoading && (
-          <div className="space-y-8">
-            <div>
-              <Skeleton className="h-4 w-32 mb-3" />
-              <BriefSkeleton />
-            </div>
-          </div>
-        )}
-
-        {/* No client context */}
-        {!isLoading && !effectiveClientId && (
-          <div className="rounded-lg border border-dashed p-8 text-center">
-            <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm font-medium mb-1">No client context</p>
-            <p className="text-xs text-muted-foreground">
-              Impersonate a client from the Admin panel to view their morning
-              brief.
-            </p>
-          </div>
-        )}
-
-        {/* Error */}
-        {!isLoading && error && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-destructive">Failed to load brief</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {(error as Error).message}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Content */}
-        {!isLoading && brief && (
-          <div className="space-y-6">
-          {/* Side by side on wide screens: priorities left, watch list right */}
-          <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            {/* Top Priorities */}
-            <section className="min-w-0">
-              <h2 className="mb-3 text-lg font-semibold tracking-tight">Top priorities</h2>
-              {brief.highRelevance.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nothing urgent in this window — a quiet day for {brief.clientName}.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {brief.highRelevance.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      highlight
-                      onClick={() => openItem(item)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Worth Watching */}
-            {brief.worthWatching.length > 0 && (
-              <section className="min-w-0">
-                <h2 className="mb-3 text-lg font-semibold tracking-tight">Worth watching</h2>
-                <div className="space-y-2.5">
-                  {brief.worthWatching.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      highlight={false}
-                      onClick={() => openItem(item)}
-                    />
-                  ))}
-                </div>
-              </section>
+        <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0" data-testid="section-morning-brief">
+            {/* Loading */}
+            {isLoading && (
+              <div>
+                <Skeleton className="h-4 w-32 mb-3" />
+                <BriefSkeleton />
+              </div>
             )}
 
+            {/* No client context */}
+            {!isLoading && !effectiveClientId && (
+              <div className="rounded-lg border border-dashed p-8 text-center">
+                <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm font-medium mb-1">No client context</p>
+                <p className="text-xs text-muted-foreground">
+                  Impersonate a client from the Admin panel to view their morning brief.
+                </p>
+              </div>
+            )}
+
+            {/* Error */}
+            {!isLoading && error && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 flex gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Couldn't load the brief</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{(error as Error).message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Content */}
+            {!isLoading && brief && (
+              <div className="space-y-6">
+                {/* Priorities and watch list side by side on very wide screens */}
+                <div className="grid items-start gap-8 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                  <section className="min-w-0">
+                    <h2 className="mb-3 text-lg font-semibold tracking-tight">Top priorities</h2>
+                    {brief.highRelevance.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nothing urgent in this window — a quiet day for {brief.clientName}.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {brief.highRelevance.map((item) => (
+                          <ItemCard key={item.id} item={item} highlight onClick={() => openItem(item)} />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {brief.worthWatching.length > 0 && (
+                    <section className="min-w-0">
+                      <h2 className="mb-3 text-lg font-semibold tracking-tight">Worth watching</h2>
+                      <div className="space-y-2.5">
+                        {brief.worthWatching.map((item) => (
+                          <ItemCard key={item.id} item={item} highlight={false} onClick={() => openItem(item)} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center pb-4">
+                  {brief.scoringMetadata.ignoredCount} lower-relevance items not shown
+                </p>
+              </div>
+            )}
           </div>
 
-            {/* Footer metadata */}
-            <p className="text-xs text-muted-foreground text-center pb-4">
-              {brief.scoringMetadata.ignoredCount} lower-relevance items not shown
-            </p>
-          </div>
-        )}
+          <aside className="space-y-6">
+            <AtAGlance />
+            <RecentBriefs />
+            <MarketsPanel />
+          </aside>
+        </div>
       </div>
 
       {/* Side Panel */}

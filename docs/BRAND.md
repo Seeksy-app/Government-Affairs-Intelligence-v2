@@ -65,15 +65,16 @@ the live guide wins — re-vendor it here.
   sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
   650–700 weight title, one plain sentence of description, actions on the
   right. No decorative icons beside page titles, no serif, no gradient text.
-- **Navigation (Sep 2026, v3):** a 76px icon rail with darker dividers
-  between groups — Home | News, Press, Markets | Bills, Hearings | People,
-  Strategy, Research | Clients | Knowledge — Settings and the account menu
-  pinned at the bottom. An icon with one page navigates directly; Home,
-  Bills, People and Settings open a floating menu over the page (closes on
-  selection, click-away or Esc). People lists Contacts first and also
-  includes Client Portals. Page eyebrows use the group names (Home /
-  Monitor / Legislation / Reach / Clients / Knowledge / Settings).
-  Source: `client/src/components/app-nav.tsx`.
+- **Navigation (Sep 2026, v4):** top bar = News · Press · Markets links,
+  search, a "Should I be worried?" button (opens the ask box over any page),
+  Research assistant. Icon rail = Today · Briefs | Bills, Hearings | People,
+  Strategy, Research | Clients | Knowledge, with Settings and the account
+  menu at the bottom; Bills, People and Settings open floating menus. The
+  phone menu lists everything, including the top-bar feeds.
+  Source: `client/src/components/app-nav.tsx`, `top-bar-links.tsx`.
+- **Today (`/dashboard`)** is the home page: the Morning Brief is the page
+  body, with a right rail of At a glance, Recent briefs and Prediction
+  markets (`components/today/today-rail.tsx`). `/morning-brief` redirects.
 - **Use the room:** pages run wide with side padding that grows with the screen (`PageShell`: 40–80px sides, 1600px cap);
   split wide content into columns (Morning Brief: priorities | watch list;
   brief page: brief | sources) rather than centering a narrow column.
