@@ -112,7 +112,13 @@ Working end-to-end:
   OpenFEMA DisasterDeclarationsSummaries (last 14 days), plus a D.C. strip:
   NWS forecast for the Capitol (gridpoints/LWX/98,71 — hardcoded; re-derive
   via /points/38.8899,-77.0091 if NWS ever moves the grid) and OPM's D.C.
-  federal operating status (opm.gov/json/operatingstatus.json). 20-min in-memory
+  federal operating status (opm.gov/json/operatingstatus.json). If an
+  AccuWeather key is set on Render (ACCUWEATHER_API_KEY or a common variant —
+  startup log `[weather-watch] AccuWeather: configured via …`), the D.C.
+  strip uses AccuWeather's 5-day forecast + headline instead, falling back to
+  NWS on any error; AccuWeather terms require linked attribution wherever
+  their data shows (card footer). Never log AccuWeather URLs (key is in the
+  query string). 20-min in-memory
   cache; a failed source falls back to the last good copy. Items: D.C.
   weather (votes/hearings/fly-ins), tropical warnings on U.S. land, FEMA
   DR/EM/FM declarations, other severe land alerts (routine river/coastal

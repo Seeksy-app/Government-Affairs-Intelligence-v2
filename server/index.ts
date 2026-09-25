@@ -75,6 +75,7 @@ app.use((req, res, next) => {
   // misconfiguration shows up in the deploy log, not as user-facing 500s.
   const { logAiProviderStatus } = await import("./services/ai-providers");
   logAiProviderStatus();
+  import("./services/weather-watch").then((m) => m.logWeatherStatus()).catch(() => {});
 
   await registerRoutes(httpServer, app);
 

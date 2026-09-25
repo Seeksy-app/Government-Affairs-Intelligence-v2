@@ -45,6 +45,11 @@ export interface DcDay {
 }
 
 export interface DcOutlook {
+  /** Who produced the forecast; AccuWeather requires visible attribution. */
+  provider: "accuweather" | "nws";
+  /** AccuWeather's one-line outlook, e.g. "Rain Saturday into Sunday". */
+  headline: string | null;
+  providerUrl: string | null;
   days: DcDay[];
   federalStatus: { summary: string; message: string; url: string } | null;
   hillNote: string | null;
@@ -66,6 +71,7 @@ interface RawData {
   storms: any[];
   declarations: any[];
   dcForecast: any[];      // NWS forecast periods for the Capitol
+  accu: any | null;       // AccuWeather 5-day forecast for D.C. (when a key is set)
   opm: any | null;        // OPM D.C.-area operating status
   ok: { nws: boolean; nhc: boolean; fema: boolean };
   fetchedAt: number;
@@ -88,6 +94,43 @@ async function getJson(url: string): Promise<any> {
   }
 }
 
+// ─── AccuWeather (optional) ───────────────────────────────────────────────────
+// Used for the D.C. forecast when a key is configured on Render; otherwise the
+// NWS forecast is used. Accepts common spellings of the setting name.
+const ACCU_ENV_NAMES = ["ACCUWEATHER_API_KEY", "ACCU_WEATHER_API_KEY", "ACCUWEATHER_KEY", "ACCUWEATHER_APIKEY", "ACCUWEATHER"];
+const CAPITOL_LATLON = "38.8899,-77.0091";
+let accuLocationKey: string | null = null;
+
+export function accuWeatherKey(): { name: string; key: string } | null {
+  for (const name of ACCU_ENV_NAMES) {
+    const key = process.env[name]?.trim();
+    if (key) return { name, key };
+  }
+  return null;
+}
+
+export function logWeatherStatus(): void {
+  const k = accuWeatherKey();
+  console.log(
+    k
+      ? `[weather-watch] AccuWeather: configured via ${k.name} (D.C. forecast from AccuWeather, NWS fallback)`
+      : "[weather-watch] AccuWeather: not configured (D.C. forecast from NWS)",
+  );
+}
+
+async function fetchAccuWeather(): Promise<any | null> {
+  const k = accuWeatherKey();
+  if (!k) return null;
+  const base = "https://dataservice.accuweather.com";
+  const q = `apikey=${encodeURIComponent(k.key)}`;
+  if (!accuLocationKey) {
+    const loc = await getJson(`${base}/locations/v1/cities/geoposition/search?${q}&q=${CAPITOL_LATLON}`);
+    accuLocationKey = loc?.Key ?? null;
+    if (!accuLocationKey) throw new Error("no location key for the Capitol");
+  }
+  return getJson(`${base}/forecasts/v1/daily/5day/${accuLocationKey}?${q}&details=true`);
+}
+
 async function fetchRaw(): Promise<RawData> {
   if (cache && Date.now() - cache.fetchedAt < CACHE_MS) return cache;
 
@@ -98,16 +141,18 @@ async function fetchRaw(): Promise<RawData> {
     "&$orderby=declarationDate%20desc&$top=200" +
     "&$select=femaDeclarationString,disasterNumber,state,declarationType,incidentType,declarationTitle,declarationDate,designatedArea";
 
-  const [nws, nhc, fema, dcf, opm] = await Promise.allSettled([
+  const [nws, nhc, fema, dcf, opm, accu] = await Promise.allSettled([
     getJson("https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&severity=Extreme,Severe"),
     getJson("https://www.nhc.noaa.gov/CurrentStorms.json"),
     getJson(femaUrl),
     // Forecast grid for the U.S. Capitol (38.8899, -77.0091 → LWX 98,71).
     getJson("https://api.weather.gov/gridpoints/LWX/98,71/forecast"),
     getJson("https://www.opm.gov/json/operatingstatus.json"),
+    fetchAccuWeather(),
   ]);
 
-  for (const [name, r] of [["NWS", nws], ["NHC", nhc], ["FEMA", fema], ["DC forecast", dcf], ["OPM", opm]] as const) {
+  // Never log the AccuWeather URL: the key is in its query string.
+  for (const [name, r] of [["NWS", nws], ["NHC", nhc], ["FEMA", fema], ["DC forecast", dcf], ["OPM", opm], ["AccuWeather", accu]] as const) {
     if (r.status === "rejected") console.warn(`[weather-watch] ${name} fetch failed:`, (r.reason as Error)?.message);
   }
 
@@ -117,6 +162,7 @@ async function fetchRaw(): Promise<RawData> {
     declarations: fema.status === "fulfilled" ? fema.value.DisasterDeclarationsSummaries ?? [] : cache?.declarations ?? [],
     dcForecast: dcf.status === "fulfilled" ? dcf.value.properties?.periods ?? [] : cache?.dcForecast ?? [],
     opm: opm.status === "fulfilled" ? opm.value : cache?.opm ?? null,
+    accu: accu.status === "fulfilled" ? accu.value : cache?.accu ?? null,
     ok: { nws: nws.status === "fulfilled", nhc: nhc.status === "fulfilled", fema: fema.status === "fulfilled" },
     fetchedAt: Date.now(),
   };
@@ -179,8 +225,8 @@ const DECLARATION_TYPE: Record<string, { label: string; impact: string }> = {
 };
 
 function hazardOf(short: string, high: number | null, low: number | null, pop: number | null): string | null {
-  if (/snow|sleet|freezing|ice|blizzard|wintry/i.test(short)) return "Snow/ice";
-  if (/thunderstorm|severe/i.test(short)) return "Storms";
+  if (/snow|sleet|freezing|\bice\b|blizzard|wintry|flurries/i.test(short)) return "Snow/ice";
+  if (/thunderstorm|t-storm|severe/i.test(short)) return "Storms";
   if (high !== null && high >= 95) return "Heat";
   if (low !== null && low <= 15) return "Cold";
   if (/rain|showers/i.test(short) && pop !== null && pop >= 70 && !/chance|slight/i.test(short)) return "Heavy rain";
@@ -189,17 +235,40 @@ function hazardOf(short: string, high: number | null, low: number | null, pop: n
 
 // Four entries: day periods with the following night's low. If the forecast
 // starts at night ("Tonight"), that night is its own first entry.
-export function buildDcOutlook(periods: any[], opm: any | null): DcOutlook | null {
-  if (!Array.isArray(periods) || periods.length === 0) return null;
-  const days: DcDay[] = [];
+function accuDays(accu: any): DcDay[] {
+  const list: any[] = accu?.DailyForecasts ?? [];
+  return list.slice(0, 5).map((d, i) => {
+    const date = new Date(d.Date);
+    const name = i === 0 ? "Today" : date.toLocaleDateString("en-US", { weekday: "long", timeZone: "America/New_York" });
+    const high = Math.round(d.Temperature?.Maximum?.Value ?? NaN);
+    const low = Math.round(d.Temperature?.Minimum?.Value ?? NaN);
+    const pop = Math.max(d.Day?.PrecipitationProbability ?? 0, d.Night?.PrecipitationProbability ?? 0) || null;
+    const short = d.Day?.IconPhrase ?? "";
+    const hi = Number.isFinite(high) ? high : null;
+    const lo = Number.isFinite(low) ? low : null;
+    return {
+      name,
+      high: hi,
+      low: lo,
+      short,
+      precipChance: pop,
+      hazard: hazardOf(`${short} ${d.Night?.IconPhrase ?? ""}`, hi, lo, pop),
+    };
+  });
+}
+
+export function buildDcOutlook(periods: any[], opm: any | null, accu: any | null = null): DcOutlook | null {
+  const fromAccu = accuDays(accu);
+  if (fromAccu.length === 0 && (!Array.isArray(periods) || periods.length === 0)) return null;
+  const days: DcDay[] = fromAccu.length > 0 ? fromAccu : [];
   let i = 0;
-  if (periods[0] && periods[0].isDaytime === false) {
+  if (fromAccu.length === 0 && periods[0] && periods[0].isDaytime === false) {
     const p = periods[0];
     const pop = p.probabilityOfPrecipitation?.value ?? null;
     days.push({ name: p.name, high: null, low: p.temperature ?? null, short: p.shortForecast ?? "", precipChance: pop, hazard: hazardOf(p.shortForecast ?? "", null, p.temperature ?? null, pop) });
     i = 1;
   }
-  for (; i < periods.length && days.length < 4; i += 2) {
+  for (; fromAccu.length === 0 && i < periods.length && days.length < 4; i += 2) {
     const day = periods[i];
     const night = periods[i + 1];
     if (!day) break;
@@ -227,7 +296,11 @@ export function buildDcOutlook(periods: any[], opm: any | null): DcOutlook | nul
   // One plain line on what the forecast means for the Hill.
   let hillNote: string | null = null;
   const federalOpen = !federalStatus || /^open$/i.test(federalStatus.summary.trim());
-  const hazardDay = days.find((d) => d.hazard);
+  // Most disruptive first: snow/ice closes offices; storms delay flights; heat moves events.
+  const hazardRank = ["Snow/ice", "Storms", "Heavy rain", "Heat", "Cold"];
+  const hazardDay = days
+    .filter((d) => d.hazard)
+    .sort((a, b) => hazardRank.indexOf(a.hazard!) - hazardRank.indexOf(b.hazard!))[0];
   if (!federalOpen) {
     hillNote = `Federal offices: ${federalStatus!.summary}. Expect hearings and meetings to move.`;
   } else if (hazardDay?.hazard === "Snow/ice") {
@@ -238,7 +311,18 @@ export function buildDcOutlook(periods: any[], opm: any | null): DcOutlook | nul
     hillNote = `${hazardDay.name}: extreme heat — outdoor events and pressers on the Hill may move indoors.`;
   }
 
-  return { days, federalStatus, hillNote };
+  const provider = fromAccu.length > 0 ? "accuweather" : "nws";
+  return {
+    provider,
+    headline: provider === "accuweather" ? accu?.Headline?.Text ?? null : null,
+    providerUrl:
+      provider === "accuweather"
+        ? accu?.Headline?.Link ?? accu?.DailyForecasts?.[0]?.Link ?? "https://www.accuweather.com"
+        : "https://forecast.weather.gov/MapClick.php?lat=38.8899&lon=-77.0091",
+    days,
+    federalStatus,
+    hillNote,
+  };
 }
 
 export function buildWeatherWatch(raw: RawData, yourStates: string[]): WeatherWatch {
@@ -367,7 +451,7 @@ export function buildWeatherWatch(raw: RawData, yourStates: string[]): WeatherWa
 
   return {
     updatedAt: new Date(raw.fetchedAt).toISOString(),
-    dc: buildDcOutlook(raw.dcForecast ?? [], raw.opm ?? null),
+    dc: buildDcOutlook(raw.dcForecast ?? [], raw.opm ?? null, raw.accu ?? null),
     items: items.slice(0, 6),
     tracking,
     yourStates,
