@@ -229,7 +229,7 @@ function BriefReadingView({ brief }: { brief: PublicBrief }) {
             <div className="space-y-4">
               {(["business", "reputational", "values"] as const).map((dim) => (
                 <div key={dim}>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                     {dim.charAt(0).toUpperCase() + dim.slice(1)}
                   </p>
                   <p className="text-base leading-relaxed">

@@ -629,7 +629,7 @@ function StakeDimension({
 }: { label: string; text: string; sources: BriefSource[] }) {
   return (
     <div>
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wide text-foreground">{label}</span>
       <p className="text-sm mt-0.5 leading-relaxed">
         <CitedText text={text} sources={sources} />
       </p>
