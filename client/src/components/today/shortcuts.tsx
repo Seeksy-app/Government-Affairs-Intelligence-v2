@@ -22,6 +22,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFirmSetup } from "@/hooks/use-firm-setup";
+import { MAX_SHORTCUTS } from "@shared/onboarding";
 
 // Pages a firm can pin to Today. Keys are stored in client_profiles.onboarding.shortcuts.
 const SHORTCUTS: Array<{ key: string; label: string; href: string; icon: LucideIcon }> = [
@@ -41,15 +42,18 @@ const SHORTCUTS: Array<{ key: string; label: string; href: string; icon: LucideI
   { key: "markets", label: "Prediction Markets", href: "/predictions", icon: BarChart3 },
 ];
 const DEFAULT_SHORTCUTS = ["staffers", "bills", "hearings"];
-const MAX = 6;
+const MAX = MAX_SHORTCUTS;
 
 // A row of the firm's favorite pages, right under "Should I be worried?".
 export function Shortcuts() {
   const { data: setup } = useFirmSetup();
   const [open, setOpen] = useState(false);
-  const chosen = setup?.profile?.onboarding?.shortcuts ?? DEFAULT_SHORTCUTS;
+  // Unknown keys (renamed or removed pages) are ignored, so they never use up a slot.
+  const chosen = (setup?.profile?.onboarding?.shortcuts ?? DEFAULT_SHORTCUTS).filter((k) => SHORTCUTS.some((s) => s.key === k));
 
   const save = useMutation({
+    // One at a time, in click order, so an older save can't land last.
+    scope: { id: "today-shortcuts" },
     mutationFn: async (shortcuts: string[]) => apiRequest("PUT", "/api/onboarding/firm", { onboarding: { shortcuts } }),
     onMutate: (shortcuts) => {
       // Show the change immediately; the refetch confirms it.

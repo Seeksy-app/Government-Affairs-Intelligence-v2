@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import {
   Sheet,
   SheetContent,
@@ -363,6 +364,7 @@ export default function MorningBriefPage() {
   const [selectedItem, setSelectedItem] = useState<RankedItem | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
   const search = useSearch();
   const [welcome, setWelcome] = useState(() => new URLSearchParams(search).get("welcome") === "1");
 
@@ -503,8 +505,11 @@ export default function MorningBriefPage() {
                       setRefreshing(true);
                       try {
                         const res = await fetch(`/api/morning-brief/${effectiveClientId}?fresh=1`, { credentials: "include" });
-                        if (res.ok) queryClient.setQueryData(["/api/morning-brief", effectiveClientId], await res.json());
-                        else refetch();
+                        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? `${res.status}`);
+                        queryClient.setQueryData(["/api/morning-brief", effectiveClientId], await res.json());
+                      } catch (err) {
+                        // Keep the current brief on screen; just say the refresh didn't work.
+                        toast({ title: "Couldn't refresh the brief", description: (err as Error).message, variant: "destructive" });
                       } finally {
                         setRefreshing(false);
                       }

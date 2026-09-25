@@ -11,7 +11,7 @@ import {
   newsArticles,
   type FirmClient,
 } from "@shared/schema";
-import { AGENCIES, STATES, type FirmOnboarding } from "@shared/onboarding";
+import { AGENCIES, MAX_SHORTCUTS, SHORTCUT_KEYS, STATES, type FirmOnboarding } from "@shared/onboarding";
 import { agencySlugsFor } from "./government-press-service";
 import { getClientRelevanceContext, rescoreRecentArticles } from "./news-aggregation";
 import { clearCachedBrief } from "./morning-brief-service";
@@ -37,7 +37,7 @@ export const firmInputSchema = z.object({
       markets: z.enum(["yes", "sometimes", "no"]).optional(),
       aiComfort: z.enum(["daily", "apis", "never", "dislikes", "unsure"]).optional(),
       step: z.number().int().min(0).max(10).optional(),
-      shortcuts: z.array(z.string().max(40)).max(12).optional(),
+      shortcuts: z.array(z.enum(SHORTCUT_KEYS)).max(MAX_SHORTCUTS).optional(),
     })
     .optional(),
 });

@@ -241,7 +241,7 @@ then theme, Settings menu (Settings/Sources/Security) and the account
 avatar top right. Today: "Ask a question" opens the Research assistant;
 firms pin up to 6 Shortcuts (onboarding.shortcuts jsonb). Morning brief is
 stale-while-revalidate (serve ≤12h-old ranking instantly, refresh in the
-background; `?fresh=1` forces; all firms warmed 3 min after boot). Home = Today (/dashboard = Morning Brief + rail;
+background; `?fresh=1` forces; firm warm-up starts 3 min after boot, 3 at a time). Home = Today (/dashboard = Morning Brief + rail;
 /morning-brief redirects). Pages use
 near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.

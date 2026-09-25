@@ -357,14 +357,19 @@ async function findRelevantStaffers(
 // refreshed in the background. Only a firm with no ranking yet, a profile
 // change (clearCachedBrief) or an explicit refresh waits for a fresh one.
 const STALE_OK_MS = 12 * 60 * 60 * 1000;
-const inflight = new Map<string, Promise<RankedBriefResult>>();
+// In-flight rankings, tagged with the cache version they started under: a
+// ranking begun before a profile change is never handed to a later caller.
+const inflight = new Map<string, { version: number; promise: Promise<RankedBriefResult> }>();
 
 function refreshRanking(clientId: string): Promise<RankedBriefResult> {
+  const version = cacheVersion.get(clientId) ?? 0;
   const running = inflight.get(clientId);
-  if (running) return running;
-  const p = computeRanking(clientId).finally(() => inflight.delete(clientId));
-  inflight.set(clientId, p);
-  return p;
+  if (running && running.version === version) return running.promise;
+  const promise = computeRanking(clientId).finally(() => {
+    if (inflight.get(clientId)?.promise === promise) inflight.delete(clientId);
+  });
+  inflight.set(clientId, { version, promise });
+  return promise;
 }
 
 export async function rankItemsForClient(clientId: string, opts: { fresh?: boolean } = {}): Promise<RankedBriefResult> {
@@ -382,9 +387,14 @@ export async function rankItemsForClient(clientId: string, opts: { fresh?: boole
 // Rank every firm once after a deploy, so the first visit is instant.
 export async function warmBriefs(): Promise<void> {
   const rows = await db.select({ clientId: clientProfiles.clientId }).from(clientProfiles);
-  for (const { clientId } of rows) {
-    await refreshRanking(clientId).catch((err) => console.warn(`[morning-brief] warm ${clientId} failed:`, err.message));
-  }
+  // Three at a time: quick overall, gentle on the Claude rate limit.
+  const queue = rows.map((r) => r.clientId);
+  const worker = async () => {
+    for (let id = queue.shift(); id; id = queue.shift()) {
+      await refreshRanking(id).catch((err) => console.warn(`[morning-brief] warm ${id} failed:`, err.message));
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
   console.log(`[morning-brief] warmed ${rows.length} firm briefs`);
 }
 
