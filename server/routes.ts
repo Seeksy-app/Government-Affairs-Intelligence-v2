@@ -5613,6 +5613,27 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
 
   // ========== Customers Portal ==========
 
+  // Every customer/portal route is scoped to the caller's firm: an id from
+  // another firm answers 404, exactly like one that doesn't exist.
+  const ownCustomer = async (req: any, id: string) => {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const customer = await storage.getCustomer(id);
+    return customer && customer.clientId === clientId ? customer : null;
+  };
+  const ownPortal = async (req: any, id: string) => {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const portal = await storage.getClientPortal(id);
+    return portal && portal.clientId === clientId ? portal : null;
+  };
+  const ownMatter = async (req: any, id: string) => {
+    const clientId = await getClientId(req);
+    if (!clientId) return null;
+    const matter = await storage.getMatter(id);
+    return matter && matter.clientId === clientId ? matter : null;
+  };
+
   // Get all customers for client
   app.get("/api/customers", isAuthenticated, async (req, res) => {
     try {
@@ -5638,8 +5659,10 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get customers by matter
   app.get("/api/customers/by-matter/:matterId", isAuthenticated, async (req, res) => {
     try {
-      const customerList = await storage.getCustomersByMatter(req.params.matterId);
-      res.json(customerList);
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "Not assigned to a client" });
+      const customerList = await storage.getCustomersByMatter(String(req.params.matterId));
+      res.json(customerList.filter((c) => c.clientId === clientId));
     } catch (error) {
       console.error("Error fetching customers by matter:", error);
       res.status(500).json({ message: "Failed to fetch customers" });
@@ -5649,7 +5672,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get single customer
   app.get("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
-      const customer = await storage.getCustomer(req.params.id);
+      const customer = await ownCustomer(req, String(req.params.id));
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
@@ -5672,6 +5695,12 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       
       if (!name || !sourceType) {
         return res.status(400).json({ message: "Name and sourceType are required" });
+      }
+      if (portalId && !(await ownPortal(req, String(portalId)))) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+      if (matterId && !(await ownMatter(req, String(matterId)))) {
+        return res.status(404).json({ message: "Matter not found" });
       }
 
       // Check if already exists (for congress_member or staffer with sourceId)
@@ -5710,12 +5739,20 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Update customer
   app.patch("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
-      const customer = await storage.getCustomer(req.params.id);
+      const customer = await ownCustomer(req, String(req.params.id));
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      const updated = await storage.updateCustomer(req.params.id, req.body);
+      // Never let an edit move the record to another firm or rewrite its id.
+      const { id: _id, clientId: _clientId, createdAt: _createdAt, ...changes } = req.body ?? {};
+      if (changes.portalId && !(await ownPortal(req, String(changes.portalId)))) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+      if (changes.matterId && !(await ownMatter(req, String(changes.matterId)))) {
+        return res.status(404).json({ message: "Matter not found" });
+      }
+      const updated = await storage.updateCustomer(customer.id, changes);
       res.json(updated);
     } catch (error) {
       console.error("Error updating customer:", error);
@@ -5726,12 +5763,12 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Delete customer
   app.delete("/api/customers/:id", isAuthenticated, async (req, res) => {
     try {
-      const customer = await storage.getCustomer(req.params.id);
+      const customer = await ownCustomer(req, String(req.params.id));
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      await storage.deleteCustomer(req.params.id);
+      await storage.deleteCustomer(customer.id);
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting customer:", error);
@@ -5760,7 +5797,10 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get all portal assignments for a customer
   app.get("/api/customer-portal-assignments/:customerId", isAuthenticated, async (req, res) => {
     try {
-      const assignments = await storage.getCustomerPortalAssignments(req.params.customerId);
+      if (!(await ownCustomer(req, String(req.params.customerId)))) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const assignments = await storage.getCustomerPortalAssignments(String(req.params.customerId));
       res.json(assignments);
     } catch (error) {
       console.error("Error fetching customer portal assignments:", error);
@@ -5771,7 +5811,10 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Get all customer assignments for a portal
   app.get("/api/portal-customer-assignments/:portalId", isAuthenticated, async (req, res) => {
     try {
-      const assignments = await storage.getPortalCustomerAssignments(req.params.portalId);
+      if (!(await ownPortal(req, String(req.params.portalId)))) {
+        return res.status(404).json({ message: "Portal not found" });
+      }
+      const assignments = await storage.getPortalCustomerAssignments(String(req.params.portalId));
       res.json(assignments);
     } catch (error) {
       console.error("Error fetching portal customer assignments:", error);
@@ -5785,6 +5828,9 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
       const { customerId, portalId } = req.body;
       if (!customerId || !portalId) {
         return res.status(400).json({ message: "customerId and portalId are required" });
+      }
+      if (!(await ownCustomer(req, String(customerId))) || !(await ownPortal(req, String(portalId)))) {
+        return res.status(404).json({ message: "Customer or portal not found" });
       }
       
       // Check if assignment already exists
@@ -5810,7 +5856,10 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   // Remove a customer from a portal
   app.delete("/api/customer-portal-assignments/:customerId/:portalId", isAuthenticated, async (req, res) => {
     try {
-      await storage.deleteCustomerPortalAssignmentByIds(req.params.customerId, req.params.portalId);
+      if (!(await ownCustomer(req, String(req.params.customerId))) || !(await ownPortal(req, String(req.params.portalId)))) {
+        return res.status(404).json({ message: "Customer or portal not found" });
+      }
+      await storage.deleteCustomerPortalAssignmentByIds(String(req.params.customerId), String(req.params.portalId));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting customer portal assignment:", error);
@@ -8354,9 +8403,10 @@ Keep the response practical, actionable, and under 500 words.`;
       const { db } = await import("./db");
       const { eq, desc } = await import("drizzle-orm");
 
-      const boards = clientId
-        ? await db.select().from(strategyBoards).where(eq(strategyBoards.clientId, clientId)).orderBy(desc(strategyBoards.createdAt))
-        : await db.select().from(strategyBoards).orderBy(desc(strategyBoards.createdAt));
+      // No firm → only the unassigned "default" boards, never every firm's.
+      const boards = await db.select().from(strategyBoards)
+        .where(eq(strategyBoards.clientId, clientId ?? "default"))
+        .orderBy(desc(strategyBoards.createdAt));
 
       res.json(boards);
     } catch (error: any) {
@@ -8386,14 +8436,15 @@ Keep the response practical, actionable, and under 500 words.`;
 
   app.patch("/api/strategy/boards/:id", isAuthenticated, async (req, res) => {
     try {
+      const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
       const updates: Record<string, unknown> = { updatedAt: new Date() };
       if (req.body.name !== undefined) updates.name = req.body.name;
       if (req.body.description !== undefined) updates.description = req.body.description;
       const [board] = await db.update(strategyBoards)
         .set(updates)
-        .where(eq(strategyBoards.id, req.params.id))
+        .where(and(eq(strategyBoards.id, String(req.params.id)), eq(strategyBoards.clientId, clientId)))
         .returning();
       if (!board) return res.status(404).json({ message: "Board not found" });
       res.json(board);
@@ -8404,11 +8455,15 @@ Keep the response practical, actionable, and under 500 words.`;
 
   app.delete("/api/strategy/boards/:id", isAuthenticated, async (req, res) => {
     try {
+      const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
 
-      await db.delete(strategyCards).where(eq(strategyCards.boardId, req.params.id));
-      await db.delete(strategyBoards).where(eq(strategyBoards.id, req.params.id));
+      const [board] = await db.select({ id: strategyBoards.id }).from(strategyBoards)
+        .where(and(eq(strategyBoards.id, String(req.params.id)), eq(strategyBoards.clientId, clientId)));
+      if (!board) return res.status(404).json({ message: "Board not found" });
+      await db.delete(strategyCards).where(eq(strategyCards.boardId, board.id));
+      await db.delete(strategyBoards).where(eq(strategyBoards.id, board.id));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to delete board" });
@@ -8418,11 +8473,12 @@ Keep the response practical, actionable, and under 500 words.`;
   // Strategy Cards CRUD
   app.get("/api/strategy/boards/:boardId/cards", isAuthenticated, async (req, res) => {
     try {
+      const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
 
       const cards = await db.select().from(strategyCards)
-        .where(eq(strategyCards.boardId, req.params.boardId))
+        .where(and(eq(strategyCards.boardId, String(req.params.boardId)), eq(strategyCards.clientId, clientId)))
         .orderBy(strategyCards.position);
 
       res.json(cards);
@@ -8435,9 +8491,14 @@ Keep the response practical, actionable, and under 500 words.`;
     try {
       const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
+      const { eq, and } = await import("drizzle-orm");
+
+      const [board] = await db.select({ id: strategyBoards.id }).from(strategyBoards)
+        .where(and(eq(strategyBoards.id, String(req.params.boardId)), eq(strategyBoards.clientId, clientId)));
+      if (!board) return res.status(404).json({ message: "Board not found" });
 
       const [card] = await db.insert(strategyCards).values({
-        boardId: req.params.boardId,
+        boardId: board.id,
         clientId,
         entityType: req.body.entityType,
         entityId: req.body.entityId,
@@ -8460,10 +8521,10 @@ Keep the response practical, actionable, and under 500 words.`;
     try {
       const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq, or, ilike } = await import("drizzle-orm");
+      const { eq, or, ilike, and } = await import("drizzle-orm");
 
       const [board] = await db.select().from(strategyBoards)
-        .where(eq(strategyBoards.id, req.params.boardId));
+        .where(and(eq(strategyBoards.id, String(req.params.boardId)), eq(strategyBoards.clientId, clientId)));
       if (!board) return res.status(404).json({ message: "Board not found" });
 
       const keywords = (board.description?.split("Keywords:")[1] || "")
@@ -8540,8 +8601,9 @@ Keep the response practical, actionable, and under 500 words.`;
 
   app.patch("/api/strategy/cards/:id", isAuthenticated, async (req, res) => {
     try {
+      const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
 
       const updates: any = {};
       if (req.body.stage !== undefined) updates.stage = req.body.stage;
@@ -8552,8 +8614,9 @@ Keep the response practical, actionable, and under 500 words.`;
 
       const [card] = await db.update(strategyCards)
         .set(updates)
-        .where(eq(strategyCards.id, req.params.id))
+        .where(and(eq(strategyCards.id, String(req.params.id)), eq(strategyCards.clientId, clientId)))
         .returning();
+      if (!card) return res.status(404).json({ message: "Card not found" });
 
       res.json(card);
     } catch (error: any) {
@@ -8563,10 +8626,12 @@ Keep the response practical, actionable, and under 500 words.`;
 
   app.delete("/api/strategy/cards/:id", isAuthenticated, async (req, res) => {
     try {
+      const clientId = (await getClientId(req)) || "default";
       const { db } = await import("./db");
-      const { eq } = await import("drizzle-orm");
+      const { eq, and } = await import("drizzle-orm");
 
-      await db.delete(strategyCards).where(eq(strategyCards.id, req.params.id));
+      await db.delete(strategyCards)
+        .where(and(eq(strategyCards.id, String(req.params.id)), eq(strategyCards.clientId, clientId)));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to delete card" });
@@ -8879,8 +8944,17 @@ Respond in this exact JSON format only, including the ID field exactly as provid
     }
   });
 
+  // A firm may read and toggle only its own modules; an unscoped super admin any.
+  const mayManageModules = async (req: any) => {
+    const target = String(req.params.clientId);
+    if ((await getClientId(req)) === target) return true;
+    const userId = getUserId(req);
+    return !!userId && !!(await storage.getSuperAdminByUserId(userId)) && !req.session?.impersonatingClientId;
+  };
+
   app.get("/api/clients/:clientId/modules", isAuthenticated, async (req, res) => {
     try {
+      if (!(await mayManageModules(req))) return res.status(403).json({ message: "Not authorized for this firm" });
       const clientModules = await storage.getClientModules(req.params.clientId);
       res.json(clientModules);
     } catch (error: any) {
@@ -8890,6 +8964,7 @@ Respond in this exact JSON format only, including the ID field exactly as provid
 
   app.post("/api/clients/:clientId/modules/:moduleId/enable", isAuthenticated, async (req, res) => {
     try {
+      if (!(await mayManageModules(req))) return res.status(403).json({ message: "Not authorized for this firm" });
       const result = await storage.enableClientModule(req.params.clientId, req.params.moduleId);
       res.json(result);
     } catch (error: any) {
@@ -8899,6 +8974,7 @@ Respond in this exact JSON format only, including the ID field exactly as provid
 
   app.post("/api/clients/:clientId/modules/:moduleId/disable", isAuthenticated, async (req, res) => {
     try {
+      if (!(await mayManageModules(req))) return res.status(403).json({ message: "Not authorized for this firm" });
       await storage.disableClientModule(req.params.clientId, req.params.moduleId);
       res.json({ success: true });
     } catch (error: any) {
