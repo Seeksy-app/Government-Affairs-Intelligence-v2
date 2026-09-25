@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import {
   Sheet,
   SheetContent,
@@ -39,6 +41,7 @@ import { AtAGlance, MarketsPanel } from "@/components/today/today-rail";
 import { RecentQuestions } from "@/components/today/recent-questions";
 import { BannerWeather } from "@/components/today/banner-weather";
 import { SetupInvite, WelcomeCard } from "@/components/today/setup-cards";
+import { Shortcuts } from "@/components/today/shortcuts";
 import { useFirmSetup } from "@/hooks/use-firm-setup";
 import { WeatherWatchCard } from "@/components/today/weather-watch";
 
@@ -360,6 +363,8 @@ export default function MorningBriefPage() {
   const [, navigate] = useLocation();
   const [selectedItem, setSelectedItem] = useState<RankedItem | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
   const search = useSearch();
   const [welcome, setWelcome] = useState(() => new URLSearchParams(search).get("welcome") === "1");
 
@@ -494,12 +499,26 @@ export default function MorningBriefPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => refetch()}
+                    disabled={refreshing}
+                    onClick={async () => {
+                      // Ask for a fresh ranking (the page normally shows the last one instantly).
+                      setRefreshing(true);
+                      try {
+                        const res = await fetch(`/api/morning-brief/${effectiveClientId}?fresh=1`, { credentials: "include" });
+                        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message ?? `${res.status}`);
+                        queryClient.setQueryData(["/api/morning-brief", effectiveClientId], await res.json());
+                      } catch (err) {
+                        // Keep the current brief on screen; just say the refresh didn't work.
+                        toast({ title: "Couldn't refresh the brief", description: (err as Error).message, variant: "destructive" });
+                      } finally {
+                        setRefreshing(false);
+                      }
+                    }}
                     className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                     data-testid="button-refresh-brief"
                   >
-                    <RefreshCw className="h-3 w-3" />
-                    Refresh
+                    <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
+                    {refreshing ? "Refreshing…" : "Refresh"}
                   </button>
                 </div>
               )}
@@ -523,6 +542,7 @@ export default function MorningBriefPage() {
               setup && !setup.onboarded && <SetupInvite />
             )}
             <RecentQuestions />
+            <Shortcuts />
           <div className="min-w-0" data-testid="section-morning-brief">
             {/* Loading */}
             {isLoading && (

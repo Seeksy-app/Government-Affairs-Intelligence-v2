@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { BarChart3, Megaphone, MessageCircleQuestion, Newspaper, type LucideIcon } from "lucide-react";
+import { BarChart3, Megaphone, MessageCircleQuestion, MessageSquareText, Newspaper, type LucideIcon } from "lucide-react";
+import { openAIChat } from "@/components/global-ai-chat";
 import { useAuth } from "@/hooks/use-auth";
 
 // Daily-read feeds and "Should I be worried?" live in the top bar, next to
@@ -26,7 +27,7 @@ export function TopBarLinks() {
   });
 
   return (
-    <nav className="hidden items-stretch gap-1 lg:flex" aria-label="Feeds">
+    <nav className="hidden items-stretch gap-1 py-1.5 lg:flex" aria-label="Feeds">
       {LINKS.map((l) => {
         const active = location === l.url || location.startsWith(l.url + "/");
         const n = l.count ? counts?.[l.count] ?? 0 : 0;
@@ -57,6 +58,15 @@ export function TopBarLinks() {
           </Link>
         );
       })}
+      <button
+        type="button"
+        onClick={() => openAIChat()}
+        className="flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-lg px-3 py-1 text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+        data-testid="topnav-research-assistant"
+      >
+        <MessageSquareText className="h-[22px] w-[22px]" strokeWidth={1.75} />
+        <span className="whitespace-nowrap text-xs font-medium leading-none">Research assistant</span>
+      </button>
     </nav>
   );
 }

@@ -124,12 +124,21 @@ export const SHARING: Opt<Sharing>[] = [
   { value: "mix", label: "A mix — I decide what they see", hint: "A portal for some things, direct contact for the rest. Nothing reaches them without your say." },
 ];
 
+// Pages a firm can pin to Today (labels/icons in client/src/components/today/shortcuts.tsx).
+export const SHORTCUT_KEYS = [
+  "staffers", "bills", "hearings", "contacts", "members", "clients", "power-search",
+  "strategy", "research", "bill-mapping", "portals", "news", "press", "markets",
+] as const;
+export const MAX_SHORTCUTS = 6;
+
 export interface FirmOnboarding {
   role?: string;
   triggers?: string[];
   weather?: "often" | "sometimes" | "rarely";
   markets?: "yes" | "sometimes" | "no";
   aiComfort?: AiComfort;
+  /** Pages pinned to Today (keys from client/src/components/today/shortcuts.tsx). */
+  shortcuts?: string[];
   /** Last chapter the user reached, so a return visit resumes there. */
   step?: number;
 }

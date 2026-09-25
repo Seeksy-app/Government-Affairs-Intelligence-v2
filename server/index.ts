@@ -190,6 +190,17 @@ app.use((req, res, next) => {
         setInterval(runPressSync, SIX_HOURS);
         log("Government press sync scheduled (2 min after boot, then every 6 hours)");
 
+        // Rank each firm's Today brief shortly after boot (after news/press
+        // have had a moment), so nobody waits on the first visit after a deploy.
+        setTimeout(async () => {
+          try {
+            const { warmBriefs } = await import("./services/morning-brief-service");
+            await warmBriefs();
+          } catch (err) {
+            console.error("Morning brief warm-up error:", err);
+          }
+        }, 3 * 60 * 1000);
+
         // Bill tracking alerts — detect changes on tracked bills and email
         // ALERT_EMAIL. Every 6 hours, first run 5 minutes after boot.
         const runBillAlerts = async () => {

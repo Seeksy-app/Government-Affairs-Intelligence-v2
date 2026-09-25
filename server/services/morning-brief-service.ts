@@ -77,10 +77,7 @@ function cacheIfCurrent(clientId: string, version: number, result: RankedBriefRe
 function getCached(clientId: string): RankedBriefResult | null {
   const entry = cache.get(clientId);
   if (!entry) return null;
-  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
-    cache.delete(clientId);
-    return null;
-  }
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null; // kept for stale-while-revalidate
   return entry.result;
 }
 
@@ -355,9 +352,53 @@ async function findRelevantStaffers(
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export async function rankItemsForClient(clientId: string): Promise<RankedBriefResult> {
+// Stale-while-revalidate: a ranking up to 12 hours old is served instantly
+// (Today never waits on a Claude call just because 10 minutes passed) and
+// refreshed in the background. Only a firm with no ranking yet, a profile
+// change (clearCachedBrief) or an explicit refresh waits for a fresh one.
+const STALE_OK_MS = 12 * 60 * 60 * 1000;
+// In-flight rankings, tagged with the cache version they started under: a
+// ranking begun before a profile change is never handed to a later caller.
+const inflight = new Map<string, { version: number; promise: Promise<RankedBriefResult> }>();
+
+function refreshRanking(clientId: string): Promise<RankedBriefResult> {
+  const version = cacheVersion.get(clientId) ?? 0;
+  const running = inflight.get(clientId);
+  if (running && running.version === version) return running.promise;
+  const promise = computeRanking(clientId).finally(() => {
+    if (inflight.get(clientId)?.promise === promise) inflight.delete(clientId);
+  });
+  inflight.set(clientId, { version, promise });
+  return promise;
+}
+
+export async function rankItemsForClient(clientId: string, opts: { fresh?: boolean } = {}): Promise<RankedBriefResult> {
+  if (opts.fresh) return refreshRanking(clientId);
   const cached = getCached(clientId);
   if (cached) return cached;
+  const stale = cache.get(clientId);
+  if (stale && Date.now() - stale.cachedAt <= STALE_OK_MS) {
+    refreshRanking(clientId).catch((err) => console.error(`[morning-brief] background refresh for ${clientId} failed:`, err.message));
+    return stale.result;
+  }
+  return refreshRanking(clientId);
+}
+
+// Rank every firm once after a deploy, so the first visit is instant.
+export async function warmBriefs(): Promise<void> {
+  const rows = await db.select({ clientId: clientProfiles.clientId }).from(clientProfiles);
+  // Three at a time: quick overall, gentle on the Claude rate limit.
+  const queue = rows.map((r) => r.clientId);
+  const worker = async () => {
+    for (let id = queue.shift(); id; id = queue.shift()) {
+      await refreshRanking(id).catch((err) => console.warn(`[morning-brief] warm ${id} failed:`, err.message));
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  console.log(`[morning-brief] warmed ${rows.length} firm briefs`);
+}
+
+async function computeRanking(clientId: string): Promise<RankedBriefResult> {
   const version = cacheVersion.get(clientId) ?? 0;
 
   const profile = await getClientProfile(clientId);

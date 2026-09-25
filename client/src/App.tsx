@@ -3,7 +3,7 @@ import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppNav, MobileNav } from "@/components/app-nav";
+import { AppNav, MobileNav, SettingsMenu, UserMenu } from "@/components/app-nav";
 import { TopBarLinks } from "@/components/top-bar-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
@@ -277,7 +277,7 @@ function AuthenticatedLayout() {
               </div>
             </div>
           )}
-          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-card px-3 sm:px-4">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-card px-3 sm:px-4">
             <Button
               variant="ghost"
               size="icon"
@@ -289,12 +289,14 @@ function AuthenticatedLayout() {
               <Menu className="h-5 w-5" />
             </Button>
             <TopBarLinks />
-            <div className="flex min-w-0 flex-1 justify-center">
+            <div className="flex min-w-0 flex-1 justify-center px-2">
               <GlobalSearch />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <GlobalAIChat />
               <ThemeToggle />
+              <SettingsMenu />
+              <UserMenu />
             </div>
           </header>
           <main className="flex-1 overflow-auto">

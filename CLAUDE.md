@@ -234,9 +234,14 @@ page still has the old typeset GA mark until it's updated there.
 loads just it + JetBrains Mono); every page uses `PageShell` + `PageHeader`
 (client/src/components/page-header.tsx); navigation = icon rail with
 floating menus (client/src/components/app-nav.tsx — Today | People (incl.
-Client Portals), Strategy, Research | Bills, Hearings | Knowledge, Settings
-at the bottom; News · Press · Markets · Should I be worried? are icon links
-in the top bar, top-bar-links.tsx). Home = Today (/dashboard = Morning Brief + rail;
+Client Portals), Strategy, Research | Bills, Hearings | Knowledge). Top bar
+(h-16): News · Press · Markets · Should I be worried? · Research assistant
+(opens the GlobalAIChat sheet via `openAIChat()`) on the left, wide search,
+then theme, Settings menu (Settings/Sources/Security) and the account
+avatar top right. Today: "Ask a question" opens the Research assistant;
+firms pin up to 6 Shortcuts (onboarding.shortcuts jsonb). Morning brief is
+stale-while-revalidate (serve ≤12h-old ranking instantly, refresh in the
+background; `?fresh=1` forces; firm warm-up starts 3 min after boot, 3 at a time). Home = Today (/dashboard = Morning Brief + rail;
 /morning-brief redirects). Pages use
 near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.
