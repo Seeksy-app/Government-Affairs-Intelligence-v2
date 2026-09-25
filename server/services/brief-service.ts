@@ -141,9 +141,15 @@ function buildUserPrompt(
   clientContext: string | null,
   sources: Array<{ citationNumber: number; url: string; title: string | null; markdown: string; excerpts: string[] }>,
 ): string {
-  const contextBlock = clientContext
-    ? `\nCLIENT CONTEXT:\n${clientContext}\n`
-    : "";
+  // Context added automatically from the firm profile (by the ask flow) is
+  // background, not the client's own situation — label it so, or the brief
+  // starts commenting on the firm's practice areas.
+  const isFirmBackground = !!clientContext && /^(our firm's focus areas|firm background)/i.test(clientContext.trim());
+  const contextBlock = !clientContext
+    ? ""
+    : isFirmBackground
+      ? `\nFIRM BACKGROUND (optional; use only if the topic names no client, industry or sector of its own — and never mention it or the firm's practice areas in the brief):\n${clientContext}\n`
+      : `\nCLIENT CONTEXT:\n${clientContext}\n`;
 
   const sourceBlocks = sources
     .map((s) => {
