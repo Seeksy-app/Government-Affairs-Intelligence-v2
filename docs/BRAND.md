@@ -65,15 +65,19 @@ the live guide wins — re-vendor it here.
   sidebar section (Monitor / Brief / Reach / Clients / Workspace), a
   650–700 weight title, one plain sentence of description, actions on the
   right. No decorative icons beside page titles, no serif, no gradient text.
-- **Navigation (Sep 2026, v2):** a 76px icon rail grouped by thin dividers —
-  Home | Bills, Hearings, News, Press, Markets | People, Strategy | Research,
-  Knowledge, Clients — with Settings and the account menu pinned at the
-  bottom. An icon with one page navigates directly; an icon with several
-  (Home, Bills, People, Settings) opens a floating menu over the page, which
-  closes on selection, click-away or Esc. Phones get the full list in a
-  slide-out sheet. Every page appears exactly once. Page eyebrows use the
-  group names (Home / Monitor / Reach / Work / Settings).
+- **Navigation (Sep 2026, v3):** a 76px icon rail with darker dividers
+  between groups — Home | News, Press, Markets | Bills, Hearings | People,
+  Strategy, Research | Clients | Knowledge — Settings and the account menu
+  pinned at the bottom. An icon with one page navigates directly; Home,
+  Bills, People and Settings open a floating menu over the page (closes on
+  selection, click-away or Esc). People lists Contacts first and also
+  includes Client Portals. Page eyebrows use the group names (Home /
+  Monitor / Legislation / Reach / Clients / Knowledge / Settings).
   Source: `client/src/components/app-nav.tsx`.
+- **Use the room:** pages run near full width (`PageShell` caps at 1760px);
+  split wide content into columns (Morning Brief: priorities | watch list;
+  brief page: brief | sources) rather than centering a narrow column.
+  `width="narrow"` is only for forms.
 - **Color discipline:** red/destructive only for errors and destructive
   actions. Relevance scores and "new update" notices use the Signal Blue
   tint (`bg-primary/10 text-primary`), never alarm red. Concern levels are

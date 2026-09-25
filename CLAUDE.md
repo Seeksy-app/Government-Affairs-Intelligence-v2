@@ -188,8 +188,10 @@ page still has the old typeset GA mark until it's updated there.
 **Site-wide redesign (Sep 2026):** Source Sans 3 is the only font (index.html
 loads just it + JetBrains Mono); every page uses `PageShell` + `PageHeader`
 (client/src/components/page-header.tsx); navigation = icon rail with
-floating menus (client/src/components/app-nav.tsx — groups Home | Monitor |
-Reach | Work, Settings at the bottom; add new pages to CLIENT_GROUPS). Rules in docs/BRAND.md
+floating menus (client/src/components/app-nav.tsx — groups Home | News,
+Press, Markets | Bills, Hearings | People, Strategy, Research | Clients |
+Knowledge, Settings at the bottom; add new pages to CLIENT_GROUPS). Pages use
+near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.
 Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
 Signature line: "Find the path to the people who shape policy."

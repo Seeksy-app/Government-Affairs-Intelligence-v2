@@ -52,6 +52,8 @@ export function PageShell({
   width?: "narrow" | "default" | "wide";
   className?: string;
 }) {
-  const max = width === "narrow" ? "max-w-3xl" : width === "default" ? "max-w-5xl" : "max-w-[1400px]";
+  // Use the room: pages run near full width (capped only for ultra-wide
+  // monitors). "narrow" is for forms and long single-column reading.
+  const max = width === "narrow" ? "max-w-5xl" : "max-w-[1760px]";
   return <div className={`mx-auto w-full ${max} px-4 py-6 sm:px-6 lg:px-8 lg:py-8 ${className}`}>{children}</div>;
 }
