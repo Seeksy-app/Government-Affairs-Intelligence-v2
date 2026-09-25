@@ -160,31 +160,46 @@ export async function revokeInvite(clientId: string, id: string) {
   await db.update(firmInvites).set({ revokedAt: new Date() }).where(eq(firmInvites.id, invite.id));
 }
 
-async function adminCount(clientId: string) {
-  const [{ n }] = await db
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function adminCount(tx: Tx, clientId: string) {
+  const [{ n }] = await tx
     .select({ n: count() })
     .from(clientUsers)
     .where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.role, "admin")));
   return Number(n);
 }
 
+// Role changes and removals for one firm run one at a time, so two admins
+// can't demote each other at the same moment and leave the firm with none.
+async function withFirmLock<T>(clientId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"team:" + clientId}))`);
+    return fn(tx);
+  });
+}
+
 export async function setMemberRole(clientId: string, userId: string, role: "member" | "admin") {
-  const [m] = await db.select().from(clientUsers).where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.userId, userId))).limit(1);
-  if (!m) throw new TeamError("That person isn't on your team.", 404);
-  if (m.role === "admin" && role !== "admin" && (await adminCount(clientId)) <= 1) {
-    throw new TeamError("Your firm needs at least one admin. Make someone else an admin first.", 409);
-  }
-  await db.update(clientUsers).set({ role }).where(eq(clientUsers.id, m.id));
+  await withFirmLock(clientId, async (tx) => {
+    const [m] = await tx.select().from(clientUsers).where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.userId, userId))).limit(1);
+    if (!m) throw new TeamError("That person isn't on your team.", 404);
+    if (m.role === "admin" && role !== "admin" && (await adminCount(tx, clientId)) <= 1) {
+      throw new TeamError("Your firm needs at least one admin. Make someone else an admin first.", 409);
+    }
+    await tx.update(clientUsers).set({ role }).where(eq(clientUsers.id, m.id));
+  });
 }
 
 // Removes the person from the firm (their login stays, but opens nothing).
 export async function removeMember(clientId: string, userId: string) {
-  const [m] = await db.select().from(clientUsers).where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.userId, userId))).limit(1);
-  if (!m) throw new TeamError("That person isn't on your team.", 404);
-  if (m.role === "admin" && (await adminCount(clientId)) <= 1) {
-    throw new TeamError("You can't remove the only admin.", 409);
-  }
-  await db.delete(clientUsers).where(eq(clientUsers.id, m.id));
+  await withFirmLock(clientId, async (tx) => {
+    const [m] = await tx.select().from(clientUsers).where(and(eq(clientUsers.clientId, clientId), eq(clientUsers.userId, userId))).limit(1);
+    if (!m) throw new TeamError("That person isn't on your team.", 404);
+    if (m.role === "admin" && (await adminCount(tx, clientId)) <= 1) {
+      throw new TeamError("You can't remove the only admin.", 409);
+    }
+    await tx.delete(clientUsers).where(eq(clientUsers.id, m.id));
+  });
 }
 
 async function liveInviteByToken(token: string) {
@@ -208,9 +223,9 @@ export async function describeInvite(token: string) {
     email: invite.email,
     role: invite.role,
     inviterName: [inviter?.firstName, inviter?.lastName].filter(Boolean).join(" ") || null,
-    // An account that already has a password must sign in first rather than
-    // set a new password through the invite.
-    needsSignIn: !!existing?.passwordHash,
+    // Any existing account (password or LinkedIn) must sign in first: an
+    // invite link never sets a password on an account that already exists.
+    needsSignIn: !!existing,
   };
 }
 
@@ -225,44 +240,36 @@ export async function acceptInvite(
   const invite = await liveInviteByToken(token);
   if (!invite) throw new TeamError("This invite link has expired or was already used. Ask for a new one.", 410);
 
-  let user = await findUserByEmail(invite.email);
-  if (user?.passwordHash) {
-    if (user.id !== signedInUserId) {
-      throw new TeamError(`You already have an account. Sign in as ${invite.email}, then open this link again.`, 409);
-    }
-  } else {
+  // Every check happens before anything is written.
+  const existing = await findUserByEmail(invite.email);
+  if (existing && existing.id !== signedInUserId) {
+    throw new TeamError(`You already have an account. Sign in as ${invite.email}, then open this link again.`, 409);
+  }
+  const current = existing ? await membershipOf(existing.id) : null;
+  if (current && current.clientId !== invite.clientId) {
+    throw new TeamError("This account already belongs to another firm. Email support@governmentaffairs.io to move it.", 409);
+  }
+  let newUser: { firstName: string; lastName: string | null; passwordHash: string } | null = null;
+  if (!existing) {
     const firstName = input.firstName?.trim();
     const password = input.password ?? "";
     if (!firstName) throw new TeamError("Add your first name.");
     if (password.length < 8) throw new TeamError("Use a password of at least 8 characters.");
-    const passwordHash = await bcrypt.hash(password, 10);
-    if (user) {
-      [user] = await db
-        .update(users)
-        .set({ firstName, lastName: input.lastName?.trim() || null, passwordHash, updatedAt: new Date() })
-        .where(eq(users.id, user.id))
-        .returning();
-    } else {
-      [user] = await db
-        .insert(users)
-        .values({ email: invite.email, firstName, lastName: input.lastName?.trim() || null, passwordHash })
-        .returning();
-    }
+    newUser = { firstName, lastName: input.lastName?.trim() || null, passwordHash: await bcrypt.hash(password, 10) };
   }
 
-  const current = await membershipOf(user.id);
-  if (current && current.clientId !== invite.clientId) {
-    throw new TeamError("This account already belongs to another firm. Email support@governmentaffairs.io to move it.", 409);
-  }
+  // Account, invite claim and membership succeed or fail together.
+  return db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(firmInvites)
+      .set({ acceptedAt: new Date() })
+      .where(and(eq(firmInvites.id, invite.id), isNull(firmInvites.acceptedAt), isNull(firmInvites.revokedAt)))
+      .returning({ id: firmInvites.id });
+    if (claimed.length === 0) throw new TeamError("This invite was just used. Try signing in.", 410);
 
-  // Claim the invite once, even if the link is opened twice at the same moment.
-  const claimed = await db
-    .update(firmInvites)
-    .set({ acceptedAt: new Date(), acceptedUserId: user.id })
-    .where(and(eq(firmInvites.id, invite.id), isNull(firmInvites.acceptedAt), isNull(firmInvites.revokedAt)))
-    .returning({ id: firmInvites.id });
-  if (claimed.length === 0) throw new TeamError("This invite was just used. Try signing in.", 410);
-
-  if (!current) await db.insert(clientUsers).values({ userId: user.id, clientId: invite.clientId, role: invite.role });
-  return user;
+    const user = existing ?? (await tx.insert(users).values({ email: invite.email, ...newUser! }).returning())[0];
+    await tx.update(firmInvites).set({ acceptedUserId: user.id }).where(eq(firmInvites.id, invite.id));
+    if (!current) await tx.insert(clientUsers).values({ userId: user.id, clientId: invite.clientId, role: invite.role });
+    return user;
+  });
 }

@@ -98,7 +98,8 @@ export default function AcceptInvitePage() {
               {data.needsSignIn && !signedInAsInvitee ? (
                 <div className="mt-6 space-y-3">
                   <p className="text-sm">
-                    You already have an account. Sign in as <strong>{data.email}</strong>, then open this invite link again.
+                    You already have an account. Sign in as <strong>{data.email}</strong> (with your password or LinkedIn), then open
+                    this invite link again.
                   </p>
                   <Button asChild className="w-full">
                     <a href="/login">Sign in</a>
