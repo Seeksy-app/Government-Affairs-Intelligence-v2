@@ -74,7 +74,7 @@ the live guide wins — re-vendor it here.
   includes Client Portals. Page eyebrows use the group names (Home /
   Monitor / Legislation / Reach / Clients / Knowledge / Settings).
   Source: `client/src/components/app-nav.tsx`.
-- **Use the room:** pages run near full width (`PageShell` caps at 1760px);
+- **Use the room:** pages run wide with side padding that grows with the screen (`PageShell`: 40–80px sides, 1600px cap);
   split wide content into columns (Morning Brief: priorities | watch list;
   brief page: brief | sources) rather than centering a narrow column.
   `width="narrow"` is only for forms.

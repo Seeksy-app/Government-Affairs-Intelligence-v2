@@ -435,7 +435,7 @@ export default function PowerSearchPage() {
       <div className="flex-1 overflow-hidden">
         {mainTab === "people" && (
           <ScrollArea className="h-full">
-            <div className="mx-auto w-full max-w-[1760px] px-4 pb-8 sm:px-6 lg:px-8 space-y-5">
+            <div className="mx-auto w-full max-w-[1600px] px-4 pb-8 sm:px-6 lg:px-10 xl:px-14 2xl:px-20 space-y-5">
               <Card>
                 <CardContent className="p-4 space-y-4">
                   <div>
