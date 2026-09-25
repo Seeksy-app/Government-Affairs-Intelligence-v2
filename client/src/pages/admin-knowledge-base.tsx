@@ -31,7 +31,7 @@ export default function AdminKnowledgeBase() {
   });
 
   const categoryForm = useForm({
-    defaultValues: { name: "", description: "" },
+    defaultValues: { name: "", description: "", scope: "client" },
   });
 
   const articleForm = useForm({
@@ -41,12 +41,13 @@ export default function AdminKnowledgeBase() {
       summary: "", 
       content: "", 
       categoryId: "",
+      scope: "client",
       isPublished: false 
     },
   });
 
   const createCategoryMutation = useMutation({
-    mutationFn: (data: { name: string; description: string }) =>
+    mutationFn: (data: { name: string; description: string; scope: string }) =>
       apiRequest("POST", "/api/admin/kb/categories", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/kb/categories"] });
@@ -110,6 +111,7 @@ export default function AdminKnowledgeBase() {
       summary: article.summary || "",
       content: article.content || "",
       categoryId: article.categoryId || "",
+      scope: article.scope || "client",
       isPublished: article.isPublished || false,
     });
     setIsArticleDialogOpen(true);
@@ -127,8 +129,10 @@ export default function AdminKnowledgeBase() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Knowledge Base Management</h1>
-          <p className="text-muted-foreground">Manage platform documentation and help articles</p>
+          <h1 className="text-2xl font-bold">Help Center</h1>
+          <p className="text-muted-foreground">
+            Articles marked <strong>Everyone</strong> appear in every firm's Help page once published; <strong>Admins only</strong> stay here.
+          </p>
         </div>
         <div className="flex gap-2">
           <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
@@ -167,6 +171,26 @@ export default function AdminKnowledgeBase() {
                           <Textarea {...field} placeholder="Category description" data-testid="input-category-description" />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={categoryForm.control}
+                    name="scope"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Who can read it</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-category-scope">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="client">Everyone (Help Center)</SelectItem>
+                            <SelectItem value="owner">Admins only</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </FormItem>
                     )}
                   />
@@ -225,6 +249,26 @@ export default function AdminKnowledgeBase() {
                   />
                   <FormField
                     control={articleForm.control}
+                    name="scope"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Who can read it</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-article-scope">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="client">Everyone (Help Center)</SelectItem>
+                            <SelectItem value="owner">Admins only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={articleForm.control}
                     name="categoryId"
                     render={({ field }) => (
                       <FormItem>
@@ -236,7 +280,7 @@ export default function AdminKnowledgeBase() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {categories.map((cat) => (
+                            {categories.filter((cat) => cat.scope === articleForm.watch("scope")).map((cat) => (
                               <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                             ))}
                           </SelectContent>
@@ -317,7 +361,7 @@ export default function AdminKnowledgeBase() {
                 data-testid={`button-category-${cat.id}`}
               >
                 <FolderOpen className="w-4 h-4 mr-2" />
-                {cat.name} ({articles.filter((a) => a.categoryId === cat.id).length})
+                {cat.name}{cat.scope === "owner" ? " · admins" : ""} ({articles.filter((a) => a.categoryId === cat.id).length})
               </Button>
             ))}
           </CardContent>
@@ -342,6 +386,7 @@ export default function AdminKnowledgeBase() {
                         <Badge variant={article.isPublished ? "default" : "secondary"}>
                           {article.isPublished ? "Published" : "Draft"}
                         </Badge>
+                        <Badge variant="outline">{article.scope === "owner" ? "Admins only" : "Everyone"}</Badge>
                       </CardTitle>
                       <CardDescription>{article.summary}</CardDescription>
                     </div>
@@ -356,7 +401,9 @@ export default function AdminKnowledgeBase() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">Slug: /{article.slug}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {article.scope === "owner" ? `Slug: ${article.slug}` : `Link: /kb?a=${article.slug}`}
+                  </p>
                 </CardContent>
               </Card>
             ))

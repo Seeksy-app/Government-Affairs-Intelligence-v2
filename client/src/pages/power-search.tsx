@@ -161,7 +161,8 @@ export default function PowerSearchPage() {
   const [contactSaving, setContactSaving] = useState(false);
 
   const { data: clientsList = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
-  const { data: kbCategories = [] } = useQuery<KbCategory[]>({ queryKey: ["/api/admin/kb/categories"] });
+  // The KB is the admin-written help center now; contacts can't be filed into it.
+  const { data: kbCategories = [] } = useQuery<KbCategory[]>({ queryKey: ["/api/admin/kb/categories"], enabled: false });
 
   const openContactDialog = (person: PersonResult) => {
     setContactDialogPerson(person);
@@ -1102,7 +1103,6 @@ export default function PowerSearchPage() {
                   <SelectContent>
                     <SelectItem value="general">General Contact</SelectItem>
                     <SelectItem value="client">Assign to Client</SelectItem>
-                    <SelectItem value="kb">Assign to Knowledge Base</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

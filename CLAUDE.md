@@ -196,6 +196,11 @@ Working end-to-end:
 8. Off-thesis modules dilute demos: sports, marketing intel, influencers,
    social, rank tracking, local-gov, Miro. Candidates to feature-flag/hide.
 9. Orphan pages not in sidebar: /ai-agent, /staffer-intelligence.
+   Help Center (/kb, rail "Help") = kb_articles scope "client" (published);
+   scope "owner" = admin-only. Starter articles live in
+   server/services/help-docs.ts and are inserted once when no client-scope
+   article exists — edit them at /admin/kb afterwards, and keep them true
+   when features change. Link to one with /kb?a=<slug>.
 10. tsc has ~296 pre-existing errors in legacy pages (network.tsx,
     staffers.tsx…). Don't try to fix wholesale; keep new files clean.
 

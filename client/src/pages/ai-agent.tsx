@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio, FileText, ExternalLink, Clock, Bookmark, RefreshCw, Plus, FolderOpen, BookOpen } from "lucide-react";
+import { Bot, Send, Globe, Youtube, User, Building2, Briefcase, Loader2, MessageSquare, Sparkles, Search, History, ArrowRight, Video, Radio, FileText, ExternalLink, Clock, Bookmark, RefreshCw, Plus, FolderOpen } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1134,11 +1134,7 @@ export default function AIAgentPage() {
                       <FileText className="w-4 h-4" /> Bill Tracking
                     </span>
                   </SelectItem>
-                  <SelectItem value="kb">
-                    <span className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" /> Knowledge Base
-                    </span>
-                  </SelectItem>
+                  {/* "Knowledge Base" removed: the KB is now the platform help center (admin-written). */}
                   <SelectItem value="research">
                     <span className="flex items-center gap-2">
                       <FolderOpen className="w-4 h-4" /> Research Project
