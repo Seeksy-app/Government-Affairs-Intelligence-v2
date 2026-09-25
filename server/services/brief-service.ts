@@ -232,7 +232,10 @@ async function ingestSources(
       citationNumber: s.citationNumber,
       url: s.url,
       title: ext?.title ?? s.title,
-      publication: s.publication ?? publicationName(s.url),
+      // Always recompute: names stored by older runs ("Jacksonlewis", "Dol")
+      // get corrected on regenerate. Congress.gov and agency domains map to
+      // their proper names in PUBLICATION_NAMES.
+      publication: publicationName(s.url),
       publishDate: ext?.publishDate ?? s.publishDate,
       tier: domainTier(s.url),
       markdown: s.extractedContent?.trim() || ext?.markdown || "",
