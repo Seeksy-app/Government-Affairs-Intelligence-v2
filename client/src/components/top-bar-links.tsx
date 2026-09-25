@@ -1,68 +1,38 @@
-import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircleQuestion } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { AskBox } from "@/components/briefs/ask-box";
+import { BarChart3, Megaphone, MessageCircleQuestion, Newspaper, type LucideIcon } from "lucide-react";
 
-// Daily-read feeds live in the top bar, next to search, so the rail can stay
-// short. Pages still appear in the phone menu.
-const FEEDS = [
-  { title: "News", url: "/news" },
-  { title: "Press", url: "/press-releases" },
-  { title: "Markets", url: "/predictions" },
+// Daily-read feeds and "Should I be worried?" live in the top bar, next to
+// search, so the rail can stay short. They also appear in the phone menu.
+const LINKS: Array<{ title: string; url: string; icon: LucideIcon; testId: string }> = [
+  { title: "News", url: "/news", icon: Newspaper, testId: "topnav-news" },
+  { title: "Press", url: "/press-releases", icon: Megaphone, testId: "topnav-press" },
+  { title: "Markets", url: "/predictions", icon: BarChart3, testId: "topnav-markets" },
+  { title: "Should I be worried?", url: "/briefs", icon: MessageCircleQuestion, testId: "topnav-worried" },
 ];
 
 export function TopBarLinks() {
   const [location] = useLocation();
   return (
-    <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Feeds">
-      {FEEDS.map((f) => {
-        const active = location === f.url || location.startsWith(f.url + "/");
+    <nav className="hidden items-stretch gap-1 lg:flex" aria-label="Feeds">
+      {LINKS.map((l) => {
+        const active = location === l.url || location.startsWith(l.url + "/");
         return (
           <Link
-            key={f.url}
-            href={f.url}
+            key={l.url}
+            href={l.url}
             aria-current={active ? "page" : undefined}
-            data-testid={`topnav-${f.title.toLowerCase()}`}
-            className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            data-testid={l.testId}
+            className={`flex min-w-[64px] flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 py-1 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/50 ${
               active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
-            {f.title}
+            <l.icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.1 : 1.75} />
+            <span className={`whitespace-nowrap text-[11px] leading-none ${active ? "font-semibold" : "font-medium"}`}>
+              {l.title}
+            </span>
           </Link>
         );
       })}
     </nav>
-  );
-}
-
-// "Should I be worried?" from anywhere: opens the ask box over the current page.
-export function AskButton() {
-  const [open, setOpen] = useState(false);
-  const [location] = useLocation();
-
-  // Submitting navigates to the new brief — close on any route change.
-  useEffect(() => setOpen(false), [location]);
-
-  return (
-    <>
-      <Button
-        size="sm"
-        onClick={() => setOpen(true)}
-        className="gap-2"
-        aria-label="Should I be worried?"
-        data-testid="button-ask-worried"
-      >
-        <MessageCircleQuestion className="h-4 w-4" />
-        <span className="hidden xl:inline">Should I be worried?</span>
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl gap-0 border-0 bg-transparent p-0 shadow-none" aria-describedby={undefined}>
-          <DialogTitle className="sr-only">Should I be worried?</DialogTitle>
-          <AskBox />
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }

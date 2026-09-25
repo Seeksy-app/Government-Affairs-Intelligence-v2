@@ -449,47 +449,51 @@ export default function MorningBriefPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8 xl:px-14 2xl:px-20">
-        {/* Today: the Morning Brief is the page; the rail keeps the at-a-glance pieces. */}
-        <PageHeader
-          eyebrow={getTodayLine()}
-          title={
-            <span data-testid="text-dashboard-title">
-              {greeting}
-              {user?.firstName ? `, ${user.firstName}` : ""}
-            </span>
-          }
-          description={
-            <>
-              <span data-testid="text-brief-title">Your {briefLabel.toLowerCase()}</span> for{" "}
-              <span className="font-semibold text-foreground">{brief?.clientName ?? "your firm"}</span>, ranked from the last{" "}
-              {brief?.scoringMetadata.windowUsedHours ?? 48} hours of news and agency press releases
-              {generatedAt && <> · updated {generatedAt}</>}
-            </>
-          }
-          actions={
-            brief && (
-              <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh-brief">
+        {/* Today: the Morning Brief is the page; the rail keeps the at-a-glance pieces.
+            The greeting sits on a Capitol Navy banner — the page's one splash of color. */}
+        <div className="relative mb-8 overflow-hidden rounded-xl bg-[#14253D] px-6 py-6 text-white shadow-md sm:px-8 dark:bg-[#0F1D31] dark:ring-1 dark:ring-white/10">
+          <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#078ACB]/25 blur-3xl" />
+          <div className="relative flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6CC3EE]">{getTodayLine()}</p>
+              <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-white" data-testid="text-dashboard-title">
+                {greeting}
+                {user?.firstName ? `, ${user.firstName}` : ""}
+              </h1>
+              <p className="mt-1 max-w-3xl text-sm text-white/75">
+                <span data-testid="text-brief-title">Your {briefLabel.toLowerCase()}</span> for{" "}
+                <span className="font-semibold text-white">{brief?.clientName ?? "your firm"}</span>, ranked from the last{" "}
+                {brief?.scoringMetadata.windowUsedHours ?? 48} hours of news and agency press releases
+                {generatedAt && <> · updated {generatedAt}</>}
+              </p>
+              {brief && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[#078ACB] px-2.5 py-1 text-xs font-semibold text-white">
+                    {brief.highRelevance.length} top priorit{brief.highRelevance.length === 1 ? "y" : "ies"}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/85">
+                    {brief.worthWatching.length} worth watching
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/85">
+                    {brief.scoringMetadata.totalItemsConsidered} items reviewed
+                  </span>
+                </div>
+              )}
+            </div>
+            {brief && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                className="border-white/25 bg-white/5 text-white hover:bg-white/15"
+                data-testid="button-refresh-brief"
+              >
                 <RefreshCw className="h-3.5 w-3.5" />
                 Refresh
               </Button>
-            )
-          }
-          className="mb-6"
-        >
-          {brief && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                {brief.highRelevance.length} top priorit{brief.highRelevance.length === 1 ? "y" : "ies"}
-              </span>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                {brief.worthWatching.length} worth watching
-              </span>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                {brief.scoringMetadata.totalItemsConsidered} items reviewed
-              </span>
-            </div>
-          )}
-        </PageHeader>
+            )}
+          </div>
+        </div>
 
         <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0" data-testid="section-morning-brief">
@@ -526,8 +530,9 @@ export default function MorningBriefPage() {
             {/* Content */}
             {!isLoading && brief && (
               <div className="space-y-6">
-                {/* Priorities and watch list side by side on very wide screens */}
-                <div className="grid items-start gap-8 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                {/* Priorities first, full width; the watch list below in two
+                    columns so neither side leaves a dead zone. */}
+                <div className="space-y-8">
                   <section className="min-w-0">
                     <h2 className="mb-3 text-lg font-semibold tracking-tight">Top priorities</h2>
                     {brief.highRelevance.length === 0 ? (
@@ -546,7 +551,7 @@ export default function MorningBriefPage() {
                   {brief.worthWatching.length > 0 && (
                     <section className="min-w-0">
                       <h2 className="mb-3 text-lg font-semibold tracking-tight">Worth watching</h2>
-                      <div className="space-y-2.5">
+                      <div className="grid gap-3 lg:grid-cols-2">
                         {brief.worthWatching.map((item) => (
                           <ItemCard key={item.id} item={item} highlight={false} onClick={() => openItem(item)} />
                         ))}

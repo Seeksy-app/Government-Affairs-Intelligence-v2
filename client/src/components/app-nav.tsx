@@ -74,23 +74,41 @@ const page = (title: string, url: string, icon: LucideIcon, tourId: string): Nav
 const CLIENT_GROUPS: RailGroup[] = [
   {
     label: "Today",
-    items: [
-      { key: "today", label: "Today", icon: House, pages: [page("Today", "/dashboard", House, "dashboard")] },
-      {
-        key: "briefs",
-        label: "Briefs",
-        icon: MessageCircleQuestion,
-        pages: [page("Should I be worried?", "/briefs", MessageCircleQuestion, "briefs")],
-      },
-    ],
+    items: [{ key: "today", label: "Today", icon: House, pages: [page("Today", "/dashboard", House, "dashboard")] }],
   },
   {
+    // Desktop: these live in the top bar. Listed here for the phone menu.
     label: "Monitor",
     mobileOnly: true,
     items: [
       { key: "news", label: "News", icon: Newspaper, pages: [page("News", "/news", Newspaper, "news")] },
       { key: "press", label: "Press", icon: Megaphone, pages: [page("Press Releases", "/press-releases", Megaphone, "press-releases")] },
       { key: "markets", label: "Markets", icon: BarChart3, pages: [page("Prediction Markets", "/predictions", BarChart3, "predictions")] },
+      {
+        key: "worried",
+        label: "Should I be worried?",
+        icon: MessageCircleQuestion,
+        pages: [page("Should I be worried?", "/briefs", MessageCircleQuestion, "briefs")],
+      },
+    ],
+  },
+  {
+    label: "Reach",
+    items: [
+      {
+        key: "people",
+        label: "People",
+        icon: Users,
+        pages: [
+          page("Contacts", "/contacts", Users, "contacts"),
+          page("Staff Directory", "/staffers", Briefcase, "staffers"),
+          page("Members of Congress", "/network", Landmark, "network"),
+          page("Power Search", "/power-search", Zap, "power-search"),
+          page("Client Portals", "/portals", Share2, "portals"),
+        ],
+      },
+      { key: "strategy", label: "Strategy", icon: Target, pages: [page("Strategy Board", "/strategy", Target, "strategy")] },
+      { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
     ],
   },
   {
@@ -107,29 +125,6 @@ const CLIENT_GROUPS: RailGroup[] = [
       },
       { key: "hearings", label: "Hearings", icon: CalendarDays, pages: [page("Hearings & Schedules", "/schedules", CalendarDays, "schedules")] },
     ],
-  },
-  {
-    label: "Reach",
-    items: [
-      {
-        key: "people",
-        label: "People",
-        icon: Users,
-        pages: [
-          page("Contacts", "/contacts", Users, "contacts"),
-          page("Staff Directory", "/staffers", Briefcase, "staffers"),
-          page("Members of Congress", "/network", Landmark, "network"),
-          page("Power Search", "/power-search", Zap, "power-search"),
-          page("Client Portals", "/portals", Share2, "people-portals"),
-        ],
-      },
-      { key: "strategy", label: "Strategy", icon: Target, pages: [page("Strategy Board", "/strategy", Target, "strategy")] },
-      { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
-    ],
-  },
-  {
-    label: "Clients",
-    items: [{ key: "clients", label: "Clients", icon: Share2, pages: [page("Client Portals", "/portals", Share2, "portals")] }],
   },
   {
     label: "Knowledge",
@@ -315,7 +310,7 @@ function RailButton({
   onOpenMenu: () => void;
 }) {
   const hasMenu = item.pages.length > 1;
-  const className = `flex w-[60px] flex-col items-center gap-1 rounded-lg py-1.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
+  const className = `flex w-[60px] flex-col items-center gap-1 rounded-lg py-1.5 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/50 ${
     current
       ? "bg-sidebar-accent text-sidebar-accent-foreground"
       : menuOpen

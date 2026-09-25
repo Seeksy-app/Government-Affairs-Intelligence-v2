@@ -199,10 +199,10 @@ page still has the old typeset GA mark until it's updated there.
 **Site-wide redesign (Sep 2026):** Source Sans 3 is the only font (index.html
 loads just it + JetBrains Mono); every page uses `PageShell` + `PageHeader`
 (client/src/components/page-header.tsx); navigation = icon rail with
-floating menus (client/src/components/app-nav.tsx — Today · Briefs | Bills,
-Hearings | People, Strategy, Research | Clients | Knowledge, Settings at the
-bottom; News/Press/Markets + a "Should I be worried?" button live in the top
-bar, top-bar-links.tsx). Home = Today (/dashboard = Morning Brief + rail;
+floating menus (client/src/components/app-nav.tsx — Today | People (incl.
+Client Portals), Strategy, Research | Bills, Hearings | Knowledge, Settings
+at the bottom; News · Press · Markets · Should I be worried? are icon links
+in the top bar, top-bar-links.tsx). Home = Today (/dashboard = Morning Brief + rail;
 /morning-brief redirects). Pages use
 near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.

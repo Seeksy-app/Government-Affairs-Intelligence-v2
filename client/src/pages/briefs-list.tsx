@@ -61,7 +61,6 @@ export default function BriefsList() {
   return (
     <PageShell className="space-y-8">
       <PageHeader
-        eyebrow="Home"
         title="Should I be worried?"
         description="Ask about a headline, a bill, or a link and get a calm, cited answer."
         className="mb-0"
@@ -80,7 +79,7 @@ export default function BriefsList() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Your briefs</h2>
+        <h2 className="text-base font-semibold">Your questions</h2>
       {isLoading ? (
         <div className="overflow-hidden rounded-lg border bg-card">
           {[...Array(4)].map((_, i) => (
