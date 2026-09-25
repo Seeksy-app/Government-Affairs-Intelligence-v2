@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, gte, inArray, count, isNotNull } from "drizzle-orm";
+import { and, eq, gte, inArray, count, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db";
 import {
   clients,
@@ -155,7 +155,17 @@ async function ensurePortals(clientId: string, rows: FirmClient[]) {
       .insert(clientPortals)
       .values({ clientId, slug, name: fc.name, description: `Updates and briefs for ${fc.name}`, isActive: false })
       .returning({ id: clientPortals.id });
-    await db.update(firmClients).set({ portalId: portal.id, updatedAt: new Date() }).where(eq(firmClients.id, fc.id));
+    // Claim the client only if no concurrent request (a retry, a double
+    // click) got there first; otherwise drop the portal just made.
+    const claimed = await db
+      .update(firmClients)
+      .set({ portalId: portal.id, updatedAt: new Date() })
+      .where(and(eq(firmClients.id, fc.id), isNull(firmClients.portalId)))
+      .returning({ id: firmClients.id });
+    if (claimed.length === 0) {
+      await db.delete(clientPortals).where(eq(clientPortals.id, portal.id));
+      continue;
+    }
     created.push(fc.name);
   }
   return created;

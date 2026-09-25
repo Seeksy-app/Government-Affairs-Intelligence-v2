@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -113,11 +113,11 @@ export default function OnboardingPage() {
     document.getElementById("onboarding-main")?.scrollTo({ top: 0 });
   };
 
-  // Saves what this step changed, then moves on.
+  // Saves what this step changed, then moves on. Functional update, so a
+  // delayed call (pick) never merges into an out-of-date draft.
   const next = async (patch?: Partial<FirmDraft>) => {
     if (!draft) return;
-    const merged = { ...draft, ...patch, onboarding: { ...draft.onboarding, ...patch?.onboarding } };
-    setDraft(merged);
+    setDraft((d) => d && { ...d, ...patch, onboarding: { ...d.onboarding, ...patch?.onboarding } });
     const to = STEPS[Math.min(idx + 1, STEPS.length - 1)];
     const body: Partial<FirmDraft> = { ...patch, onboarding: { ...patch?.onboarding, step: STEPS.indexOf(to) } };
     try {
@@ -128,11 +128,15 @@ export default function OnboardingPage() {
     }
   };
 
-  // Single-choice questions advance on their own after a beat.
+  // Single-choice questions advance on their own after a beat. One pending
+  // advance at a time (a second click replaces it), none after unmount.
+  const pickTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(pickTimer.current), []);
   const pick = <K extends keyof FirmOnboarding>(key: K, value: FirmOnboarding[K]) => {
     if (!draft) return;
-    setDraft({ ...draft, onboarding: { ...draft.onboarding, [key]: value } });
-    setTimeout(() => next({ onboarding: { [key]: value } as FirmOnboarding }), 280);
+    setDraft((d) => d && { ...d, onboarding: { ...d.onboarding, [key]: value } });
+    clearTimeout(pickTimer.current);
+    pickTimer.current = setTimeout(() => next({ onboarding: { [key]: value } as FirmOnboarding }), 280);
   };
 
   const plan = useMemo(
