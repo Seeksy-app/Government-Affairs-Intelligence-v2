@@ -382,8 +382,8 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
   // Cap the batch so the prompt stays bounded (and can't blow past rate limits
   // or silently truncate the JSON ranking output as the corpus grows).
   // Choose the candidates deliberately rather than "newest 40": duplicates
-  // out, press releases from the firm's agencies first, then news in
-  // relevance order (fetchRecentItems already sorted it).
+  // out, press releases from the firm's agencies, then news in relevance
+  // order (fetchRecentItems already sorted it).
   const MAX_ITEMS_PER_RENDER = 40;
   const MAX_PRESS = 15;
   const seen = new Set<string>();
@@ -399,13 +399,12 @@ export async function rankItemsForClient(clientId: string): Promise<RankedBriefR
     return true;
   });
   const firmSlugs = new Set(agencySlugsFor(profile.relevantAgencies ?? []));
+  // Press releases only from the firm's own agencies (all agencies only when
+  // the profile lists none).
   const press = unique
     .filter((i) => i.type === "press_release")
-    .sort((a, b) => {
-      const af = firmSlugs.has(a.source.toLowerCase()) ? 1 : 0;
-      const bf = firmSlugs.has(b.source.toLowerCase()) ? 1 : 0;
-      return bf - af || (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
-    })
+    .filter((i) => firmSlugs.size === 0 || firmSlugs.has(i.source.toLowerCase()))
+    .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
     .slice(0, MAX_PRESS);
   const news = unique.filter((i) => i.type === "news");
   const candidates = [...press, ...news].slice(0, MAX_ITEMS_PER_RENDER);

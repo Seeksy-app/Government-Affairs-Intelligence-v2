@@ -10237,9 +10237,9 @@ Format your response with clear headers and bullet points. Be specific and data-
   });
 
   // ─── Government Press Releases — List ────────────────────────────────────
-  // GET /api/government-press/releases?scope=mine|all
-  // "mine" (default) = the agencies in the firm's client profile. Falls back to
-  // all agencies when none of the firm's agencies have releases collected.
+  // GET /api/government-press/releases
+  // Limited to the agencies in the firm's client profile. Only a firm with no
+  // agencies on its profile sees every agency (there's nothing to filter by).
   app.get("/api/government-press/releases", isAuthenticated, async (req, res) => {
     try {
       const { db } = await import("./db");
@@ -10261,7 +10261,7 @@ Format your response with clear headers and bullet points. Be specific and data-
       const agencies = mySlugs.map((slug) => ({ slug, name: nameOf(slug), collected: collected.has(slug) }));
 
       const hasMine = mySlugs.some((slug) => collected.has(slug));
-      const scope = req.query.scope === "all" || !hasMine ? "all" : "mine";
+      const scope = mySlugs.length === 0 ? "all" : "mine";
 
       const releases = await db
         .select()
