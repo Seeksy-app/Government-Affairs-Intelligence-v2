@@ -253,7 +253,13 @@ export default function AdminKnowledgeBase() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Who can read it</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={(v) => {
+                            field.onChange(v);
+                            articleForm.setValue("categoryId", ""); // categories belong to one audience
+                          }}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="select-article-scope">
                               <SelectValue />

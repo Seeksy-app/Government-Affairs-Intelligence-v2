@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { kbArticles, kbCategories } from "@shared/schema";
 
@@ -229,20 +229,25 @@ Forgot your password? Use **Forgot password** on the sign-in page and we'll emai
 ];
 
 export async function ensureHelpDocs(): Promise<number> {
-  const [{ n }] = await db.select({ n: count() }).from(kbArticles).where(eq(kbArticles.scope, "client"));
-  if (Number(n) > 0) return 0;
-  let inserted = 0;
-  for (let i = 0; i < HELP.length; i++) {
-    const group = HELP[i];
-    const [cat] = await db
-      .insert(kbCategories)
-      .values({ scope: "client", name: group.name, description: group.description, sortOrder: i })
-      .returning({ id: kbCategories.id });
-    // Inserted in reading order; the help page lists a category's articles oldest first.
-    for (const d of group.docs) {
-      await db.insert(kbArticles).values({ scope: "client", categoryId: cat.id, isPublished: true, ...d });
-      inserted++;
+  // One transaction (all or nothing) under an advisory lock, so two instances
+  // booting together during a deploy can't both seed.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(74031)`);
+    const [{ n }] = await tx.select({ n: count() }).from(kbArticles).where(eq(kbArticles.scope, "client"));
+    if (Number(n) > 0) return 0;
+    let inserted = 0;
+    for (let i = 0; i < HELP.length; i++) {
+      const group = HELP[i];
+      const [cat] = await tx
+        .insert(kbCategories)
+        .values({ scope: "client", name: group.name, description: group.description, sortOrder: i })
+        .returning({ id: kbCategories.id });
+      // Inserted in reading order; the help page lists a category's articles oldest first.
+      for (const d of group.docs) {
+        await tx.insert(kbArticles).values({ scope: "client", categoryId: cat.id, isPublished: true, ...d });
+        inserted++;
+      }
     }
-  }
-  return inserted;
+    return inserted;
+  });
 }
