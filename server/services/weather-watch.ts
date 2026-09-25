@@ -229,7 +229,8 @@ function hazardOf(short: string, high: number | null, low: number | null, pop: n
   if (/thunderstorm|t-storm|severe/i.test(short)) return "Storms";
   if (high !== null && high >= 95) return "Heat";
   if (low !== null && low <= 15) return "Cold";
-  if (/rain|showers/i.test(short) && pop !== null && pop >= 70 && !/chance|slight/i.test(short)) return "Heavy rain";
+  // Steady rain with a high chance — not showers or "chance of" wording.
+  if (/\brain\b/i.test(short) && !/showers|chance|slight|light|drizzle/i.test(short) && pop !== null && pop >= 70) return "Heavy rain";
   return null;
 }
 
@@ -305,8 +306,10 @@ export function buildDcOutlook(periods: any[], opm: any | null, accu: any | null
     hillNote = `Federal offices: ${federalStatus!.summary}. Expect hearings and meetings to move.`;
   } else if (hazardDay?.hazard === "Snow/ice") {
     hillNote = `${hazardDay.name}: snow or ice in the forecast — federal closures and schedule changes are possible; watch OPM.`;
-  } else if (hazardDay?.hazard === "Storms" || hazardDay?.hazard === "Heavy rain") {
-    hillNote = `${hazardDay.name}: storms could delay flights in and out of D.C. — allow slack around fly-ins.`;
+  } else if (hazardDay?.hazard === "Storms") {
+    hillNote = `${hazardDay.name}: thunderstorms could delay flights in and out of D.C. — allow slack around fly-ins.`;
+  } else if (hazardDay?.hazard === "Heavy rain") {
+    hillNote = `${hazardDay.name}: heavy rain could delay flights in and out of D.C. — allow slack around fly-ins.`;
   } else if (hazardDay?.hazard === "Heat") {
     hillNote = `${hazardDay.name}: extreme heat — outdoor events and pressers on the Hill may move indoors.`;
   }
