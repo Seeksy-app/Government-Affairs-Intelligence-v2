@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export default function KnowledgeBase() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<KbArticle | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const search = useSearch();
 
   const { data: categories = [] } = useQuery<KbCategory[]>({
     queryKey: ["/api/kb/categories"],
@@ -34,11 +36,33 @@ export default function KnowledgeBase() {
     enabled: searchQuery.length > 2,
   });
 
-  const displayArticles = searchQuery.length > 2 
-    ? searchResults 
-    : selectedCategory 
-      ? articles.filter((a) => a.categoryId === selectedCategory)
-      : articles;
+  // Reading order: category order, then oldest first within a category.
+  const catOrder = useMemo(() => new Map(categories.map((c, i) => [c.id, c.sortOrder ?? i])), [categories]);
+  const ordered = useMemo(
+    () =>
+      [...articles].sort(
+        (a, b) =>
+          (catOrder.get(a.categoryId ?? "") ?? 99) - (catOrder.get(b.categoryId ?? "") ?? 99) ||
+          new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime(),
+      ),
+    [articles, catOrder],
+  );
+
+  // Deep link: /kb?a=<slug> opens that article.
+  useEffect(() => {
+    const slug = new URLSearchParams(search).get("a");
+    if (slug && articles.length) {
+      const hit = articles.find((a) => a.slug === slug);
+      if (hit) setSelectedArticle(hit);
+    }
+  }, [search, articles]);
+
+  const displayArticles = searchQuery.length > 2
+    ? searchResults
+    : selectedCategory
+      ? ordered.filter((a) => a.categoryId === selectedCategory)
+      : ordered;
+  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name;
 
   if (selectedArticle) {
     return (
@@ -46,7 +70,10 @@ export default function KnowledgeBase() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setSelectedArticle(null)}
+          onClick={() => {
+            setSelectedArticle(null);
+            if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+          }}
           className="-ml-2 mb-3 h-8 px-2 text-muted-foreground hover:text-foreground"
           data-testid="button-back-to-articles"
         >
@@ -54,7 +81,7 @@ export default function KnowledgeBase() {
           All articles
         </Button>
         <PageHeader
-          eyebrow="Knowledge Base"
+          eyebrow={categoryName(selectedArticle.categoryId) ?? "Help"}
           title={<span className="break-words">{selectedArticle.title}</span>}
           description={selectedArticle.summary || undefined}
         />
@@ -72,9 +99,9 @@ export default function KnowledgeBase() {
   return (
     <PageShell className="space-y-6">
       <PageHeader
-        eyebrow="Knowledge"
-        title="Knowledge Base"
-        description="Find how-to guides and reference articles for your team."
+        eyebrow="Help"
+        title="Help Center"
+        description="How GovernmentAffairs.io works, from setting up your practice to sharing an answer with a client."
         className="mb-0"
       />
 
@@ -158,6 +185,11 @@ export default function KnowledgeBase() {
                   </CardTitle>
                   {article.summary && (
                     <CardDescription className="line-clamp-2 pl-6">{article.summary}</CardDescription>
+                  )}
+                  {!selectedCategory && categoryName(article.categoryId) && (
+                    <p className="pl-6 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                      {categoryName(article.categoryId)}
+                    </p>
                   )}
                 </CardHeader>
               </Card>

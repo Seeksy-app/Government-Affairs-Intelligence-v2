@@ -128,8 +128,8 @@ const CLIENT_GROUPS: RailGroup[] = [
     ],
   },
   {
-    label: "Knowledge",
-    items: [{ key: "knowledge", label: "Knowledge", icon: Book, pages: [page("Knowledge Base", "/kb", Book, "kb")] }],
+    label: "Help",
+    items: [{ key: "knowledge", label: "Help", icon: Book, pages: [page("Help Center", "/kb", Book, "kb")] }],
   },
 ];
 

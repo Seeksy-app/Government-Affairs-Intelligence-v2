@@ -46,7 +46,7 @@ const SECTIONS = [
   { id: "profile", label: "Profile", icon: UserRound },
   { id: "firm", label: "Firm", icon: Building2 },
   { id: "practice", label: "Practice & Today", icon: SlidersHorizontal },
-  { id: "team", label: "Invite", icon: UserPlus },
+  { id: "team", label: "Sign-up link", icon: UserPlus },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "account", label: "Account", icon: LogOut },
@@ -404,7 +404,11 @@ function InviteSection() {
   const { toast } = useToast();
   const url = `${window.location.origin}/signup`;
   return (
-    <Section id="team" title="Invite" description="Share this link so colleagues can request an account. Requests are approved before they get in.">
+    <Section
+      id="team"
+      title="Sign-up link"
+      description="For someone who wants their own firm account: signing up creates a new firm. To add a colleague to your firm, email support@governmentaffairs.io."
+    >
       <div className="flex items-center gap-2">
         <Input readOnly value={url} className="text-sm" data-testid="input-signup-link" />
         <Button

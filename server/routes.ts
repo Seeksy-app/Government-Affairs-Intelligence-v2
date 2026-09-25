@@ -3146,8 +3146,9 @@ Format your response as a structured summary with clear sections.`;
       const superAdmin = await storage.getSuperAdminByUserId(userId);
       if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
 
-      const categories = await storage.getKbCategories("owner");
-      res.json(categories);
+      // Both scopes: "client" = the help center everyone reads, "owner" = admin-only notes.
+      const [client, owner] = await Promise.all([storage.getKbCategories("client"), storage.getKbCategories("owner")]);
+      res.json([...client, ...owner]);
     } catch (error) {
       console.error("Error getting KB categories:", error);
       res.status(500).json({ message: "Failed to get categories" });
@@ -3161,7 +3162,8 @@ Format your response as a structured summary with clear sections.`;
       const superAdmin = await storage.getSuperAdminByUserId(userId);
       if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
 
-      const parsed = insertKbCategorySchema.safeParse({ ...req.body, scope: "owner" });
+      const scope = req.body?.scope === "owner" ? "owner" : "client"; // default: the help center
+      const parsed = insertKbCategorySchema.safeParse({ ...req.body, scope });
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
       }
@@ -3212,8 +3214,8 @@ Format your response as a structured summary with clear sections.`;
       const superAdmin = await storage.getSuperAdminByUserId(userId);
       if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
 
-      const articles = await storage.getKbArticles("owner");
-      res.json(articles);
+      const [client, owner] = await Promise.all([storage.getKbArticles("client"), storage.getKbArticles("owner")]);
+      res.json([...client, ...owner]);
     } catch (error) {
       console.error("Error getting KB articles:", error);
       res.status(500).json({ message: "Failed to get articles" });
@@ -3227,7 +3229,8 @@ Format your response as a structured summary with clear sections.`;
       const superAdmin = await storage.getSuperAdminByUserId(userId);
       if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
 
-      const parsed = insertKbArticleSchema.safeParse({ ...req.body, scope: "owner" });
+      const scope = req.body?.scope === "owner" ? "owner" : "client"; // default: the help center
+      const parsed = insertKbArticleSchema.safeParse({ ...req.body, scope });
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid request" });
       }
@@ -3262,7 +3265,11 @@ Format your response as a structured summary with clear sections.`;
       const superAdmin = await storage.getSuperAdminByUserId(userId);
       if (!superAdmin) return res.status(403).json({ message: "Admin access required" });
 
-      const article = await storage.updateKbArticle(req.params.id, req.body);
+      const { id: _id, createdAt: _c, ...changes } = req.body ?? {};
+      if (changes.scope !== undefined && changes.scope !== "owner" && changes.scope !== "client") {
+        return res.status(400).json({ message: "scope must be 'client' or 'owner'" });
+      }
+      const article = await storage.updateKbArticle(String(req.params.id), changes);
       if (!article) return res.status(404).json({ message: "Article not found" });
       res.json(article);
     } catch (error) {

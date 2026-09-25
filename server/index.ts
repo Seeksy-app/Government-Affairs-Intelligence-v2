@@ -168,6 +168,12 @@ app.use((req, res, next) => {
       
       log("Auto-sync scheduler started");
 
+      // Help center: add the starter articles once, if none exist yet.
+      import("./services/help-docs")
+        .then(({ ensureHelpDocs }) => ensureHelpDocs())
+        .then((n) => n > 0 && log(`Help center: added ${n} starter articles`))
+        .catch((err) => console.error("Help center seed error:", err));
+
       // Government press release sync — every 6 hours, production only
       if (process.env.NODE_ENV === "production") {
         const SIX_HOURS = 6 * 60 * 60 * 1000;
