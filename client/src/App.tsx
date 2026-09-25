@@ -72,6 +72,7 @@ import BriefPublicPage from "@/pages/brief-public";
 import PressReleasesPage from "@/pages/press-releases";
 import MorningBriefPage from "@/pages/morning-brief";
 import OnboardingPage from "@/pages/onboarding";
+import AcceptInvitePage from "@/pages/accept-invite";
 import SymbolicLogicDemoPage from "@/pages/symbolic-logic-demo";
 
 function MorningBriefRedirect() {
@@ -328,7 +329,7 @@ function AppContent() {
   // Email links (reset/set password, verify email) belong here too — a
   // signed-in user clicking one used to get a 404.
   const publicPath = location.replace(/\/+$/, "") || "/";
-  const alwaysPublic = ["/terms", "/privacy", "/security-privacy", "/demo", "/reset-password", "/set-password", "/verify-email"];
+  const alwaysPublic = ["/terms", "/privacy", "/security-privacy", "/demo", "/reset-password", "/set-password", "/verify-email", "/accept-invite"];
   if (location.startsWith("/portal/") || location.startsWith("/brief/") || alwaysPublic.includes(publicPath)) {
     return (
       <Switch>
@@ -341,6 +342,7 @@ function AppContent() {
         <Route path="/reset-password" component={ResetPasswordPage} />
         <Route path="/set-password" component={SetPasswordPage} />
         <Route path="/verify-email" component={VerifyEmailPage} />
+        <Route path="/accept-invite" component={AcceptInvitePage} />
         <Route component={NotFound} />
       </Switch>
     );

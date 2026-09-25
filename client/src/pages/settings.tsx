@@ -46,7 +46,7 @@ const SECTIONS = [
   { id: "profile", label: "Profile", icon: UserRound },
   { id: "firm", label: "Firm", icon: Building2 },
   { id: "practice", label: "Practice & Today", icon: SlidersHorizontal },
-  { id: "team", label: "Sign-up link", icon: UserPlus },
+  { id: "team", label: "Team", icon: UserPlus },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "account", label: "Account", icon: LogOut },
@@ -88,7 +88,7 @@ export default function SettingsPage() {
           <ProfileSection role={userRole} />
           {hasFirm && <FirmSection role={userRole} />}
           {hasFirm && <PracticeSection />}
-          <InviteSection />
+          {hasFirm ? <TeamSection /> : <SignupLinkSection />}
           <IntegrationsSection />
           <Section id="appearance" title="Appearance" description="Light or dark. Your choice is remembered on this device.">
             <Row label="Theme" hint="Switch between light and dark mode">
@@ -400,15 +400,188 @@ function PracticeSection() {
   );
 }
 
-function InviteSection() {
-  const { toast } = useToast();
-  const url = `${window.location.origin}/signup`;
+interface TeamData {
+  members: Array<{ userId: string; email: string | null; firstName: string | null; lastName: string | null; role: string; joinedAt: string | null }>;
+  invites: Array<{ id: string; email: string; role: string; createdAt: string | null; expiresAt: string; expired: boolean }>;
+  canManage: boolean;
+  me: string;
+}
+
+// Teammates and invites. Admins invite by email (a single-use link, 7 days),
+// change roles and remove people; everyone else sees who's on the team.
+function TeamSection() {
+  const t = useSaveToast();
+  const { data } = useQuery<TeamData>({ queryKey: ["/api/team"] });
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"member" | "admin">("member");
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+
+  const invite = useMutation({
+    mutationFn: async () => apiRequest("POST", "/api/team/invites", { email: email.trim(), role }),
+    onSuccess: () => {
+      t.ok(`Invite sent to ${email.trim()}`);
+      setEmail("");
+      setRole("member");
+      refresh();
+    },
+    onError: t.fail,
+  });
+  const act = useMutation({
+    mutationFn: async (a: { method: "POST" | "PATCH" | "DELETE"; url: string; body?: unknown; done: string }) => {
+      await apiRequest(a.method, a.url, a.body);
+      return a.done;
+    },
+    onSuccess: (done) => {
+      t.ok(done);
+      refresh();
+    },
+    onError: t.fail,
+  });
+
+  if (!data) return null;
+  const name = (m: TeamData["members"][number]) => [m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || "Teammate";
+  const admins = data.members.filter((m) => m.role === "admin").length;
+
   return (
     <Section
       id="team"
-      title="Sign-up link"
-      description="For someone who wants their own firm account: signing up creates a new firm. To add a colleague to your firm, email support@governmentaffairs.io."
+      title="Team"
+      description={
+        data.canManage
+          ? "Invite colleagues into your firm. They get an email with a link that works once and expires in 7 days."
+          : "Everyone at your firm. Ask an admin to invite someone."
+      }
     >
+      {data.canManage && (
+        <form
+          className="mb-5 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (email.trim()) invite.mutate();
+          }}
+        >
+          <div className="min-w-[220px] flex-1">
+            <Field label="Invite by email">
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@yourfirm.com" data-testid="input-invite-email" />
+            </Field>
+          </div>
+          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label="Role">
+            {(["member", "admin"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                role="radio"
+                aria-checked={role === r}
+                onClick={() => setRole(r)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                  role === r ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <Button type="submit" disabled={!email.trim() || invite.isPending} data-testid="button-send-invite">
+            {invite.isPending ? "Sending…" : "Send invite"}
+          </Button>
+        </form>
+      )}
+
+      <ul className="divide-y rounded-lg border" data-testid="team-members">
+        {data.members.map((m) => {
+          const lastAdmin = m.role === "admin" && admins <= 1;
+          return (
+            <li key={m.userId} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  {name(m).split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
+                  {name(m)}
+                  {m.userId === data.me && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+              </div>
+              {data.canManage && !lastAdmin ? (
+                <select
+                  value={m.role}
+                  onChange={(e) =>
+                    act.mutate({ method: "PATCH", url: `/api/team/members/${m.userId}`, body: { role: e.target.value }, done: "Role updated" })
+                  }
+                  className="h-8 rounded-md border bg-background px-2 text-xs font-semibold"
+                  aria-label={`Role for ${name(m)}`}
+                >
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              ) : (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold capitalize">{m.role}</span>
+              )}
+              {data.canManage && m.userId !== data.me && !lastAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-[#A53B39]"
+                  onClick={() =>
+                    window.confirm(`Remove ${name(m)} from your firm? They'll lose access right away.`) &&
+                    act.mutate({ method: "DELETE", url: `/api/team/members/${m.userId}`, done: "Removed from your team" })
+                  }
+                >
+                  Remove
+                </Button>
+              )}
+            </li>
+          );
+        })}
+        {data.invites.map((i) => (
+          <li key={i.id} className="flex flex-wrap items-center gap-3 bg-muted/20 px-4 py-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{i.email}</p>
+              <p className="text-xs text-muted-foreground">
+                {i.expired ? "Invite expired" : "Invite pending"} · {i.role}
+              </p>
+            </div>
+            {data.canManage && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => act.mutate({ method: "POST", url: `/api/team/invites/${i.id}/resend`, done: `Invite re-sent to ${i.email}` })}
+                >
+                  Resend
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => act.mutate({ method: "DELETE", url: `/api/team/invites/${i.id}`, done: "Invite canceled" })}
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5">
+        <SignupLinkRow />
+      </div>
+    </Section>
+  );
+}
+
+function SignupLinkRow() {
+  const { toast } = useToast();
+  const url = `${window.location.origin}/signup`;
+  return (
+    <div>
+      <p className="text-sm font-medium">Sign-up link</p>
+      <p className="mb-2 text-sm text-muted-foreground">For someone who wants their own, separate firm account. To add a colleague, invite them above.</p>
       <div className="flex items-center gap-2">
         <Input readOnly value={url} className="text-sm" data-testid="input-signup-link" />
         <Button
@@ -425,6 +598,14 @@ function InviteSection() {
           <Copy className="h-4 w-4" /> Copy
         </Button>
       </div>
+    </div>
+  );
+}
+
+function SignupLinkSection() {
+  return (
+    <Section id="team" title="Sign-up link">
+      <SignupLinkRow />
     </Section>
   );
 }
