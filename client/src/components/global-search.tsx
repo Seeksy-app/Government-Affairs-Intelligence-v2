@@ -52,11 +52,10 @@ const GROUP_ICONS: Record<SearchGroup["type"], LucideIcon> = {
 
 // Jump-to pages, matched on the client (no server round trip).
 const PAGES: Array<{ title: string; href: string; icon: LucideIcon; keywords: string }> = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview" },
+  { title: "Today", href: "/dashboard", icon: LayoutDashboard, keywords: "home dashboard morning brief overview" },
   { title: "Bill Tracking", href: "/bills", icon: ScrollText, keywords: "bills legislation track state federal" },
   { title: "Contacts", href: "/contacts", icon: Users, keywords: "people network lists" },
   { title: "Staffer Directory", href: "/staffers", icon: Briefcase, keywords: "staff legistorm congress directory" },
-  { title: "Morning Brief", href: "/morning-brief", icon: Sunrise, keywords: "news brief today" },
   { title: "Should I be worried?", href: "/briefs", icon: FileText, keywords: "ask question headline worried answer brief" },
   { title: "Decision Briefs", href: "/briefs", icon: FileText, keywords: "brief research answer" },
   { title: "Research Projects", href: "/matters", icon: FolderOpen, keywords: "matters projects research" },

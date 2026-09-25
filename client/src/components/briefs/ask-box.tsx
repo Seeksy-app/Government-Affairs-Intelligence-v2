@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, Loader2, ShieldQuestion } from "lucide-react";
+import { ArrowRight, Loader2, MessageCircleQuestion } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { friendlyError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/use-toast";
@@ -62,7 +62,7 @@ export function AskBox({
         {showHeading && (
           <>
             <div className="flex items-center gap-2">
-              <ShieldQuestion className="h-5 w-5 text-primary shrink-0" />
+              <MessageCircleQuestion className="h-5 w-5 text-primary shrink-0" />
               <h2 className="text-lg font-semibold tracking-tight">Should I be worried?</h2>
             </div>
             <p className="text-sm text-muted-foreground mt-1 mb-3">

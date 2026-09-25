@@ -25,8 +25,7 @@ import {
   Settings,
   Share2,
   Shield,
-  ShieldQuestion,
-  Sunrise,
+  MessageCircleQuestion,
   Target,
   Users,
   Zap,
@@ -66,28 +65,28 @@ interface RailItem {
 interface RailGroup {
   label?: string; // shown as a divider label in the mobile menu
   items: RailItem[];
+  /** Listed in the phone menu only (on desktop these live in the top bar). */
+  mobileOnly?: boolean;
 }
 
 const page = (title: string, url: string, icon: LucideIcon, tourId: string): NavPage => ({ title, url, icon, tourId });
 
 const CLIENT_GROUPS: RailGroup[] = [
   {
-    label: "Home",
+    label: "Today",
     items: [
+      { key: "today", label: "Today", icon: House, pages: [page("Today", "/dashboard", House, "dashboard")] },
       {
-        key: "home",
-        label: "Home",
-        icon: House,
-        pages: [
-          page("Dashboard", "/dashboard", LayoutDashboard, "dashboard"),
-          page("Morning Brief", "/morning-brief", Sunrise, "morning-brief"),
-          page("Should I be worried?", "/briefs", ShieldQuestion, "briefs"),
-        ],
+        key: "briefs",
+        label: "Briefs",
+        icon: MessageCircleQuestion,
+        pages: [page("Should I be worried?", "/briefs", MessageCircleQuestion, "briefs")],
       },
     ],
   },
   {
     label: "Monitor",
+    mobileOnly: true,
     items: [
       { key: "news", label: "News", icon: Newspaper, pages: [page("News", "/news", Newspaper, "news")] },
       { key: "press", label: "Press", icon: Megaphone, pages: [page("Press Releases", "/press-releases", Megaphone, "press-releases")] },
@@ -214,7 +213,7 @@ function useNavModel() {
   const isClientView = !isSuperAdmin || isImpersonating;
 
   const groups = isClientView ? CLIENT_GROUPS : ADMIN_GROUPS;
-  const allItems = [...groups.flatMap((g) => g.items), ...(isClientView ? [SETTINGS_ITEM] : [])];
+  const allItems = [...groups.filter((g) => !g.mobileOnly).flatMap((g) => g.items), ...(isClientView ? [SETTINGS_ITEM] : [])];
   const workspaceName = !isClientView
     ? "Platform admin"
     : (isImpersonating ? userRole?.impersonatingClientName : userRole?.clientName) || "";
@@ -404,7 +403,7 @@ export function AppNav() {
         </Link>
 
         <div className="flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overflow-x-hidden py-1">
-          {groups.map((g, gi) => (
+          {groups.filter((g) => !g.mobileOnly).map((g, gi) => (
             <div key={g.label ?? gi} className="flex w-full flex-col items-center gap-0.5">
               {gi > 0 && <div className="my-1.5 h-px w-10 bg-foreground/20" aria-hidden />}
               {g.items.map((item) => (
