@@ -238,7 +238,7 @@ export async function acceptInvite(
   signedInUserId: string | null,
 ) {
   const invite = await liveInviteByToken(token);
-  if (!invite) throw new TeamError("This invite link has expired or was already used. Ask for a new one.", 410);
+  if (!invite) throw new TeamError("This invite link has expired or was already used.", 410);
 
   // Every check happens before anything is written.
   const existing = await findUserByEmail(invite.email);
