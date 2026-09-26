@@ -182,7 +182,7 @@ function titleWords(s: string): string[] {
 }
 export function billMatchesExpectation(actualTitle: string, expected: string): boolean {
   const want = titleWords(expected);
-  if (want.length === 0) return true; // nothing to check against
+  if (want.length === 0) return false; // nothing distinctive to confirm it: don't trust the guess
   const have = titleWords(actualTitle);
   const stem = (w: string) => w.slice(0, Math.max(5, w.length - 2));
   return want.some((w) => have.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h))));
@@ -310,7 +310,7 @@ async function fetchBill(api: CongressAPI, ref: BillRef): Promise<Candidate | nu
 
     if (ref.expectedName !== undefined && !billMatchesExpectation(String(bill.title ?? ""), ref.expectedName)) {
       console.warn(`[ask] dropped guessed bill ${ref.type}${ref.number} (${congress}): "${bill.title}" doesn't match "${ref.expectedName}"`);
-      return null;
+      continue; // the same number may be the right bill in the previous Congress
     }
 
     const label = formatBillId(congress, ref.type, ref.number);
