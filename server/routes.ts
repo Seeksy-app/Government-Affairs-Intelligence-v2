@@ -10236,6 +10236,22 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // "Look them up" in the client editor: company facts via Parallel.
+  app.post("/api/firm-clients/lookup", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const parsed = z.object({ name: z.string().trim().min(2).max(160) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Type the client's name first." });
+      const { lookupCompany } = await import("./services/deeper-service");
+      res.json(await lookupCompany(clientId, parsed.data.name));
+    } catch (err: any) {
+      if (typeof err?.status === "number") return res.status(err.status).json({ message: err.message });
+      console.error("POST /api/firm-clients/lookup error:", err);
+      res.status(500).json({ message: "The lookup didn't work." });
+    }
+  });
+
   app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
     try {
       const clientId = await firmScope(req, res);
@@ -10361,6 +10377,23 @@ Format your response with clear headers and bullet points. Be specific and data-
     } catch (err: any) {
       console.error("POST /api/briefs/ask error:", err);
       res.status(500).json({ message: "Couldn't start the answer — please try again." });
+    }
+  });
+
+  // POST /api/briefs/:id/deeper — "Dig deeper" (Parallel Responses API with
+  // PubMed / ClinicalTrials.gov / CMS coverage sources). Returns at once; the
+  // client polls GET /api/briefs/:id until content.deeper is ready.
+  app.post("/api/briefs/:id/deeper", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      if (!clientId) return res.status(403).json({ message: "No client context" });
+      const { startDeeper } = await import("./services/deeper-service");
+      await startDeeper(clientId, String(req.params.id));
+      res.status(202).json({ status: "running" });
+    } catch (err: any) {
+      if (typeof err?.status === "number") return res.status(err.status).json({ message: err.message });
+      console.error("POST /api/briefs/:id/deeper error:", err);
+      res.status(500).json({ message: "Couldn't start the deeper search." });
     }
   });
 

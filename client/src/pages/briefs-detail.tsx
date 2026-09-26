@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader, PageShell } from "@/components/page-header";
 import type { Brief, BriefSource, BriefContent } from "@shared/schema";
 import { BottomLine } from "@/components/briefs/bottom-line";
+import { DigDeeper } from "@/components/briefs/dig-deeper";
 
 // Matches the server's cutoff for treating an interrupted run as dead.
 const STALE_GENERATING_MS = 5 * 60 * 1000;
@@ -249,7 +250,8 @@ export default function BriefDetail() {
     queryKey: [`/api/briefs/${id}`],
     refetchInterval: (query) => {
       const data = query.state.data as BriefWithSources | undefined;
-      return data?.status === "generating" ? 3000 : false;
+      // Poll while the answer, or a "Dig deeper" pass, is still running.
+      return data?.status === "generating" || data?.content?.deeper?.status === "running" ? 3000 : false;
     },
   });
 
@@ -505,6 +507,7 @@ export default function BriefDetail() {
             </div>
           </Section>
 
+          <DigDeeper briefId={brief.id} deeper={content.deeper} />
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4">

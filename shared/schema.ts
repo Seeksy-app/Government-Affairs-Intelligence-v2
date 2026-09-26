@@ -1645,6 +1645,19 @@ export interface BriefContent {
   stakes: { business: string; reputational: string; values: string };
   questions: string[];                                        // 3-5 items
   responses: { cautious: string; moderate: string; aggressive: string };
+  // "Dig deeper": a longer Parallel research pass (Responses API) that can also
+  // consult PubMed, ClinicalTrials.gov, CMS coverage decisions and ChEMBL.
+  deeper?: BriefDeeper;
+}
+
+export interface BriefDeeper {
+  status: "running" | "ready" | "failed";
+  startedAt: string;
+  text?: string;
+  citations?: Array<{ url: string; title: string | null }>;
+  connectorsUsed?: string[];
+  error?: string;
+  finishedAt?: string;
 }
 
 export const briefs = pgTable("briefs", {
