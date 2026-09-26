@@ -62,14 +62,20 @@ interface GammaEvent {
 
 const cache = new Map<string, { at: number; events: GammaEvent[] }>();
 
+// Up to 300 of a tag's most-traded open events (3 pages of 100).
 async function eventsForTag(tag: string): Promise<GammaEvent[]> {
   const hit = cache.get(tag);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.events;
-  const url = `${GAMMA}/events?active=true&closed=false&limit=100&order=volume24hr&ascending=false&tag_slug=${encodeURIComponent(tag)}`;
   try {
-    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) throw new Error(`Polymarket ${res.status}`);
-    const events = (await res.json()) as GammaEvent[];
+    const events: GammaEvent[] = [];
+    for (let offset = 0; offset < 300; offset += 100) {
+      const url = `${GAMMA}/events?active=true&closed=false&limit=100&offset=${offset}&order=volume24hr&ascending=false&tag_slug=${encodeURIComponent(tag)}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) throw new Error(`Polymarket ${res.status}`);
+      const page = (await res.json()) as GammaEvent[];
+      events.push(...page);
+      if (page.length < 100) break;
+    }
     cache.set(tag, { at: Date.now(), events });
     return events;
   } catch (err) {
@@ -98,7 +104,7 @@ function groupedTitle(eventTitle: string, item: string): string {
   return `${eventTitle} — ${item}`;
 }
 
-// Yes/No markets only; a multi-candidate event keeps its 6 likeliest outcomes
+// Yes/No markets only; a multi-outcome event keeps its 6 likeliest outcomes
 // so "2028 nominee" doesn't bury everything else under 128 names.
 function normalize(event: GammaEvent, category: string): NormalizedMarket[] {
   const open = (event.markets ?? []).filter((m) => m.active !== false && !m.closed);
@@ -108,6 +114,7 @@ function normalize(event: GammaEvent, category: string): NormalizedMarket[] {
     const prices = parseList(m.outcomePrices).map(num);
     if (outcomes[0]?.toLowerCase() !== "yes" || prices.length < 2) continue;
     const yes = Math.round(prices[0] * 100);
+    const no = Math.round(prices[1] * 100); // quoted separately; not always 100 − yes
     if (yes <= 0 || yes >= 100) continue; // settled in all but name
     const grouped = open.length > 1 && m.groupItemTitle;
     rows.push({
@@ -116,7 +123,7 @@ function normalize(event: GammaEvent, category: string): NormalizedMarket[] {
       title: grouped ? groupedTitle(event.title, m.groupItemTitle!) : m.question,
       subtitle: grouped ? m.groupItemTitle : undefined,
       yes_price: yes,
-      no_price: 100 - yes,
+      no_price: no,
       volume: Math.round(num(m.volume)),
       open_interest: Math.round(num(m.liquidity)),
       status: "open",
@@ -127,7 +134,9 @@ function normalize(event: GammaEvent, category: string): NormalizedMarket[] {
       url: `https://polymarket.com/event/${event.slug}`,
     });
   }
-  return rows.sort((a, b) => b.yes_price - a.yes_price).slice(0, 6);
+  // Only multi-outcome events (candidates, dates) are trimmed to the likeliest six.
+  const multiOutcome = open.length > 1 && open.every((m) => !!m.groupItemTitle);
+  return multiOutcome ? rows.sort((a, b) => b.yes_price - a.yes_price).slice(0, 6) : rows;
 }
 
 export async function polymarketMarkets(category: string, limit = 200): Promise<NormalizedMarket[]> {

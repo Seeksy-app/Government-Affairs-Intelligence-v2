@@ -404,13 +404,12 @@ export default function PredictionsPage() {
         description="Live odds on elections, Congress, the courts and the economy, from Kalshi and Polymarket."
         className="mb-2"
         actions={
-          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label="Market source" data-testid="toggle-market-source">
+          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="group" aria-label="Market source" data-testid="toggle-market-source">
             {SOURCES.map((s) => (
               <button
                 key={s.value}
                 type="button"
-                role="radio"
-                aria-checked={source === s.value}
+                aria-pressed={source === s.value}
                 onClick={() => pickSource(s.value)}
                 className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                   source === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"

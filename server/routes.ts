@@ -5968,7 +5968,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
   app.get("/api/polymarket/markets", isAuthenticated, async (req, res) => {
     try {
       const category = typeof req.query.category === "string" ? req.query.category : "Politics";
-      const limit = Math.min(parseInt(String(req.query.limit ?? "200")) || 200, 300);
+      const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "200")) || 200, 1), 300);
       const { polymarketMarkets } = await import("./services/polymarket-api");
       res.json({ markets: await polymarketMarkets(category, limit), cursor: null });
     } catch (error) {
