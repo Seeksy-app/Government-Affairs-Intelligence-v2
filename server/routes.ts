@@ -5964,6 +5964,19 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
     }
   });
 
+  // Polymarket odds (free public API), in Kalshi's market shape.
+  app.get("/api/polymarket/markets", isAuthenticated, async (req, res) => {
+    try {
+      const category = typeof req.query.category === "string" ? req.query.category : "Politics";
+      const limit = Math.min(parseInt(String(req.query.limit ?? "200")) || 200, 300);
+      const { polymarketMarkets } = await import("./services/polymarket-api");
+      res.json({ markets: await polymarketMarkets(category, limit), cursor: null });
+    } catch (error) {
+      console.error("Error fetching Polymarket markets:", error);
+      res.status(500).json({ message: "Failed to fetch Polymarket markets" });
+    }
+  });
+
   app.get("/api/kalshi/markets", isAuthenticated, async (req, res) => {
     try {
       const { series_ticker, event_ticker, limit, category } = req.query;

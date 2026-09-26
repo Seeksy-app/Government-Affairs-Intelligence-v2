@@ -31,7 +31,17 @@ interface KalshiMarket {
   result?: string;
   category?: string;
   image_url?: string | null;
+  /** Set on Polymarket markets (normalized to this shape by the server). */
+  source?: "polymarket";
+  url?: string;
 }
+
+type MarketSource = "kalshi" | "polymarket";
+const SOURCES: { value: MarketSource; label: string }[] = [
+  { value: "kalshi", label: "Kalshi" },
+  { value: "polymarket", label: "Polymarket" },
+];
+const STORAGE_KEY_SOURCE = "predictions_source";
 
 interface MarketCategory {
   id: string;
@@ -97,6 +107,20 @@ function saveDefaultCategory(categoryId: string) {
 
 export default function PredictionsPage() {
   const [activeCategory, setActiveCategory] = useState(getSavedDefaultCategory);
+  const [source, setSource] = useState<MarketSource>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_SOURCE) === "polymarket" ? "polymarket" : "kalshi";
+    } catch {
+      return "kalshi";
+    }
+  });
+  const pickSource = (s: MarketSource) => {
+    setSource(s);
+    setDisplayCount(INITIAL_DISPLAY_COUNT);
+    try {
+      localStorage.setItem(STORAGE_KEY_SOURCE, s);
+    } catch {}
+  };
   const [defaultCategory, setDefaultCategory] = useState(getSavedDefaultCategory);
   const [searchQuery, setSearchQuery] = useState("");
   const [politicsSubFilter, setPoliticsSubFilter] = useState<PoliticsSubFilter>("all");
@@ -109,10 +133,10 @@ export default function PredictionsPage() {
   const currentCategoryObj = MARKET_CATEGORIES.find(c => c.id === activeCategory) || MARKET_CATEGORIES[0];
 
   const { data: marketsData, isLoading, refetch, isFetching } = useQuery<{ markets: KalshiMarket[]; cursor?: string }>({
-    queryKey: ["/api/kalshi/markets", currentCategoryObj.apiCategory],
+    queryKey: [`/api/${source}/markets`, currentCategoryObj.apiCategory],
     queryFn: async () => {
       const params = new URLSearchParams({ status: "open", limit: "200", category: currentCategoryObj.apiCategory });
-      const res = await apiRequest("GET", `/api/kalshi/markets?${params}`);
+      const res = await apiRequest("GET", `/api/${source}/markets?${params}`);
       return res.json();
     },
     refetchInterval: REFRESH_INTERVAL,
@@ -334,62 +358,20 @@ export default function PredictionsPage() {
             </h3>
           </div>
 
+          {/* Plain odds: the chance of Yes and of No, with a bar. */}
           <div className="flex-1 space-y-2 min-h-0">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm flex-1 truncate">
-                {market.subtitle?.split(" ").slice(0, 3).join(" ") || (market.yes_price >= 50 ? "Yes" : "No")}
-              </span>
-              <span className="font-semibold text-sm tabular-nums shrink-0">
-                {market.yes_price}%
-              </span>
-              <div className="flex gap-1 shrink-0">
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer text-xs font-medium px-2 py-0.5 border-primary/20 bg-primary/5 text-primary no-default-hover-elevate no-default-active-elevate"
-                  onClick={(e) => e.stopPropagation()}
-                  data-testid={`badge-yes-${market.ticker}`}
-                >
-                  Yes
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer text-xs font-medium px-2 py-0.5 bg-muted/60 text-muted-foreground no-default-hover-elevate no-default-active-elevate"
-                  onClick={(e) => e.stopPropagation()}
-                  data-testid={`badge-no-${market.ticker}`}
-                >
-                  No
-                </Badge>
-              </div>
-            </div>
-
-            {market.subtitle && (
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm flex-1 truncate">
-                  {market.subtitle.split(" ").slice(3, 6).join(" ") || "Other"}
-                </span>
-                <span className="font-semibold text-sm tabular-nums shrink-0">
-                  {market.no_price}%
-                </span>
-                <div className="flex gap-1 shrink-0">
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer text-xs font-medium px-2 py-0.5 border-primary/20 bg-primary/5 text-primary no-default-hover-elevate no-default-active-elevate"
-                    onClick={(e) => e.stopPropagation()}
-                    data-testid={`badge-yes-alt-${market.ticker}`}
-                  >
-                    Yes
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer text-xs font-medium px-2 py-0.5 bg-muted/60 text-muted-foreground no-default-hover-elevate no-default-active-elevate"
-                    onClick={(e) => e.stopPropagation()}
-                    data-testid={`badge-no-alt-${market.ticker}`}
-                  >
-                    No
-                  </Badge>
+            {([
+              ["Yes", market.yes_price, "bg-[#078ACB]"],
+              ["No", market.no_price, "bg-muted-foreground/40"],
+            ] as const).map(([label, pct, bar]) => (
+              <div key={label} className="flex items-center gap-2" data-testid={`odds-${label.toLowerCase()}-${market.ticker}`}>
+                <span className="w-7 shrink-0 text-sm text-muted-foreground">{label}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
                 </div>
+                <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">{pct}%</span>
               </div>
-            )}
+            ))}
           </div>
 
           <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t">
@@ -419,8 +401,27 @@ export default function PredictionsPage() {
       <PageHeader
         eyebrow="Monitor"
         title="Prediction Markets"
-        description="Monitor live Kalshi odds on elections, Congress, the courts and the economy."
+        description="Live odds on elections, Congress, the courts and the economy, from Kalshi and Polymarket."
         className="mb-2"
+        actions={
+          <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label="Market source" data-testid="toggle-market-source">
+            {SOURCES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                role="radio"
+                aria-checked={source === s.value}
+                onClick={() => pickSource(s.value)}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  source === s.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                data-testid={`source-${s.value}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       {/* Category tabs */}
@@ -777,12 +778,12 @@ export default function PredictionsPage() {
               <div className="flex justify-center">
                 <Button variant="outline" className="gap-2" asChild data-testid="button-view-kalshi">
                   <a
-                    href={`https://kalshi.com/markets/${selectedMarket.event_ticker}`}
+                    href={selectedMarket.url ?? `https://kalshi.com/markets/${selectedMarket.event_ticker}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     <TrendingUp className="w-4 h-4" />
-                    View on Kalshi
+                    View on {selectedMarket.source === "polymarket" ? "Polymarket" : "Kalshi"}
                   </a>
                 </Button>
               </div>

@@ -157,6 +157,11 @@ Working end-to-end:
   (volume_24h*3 + volume + open_interest). Do NOT reintroduce per-event
   crawls (429 storms) or exact-match UI categories (see CATEGORY_ALIASES:
   "Tech"→"Science and Technology", "Culture"→"Entertainment"+"Social").
+- **Polymarket** (Markets page source switch, remembered per browser):
+  `GET /api/polymarket/markets?category=` → server/services/polymarket-api.ts,
+  free public Gamma API (no key), 5-min cache per tag, normalized to the
+  Kalshi market shape (yes/no only, ≤6 outcomes per multi-candidate event,
+  "…?" titles filled in). Not via Parallel's paid connector.
 - **Email** via `RESEND_API_KEY` (+ optional `RESEND_FROM_EMAIL`, default
   no-reply@governmentaffairs.io). Password reset works. The old Replit
   connector email path is deleted.
