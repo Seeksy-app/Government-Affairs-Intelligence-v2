@@ -40,6 +40,9 @@ export interface BillRef {
   congress: number | null;
   type: FederalBillType;
   number: number;
+  /** Set when the planner guessed the bill (not typed in the question): its
+   *  expected short title, checked against the real title before use. */
+  expectedName?: string;
 }
 
 export interface AskPlan {
@@ -152,6 +155,7 @@ export function parsePlan(raw: string, question: string): AskPlan {
           congress: Number.isInteger(b?.congress) && b.congress >= 93 && b.congress <= 130 ? b.congress : null,
           type: String(b?.type ?? "").toLowerCase().replace(/[.\s]/g, "") as FederalBillType,
           number: Number(b?.number),
+          expectedName: typeof b?.name === "string" && b.name.trim() ? b.name.trim().slice(0, 160) : "",
         }))
         .filter((b: BillRef) => BILL_TYPES.includes(b.type) && Number.isInteger(b.number) && b.number > 0)
     : [];
@@ -164,6 +168,24 @@ export function parsePlan(raw: string, question: string): AskPlan {
     bills: dedupeBills(bills).slice(0, 2),
     pressKeywords: strings(p.pressKeywords, 3, 60).filter((k) => k.length >= 4),
   };
+}
+
+// A bill number the planner guessed only counts if Congress.gov's title for it
+// shares a distinctive word with the name the planner expected (or, without a
+// name, with the question). Stops "S. 2407" turning out to be an unrelated bill.
+const TITLE_STOPWORDS = new Set([
+  "act", "bill", "the", "and", "for", "of", "to", "in", "on", "a", "an", "with", "from", "by", "or", "its",
+  "amend", "amendments", "provide", "certain", "other", "purposes", "united", "states", "federal", "national", "2025", "2026", "2027",
+]);
+function titleWords(s: string): string[] {
+  return (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length >= 4 && !TITLE_STOPWORDS.has(w));
+}
+export function billMatchesExpectation(actualTitle: string, expected: string): boolean {
+  const want = titleWords(expected);
+  if (want.length === 0) return true; // nothing to check against
+  const have = titleWords(actualTitle);
+  const stem = (w: string) => w.slice(0, Math.max(5, w.length - 2));
+  return want.some((w) => have.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h))));
 }
 
 // Web results in rank order, minus excluded/duplicate URLs, ≤ MAX_PER_DOMAIN each.
@@ -237,13 +259,13 @@ Return ONLY a JSON object:
   "title": "<neutral 4-12 word title for the brief, e.g. 'Proposed DOL overtime rule for salaried workers'>",
   "objective": "<1-2 sentences: what to find — latest facts, status, who is driving it, and likely impact>",
   "searchQueries": ["<3-6 word web query>", "..."],
-  "bills": [{"type": "hr|s|hjres|sjres|hres|sres|hconres|sconres", "number": 1234, "congress": 119}],
+  "bills": [{"type": "hr|s|hjres|sjres|hres|sres|hconres|sconres", "number": 1234, "congress": 119, "name": "<the bill's short title>"}],
   "pressKeywords": ["<2-4 word phrase likely to appear in a federal agency press release title>"]
 }
 
 Rules:
 - searchQueries: 2-4 distinct queries aimed at recent reporting and official sources.
-- bills: only FEDERAL bills that are explicitly named or unambiguously identifiable; congress null if unsure. Empty array otherwise. Never include state bills.
+- bills: only FEDERAL bills that are explicitly named or unambiguously identifiable, with their short title in "name"; congress null if unsure. If you aren't sure of the exact number, leave the bill out: a wrong number pulls in an unrelated bill. Empty array otherwise. Never include state bills.
 - pressKeywords: 0-3 distinctive phrases (not generic words like "policy" or "rule"). Empty if the topic isn't agency-driven.`;
 
   if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) return parsePlan("", question);
@@ -285,6 +307,11 @@ async function fetchBill(api: CongressAPI, ref: BillRef): Promise<Candidate | nu
       api.getBillSummaries(congress, ref.type, ref.number),
       api.getBillActions(congress, ref.type, ref.number, 10),
     ]);
+
+    if (ref.expectedName !== undefined && !billMatchesExpectation(String(bill.title ?? ""), ref.expectedName)) {
+      console.warn(`[ask] dropped guessed bill ${ref.type}${ref.number} (${congress}): "${bill.title}" doesn't match "${ref.expectedName}"`);
+      return null;
+    }
 
     const label = formatBillId(congress, ref.type, ref.number);
     const sponsor = bill.sponsors?.[0];
@@ -409,7 +436,12 @@ export async function answerQuestion(briefId: string): Promise<void> {
 
   try {
     const plan = await planQuestion(question);
-    const billRefs = dedupeBills([...detectBillRefs(question), ...plan.bills]).slice(0, 2);
+    // Bills typed in the question are trusted; guessed ones must match their expected name.
+    const typed = detectBillRefs(question);
+    const guessed = plan.bills
+      .filter((g) => !typed.some((t) => t.type === g.type && t.number === g.number))
+      .map((g) => ({ ...g, expectedName: g.expectedName || [question, ...plan.searchQueries].join(" ") }));
+    const billRefs = dedupeBills([...typed, ...guessed]).slice(0, 2);
 
     const pasted: Candidate[] = urlsInText(question).slice(0, 3).map((url) => ({
       url, title: null, publication: null, publishDate: null, extractedContent: null, excerpts: [],
