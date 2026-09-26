@@ -137,7 +137,7 @@ export async function lookupCompany(clientId: string, name: string) {
       reasoning: { effort: "low" },
       input:
         `Identify the organization named "${name.replace(/"/g, "'")}" (most likely a US company, trade association, nonprofit or coalition that hires lobbyists). ` +
-        "Return its main business in one plain sentence (what it does, for whom, rough size, where), the policy areas it is exposed to (choose only from the allowed list), headquarters city and state, and official website. " +
+        "Return its main business in one plain sentence of at most 25 words (what it does, for whom, rough size), the policy areas it is exposed to (choose only from the allowed list, each once), headquarters city and state, and official website. " +
         "If you can't tell which organization this is, set found to false and leave the rest empty.",
       text: {
         format: {
@@ -147,6 +147,7 @@ export async function lookupCompany(clientId: string, name: string) {
             type: "object",
             properties: {
               found: { type: "boolean" },
+              // (business is kept to one short line by the prompt)
               officialName: { type: "string" },
               business: { type: "string" },
               policyAreas: { type: "array", items: { type: "string", enum: POLICY_AREAS } },
@@ -178,7 +179,7 @@ export async function lookupCompany(clientId: string, name: string) {
     found: !!data.found && !!String(data.business ?? "").trim(),
     officialName: String(data.officialName ?? "").slice(0, 160),
     business: String(data.business ?? "").slice(0, 500),
-    industries: (Array.isArray(data.policyAreas) ? data.policyAreas : []).filter((a: string) => POLICY_AREAS.includes(a)).slice(0, 6),
+    industries: Array.from(new Set<string>((Array.isArray(data.policyAreas) ? data.policyAreas : []).filter((a: string) => POLICY_AREAS.includes(a)))).slice(0, 6),
     headquarters: String(data.headquarters ?? "").slice(0, 120),
     website: String(data.website ?? "").slice(0, 200),
     sources,
