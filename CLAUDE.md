@@ -157,6 +157,17 @@ Working end-to-end:
   (volume_24h*3 + volume + open_interest). Do NOT reintroduce per-event
   crawls (429 storms) or exact-match UI categories (see CATEGORY_ALIASES:
   "Tech"→"Science and Technology", "Culture"→"Entertainment"+"Social").
+- **Dig deeper** (brief page) → `POST /api/briefs/:id/deeper` →
+  server/services/deeper-service.ts: one Parallel **Responses API** call
+  (medium effort, ~1–2¢) with free `data_sources` pubmed, clinical_trials,
+  cms_coverage, chembl (retries without them on 422); result stored at
+  `briefs.content.deeper` via jsonb_set (regenerating a brief clears it);
+  30/firm/day. **Look them up** (client editor) → `POST
+  /api/firm-clients/lookup`: low-effort Responses call with a JSON schema
+  (business, policy areas from POLICY_AREAS, HQ, website); Parallel's
+  company-data index partners (Crunchbase etc.) apply by default; nothing
+  saved server-side; 60/firm/day. Our Search/Extract calls don't use
+  connectors.
 - **Polymarket** (Markets page source switch, remembered per browser):
   `GET /api/polymarket/markets?category=` → server/services/polymarket-api.ts,
   free public Gamma API (no key), 5-min cache per tag, normalized to the

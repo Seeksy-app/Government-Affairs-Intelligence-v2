@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Lock, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { friendlyError } from "@/lib/api-errors";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +98,23 @@ export function ClientEditor({
 
   const canContinue = d.name.trim().length > 0 && !save.isPending;
 
+  // "Look them up": fills business and industries from public company data.
+  type Found = { found: boolean; officialName: string; business: string; industries: string[]; headquarters: string; website: string };
+  const [found, setFound] = useState<Found | null>(null);
+  const lookup = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/firm-clients/lookup", { name: d.name.trim() })).json() as Promise<Found>,
+    onSuccess: (r) => {
+      setFound(r);
+      if (!r.found) return;
+      setD((p) => ({
+        ...p,
+        business: p.business.trim() ? p.business : r.business,
+        industries: Array.from(new Set([...p.industries, ...r.industries])),
+      }));
+    },
+    onError: (err: Error) => toast({ title: "Couldn't look them up", description: friendlyError(err), variant: "destructive" }),
+  });
+
   return (
     <div data-testid="client-editor">
       {/* Layer progress */}
@@ -131,15 +148,53 @@ export function ClientEditor({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <FieldLabel>Client name</FieldLabel>
-                <Input
-                  autoFocus
-                  value={d.name}
-                  onChange={(e) => set("name", e.target.value)}
-                  placeholder="e.g. Mid-Atlantic Hospitality Alliance"
-                  maxLength={160}
-                  className="h-11 text-[15px]"
-                  data-testid="input-client-name"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    autoFocus
+                    value={d.name}
+                    onChange={(e) => {
+                      set("name", e.target.value);
+                      setFound(null);
+                    }}
+                    placeholder="e.g. Mid-Atlantic Hospitality Alliance"
+                    maxLength={160}
+                    className="h-11 text-[15px]"
+                    data-testid="input-client-name"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 shrink-0"
+                    disabled={d.name.trim().length < 2 || lookup.isPending}
+                    onClick={() => lookup.mutate()}
+                    title="Fill in their business and industries from public company data"
+                    data-testid="button-lookup-client"
+                  >
+                    {lookup.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    {lookup.isPending ? "Looking…" : "Look them up"}
+                  </Button>
+                </div>
+                {found && (
+                  <p className="mt-1.5 text-xs text-muted-foreground" data-testid="lookup-result">
+                    {found.found ? (
+                      <>
+                        Found <span className="font-semibold text-foreground">{found.officialName || d.name}</span>
+                        {found.headquarters && <> · {found.headquarters}</>}
+                        {found.website && (
+                          <>
+                            {" · "}
+                            <a href={found.website.startsWith("http") ? found.website : `https://${found.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                              {found.website.replace(/^https?:\/\//, "")}
+                            </a>
+                          </>
+                        )}
+                        . Check the details below.
+                      </>
+                    ) : (
+                      "We couldn't tell which organization this is. Fill it in yourself."
+                    )}
+                  </p>
+                )}
               </div>
               <div>
                 <FieldLabel>Their main business</FieldLabel>
