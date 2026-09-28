@@ -32,7 +32,7 @@ const hrefOf = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 export function OrgProfileSheet({ name, open, onOpenChange }: { name: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { toast } = useToast();
   const key = ["/api/org-profile", name];
-  const { data, isLoading } = useQuery<{ profile: OrgProfile | null }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ profile: OrgProfile | null }>({
     queryKey: key,
     queryFn: async () => (await apiRequest("GET", `/api/org-profile?name=${encodeURIComponent(name ?? "")}`)).json(),
     enabled: open && !!name,
@@ -72,6 +72,17 @@ export function OrgProfileSheet({ name, open, onOpenChange }: { name: string | n
           <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground" role="status">
             <Loader2 className="h-4 w-4 animate-spin" />
             {research.isPending ? "Researching… this can take up to a minute." : "Loading…"}
+          </div>
+        ) : isError ? (
+          <div className="rounded-lg border p-5 text-sm">
+            <p className="font-semibold">Couldn't load this profile.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+              <RefreshCw className="h-3.5 w-3.5" /> Try again
+            </Button>
+          </div>
+        ) : !p && (name?.trim().length ?? 0) < 2 ? (
+          <div className="rounded-lg border p-5 text-sm text-muted-foreground">
+            Add the organization's full name to this contact to build a profile.
           </div>
         ) : !p ? (
           <div className="rounded-lg border border-dashed p-6 text-center">

@@ -10,8 +10,19 @@ import { POLICY_AREAS } from "@shared/onboarding";
 // is only made on request (or when the copy is over 30 days old and asked for).
 
 const RESPONSES_URL = "https://api.parallel.ai/v1/responses";
-const FRESH_PER_DAY = 40; // per firm
-const freshToday = new Map<string, number[]>();
+// Per firm, per server process (Render runs one instance). New profiles and
+// refreshes are counted separately so refreshing never blocks a new lookup.
+const NEW_PER_DAY = 40;
+const REFRESH_PER_DAY = 40;
+const newToday = new Map<string, number[]>();
+const refreshToday = new Map<string, number[]>();
+function underLimit(map: Map<string, number[]>, clientId: string, max: number) {
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const recent = (map.get(clientId) ?? []).filter((t) => t > dayAgo);
+  if (recent.length >= max) return false;
+  map.set(clientId, [...recent, Date.now()]);
+  return true;
+}
 
 export class OrgProfileError extends Error {
   constructor(message: string, public status = 400) {
@@ -19,18 +30,21 @@ export class OrgProfileError extends Error {
   }
 }
 
+// Unicode-aware, so non-Latin names keep a usable key.
+const NON_WORD = new RegExp("[^\\p{L}\\p{N}]+", "gu");
 export const orgNameKey = (name: string) =>
   name
+    .normalize("NFKC")
     .toLowerCase()
     .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\b(inc|llc|ltd|corp|corporation|co|the)\b/g, " ")
+    .replace(NON_WORD, " ")
+    .replace(/(^| )(inc|llc|ltd|corp|corporation|co|the)(?= |$)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
 export async function cachedOrgProfile(name: string) {
   const key = orgNameKey(name);
-  if (!key) return null;
+  if (key.length < 2) return null;
   const [row] = await db.select().from(orgProfiles).where(eq(orgProfiles.nameKey, key)).limit(1);
   return row ?? null;
 }
@@ -40,10 +54,13 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
 export async function researchOrgProfile(clientId: string, name: string) {
   if (!process.env.PARALLEL_API_KEY) throw new OrgProfileError("Organization profiles aren't available right now.", 503);
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  const recent = (freshToday.get(clientId) ?? []).filter((t) => t > dayAgo);
-  if (recent.length >= FRESH_PER_DAY) throw new OrgProfileError("That's a lot of new profiles for one day. Try again tomorrow.", 429);
-  freshToday.set(clientId, [...recent, Date.now()]);
+  name = name.trim().slice(0, 200);
+  const key = orgNameKey(name);
+  if (key.length < 2) throw new OrgProfileError("Add the organization's full name to the contact first.");
+  const isRefresh = !!(await cachedOrgProfile(name));
+  if (!underLimit(isRefresh ? refreshToday : newToday, clientId, isRefresh ? REFRESH_PER_DAY : NEW_PER_DAY)) {
+    throw new OrgProfileError(`That's a lot of ${isRefresh ? "refreshes" : "new profiles"} for one day. Try again tomorrow.`, 429);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   const res = await fetch(RESPONSES_URL, {
@@ -132,7 +149,6 @@ export async function researchOrgProfile(clientId: string, name: string) {
     sources: Array.from(new Set<string>((part?.annotations ?? []).map((a: any) => a?.url).filter((u: unknown): u is string => typeof u === "string" && isUrl(u)))).slice(0, 6),
   };
 
-  const key = orgNameKey(name);
   const [row] = await db
     .insert(orgProfiles)
     .values({ nameKey: key, name: name.trim().slice(0, 200), data, fetchedAt: new Date() })

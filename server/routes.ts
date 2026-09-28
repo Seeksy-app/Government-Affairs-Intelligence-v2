@@ -10271,8 +10271,8 @@ Format your response with clear headers and bullet points. Be specific and data-
     try {
       const clientId = await firmScope(req, res);
       if (!clientId) return;
-      const parsed = z.object({ name: z.string().trim().min(2).max(200) }).safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ message: "Which organization?" });
+      const parsed = z.object({ name: z.string().trim().min(2).max(1000) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Add the organization's full name to the contact first." });
       const { researchOrgProfile } = await import("./services/org-profile-service");
       res.json({ profile: await researchOrgProfile(clientId, parsed.data.name) });
     } catch (err: any) {
