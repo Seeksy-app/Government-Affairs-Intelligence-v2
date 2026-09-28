@@ -73,6 +73,9 @@ import PressReleasesPage from "@/pages/press-releases";
 import MorningBriefPage from "@/pages/morning-brief";
 import OnboardingPage from "@/pages/onboarding";
 import AcceptInvitePage from "@/pages/accept-invite";
+import CardPublicPage from "@/pages/card-public";
+import CardsPage from "@/pages/cards";
+import CardDetailPage from "@/pages/card-detail";
 import SymbolicLogicDemoPage from "@/pages/symbolic-logic-demo";
 
 function MorningBriefRedirect() {
@@ -104,6 +107,8 @@ function AuthenticatedRouter() {
       <Route path="/briefs/new" component={BriefsNewPage} />
       <Route path="/briefs/:id" component={BriefDetailPage} />
       <Route path="/briefs" component={BriefsListPage} />
+      <Route path="/cards/:id" component={CardDetailPage} />
+      <Route path="/cards" component={CardsPage} />
       <Route path="/dashboard" component={MorningBriefPage} />
       <Route path="/contacts" component={Contacts} />
       <Route path="/news" component={News} />
@@ -330,11 +335,12 @@ function AppContent() {
   // signed-in user clicking one used to get a 404.
   const publicPath = location.replace(/\/+$/, "") || "/";
   const alwaysPublic = ["/terms", "/privacy", "/security-privacy", "/demo", "/reset-password", "/set-password", "/verify-email", "/accept-invite"];
-  if (location.startsWith("/portal/") || location.startsWith("/brief/") || alwaysPublic.includes(publicPath)) {
+  if (location.startsWith("/portal/") || location.startsWith("/brief/") || location.startsWith("/card/") || alwaysPublic.includes(publicPath)) {
     return (
       <Switch>
         <Route path="/portal/:clientSlug/:portalSlug" component={PublicPortal} />
         <Route path="/brief/:uuid" component={BriefPublicPage} />
+        <Route path="/card/:token" component={CardPublicPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/security-privacy" component={SecurityPrivacyPage} />

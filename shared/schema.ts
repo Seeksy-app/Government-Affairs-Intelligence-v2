@@ -1918,3 +1918,47 @@ export const orgProfiles = pgTable("org_profiles", {
 });
 
 export type OrgProfile = typeof orgProfiles.$inferSelect;
+
+// ─── Topic cards ──────────────────────────────────────────────────────────────
+// One-screen summaries a firm shares with a client by private link (migration
+// 0006): what to know, three talking points, pros and cons. The client can
+// reply "Got it" or ask a question (card_replies).
+
+export interface TopicCardContent {
+  level: "low" | "watch" | "act";
+  know: string;
+  talkingPoints: string[];
+  pros: string[];
+  cons: string[];
+  asOf: string;
+  sources: Array<{ title: string; url: string }>;
+}
+
+export const topicCards = pgTable("topic_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  briefId: varchar("brief_id"),
+  firmClientId: varchar("firm_client_id"),
+  shareToken: text("share_token").notNull(),
+  title: text("title").notNull(),
+  content: jsonb("content").$type<TopicCardContent>().notNull(),
+  status: text("status").$type<"draft" | "shared">().notNull().default("draft"),
+  createdByUserId: varchar("created_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  sharedAt: timestamp("shared_at"),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export const cardReplies = pgTable("card_replies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  cardId: varchar("card_id").notNull().references(() => topicCards.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<"ack" | "question">().notNull(),
+  name: text("name"),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  seenAt: timestamp("seen_at"),
+});
+
+export type TopicCard = typeof topicCards.$inferSelect;
+export type CardReply = typeof cardReplies.$inferSelect;
