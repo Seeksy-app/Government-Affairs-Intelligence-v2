@@ -42,6 +42,7 @@ import { RecentQuestions } from "@/components/today/recent-questions";
 import { BannerWeather } from "@/components/today/banner-weather";
 import { SetupInvite, WelcomeCard } from "@/components/today/setup-cards";
 import { Shortcuts } from "@/components/today/shortcuts";
+import { CardReplies } from "@/components/today/card-replies";
 import { useFirmSetup } from "@/hooks/use-firm-setup";
 import { WeatherWatchCard } from "@/components/today/weather-watch";
 
@@ -541,6 +542,7 @@ export default function MorningBriefPage() {
             ) : (
               setup && !setup.onboarded && <SetupInvite />
             )}
+            <CardReplies />
             <RecentQuestions />
             <Shortcuts />
           <div className="min-w-0" data-testid="section-morning-brief">

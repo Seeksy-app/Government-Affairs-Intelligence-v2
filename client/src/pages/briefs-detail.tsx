@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/tooltip";
 import {
   ArrowLeft, Copy, Check, Lock, Share2, ExternalLink, RefreshCw,
-  Edit3, Clock, CheckCircle, XCircle, FileText, Eye, Plus, Trash2, AlertCircle, Loader2,
+  Edit3, Clock, CheckCircle, XCircle, FileText, Eye, Plus, Trash2, AlertCircle, Loader2, Layers,
 } from "lucide-react";
+import { friendlyError } from "@/lib/api-errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader, PageShell } from "@/components/page-header";
 import type { Brief, BriefSource, BriefContent } from "@shared/schema";
@@ -242,6 +243,7 @@ function EditDialog({
 
 export default function BriefDetail() {
   const { id } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -266,6 +268,16 @@ export default function BriefDetail() {
     onError: (err: Error) => {
       toast({ title: "Couldn't start the brief", description: err.message, variant: "destructive" });
     },
+  });
+
+  // One-screen card from this answer, then straight to the card editor.
+  const makeCard = useMutation({
+    mutationFn: async () => (await apiRequest("POST", "/api/cards", { briefId: id })).json() as Promise<{ id: string }>,
+    onSuccess: (card) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
+      navigate(`/cards/${card.id}`);
+    },
+    onError: (err: Error) => toast({ title: "Couldn't make the card", description: friendlyError(err), variant: "destructive" }),
   });
 
   const copyShareLink = () => {
@@ -347,6 +359,12 @@ export default function BriefDetail() {
               <Edit3 className="h-4 w-4 mr-1.5" />
               Edit
             </Button>
+            {brief.status === "ready" && (
+              <Button size="sm" onClick={() => makeCard.mutate()} disabled={makeCard.isPending} data-testid="button-make-card">
+                {makeCard.isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Layers className="h-4 w-4 mr-1.5" />}
+                {makeCard.isPending ? "Making card…" : "Make a card"}
+              </Button>
+            )}
             {brief.status === "ready" && (
               <Button variant="outline" size="sm" onClick={copyShareLink}>
                 {copied ? (

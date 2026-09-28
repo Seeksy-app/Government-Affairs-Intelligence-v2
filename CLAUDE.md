@@ -176,6 +176,15 @@ Working end-to-end:
   URLs, policy areas. Cached in `org_profiles` (migration 0005) by
   normalized name, shared across firms; GET reads cache free, POST
   researches/refreshes (40 new/firm/day).
+- **Topic cards** (rail "Cards", /cards; migration 0006 `topic_cards` +
+  `card_replies`): "Make a card" on any answer → one Claude call condenses
+  the brief (level, what to know, 3 talking points, pros, cons, sources;
+  never-say rules apply) → editor with live phone preview → Share gives a
+  private link `/card/<token>` (public page, phone-first, Meeting mode swipe,
+  installable via manifest.webmanifest, offline copy via /card/sw.js scoped
+  to /card/). Stop sharing kills the link; re-sharing issues a new token.
+  Clients reply "Got it" / "I have a question" (5/card/visitor/hour) →
+  emailed to the card's author and shown on Today ("Client replies").
 - **Polymarket** (Markets page source switch, remembered per browser):
   `GET /api/polymarket/markets?category=` → server/services/polymarket-api.ts,
   free public Gamma API (no key), 5-min cache per tag, normalized to the

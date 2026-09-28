@@ -27,6 +27,7 @@ import {
   Shield,
   MessageCircleQuestion,
   Target,
+  Layers,
   Users,
   Zap,
   type LucideIcon,
@@ -110,6 +111,7 @@ const CLIENT_GROUPS: RailGroup[] = [
       },
       { key: "strategy", label: "Strategy", icon: Target, pages: [page("Strategy Board", "/strategy", Target, "strategy")] },
       { key: "research", label: "Research", icon: FolderOpen, pages: [page("Research Projects", "/matters", FolderOpen, "matters")] },
+      { key: "cards", label: "Cards", icon: Layers, pages: [page("Topic Cards", "/cards", Layers, "cards")] },
     ],
   },
   {

@@ -10282,6 +10282,133 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // ─── Topic cards ─────────────────────────────────────────────────────────
+  const cardError = (res: any, err: any, fallback: string) => {
+    if (typeof err?.status === "number") return res.status(err.status).json({ message: err.message });
+    console.error(fallback, err);
+    return res.status(500).json({ message: fallback });
+  };
+
+  app.get("/api/cards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { listCards } = await import("./services/card-service");
+      res.json(await listCards(clientId));
+    } catch (err) {
+      cardError(res, err, "Couldn't load your cards.");
+    }
+  });
+
+  app.get("/api/cards/replies/unseen", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { unseenReplies } = await import("./services/card-service");
+      res.json(await unseenReplies(clientId));
+    } catch (err) {
+      cardError(res, err, "Couldn't load replies.");
+    }
+  });
+
+  app.post("/api/cards", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const parsed = z.object({ briefId: z.string().min(1).max(64) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Which answer?" });
+      const { createCardFromBrief } = await import("./services/card-service");
+      res.status(201).json(await createCardFromBrief(clientId, getUserId(req)!, parsed.data.briefId));
+    } catch (err) {
+      cardError(res, err, "Couldn't make the card.");
+    }
+  });
+
+  app.get("/api/cards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { getCard } = await import("./services/card-service");
+      res.json(await getCard(clientId, String(req.params.id)));
+    } catch (err) {
+      cardError(res, err, "Couldn't load the card.");
+    }
+  });
+
+  app.patch("/api/cards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const parsed = z.object({ title: z.string().max(200).optional(), content: z.record(z.any()).optional() }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Couldn't read those changes." });
+      const { updateCard } = await import("./services/card-service");
+      res.json(await updateCard(clientId, String(req.params.id), parsed.data));
+    } catch (err) {
+      cardError(res, err, "Couldn't save the card.");
+    }
+  });
+
+  app.post("/api/cards/:id/share", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { setSharing } = await import("./services/card-service");
+      res.json(await setSharing(clientId, String(req.params.id), req.body?.share !== false));
+    } catch (err) {
+      cardError(res, err, "Couldn't change sharing.");
+    }
+  });
+
+  app.post("/api/cards/:id/seen", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { markRepliesSeen } = await import("./services/card-service");
+      await markRepliesSeen(clientId, String(req.params.id));
+      res.json({ success: true });
+    } catch (err) {
+      cardError(res, err, "Couldn't update replies.");
+    }
+  });
+
+  app.delete("/api/cards/:id", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const { deleteCard } = await import("./services/card-service");
+      await deleteCard(clientId, String(req.params.id));
+      res.status(204).end();
+    } catch (err) {
+      cardError(res, err, "Couldn't delete the card.");
+    }
+  });
+
+  // Public: the shared card (a private, unguessable link) and client replies.
+  app.get("/api/public/cards/:token", async (req, res) => {
+    try {
+      const { publicCard } = await import("./services/card-service");
+      const card = await publicCard(String(req.params.token));
+      if (!card) return res.status(404).json({ message: "This card isn't shared anymore." });
+      res.setHeader("Cache-Control", "no-store");
+      res.json(card);
+    } catch (err) {
+      cardError(res, err, "Couldn't load the card.");
+    }
+  });
+
+  app.post("/api/public/cards/:token/reply", async (req, res) => {
+    try {
+      const parsed = z
+        .object({ kind: z.enum(["ack", "question"]), name: z.string().max(80).optional(), message: z.string().max(1000).optional() })
+        .safeParse(req.body ?? {});
+      if (!parsed.success) return res.status(400).json({ message: "Couldn't read that reply." });
+      const { addReply } = await import("./services/card-service");
+      res.status(201).json(await addReply(String(req.params.token), parsed.data, String(req.ip ?? "")));
+    } catch (err) {
+      cardError(res, err, "Couldn't send your reply.");
+    }
+  });
+
   app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
     try {
       const clientId = await firmScope(req, res);
