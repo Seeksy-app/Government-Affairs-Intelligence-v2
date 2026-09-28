@@ -10252,6 +10252,36 @@ Format your response with clear headers and bullet points. Be specific and data-
     }
   });
 
+  // Organization profiles (contacts): cached reads are free; POST researches.
+  app.get("/api/org-profile", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const name = typeof req.query.name === "string" ? req.query.name.trim().slice(0, 200) : "";
+      if (!name) return res.status(400).json({ message: "Which organization?" });
+      const { cachedOrgProfile } = await import("./services/org-profile-service");
+      res.json({ profile: await cachedOrgProfile(name) });
+    } catch (err) {
+      console.error("GET /api/org-profile error:", err);
+      res.status(500).json({ message: "Couldn't load the profile." });
+    }
+  });
+
+  app.post("/api/org-profile", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await firmScope(req, res);
+      if (!clientId) return;
+      const parsed = z.object({ name: z.string().trim().min(2).max(200) }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Which organization?" });
+      const { researchOrgProfile } = await import("./services/org-profile-service");
+      res.json({ profile: await researchOrgProfile(clientId, parsed.data.name) });
+    } catch (err: any) {
+      if (typeof err?.status === "number") return res.status(err.status).json({ message: err.message });
+      console.error("POST /api/org-profile error:", err);
+      res.status(500).json({ message: "Couldn't build the profile." });
+    }
+  });
+
   app.get("/api/firm-clients", isAuthenticated, async (req, res) => {
     try {
       const clientId = await firmScope(req, res);

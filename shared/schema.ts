@@ -1888,3 +1888,33 @@ export const firmInvites = pgTable("firm_invites", {
 });
 
 export type FirmInvite = typeof firmInvites.$inferSelect;
+
+// ─── Organization profiles ────────────────────────────────────────────────────
+// Public facts about an organization (a company, association, congressional
+// office…) researched with Parallel and shared across firms (migration 0005).
+
+export interface OrgProfileData {
+  found: boolean;
+  officialName: string;
+  kind: string;
+  summary: string;
+  sector: string;
+  headquarters: string;
+  website: string;
+  size: string;
+  leaders: Array<{ name: string; title: string }>;
+  governmentAffairs: string;
+  recentDevelopments: Array<{ date: string; headline: string; url: string }>;
+  policyAreas: string[];
+  sources: string[];
+}
+
+export const orgProfiles = pgTable("org_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  nameKey: text("name_key").notNull(),
+  name: text("name").notNull(),
+  data: jsonb("data").$type<OrgProfileData>().notNull(),
+  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+});
+
+export type OrgProfile = typeof orgProfiles.$inferSelect;
