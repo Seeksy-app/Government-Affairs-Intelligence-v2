@@ -168,6 +168,14 @@ Working end-to-end:
   company-data index partners (Crunchbase etc.) apply by default; nothing
   saved server-side; 60/firm/day. Our Search/Extract calls don't use
   connectors.
+- **Organization profiles** (Contacts: click the organization, or the ⋯
+  menu) → `GET/POST /api/org-profile` → server/services/org-profile-service.ts:
+  Parallel Responses (medium, ~2¢) with a JSON schema — summary, kind
+  (company / association / congressional office / committee / agency…),
+  HQ, size, leaders, lobbying & policy activity, recent developments with
+  URLs, policy areas. Cached in `org_profiles` (migration 0005) by
+  normalized name, shared across firms; GET reads cache free, POST
+  researches/refreshes (40 new/firm/day).
 - **Polymarket** (Markets page source switch, remembered per browser):
   `GET /api/polymarket/markets?category=` → server/services/polymarket-api.ts,
   free public Gamma API (no key), 5-min cache per tag, normalized to the

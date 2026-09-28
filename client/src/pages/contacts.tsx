@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Contact, InsertContact, ContactList } from "@shared/schema";
+import { OrgProfileSheet } from "@/components/org-profile-sheet";
 import { PageHeader, PageShell } from "@/components/page-header";
 
 export default function Contacts() {
@@ -47,6 +48,7 @@ export default function Contacts() {
   const [creatingList, setCreatingList] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [showNewListDialog, setShowNewListDialog] = useState(false);
+  const [orgName, setOrgName] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [formData, setFormData] = useState<Partial<InsertContact>>({
@@ -597,6 +599,12 @@ export default function Contacts() {
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
+                          {contact.organization && (
+                            <DropdownMenuItem onClick={() => setOrgName(contact.organization)} data-testid={`menu-org-profile-${contact.id}`}>
+                              <Building2 className="w-4 h-4 mr-2" />
+                              Organization profile
+                            </DropdownMenuItem>
+                          )}
                           {(contactLists?.length ?? 0) > 0 && (
                             <>
                               <DropdownMenuSeparator />
@@ -635,10 +643,17 @@ export default function Contacts() {
                     </div>
                     <div className="mt-3 space-y-1.5">
                       {contact.organization && (
-                        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => setOrgName(contact.organization)}
+                          className="group flex w-full min-w-0 items-center gap-2 text-left text-sm text-muted-foreground hover:text-primary"
+                          title="View organization profile"
+                          data-testid={`button-org-profile-${contact.id}`}
+                        >
                           <Building2 className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{contact.organization}</span>
-                        </div>
+                          <span className="truncate underline-offset-2 group-hover:underline">{contact.organization}</span>
+                          <span className="ml-auto shrink-0 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">Profile</span>
+                        </button>
                       )}
                       {contact.email && (
                         <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
@@ -697,6 +712,7 @@ export default function Contacts() {
             </Card>
           )}
       </div>
+      <OrgProfileSheet name={orgName} open={!!orgName} onOpenChange={(o) => !o && setOrgName(null)} />
     </PageShell>
   );
 }
