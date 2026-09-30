@@ -64,7 +64,7 @@ const featureHelp: Record<string, { content: string; slug?: string }> = {
     slug: "portals-guide",
   },
   research: {
-    content: "Add web URLs, YouTube videos, and documents for AI analysis",
+    content: "Add web URLs, YouTube videos, and documents for SI analysis",
     slug: "research-guide",
   },
   network: {
@@ -76,7 +76,7 @@ const featureHelp: Record<string, { content: string; slug?: string }> = {
     slug: "security-guide",
   },
   "ai-agent": {
-    content: "Ask questions about your research documents using AI",
+    content: "Ask questions about your research documents using SI",
     slug: "ai-agent-guide",
   },
   documents: {

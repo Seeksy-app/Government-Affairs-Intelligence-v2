@@ -26,13 +26,13 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: "[data-tour='matters']",
     title: "Matters & Projects",
-    content: "Organize your research by client matters. Each matter can contain documents, AI conversations, and can be shared with your clients.",
+    content: "Organize your research by client matters. Each matter can contain documents, SI conversations, and can be shared with your clients.",
     placement: "right",
   },
   {
     target: "[data-tour='ai-agent']",
-    title: "AI Research Agent",
-    content: "Extract content from websites, get YouTube transcripts, research people and organizations, or ask custom research questions. All powered by AI.",
+    title: "SI Research Agent",
+    content: "Extract content from websites, get YouTube transcripts, research people and organizations, or ask custom research questions. All powered by SI.",
     placement: "right",
   },
   {

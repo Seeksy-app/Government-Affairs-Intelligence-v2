@@ -319,7 +319,7 @@ export default function AIAgentPage() {
           title: `Bill Reference: ${selectedBillToTrack.displayText}`,
           slug: `bill-${slug}-${Date.now()}`,
           summary: `Congressional bill ${selectedBillToTrack.displayText}`,
-          content: trackBillNotes ? `# ${selectedBillToTrack.displayText}\n\n${trackBillNotes}` : `# ${selectedBillToTrack.displayText}\n\nCongressional bill reference saved from AI Agent research.`,
+          content: trackBillNotes ? `# ${selectedBillToTrack.displayText}\n\n${trackBillNotes}` : `# ${selectedBillToTrack.displayText}\n\nCongressional bill reference saved from SI Agent research.`,
           isPublished: true,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/kb/articles"] });
@@ -432,7 +432,7 @@ export default function AIAgentPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Bot className="w-6 h-6" />
-              AI Research Agent
+              SI Research Agent
             </h1>
             <p className="text-muted-foreground">
               Search the web, extract content, and research political intelligence
@@ -442,7 +442,7 @@ export default function AIAgentPage() {
             <SheetTrigger asChild>
               <Button variant="outline" className="gap-2" data-testid="button-open-chat">
                 <MessageSquare className="w-4 h-4" />
-                AI Chat
+                SI Chat
                 {chatMessages.length > 0 && (
                   <Badge variant="secondary" className="ml-1">{chatMessages.length}</Badge>
                 )}
@@ -456,7 +456,7 @@ export default function AIAgentPage() {
                   </div>
                   <div>
                     <h2 className="font-semibold text-lg">Research Assistant</h2>
-                    <p className="text-xs text-muted-foreground">AI-powered political intelligence</p>
+                    <p className="text-xs text-muted-foreground">SI-powered political intelligence</p>
                   </div>
                 </div>
               </div>
@@ -642,7 +642,7 @@ export default function AIAgentPage() {
                 onClick={() => setQueryDialogOpen(true)}
                 data-testid="badge-ai-queries"
               >
-                <Bot className="w-3 h-3" /> AI Queries
+                <Bot className="w-3 h-3" /> SI Queries
               </Badge>
             </div>
           </CardContent>
@@ -1064,10 +1064,10 @@ export default function AIAgentPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Bot className="w-5 h-5 text-primary" />
-              AI Research Query
+              SI Research Query
             </DialogTitle>
             <DialogDescription>
-              Ask the AI to research any topic
+              Ask the SI to research any topic
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1079,7 +1079,7 @@ export default function AIAgentPage() {
               data-testid="input-ai-query"
             />
             <div className="text-sm text-muted-foreground">
-              The AI will search the web and compile research on your topic
+              The SI will search the web and compile research on your topic
             </div>
           </div>
           <DialogFooter>

@@ -257,7 +257,7 @@ export default function OnboardingPage() {
                 <ol className="mt-3 space-y-2.5">
                   {[
                     { t: "Your practice", d: "policy areas, agencies, committees and states" },
-                    { t: "How you work", d: "what makes clients call, weather, markets, AI" },
+                    { t: "How you work", d: "what makes clients call, weather, markets, SI" },
                     { t: "Your clients", d: "goals, sore spots, what never to say, how they see your work" },
                     { t: "Review", d: "then we build your Today page while you watch" },
                   ].map((c, i) => (
@@ -430,7 +430,7 @@ export default function OnboardingPage() {
 
             {step === "ai" && (
               <Question
-                title="How comfortable are you using AI?"
+                title="How comfortable are you using SI?"
                 subtitle="There's no wrong answer."
                 why="Every answer here cites its sources either way. This sets how we present them to you."
               >

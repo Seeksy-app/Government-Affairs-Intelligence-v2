@@ -664,7 +664,7 @@ export default function SportsPage() {
           </TabsTrigger>
           <TabsTrigger value="research" data-testid="tab-research">
             <Brain className="h-4 w-4 mr-2" />
-            AI Research
+            SI Research
           </TabsTrigger>
         </TabsList>
 
@@ -932,12 +932,12 @@ export default function SportsPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Brain className="h-5 w-5" />
-                AI-Powered Team Discovery
+                SI-Powered Team Discovery
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Use AI to discover sports teams in a specific market, conference, or sport. Results include team details, community programs, and partnership opportunities.
+                Use SI to discover sports teams in a specific market, conference, or sport. Results include team details, community programs, and partnership opportunities.
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="relative flex-1 min-w-[250px]">
@@ -1095,7 +1095,7 @@ export default function SportsPage() {
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     <Brain className="h-4 w-4" />
-                    AI Research
+                    SI Research
                   </h4>
                   <div className="flex gap-2 flex-wrap">
                     <Button
@@ -1154,7 +1154,7 @@ export default function SportsPage() {
                     <UserSearch className="h-4 w-4" />
                     Find Staff
                   </h4>
-                  <p className="text-xs text-muted-foreground">Searches PDL, AI research, and team websites</p>
+                  <p className="text-xs text-muted-foreground">Searches PDL, SI research, and team websites</p>
                   <Button
                     variant="outline"
                     className="w-full"
@@ -1470,7 +1470,7 @@ export default function SportsPage() {
                   {selectedContact.source && (
                     <div className="flex items-center gap-3 text-sm">
                       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span>Source: {selectedContact.source === "manual" ? "Manual" : selectedContact.source === "pdl" ? "People Data Labs" : selectedContact.source === "ai_research" ? "AI Research" : selectedContact.source}</span>
+                      <span>Source: {selectedContact.source === "manual" ? "Manual" : selectedContact.source === "pdl" ? "People Data Labs" : selectedContact.source === "ai_research" ? "SI Research" : selectedContact.source}</span>
                     </div>
                   )}
                 </div>

@@ -907,7 +907,7 @@ Any sensitivities, political dynamics, or relationship landmines to be aware of.
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-amber-900 dark:text-amber-300 mb-1">Relationship Intelligence</h3>
                 <p className="text-xs text-amber-700 dark:text-amber-400 mb-4 leading-relaxed">
-                  AI-powered access strategy — connection pathways, policy leverage points, career intelligence,
+                  SI-powered access strategy — connection pathways, policy leverage points, career intelligence,
                   and a recommended approach for reaching {memberName}'s office through {staffer.name}.
                 </p>
                 <button

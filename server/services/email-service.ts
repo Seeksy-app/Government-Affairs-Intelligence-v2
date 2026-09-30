@@ -179,7 +179,7 @@ export async function sendResearchUpdate(options: {
 }) {
   const updateTypeLabels = {
     new_document: 'New Research Document Added',
-    ai_analysis: 'AI Analysis Complete',
+    ai_analysis: 'SI Analysis Complete',
     question_answered: 'Research Question Answered',
   };
 

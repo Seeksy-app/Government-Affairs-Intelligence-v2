@@ -577,7 +577,7 @@ Key considerations for professional engagement with this specific office.`
             </details>
 
             <p className="text-center text-xs text-muted-foreground mt-4">
-              ⚡ AI-generated — verify key facts before using in outreach · Powered by Perplexity
+              ⚡ SI-generated — verify key facts before using in outreach · Powered by Perplexity
             </p>
           </>
         )}
@@ -588,7 +588,7 @@ Key considerations for professional engagement with this specific office.`
             <div className="text-4xl mb-4">🎯</div>
             <h2 className="text-xl font-semibold mb-2">Generate Intelligence Report</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Get AI-powered relationship pathways, career intelligence, and a recommended approach strategy
+              Get SI-powered relationship pathways, career intelligence, and a recommended approach strategy
               for building access to {intelData.memberName}'s office through {intelData.name}.
             </p>
             <Button onClick={() => generateStrategy(intelData)} className="gap-2" style={{ background: "#f59e0b", color: "#fff" }}>

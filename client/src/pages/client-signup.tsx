@@ -67,7 +67,7 @@ const STEPS = [
 const GOAL_OPTIONS = [
   { id: "legislation_tracking", label: "Track legislation & bills" },
   { id: "contact_management", label: "Manage political contacts" },
-  { id: "research", label: "AI-powered research" },
+  { id: "research", label: "SI-powered research" },
   { id: "news_monitoring", label: "Monitor political news" },
   { id: "network_mapping", label: "Map relationships & networks" },
   { id: "client_management", label: "Manage sub-clients/matters" },

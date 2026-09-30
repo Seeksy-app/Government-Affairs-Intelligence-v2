@@ -291,6 +291,12 @@ background; `?fresh=1` forces; firm warm-up starts 3 min after boot, 3 at a time
 near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.
 Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
+**Wording (Andrew, 2026-09-30): user-facing copy says "SI" (super
+intelligence), never "AI".** Exceptions kept on purpose: real-world
+policy topics ("Technology & AI" policy area, "AI" practice area,
+AI-regulation examples/news), vendor names (Perplexity AI), legal pages
+(Terms, Privacy, Security & Privacy vendor list), model prompts, and code
+identifiers/env vars (openAIChat, AI_INTEGRATIONS_*).
 Signature line: "Find the path to the people who shape policy."
 
 ## API Integrations (all keys in Render env)

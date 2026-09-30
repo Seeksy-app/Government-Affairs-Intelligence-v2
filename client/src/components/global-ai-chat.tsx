@@ -113,7 +113,7 @@ export function GlobalAIChat() {
   const saveToPortalMutation = useMutation({
     mutationFn: async ({ portalId, content }: { portalId: string; content: string }) => {
       const res = await apiRequest("POST", `/api/portals/${portalId}/documents`, {
-        title: `AI Research - ${new Date().toLocaleDateString()}`,
+        title: `SI Research - ${new Date().toLocaleDateString()}`,
         content,
         documentType: "research",
       });
@@ -179,14 +179,14 @@ export function GlobalAIChat() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-lg">Research Assistant</h2>
-                  <p className="text-xs text-muted-foreground">AI-powered political intelligence</p>
+                  <p className="text-xs text-muted-foreground">SI-powered political intelligence</p>
                 </div>
               </div>
             </div>
             <div className="mt-4">
               <Select value={selectedProvider} onValueChange={setSelectedProvider}>
                 <SelectTrigger className="w-full" data-testid="select-ai-provider">
-                  <SelectValue placeholder="Select AI Provider" />
+                  <SelectValue placeholder="Select SI Provider" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto (Best Available)</SelectItem>

@@ -898,7 +898,7 @@ function VeteransSearch() {
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                       <Search className="h-4 w-4" />
-                      AI Research
+                      SI Research
                     </h4>
                     <Button
                       variant="outline"
@@ -2180,13 +2180,13 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                         ) : (
                           <Badge variant="outline" className="text-xs border-primary/20 bg-primary/5 text-primary" data-testid="badge-source-ai">
                             <AlertTriangle className="h-3 w-3 mr-1" />
-                            AI Research - Verify Names
+                            SI Research - Verify Names
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground">{staffers.length} staff found</span>
                       </div>
                       {!isOfficial && (
-                        <p className="text-xs text-muted-foreground">Names from AI research may be inaccurate. Verify against official sources before use.</p>
+                        <p className="text-xs text-muted-foreground">Names from SI research may be inaccurate. Verify against official sources before use.</p>
                       )}
                       {staffers.length > 0 ? (
                         <div className="space-y-2">
@@ -2364,7 +2364,7 @@ Focus on: Chief of Staff, Legislative Director, Communications Director, Press S
                 
                 {!stafferInfo && !stafferLoading && (
                   <p className="text-sm text-muted-foreground">
-                    Click "Find Staffers" to look up key staff members using AI research.
+                    Click "Find Staffers" to look up key staff members using SI research.
                   </p>
                 )}
               </div>

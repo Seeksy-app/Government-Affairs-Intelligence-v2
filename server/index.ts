@@ -90,7 +90,7 @@ app.use((req, res, next) => {
   try {
     const requiredModules = [
       { key: "sports", name: "Sports Intelligence", description: "Research and track professional and college sports teams, franchises, and key contacts for partnership development.", category: "intelligence", icon: "Trophy" },
-      { key: "marketing_intelligence", name: "Marketing Intelligence", description: "Comprehensive marketing ROI analysis, channel performance tracking, and AI-powered GTM recommendations", category: "analytics", icon: "BarChart3" },
+      { key: "marketing_intelligence", name: "Marketing Intelligence", description: "Comprehensive marketing ROI analysis, channel performance tracking, and SI-powered GTM recommendations", category: "analytics", icon: "BarChart3" },
       { key: "legistorm", name: "LegiStorm Directory", description: "Access the full LegiStorm Congressional Staff Directory with 17,900+ staffers, position histories, and career research.", category: "directory", icon: "BookOpen" },
     ];
     for (const mod of requiredModules) {

@@ -454,7 +454,7 @@ export async function findSportsTeamPeople(
   if (allResults.length < 5) {
     try {
       const aiResults = await searchWithPerplexityAI(team, searchType);
-      const aiCount = addResults(aiResults, "AI Research (Perplexity)");
+      const aiCount = addResults(aiResults, "SI Research (Perplexity)");
       console.log(`[Sports People] Perplexity returned ${aiCount} people for ${team.name}`);
     } catch (error) {
       console.log(`[Sports People] Perplexity failed for ${team.name}:`, (error as Error).message);

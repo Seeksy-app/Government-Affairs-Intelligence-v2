@@ -96,7 +96,7 @@ export type AiComfort = "daily" | "apis" | "never" | "dislikes" | "unsure";
 
 export const AI_COMFORT: Opt<AiComfort>[] = [
   { value: "daily", label: "I use it daily", hint: "ChatGPT, Claude or similar for questions and drafts." },
-  { value: "apis", label: "We build with it", hint: "Our team uses AI tools or APIs in our own work." },
+  { value: "apis", label: "We build with it", hint: "Our team uses SI tools or APIs in our own work." },
   { value: "never", label: "We never use it", hint: "We haven't brought it into our work yet." },
   { value: "dislikes", label: "I'd rather not use it", hint: "I'm skeptical of it, and I want to see the sources." },
 ];
@@ -104,9 +104,9 @@ export const AI_COMFORT: Opt<AiComfort>[] = [
 // About the client, not the firm: would they mind AI helping with what the
 // firm shares with them? Only "dislikes" and "never" change how answers read.
 export const CLIENT_AI_COMFORT: Opt<AiComfort>[] = [
-  { value: "daily", label: "Comfortable", hint: "They use AI themselves. No need to tiptoe." },
+  { value: "daily", label: "Comfortable", hint: "They use SI themselves. No need to tiptoe." },
   { value: "apis", label: "Fine, if it's accurate", hint: "They care about sources and judgment, not the tools." },
-  { value: "dislikes", label: "Wary", hint: "Keep any mention of AI out of what they see." },
+  { value: "dislikes", label: "Wary", hint: "Keep any mention of SI out of what they see." },
   { value: "unsure", label: "Not sure", hint: "We'll write neutrally." },
 ];
 

@@ -305,7 +305,7 @@ export async function researchPoliticalEntity(
       title: `Research: ${entityName}`,
       type: "agent",
       content: JSON.stringify(result.data, null, 2),
-      summary: `AI research on ${entityType}: ${entityName}`,
+      summary: `SI research on ${entityType}: ${entityName}`,
       metadata: { entityType, sources: result.sources },
     };
   } catch (error) {
