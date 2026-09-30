@@ -16,7 +16,7 @@ export const ROLES: Opt[] = [
 // Labels double as industry/topic terms for news scoring, so keep them plain.
 export const POLICY_AREAS = [
   "Health care", "Medicare & Medicaid", "Veterans", "Defense", "Labor & workforce", "Tax",
-  "Trade & tariffs", "Energy", "Environment", "Agriculture", "Transportation", "Technology & AI",
+  "Trade & tariffs", "Energy", "Environment", "Agriculture", "Transportation", "Technology, AI & SI",
   "Telecommunications", "Financial services", "Housing", "Education", "Immigration",
   "Hospitality & travel", "Retail", "Manufacturing", "Pharmaceuticals", "Cannabis", "Gaming",
   "Appropriations",

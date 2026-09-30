@@ -210,7 +210,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 space-y-2.5">
           <div className="flex items-center justify-center gap-x-4 gap-y-2 flex-wrap text-sm">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Federal Policy</span>
-            <span className="text-foreground">AI</span>
+            <span className="text-foreground">AI & SI</span>
             <span className="text-muted-foreground/30">·</span>
             <span className="text-foreground">Defense & Security</span>
             <span className="text-muted-foreground/30">·</span>

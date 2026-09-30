@@ -375,7 +375,7 @@ export default function SecurityPrivacyPage() {
                     <p className="text-muted-foreground">Resend (transactional email with TLS encryption)</p>
                   </div>
                   <div>
-                    <p className="font-medium">AI Services</p>
+                    <p className="font-medium">AI (SI) Services</p>
                     <p className="text-muted-foreground">OpenAI and Perplexity APIs with encrypted API key storage</p>
                   </div>
                 </div>
