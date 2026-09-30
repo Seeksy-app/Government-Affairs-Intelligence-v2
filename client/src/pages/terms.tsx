@@ -77,7 +77,7 @@ export default function TermsPage() {
                 The Service integrates with third-party services including but not limited to Congress.gov, LegiScan, LegiStorm, Kalshi, AI providers (such as Anthropic, Perplexity, and Parallel.ai), People Data Labs, and identity providers such as LinkedIn. Your use of these integrations is subject to the respective third-party terms of service and privacy policies.
               </p>
               <p className="text-muted-foreground mt-2">
-                Portions of the Service's output — including briefs, summaries, relevance scores, and research answers — are generated with the assistance of artificial intelligence. This content is provided for informational purposes only, may contain errors or omissions, and should be independently verified before you rely on it. It does not constitute legal, financial, or investment advice.
+                Portions of the Service's output — including briefs, summaries, relevance scores, and research answers — are generated with the assistance of artificial intelligence (which we call "SI," super intelligence). This content is provided for informational purposes only, may contain errors or omissions, and should be independently verified before you rely on it. It does not constitute legal, financial, or investment advice.
               </p>
               <p className="text-muted-foreground mt-2">
                 Prediction market data displayed in the Service is provided for informational purposes only. The Service does not facilitate trading, wagering, or the purchase or sale of any contract or financial instrument.

@@ -292,10 +292,13 @@ near-full width — Andrew dislikes empty side margins. Rules in docs/BRAND.md
 "Interface language" — follow them for any new page.
 Voice: "find, connect, map, monitor, brief, reach" — no AI hype.
 **Wording (Andrew, 2026-09-30): user-facing copy says "SI" (super
-intelligence), never "AI".** Exceptions kept on purpose: real-world
-policy topics ("Technology & AI" policy area, "AI" practice area,
-AI-regulation examples/news), vendor names (Perplexity AI), legal pages
-(Terms, Privacy, Security & Privacy vendor list), model prompts, and code
+intelligence), never "AI".** Where "AI" must stay, add SI alongside
+rather than replacing: policy area "Technology, AI & SI", landing practice
+area "AI & SI", legal pages ("artificial intelligence (which we call
+'SI,' super intelligence)", "AI (SI) processing"). Spell out "SI (super
+intelligence)" once in first-look spots (onboarding comfort question,
+Research assistant header, Help Center). Left as-is: vendor names
+(Perplexity AI), AI-regulation examples/news, model prompts, and code
 identifiers/env vars (openAIChat, AI_INTEGRATIONS_*).
 Signature line: "Find the path to the people who shape policy."
 

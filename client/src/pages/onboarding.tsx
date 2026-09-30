@@ -430,7 +430,7 @@ export default function OnboardingPage() {
 
             {step === "ai" && (
               <Question
-                title="How comfortable are you using SI?"
+                title="How comfortable are you using SI (super intelligence)?"
                 subtitle="There's no wrong answer."
                 why="Every answer here cites its sources either way. This sets how we present them to you."
               >

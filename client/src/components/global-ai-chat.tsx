@@ -179,7 +179,7 @@ export function GlobalAIChat() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-lg">Research Assistant</h2>
-                  <p className="text-xs text-muted-foreground">SI-powered political intelligence</p>
+                  <p className="text-xs text-muted-foreground">Powered by SI (super intelligence)</p>
                 </div>
               </div>
             </div>

@@ -89,7 +89,7 @@ export default function PrivacyPage() {
               </p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                 <li><strong>Hosting and infrastructure:</strong> Render (application hosting) and Supabase (database hosting)</li>
-                <li><strong>AI processing:</strong> Anthropic, Perplexity, and Parallel.ai, which process content you submit (such as research questions and documents) to power analysis, briefing, and research features</li>
+                <li><strong>AI (SI) processing:</strong> Anthropic, Perplexity, and Parallel.ai, which process content you submit (such as research questions and documents) to power analysis, briefing, and research features</li>
                 <li><strong>Government data sources:</strong> Congress.gov (federal legislative data), LegiScan (state legislative data, licensed under CC BY 4.0), and LegiStorm (congressional staff directory data)</li>
                 <li><strong>Market data:</strong> Kalshi (prediction market data display; no personal data is shared)</li>
                 <li><strong>Contact enrichment:</strong> People Data Labs, used at your direction to enrich professional contact records</li>
