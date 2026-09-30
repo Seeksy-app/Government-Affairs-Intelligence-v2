@@ -310,9 +310,9 @@ export function ClientEditor({
             </WhyWeAsk>
           </Question>
           <Question
-            title={`How would ${who} feel about AI helping with work you share with them?`}
-            subtitle="Briefs and answers here are drafted with AI from cited sources, and you review them before anything goes out."
-            why="If they're wary, answers about them read as plain, firm-voice prose that never mentions AI."
+            title={`How would ${who} feel about SI helping with work you share with them?`}
+            subtitle="Briefs and answers here are drafted with SI from cited sources, and you review them before anything goes out."
+            why="If they're wary, answers about them read as plain, firm-voice prose that never mentions SI."
           >
             <ChoiceCards options={CLIENT_AI_COMFORT} value={d.aiComfort} onChange={(v) => set("aiComfort", v)} testId="choice-client-ai" />
           </Question>

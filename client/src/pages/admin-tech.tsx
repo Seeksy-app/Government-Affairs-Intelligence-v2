@@ -20,7 +20,7 @@ interface ApiStatusResponse {
 }
 
 const categoryConfig: Record<string, { label: string; icon: typeof Brain }> = {
-  ai: { label: "AI & Research", icon: Brain },
+  ai: { label: "SI & Research", icon: Brain },
   data: { label: "Data & Intelligence", icon: Database },
   social: { label: "Social Media", icon: Globe },
   comms: { label: "Communications", icon: MessageSquare },

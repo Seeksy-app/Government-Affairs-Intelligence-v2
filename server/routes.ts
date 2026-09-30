@@ -2428,7 +2428,7 @@ Format your response as a structured summary with clear sections.`;
       console.error("[Staffer Research] ERROR:", error?.message || error);
       const errMsg = error?.message || "Failed to research staffer";
       if (errMsg.includes("Perplexity")) {
-        res.status(502).json({ message: "AI research service temporarily unavailable. Please try again." });
+        res.status(502).json({ message: "SI research service temporarily unavailable. Please try again." });
       } else {
         res.status(500).json({ message: errMsg });
       }
@@ -4416,7 +4416,7 @@ Format your response as a structured summary with clear sections.`;
       res.json({
         title: prompt.substring(0, 50) + (prompt.length > 50 ? "..." : ""),
         content: JSON.stringify(result.data, null, 2),
-        summary: `AI research query completed with ${result.sources?.length || 0} sources`,
+        summary: `SI research query completed with ${result.sources?.length || 0} sources`,
         type: "query",
       });
     } catch (error) {
@@ -7422,7 +7422,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
           key: "AI_INTEGRATIONS_OPENAI_API_KEY",
           configured: !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
           category: "ai",
-          description: "AI-powered research, content extraction, entity analysis, and structured data extraction",
+          description: "SI-powered research, content extraction, entity analysis, and structured data extraction",
           docsUrl: "https://platform.openai.com/docs",
         },
         {
@@ -7430,7 +7430,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
           key: "AI_INTEGRATIONS_GEMINI_API_KEY",
           configured: !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
           category: "ai",
-          description: "Fallback AI model for research queries and content generation",
+          description: "Fallback SI model for research queries and content generation",
           docsUrl: "https://ai.google.dev/docs",
         },
         {
@@ -7438,7 +7438,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
           key: "PERPLEXITY_API_KEY",
           configured: !!process.env.PERPLEXITY_API_KEY,
           category: "ai",
-          description: "Staffer research, entity research, and real-time web-connected AI queries",
+          description: "Staffer research, entity research, and real-time web-connected SI queries",
           docsUrl: "https://docs.perplexity.ai",
         },
         {
@@ -7462,7 +7462,7 @@ ${context ? `Context from recent research:\n${context}` : ""}`;
           key: "FIRECRAWL_API_KEY",
           configured: !!process.env.FIRECRAWL_API_KEY,
           category: "data",
-          description: "Web scraping, URL content extraction, and AI agent web research",
+          description: "Web scraping, URL content extraction, and SI agent web research",
           docsUrl: "https://docs.firecrawl.dev",
         },
         {
@@ -7973,7 +7973,7 @@ Focus on bills that align with the staffer's position title, the committee juris
       });
     } catch (error: any) {
       console.error("Error in AI discovery:", error);
-      res.status(500).json({ message: error.message || "AI discovery failed" });
+      res.status(500).json({ message: error.message || "SI discovery failed" });
     }
   });
 
@@ -8655,7 +8655,7 @@ Keep the response practical, actionable, and under 500 words.`;
         picks = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
       } catch {
         console.error("[strategy-board] unparseable AI suggestion output:", text.slice(0, 300));
-        return res.status(502).json({ message: "The AI returned an unparseable plan — try again." });
+        return res.status(502).json({ message: "The SI returned an unparseable plan — try again." });
       }
 
       const created = [];

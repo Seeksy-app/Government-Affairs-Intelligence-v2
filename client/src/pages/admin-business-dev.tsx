@@ -66,17 +66,17 @@ export default function AdminBusinessDev() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  Government Affairs Platform is an AI-powered political intelligence platform that 
+                  Government Affairs Platform is an SI-powered political intelligence platform that 
                   revolutionizes how lobbying firms and municipalities track legislation, manage 
                   congressional relationships, and secure federal funding. Our platform provides 
-                  real-time insights, automated news intelligence, and AI research agents.
+                  real-time insights, automated news intelligence, and SI research agents.
                 </p>
                 <div className="space-y-3 pt-2">
                   <p className="font-semibold">Key Value Propositions:</p>
                   <div className="space-y-2">
                     <div className="flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">AI-powered research agents with Perplexity integration</span>
+                      <span className="text-sm">SI-powered research agents with Perplexity integration</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
@@ -187,7 +187,7 @@ export default function AdminBusinessDev() {
                 <div className="flex items-start gap-3">
                   <Zap className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold">AI-First Architecture</p>
+                    <p className="font-semibold">SI-First Architecture</p>
                     <p className="text-sm text-muted-foreground">
                       Perplexity-powered research agents with real-time web access and source citations
                     </p>

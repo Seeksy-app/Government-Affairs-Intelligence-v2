@@ -378,7 +378,7 @@ export default function PowerSearchPage() {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
         setSelectedOrg(prev => prev ? { ...prev, aiSummary: data.summary, aiSources: data.sources } : null);
-        toast({ title: "AI Research complete", description: "Intelligence report generated" });
+        toast({ title: "SI Research complete", description: "Intelligence report generated" });
       }
     } catch (error: any) {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });

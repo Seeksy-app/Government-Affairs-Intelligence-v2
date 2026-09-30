@@ -969,7 +969,7 @@ function AiDiscoverDialog({ open, onOpenChange, trackedBills, contacts, legistor
       setResult(data);
     },
     onError: (error: Error) => {
-      toast({ title: "AI Discovery failed", description: error.message, variant: "destructive" });
+      toast({ title: "SI Discovery failed", description: error.message, variant: "destructive" });
     },
   });
 

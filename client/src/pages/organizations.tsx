@@ -188,7 +188,7 @@ export default function OrganizationsPage() {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
         setSelectedOrg(prev => prev ? { ...prev, aiSummary: data.summary, aiSources: data.sources } : null);
-        toast({ title: "AI Research complete", description: "Intelligence report generated" });
+        toast({ title: "SI Research complete", description: "Intelligence report generated" });
       }
     } catch (error: any) {
       toast({ title: "Research failed", description: error.message, variant: "destructive" });
@@ -434,7 +434,7 @@ export default function OrganizationsPage() {
                         data-testid="button-ai-research"
                       >
                         {isAiResearching ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Brain className="h-4 w-4 mr-1" />}
-                        AI Research
+                        SI Research
                       </Button>
                       <Button
                         variant="ghost"
@@ -523,7 +523,7 @@ export default function OrganizationsPage() {
                       <CardHeader className="pb-2">
                         <div className="flex items-center gap-2">
                           <Brain className="h-4 w-4" />
-                          <CardTitle className="text-sm">AI Intelligence Report</CardTitle>
+                          <CardTitle className="text-sm">SI Intelligence Report</CardTitle>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -624,7 +624,7 @@ export default function OrganizationsPage() {
                   <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">Select an organization</p>
                   <p className="text-sm mt-1">Search and enrich organizations using People Data Labs</p>
-                  <p className="text-xs mt-2 max-w-sm mx-auto">Track lobbying firms, PACs, think tanks, and other political organizations with enriched data and AI-powered intelligence</p>
+                  <p className="text-xs mt-2 max-w-sm mx-auto">Track lobbying firms, PACs, think tanks, and other political organizations with enriched data and SI-powered intelligence</p>
                 </div>
               </div>
             )}

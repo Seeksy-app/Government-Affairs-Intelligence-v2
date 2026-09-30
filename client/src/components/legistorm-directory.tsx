@@ -697,7 +697,7 @@ export function LegistormDirectory() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm flex items-center gap-2">
                     <Search className="h-4 w-4" />
-                    AI Career Research
+                    SI Career Research
                   </h4>
                   <div className="p-4 rounded-md bg-muted/50 text-sm max-h-[400px] overflow-y-auto space-y-3">
                     {lsResearchResult.split(/\n{2,}/).map((block, bIdx) => {

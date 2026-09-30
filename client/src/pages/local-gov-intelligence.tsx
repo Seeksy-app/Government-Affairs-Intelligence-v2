@@ -397,7 +397,7 @@ function GapAnalysis() {
       <div className="bg-muted/40 border rounded-lg p-4">
         <div className="flex items-center gap-2 mb-2">
           <Zap className="w-4 h-4 text-primary" />
-          <span className="font-semibold text-sm">AI-Powered Gap Analysis</span>
+          <span className="font-semibold text-sm">SI-Powered Gap Analysis</span>
         </div>
         <p className="text-xs text-muted-foreground">
           Combines real federal spending data + open grants with Perplexity AI to identify unmet opportunities
@@ -447,7 +447,7 @@ function GapAnalysis() {
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span>Running AI gap analysis with Perplexity…</span>
+              <span>Running SI gap analysis with Perplexity…</span>
             </div>
             <Skeleton className="h-48 mt-4" />
           </CardContent>
@@ -557,7 +557,7 @@ export default function LocalGovIntelligencePage() {
           { icon: DollarSign, label: "Federal grants tracked", value: "Grants.gov live" },
           { icon: TrendingUp, label: "Spending data", value: "USASpending.gov" },
           { icon: FileText, label: "State bills", value: "OpenStates API" },
-          { icon: Zap, label: "AI gap analysis", value: "Perplexity Sonar" },
+          { icon: Zap, label: "SI gap analysis", value: "Perplexity Sonar" },
         ].map((stat) => (
           <Card key={stat.label} className="border">
             <CardContent className="pt-4 pb-3 flex items-center gap-3">
@@ -645,7 +645,7 @@ export default function LocalGovIntelligencePage() {
                 <TrendingUp className="w-4 h-4" />Strategic Gap Analysis
               </CardTitle>
               <CardDescription>
-                AI-powered briefing: cross-reference federal spending + open grants to find unmet opportunities for your clients
+                SI-powered briefing: cross-reference federal spending + open grants to find unmet opportunities for your clients
               </CardDescription>
             </CardHeader>
             <CardContent>

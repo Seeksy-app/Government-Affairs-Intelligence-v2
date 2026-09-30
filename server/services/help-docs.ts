@@ -47,7 +47,7 @@ Your morning brief: the news and agency releases that matter to your firm, ranke
 - **What makes clients call** (a headline, a markup, a proposed rule…) tilts your morning brief toward those moments.
 - **Weather** decides where the alerts card sits on Today (the D.C. forecast always shows).
 - **Prediction markets** can be shown on Today or kept under Markets.
-- **Comfort with AI** changes how answers are presented to you.
+- **Comfort with SI** changes how answers are presented to you.
 
 ## Changing answers
 Go to **Settings → Practice & Today**. You'll see every answer at a glance with an **Edit** link, plus quick switches for weather alerts and prediction markets.`,
@@ -61,7 +61,7 @@ Go to **Settings → Practice & Today**. You'll see every answer at a glance wit
 Each client has four short layers:
 1. **Who they are:** name, main business and industries.
 2. **Your relationship:** your goals with them, what shapes the relationship, and where friction comes up.
-3. **How to talk with them:** whether Today should suggest questions about them, **what never to say**, and how they'd feel about AI helping with work you share.
+3. **How to talk with them:** whether Today should suggest questions about them, **what never to say**, and how they'd feel about SI helping with work you share.
 4. **How they see your work:** a secure portal, direct contact, or a mix you control.
 
 ## The never-say list
@@ -221,7 +221,7 @@ Forgot your password? Use **Forgot password** on the sign-in page and we'll emai
         summary: "Who sees your answers, clients and questions.",
         content: `- Your profile, clients, never-say lists and questions belong to your firm's account. They aren't shown to other firms or to your clients.
 - Client portals start **switched off** and only show what you choose to share.
-- Answers and briefs are drafted with AI from cited public sources. Always review before sharing.
+- Answers and briefs are drafted with SI from cited public sources. Always review before sharing.
 - The staff directory, bills, press releases and news come from public and licensed sources shared by everyone on the platform.`,
       },
     ],

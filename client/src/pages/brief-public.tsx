@@ -318,7 +318,7 @@ function BriefReadingView({ brief }: { brief: PublicBrief }) {
         {/* Footer */}
         <div className="mt-12 pt-6 border-t text-center">
           <p className="text-xs text-muted-foreground">
-            AI-generated decision brief · Powered by Government Affairs Intelligence
+            SI-generated decision brief · Powered by Government Affairs Intelligence
           </p>
         </div>
       </div>

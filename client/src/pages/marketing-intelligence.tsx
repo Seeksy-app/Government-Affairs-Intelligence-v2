@@ -71,7 +71,7 @@ export default function MarketingIntelligencePage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/recommendations"] });
-      toast({ title: "Analysis complete", description: "AI insights have been generated." });
+      toast({ title: "Analysis complete", description: "SI insights have been generated." });
     },
     onError: (error: any) => {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
@@ -174,7 +174,7 @@ export default function MarketingIntelligencePage() {
           <p className="text-sm text-muted-foreground">Vet Tix Marketing ROI Analysis & GTM Strategy</p>
         </div>
         <Badge variant="outline" className="text-xs">
-          <Zap className="w-3 h-3 mr-1" /> Powered by AI
+          <Zap className="w-3 h-3 mr-1" /> Powered by SI
         </Badge>
       </div>
 
@@ -210,7 +210,7 @@ export default function MarketingIntelligencePage() {
           <TabsTrigger value="funnel" data-testid="tab-funnel">Funnel</TabsTrigger>
           <TabsTrigger value="partnerships" data-testid="tab-partnerships">Partnerships</TabsTrigger>
           <TabsTrigger value="media" data-testid="tab-media">Earned Media</TabsTrigger>
-          <TabsTrigger value="ai" data-testid="tab-ai">AI Strategy</TabsTrigger>
+          <TabsTrigger value="ai" data-testid="tab-ai">SI Strategy</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
@@ -604,12 +604,12 @@ export default function MarketingIntelligencePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Bot className="w-4 h-4" /> AI Marketing Analyst
+                <Bot className="w-4 h-4" /> SI Marketing Analyst
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Ask questions about the Vet Tix marketing data to get AI-powered insights and GTM recommendations.
+                Ask questions about the Vet Tix marketing data to get SI-powered insights and GTM recommendations.
               </p>
               <div className="flex gap-2">
                 <Textarea
@@ -654,7 +654,7 @@ export default function MarketingIntelligencePage() {
 
               {aiAnalyzeMutation.data && (
                 <div className="mt-4 p-4 rounded-md border bg-muted/30 space-y-2" data-testid="ai-result">
-                  <h3 className="font-semibold text-sm">AI Analysis</h3>
+                  <h3 className="font-semibold text-sm">SI Analysis</h3>
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">{aiAnalyzeMutation.data.content}</div>
                   {aiAnalyzeMutation.data.sources?.length > 0 && (
                     <div className="mt-3">

@@ -29,13 +29,13 @@ const CORE_FEATURES = [
   {
     icon: Users,
     title: "Congressional Staff Directory",
-    desc: "12,000+ staffers from LegiStorm with titles, contact info, position histories, and AI career research — all searchable in real-time.",
+    desc: "12,000+ staffers from LegiStorm with titles, contact info, position histories, and SI career research — all searchable in real-time.",
     color: "from-purple-500/20 to-purple-600/5",
     accent: "text-purple-500",
   },
   {
     icon: Brain,
-    title: "AI Research Agent",
+    title: "SI Research Agent",
     desc: "Powered by Perplexity and OpenAI. Research any staffer, member, or issue. Scrape web content, extract YouTube transcripts, and synthesize intelligence.",
     color: "from-emerald-500/20 to-emerald-600/5",
     accent: "text-emerald-500",
@@ -43,14 +43,14 @@ const CORE_FEATURES = [
   {
     icon: Newspaper,
     title: "News Intelligence",
-    desc: "Aggregated news from Politico, The Hill, Roll Call, Defense News, and 10+ more feeds with AI keyword matching and daily brief delivery.",
+    desc: "Aggregated news from Politico, The Hill, Roll Call, Defense News, and 10+ more feeds with SI keyword matching and daily brief delivery.",
     color: "from-orange-500/20 to-orange-600/5",
     accent: "text-orange-500",
   },
   {
     icon: TrendingUp,
     title: "Bill & Staffer Mapping",
-    desc: "Map any congressional staffer to the bills they shaped — drafting, negotiating, floor managing. Powered by Congress.gov + AI enrichment.",
+    desc: "Map any congressional staffer to the bills they shaped — drafting, negotiating, floor managing. Powered by Congress.gov + SI enrichment.",
     color: "from-rose-500/20 to-rose-600/5",
     accent: "text-rose-500",
   },
@@ -72,7 +72,7 @@ const MODULES = [
   {
     icon: Target,
     label: "Marketing Intelligence",
-    desc: "OOH ROI analysis, channel performance, conversion funnels, and AI marketing strategy."
+    desc: "OOH ROI analysis, channel performance, conversion funnels, and SI marketing strategy."
   },
   {
     icon: Shield,
@@ -105,12 +105,12 @@ const WORKFLOW = [
   {
     step: "02",
     title: "Map the Path",
-    desc: "Path Finder identifies direct connections through your contact network and committee relationships. AI recommends your best entry point.",
+    desc: "Path Finder identifies direct connections through your contact network and committee relationships. SI recommends your best entry point.",
   },
   {
     step: "03",
     title: "Research Deep",
-    desc: "Pull full career histories, bill associations, and AI-synthesized intelligence on every contact. Know who they are before the call.",
+    desc: "Pull full career histories, bill associations, and SI-synthesized intelligence on every contact. Know who they are before the call.",
   },
   {
     step: "04",
@@ -285,14 +285,14 @@ export function LandingPage() {
                 Five tools.<br />One unified<br /><span className="text-primary">intelligence view.</span>
               </h2>
               <p className="text-muted-foreground text-base leading-relaxed">
-                The Strategy Board is the operational center of the platform. It gives you five distinct lenses on your political landscape — from raw access mapping to AI-powered path recommendations.
+                The Strategy Board is the operational center of the platform. It gives you five distinct lenses on your political landscape — from raw access mapping to SI-powered path recommendations.
               </p>
               <div className="space-y-4">
                 {[
                   { name: "Access Map", detail: "See every staffer for any member, sorted by influence score" },
                   { name: "Pipeline", detail: "Kanban board to track your engagement stage with every contact" },
                   { name: "Bill Influence", detail: "Search legislation and find who championed it" },
-                  { name: "Path Finder", detail: "AI-recommended routes through your network to reach any target" },
+                  { name: "Path Finder", detail: "SI-recommended routes through your network to reach any target" },
                   { name: "Power Grid", detail: "Member-by-member staff density and key contact overview" },
                 ].map((item) => (
                   <div key={item.name} className="flex items-start gap-3">
@@ -459,7 +459,7 @@ export function LandingPage() {
             Ready to outmaneuver<br />the competition?
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Join the government affairs firms using AI-powered intelligence to win more for their clients. Apply for early access today.
+            Join the government affairs firms using SI-powered intelligence to win more for their clients. Apply for early access today.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <Button size="lg" className="text-base px-10 h-13 shadow-lg h-12" asChild data-testid="button-cta-bottom">

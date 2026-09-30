@@ -252,7 +252,7 @@ function AccessMappingBoard() {
     queryKey: ["/api/strategy/ai-access", selectedMember],
     queryFn: async () => {
       const res = await fetch(`/api/strategy/ai-access?memberName=${encodeURIComponent(selectedMemberName)}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to get AI strategy");
+      if (!res.ok) throw new Error("Failed to get SI strategy");
       return res.json();
     },
     enabled: false,
@@ -715,7 +715,7 @@ function StrategyKanbanBoard({ onMapPath }: { onMapPath: (target: string) => voi
       });
     },
     onError: (error: Error) => {
-      toast({ title: "AI suggest failed", description: error.message, variant: "destructive" });
+      toast({ title: "SI suggest failed", description: error.message, variant: "destructive" });
     },
   });
 

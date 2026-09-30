@@ -314,7 +314,7 @@ export default function PublicPortal() {
             <Bot className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">AI Research Assistant</h2>
+            <h2 className="font-semibold text-lg">SI Research Assistant</h2>
             <p className="text-xs text-muted-foreground">Ask questions about your research</p>
           </div>
         </div>
