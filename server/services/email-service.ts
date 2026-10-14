@@ -28,6 +28,19 @@ export async function getResendClient() {
   };
 }
 
+// Anything a person typed goes through this before it lands in email HTML.
+export const escapeHtml = (s: unknown) =>
+  String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+// Links in emails point at our own app host, never a raw Host header (which
+// a caller controls). localhost stays local for development.
+export function appBaseUrl(hostHeader: unknown): string {
+  const host = String(hostHeader ?? "");
+  if (/^localhost(:\d+)?$/.test(host)) return `http://${host}`;
+  if (/^app\.governmentaffairs\.(io|co)$/.test(host)) return `https://${host}`;
+  return "https://app.governmentaffairs.io";
+}
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;

@@ -36,7 +36,7 @@ import { CongressAPI, formatBillId, parseBillId, lookupMemberPortrait } from "./
 import { kalshiApi } from "./services/kalshi-api";
 import { syncAccountPosts, syncAllClientAccounts } from "./services/social-tracker";
 import { z } from "zod";
-import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail, renderBrandedEmail } from "./services/email-service";
+import { sendEmail, sendDailyBrief, sendResearchUpdate, sendPasswordResetEmail, renderBrandedEmail, escapeHtml, appBaseUrl } from "./services/email-service";
 import { isStateBill, US_STATES, LEGISCAN_ATTRIBUTION, trackedBillLabel, jurisdictionName, trackedBillUrl, normalizeTag } from "@shared/bill-label";
 
 declare module "express-session" {
@@ -375,10 +375,9 @@ export async function registerRoutes(
         emailVerificationExpires: expires,
       });
 
-      // Send verification email - use the request host to get correct domain for both dev and production
-      const protocol = req.headers['x-forwarded-proto'] || 'https';
-      const host = req.headers['host'] || process.env.REPLIT_DEV_DOMAIN || 'localhost:5000';
-      const verifyUrl = `${protocol}://${host}/verify-email?token=${token}`;
+      // Verification link on our own host (never the raw Host header).
+      const baseUrl = appBaseUrl(req.headers.host);
+      const verifyUrl = `${baseUrl}/verify-email?token=${token}`;
       
       await sendEmail({
         to: parsed.data.email,
@@ -387,11 +386,11 @@ export async function registerRoutes(
           kicker: "Application Received",
           heading: "Verify your email address",
           bodyHtml: `
-            <p style="margin:0 0 12px 0;">Hi ${parsed.data.contactName},</p>
+            <p style="margin:0 0 12px 0;">Hi ${escapeHtml(parsed.data.contactName)},</p>
             <p style="margin:0 0 12px 0;">Thank you for applying to join GovernmentAffairs.io. Please verify your email address by clicking the button below.</p>
             <p style="margin:0;font-size:13px;color:#5A6B80;">Or copy and paste this link: ${verifyUrl}</p>`,
           cta: { label: "Verify Email", url: verifyUrl },
-          footerNote: "This link expires in 24 hours. After verification, our team will review your application and notify you once approved.",
+          footerNote: "This link expires in 24 hours. After you verify, you'll choose a password and your account is ready.",
         }),
       });
 
@@ -406,28 +405,28 @@ export async function registerRoutes(
         if (adminEmails.length > 0) {
           const goalsLabel = (parsed.data.primaryGoals || []).join(", ") || "Not specified";
           const toolsLabel = parsed.data.currentTools || "Not specified";
-          const appUrl = `${protocol}://${host}/admin/applications`;
+          const appUrl = `${baseUrl}/admin/applications`;
           await sendEmail({
             to: adminEmails,
-            subject: `New Client Signup: ${parsed.data.companyName}`,
+            subject: `New Client Signup: ${parsed.data.companyName.slice(0, 120)}`,
             html: renderBrandedEmail({
               kicker: "Admin Alert",
               heading: "New client application received",
               cta: { label: "Review Application", url: appUrl },
               bodyHtml: `
               <table style="border-collapse:collapse;width:100%;max-width:500px;">
-                <tr><td style="padding:8px;font-weight:bold;color:#555;">Company</td><td style="padding:8px;">${parsed.data.companyName}</td></tr>
-                <tr><td style="padding:8px;font-weight:bold;color:#555;">Contact</td><td style="padding:8px;">${parsed.data.contactName}</td></tr>
-                <tr><td style="padding:8px;font-weight:bold;color:#555;">Email</td><td style="padding:8px;">${parsed.data.email}</td></tr>
-                ${parsed.data.phone ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Phone</td><td style="padding:8px;">${parsed.data.phone}</td></tr>` : ""}
-                ${parsed.data.firmSize ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Firm Size</td><td style="padding:8px;">${parsed.data.firmSize}</td></tr>` : ""}
-                ${parsed.data.industry ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Industry</td><td style="padding:8px;">${parsed.data.industry}</td></tr>` : ""}
-                ${parsed.data.website ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Website</td><td style="padding:8px;">${parsed.data.website}</td></tr>` : ""}
-                <tr><td style="padding:8px;font-weight:bold;color:#555;">Goals</td><td style="padding:8px;">${goalsLabel}</td></tr>
-                <tr><td style="padding:8px;font-weight:bold;color:#555;">Current Tools</td><td style="padding:8px;">${toolsLabel}</td></tr>
-                ${parsed.data.urgency ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Urgency</td><td style="padding:8px;">${parsed.data.urgency}</td></tr>` : ""}
-                ${parsed.data.howHeardAboutUs ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">How They Found Us</td><td style="padding:8px;">${parsed.data.howHeardAboutUs}</td></tr>` : ""}
-                ${parsed.data.message ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Message</td><td style="padding:8px;">${parsed.data.message}</td></tr>` : ""}
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Company</td><td style="padding:8px;">${escapeHtml(parsed.data.companyName)}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Contact</td><td style="padding:8px;">${escapeHtml(parsed.data.contactName)}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Email</td><td style="padding:8px;">${escapeHtml(parsed.data.email)}</td></tr>
+                ${parsed.data.phone ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Phone</td><td style="padding:8px;">${escapeHtml(parsed.data.phone)}</td></tr>` : ""}
+                ${parsed.data.firmSize ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Firm Size</td><td style="padding:8px;">${escapeHtml(parsed.data.firmSize)}</td></tr>` : ""}
+                ${parsed.data.industry ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Industry</td><td style="padding:8px;">${escapeHtml(parsed.data.industry)}</td></tr>` : ""}
+                ${parsed.data.website ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Website</td><td style="padding:8px;">${escapeHtml(parsed.data.website)}</td></tr>` : ""}
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Goals</td><td style="padding:8px;">${escapeHtml(goalsLabel)}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;color:#555;">Current Tools</td><td style="padding:8px;">${escapeHtml(toolsLabel)}</td></tr>
+                ${parsed.data.urgency ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Urgency</td><td style="padding:8px;">${escapeHtml(parsed.data.urgency)}</td></tr>` : ""}
+                ${parsed.data.howHeardAboutUs ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">How They Found Us</td><td style="padding:8px;">${escapeHtml(parsed.data.howHeardAboutUs)}</td></tr>` : ""}
+                ${parsed.data.message ? `<tr><td style="padding:8px;font-weight:bold;color:#555;">Message</td><td style="padding:8px;">${escapeHtml(parsed.data.message)}</td></tr>` : ""}
               </table>`,
             }),
           });
@@ -566,9 +565,7 @@ export async function registerRoutes(
       });
 
       // Send welcome email
-      const baseUrl = req.headers.host?.includes('localhost') 
-        ? `http://${req.headers.host}` 
-        : `https://${req.headers.host}`;
+      const baseUrl = appBaseUrl(req.headers.host);
       
       await sendEmail({
         to: application.email,
@@ -577,8 +574,8 @@ export async function registerRoutes(
           kicker: "Account Ready",
           heading: "Welcome aboard",
           bodyHtml: `
-            <p style="margin:0 0 12px 0;">Hi ${application.contactName},</p>
-            <p style="margin:0 0 12px 0;">Your account for <strong>${application.companyName}</strong> is now fully set up.</p>
+            <p style="margin:0 0 12px 0;">Hi ${escapeHtml(application.contactName)},</p>
+            <p style="margin:0 0 12px 0;">Your account for <strong>${escapeHtml(application.companyName)}</strong> is now fully set up.</p>
             <p style="margin:0;">You can log in with your email and password — or with LinkedIn, if you prefer.</p>`,
           cta: { label: "Log In Now", url: `${baseUrl}/login` },
         }),
@@ -10150,12 +10147,6 @@ Format your response with clear headers and bullet points. Be specific and data-
 
   // ─── Team: members and invites ──────────────────────────────────────────
   // Invite links always point at our own app host (never an arbitrary Host header).
-  const appBaseUrl = (req: any) => {
-    const host = String(req.headers.host ?? "");
-    if (/^localhost(:\d+)?$/.test(host)) return `http://${host}`;
-    if (/^app\.governmentaffairs\.(io|co)$/.test(host)) return `https://${host}`;
-    return "https://app.governmentaffairs.io";
-  };
   const firmAdminScope = async (req: any, res: any): Promise<{ clientId: string; userId: string } | null> => {
     const userId = getUserId(req);
     const clientId = await getClientId(req);
@@ -10200,7 +10191,7 @@ Format your response with clear headers and bullet points. Be specific and data-
       const parsed = z.object({ email: z.string().trim().email().max(200), role: z.enum(["member", "admin"]).default("member") }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Enter a valid email address." });
       const { createInvite } = await import("./services/team-service");
-      const invite = await createInvite({ ...scope, inviterId: scope.userId, inviterName: inviterName(req), ...parsed.data, baseUrl: appBaseUrl(req) });
+      const invite = await createInvite({ ...scope, inviterId: scope.userId, inviterName: inviterName(req), ...parsed.data, baseUrl: appBaseUrl(req.headers.host) });
       res.status(201).json(invite);
     } catch (err) {
       teamError(res, err, "Couldn't send the invite.");
@@ -10212,7 +10203,7 @@ Format your response with clear headers and bullet points. Be specific and data-
       const scope = await firmAdminScope(req, res);
       if (!scope) return;
       const { resendInvite } = await import("./services/team-service");
-      await resendInvite(scope.clientId, String(req.params.id), appBaseUrl(req), inviterName(req));
+      await resendInvite(scope.clientId, String(req.params.id), appBaseUrl(req.headers.host), inviterName(req));
       res.json({ success: true });
     } catch (err) {
       teamError(res, err, "Couldn't resend the invite.");
