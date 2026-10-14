@@ -47,6 +47,8 @@ import {
 import { MoreHorizontal, Mail, Share2, Target, Eye, EyeOff } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { PageHeader, PageShell } from "@/components/page-header";
+import { NewPill, NewSinceStrip } from "@/components/new-since";
+import { useNewItems } from "@/lib/feeds-seen";
 
 interface AssignmentWithClient extends RssFeedClientAssignment {
   clientName: string;
@@ -77,6 +79,8 @@ export default function News() {
   const { data: articles, isLoading } = useQuery<NewsArticle[]>({
     queryKey: ["/api/news"],
   });
+  // What the News badge counted (from the server, so the two always agree).
+  const { items: freshStories, isNew: isNewStory } = useNewItems("news");
 
   const { data: rssFeeds } = useQuery<RssFeed[]>({
     queryKey: ["/api/rss-feeds"],
@@ -855,6 +859,12 @@ export default function News() {
         </Card>
       </div>
 
+      <NewSinceStrip
+        className="mb-0"
+        noun={freshStories.length === 1 ? "important story" : "important stories"}
+        items={freshStories.map((a) => ({ id: a.id, title: a.title, href: a.url ?? "#", meta: a.meta ?? undefined, at: a.at }))}
+      />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <TabsList>
@@ -969,6 +979,7 @@ export default function News() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {isNewStory(article.id) && <NewPill />}
                           {(article.relevanceScore || 0) > 0 && (
                             <span
                               className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${getRelevanceColor(article.relevanceScore || 0)}`}

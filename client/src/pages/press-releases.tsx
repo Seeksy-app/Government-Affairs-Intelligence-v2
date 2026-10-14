@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import type { GovernmentPressRelease } from "@shared/schema";
 import { PageHeader, PageShell } from "@/components/page-header";
+import { NewPill, NewSinceStrip } from "@/components/new-since";
+import { useNewItems } from "@/lib/feeds-seen";
 
 interface ReleasesResponse {
   scope: "mine" | "all";
@@ -46,6 +48,8 @@ export default function PressReleasesPage() {
   });
 
   const releases = data?.releases ?? [];
+  // What the Press badge counted (from the server, so the two always agree).
+  const { items: fresh, isNew } = useNewItems("press");
   const agencies = data?.agencies ?? [];
   const notCollected = agencies.filter((a) => !a.collected);
 
@@ -100,6 +104,13 @@ export default function PressReleasesPage() {
         </p>
       )}
 
+      {!q && (
+        <NewSinceStrip
+          noun={fresh.length === 1 ? "release" : "releases"}
+          items={fresh.map((r) => ({ id: r.id, title: r.title, href: r.url ?? "#", meta: r.meta ? agencyLabel(r.meta) : undefined, at: r.at }))}
+        />
+      )}
+
       {isLoading ? (
         <div className="overflow-hidden rounded-lg border bg-card">
           {[...Array(8)].map((_, i) => (
@@ -139,14 +150,17 @@ export default function PressReleasesPage() {
                     {agencyLabel(r.departmentSlug)}
                   </TableCell>
                   <TableCell>
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="line-clamp-2 text-sm font-medium transition-colors hover:text-primary sm:line-clamp-1"
-                    >
-                      {r.title}
-                    </a>
+                    <div className="flex items-center gap-2">
+                      {isNew(r.id) && <NewPill />}
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="line-clamp-2 text-sm font-medium transition-colors hover:text-primary sm:line-clamp-1"
+                      >
+                        {r.title}
+                      </a>
+                    </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right text-sm tabular-nums text-muted-foreground">
                     {r.publishedAt
