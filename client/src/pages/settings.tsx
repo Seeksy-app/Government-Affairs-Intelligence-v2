@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Building2,
+  Camera,
   CheckCircle2,
   Copy,
   ExternalLink,
-  LogOut,
   Mail,
-  Palette,
   Plug,
   Shield,
   SlidersHorizontal,
@@ -23,7 +22,6 @@ import { friendlyError } from "@/lib/api-errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { PageHeader, PageShell } from "@/components/page-header";
 import { AGENCIES, WEATHER_IMPACT, type FirmOnboarding } from "@shared/onboarding";
 
@@ -48,8 +46,6 @@ const SECTIONS = [
   { id: "practice", label: "Practice & Today", icon: SlidersHorizontal },
   { id: "team", label: "Team", icon: UserPlus },
   { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "account", label: "Account", icon: LogOut },
 ];
 
 // One settings page, sectioned: a sticky index on the left, each section a
@@ -89,13 +85,7 @@ export default function SettingsPage() {
           {hasFirm && <FirmSection role={userRole} />}
           {hasFirm && <PracticeSection />}
           {hasFirm ? <TeamSection /> : <SignupLinkSection />}
-          <IntegrationsSection />
-          <Section id="appearance" title="Appearance" description="Light or dark. Your choice is remembered on this device.">
-            <Row label="Theme" hint="Switch between light and dark mode">
-              <ThemeToggle />
-            </Row>
-          </Section>
-          <AccountSection />
+          <IntegrationsSection role={userRole} />
         </div>
       </div>
     </PageShell>
@@ -157,6 +147,32 @@ function useSaveToast() {
   };
 }
 
+// Center-crop to a square and shrink to 256px JPEG (~20 KB) so the photo can
+// live on the user row; the server re-checks the bytes.
+function squarePhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      if (!ctx || !side) return reject(new Error("unreadable"));
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("unreadable"));
+    };
+    img.src = url;
+  });
+}
+
 function ProfileSection({ role }: { role?: UserRole }) {
   const { user } = useAuth();
   const t = useSaveToast();
@@ -177,6 +193,24 @@ function ProfileSection({ role }: { role?: UserRole }) {
     onError: t.fail,
   });
 
+  const photoInput = useRef<HTMLInputElement>(null);
+  const photo = useMutation({
+    mutationFn: async (image: string | null) => apiRequest("PUT", "/api/me/photo", { image }),
+    onSuccess: (_r, image) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      t.ok(image ? "Photo updated" : "Photo removed");
+    },
+    onError: t.fail,
+  });
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      photo.mutate(await squarePhoto(file));
+    } catch {
+      t.fail(new Error("That photo couldn't be read. Try a JPG or PNG."));
+    }
+  };
+
   const initials = `${(first || user?.email || "U")[0]}${last[0] ?? ""}`.toUpperCase();
   const roleLabel = role?.isSuperAdmin ? "Super admin" : role?.role === "admin" ? "Firm admin" : "Member";
 
@@ -193,10 +227,33 @@ function ProfileSection({ role }: { role?: UserRole }) {
     >
       <div className="flex flex-col gap-6 sm:flex-row">
         <div className="flex items-center gap-4 sm:w-56 sm:flex-col sm:items-start">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
-            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{initials}</AvatarFallback>
-          </Avatar>
+          <button
+            type="button"
+            onClick={() => photoInput.current?.click()}
+            disabled={photo.isPending}
+            className="group relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={user?.profileImageUrl ? "Change your photo" : "Add a photo"}
+            data-testid="button-change-photo"
+          >
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={user?.profileImageUrl || undefined} className="object-cover" />
+              <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-110">
+              <Camera className="h-3 w-3" />
+            </span>
+          </button>
+          <input
+            ref={photoInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            className="hidden"
+            onChange={(e) => {
+              pickPhoto(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+            data-testid="input-photo"
+          />
           <div className="min-w-0">
             <p className="truncate font-semibold" data-testid="text-user-name">
               {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.email}
@@ -205,6 +262,16 @@ function ProfileSection({ role }: { role?: UserRole }) {
               {role?.isSuperAdmin && <Shield className="h-3 w-3" />}
               {roleLabel}
             </p>
+            <div className="mt-2 flex gap-3 text-xs">
+              <button type="button" onClick={() => photoInput.current?.click()} disabled={photo.isPending} className="font-semibold text-primary hover:underline">
+                {photo.isPending ? "Saving…" : user?.profileImageUrl ? "Change photo" : "Add photo"}
+              </button>
+              {user?.profileImageUrl && !photo.isPending && (
+                <button type="button" onClick={() => photo.mutate(null)} className="text-muted-foreground hover:text-foreground hover:underline">
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="grid flex-1 gap-4 sm:grid-cols-2">
@@ -610,10 +677,32 @@ function SignupLinkSection() {
   );
 }
 
-function IntegrationsSection() {
+interface IntegrationStatus {
+  congress: boolean;
+  legiscan: boolean;
+  legistorm: boolean;
+  weather: "accuweather" | "nws";
+  research: boolean;
+  writing: boolean;
+  email: boolean;
+  miro: boolean;
+}
+
+function StatusChip({ on, label }: { on: boolean; label?: string }) {
+  return on ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+      <CheckCircle2 className="h-3.5 w-3.5" /> {label ?? "On"}
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{label ?? "Off"}</span>
+  );
+}
+
+function IntegrationsSection({ role }: { role?: UserRole }) {
   const { user } = useAuth();
   const [location] = useLocation();
   const { toast } = useToast();
+  const { data: status } = useQuery<IntegrationStatus>({ queryKey: ["/api/integrations/status"], enabled: !!user });
   const { data: miro } = useQuery<MiroStatus>({ queryKey: ["/api/miro/status"], enabled: !!user });
   const connect = useMutation({
     mutationFn: async () => (await apiRequest("GET", "/api/miro/auth")).json(),
@@ -636,34 +725,77 @@ function IntegrationsSection() {
     if (r) window.history.replaceState({}, "", "/settings");
   }, [location, toast]);
 
+  // What feeds Today, answers and alerts. Free public sources are always on.
+  const sources: Array<{ name: string; use: string; on: boolean | undefined; label?: string }> = [
+    { name: "Congress.gov", use: "Federal bills, sponsors, actions and hearings", on: status?.congress },
+    { name: "LegiScan", use: "Bills in all 50 state legislatures", on: status?.legiscan },
+    { name: "LegiStorm", use: "16,700+ congressional staff with titles and contact details", on: status?.legistorm },
+    { name: "Federal agency newsrooms", use: "Press releases from the agencies you follow, checked through the day", on: true },
+    { name: "News feeds", use: "Politico, The Hill, Roll Call and more, ranked for your clients", on: true },
+    {
+      name: status?.weather === "accuweather" ? "AccuWeather + National Weather Service" : "National Weather Service",
+      use: "D.C. forecast, severe weather, hurricanes, FEMA declarations and OPM status",
+      on: true,
+    },
+    { name: "Kalshi and Polymarket", use: "Prediction-market odds on Markets", on: true },
+    { name: "Web research", use: "Finds and cites sources for your questions and Dig deeper", on: status?.research },
+    { name: "Email", use: "Invites, password resets, bill alerts and client card replies", on: status?.email },
+  ];
+
+  const miroConfigured = !!miro?.hasCredentials || !!status?.miro;
   return (
-    <Section id="integrations" title="Integrations" description="Connected services.">
-      <Row label="Miro" hint={miro?.connected ? `Connected${miro.user?.name ? ` as ${miro.user.name}` : ""}` : "Draw staff and influence maps on a Miro board"}>
-        {miro?.connected ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-          </span>
-        ) : miro?.hasCredentials ? (
-          <Button size="sm" onClick={() => connect.mutate()} disabled={connect.isPending} data-testid="button-connect-miro">
-            {connect.isPending ? "Connecting…" : "Connect"} <ExternalLink className="h-3.5 w-3.5" />
+    <Section
+      id="integrations"
+      title="Integrations"
+      description="The data behind your dashboard, and tools you can connect."
+      footer={
+        <Link href="/sources" className="text-sm font-semibold text-primary hover:underline">
+          See every source and how it's used →
+        </Link>
+      }
+    >
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Data sources</p>
+      <div className="divide-y">
+        {sources.map((src) => (
+          <Row key={src.name} label={src.name} hint={src.use}>
+            {status ? <StatusChip on={!!src.on} label={src.on ? "On" : "Not connected"} /> : <span className="text-xs text-muted-foreground">Checking…</span>}
+          </Row>
+        ))}
+      </div>
+
+      <p className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Your tools</p>
+      <div className="divide-y">
+        <Row
+          label="Miro"
+          hint={
+            miro?.connected
+              ? `Connected${miro.user?.name ? ` as ${miro.user.name}` : ""}. Draw staff and influence maps from Strategy.`
+              : miroConfigured
+                ? "Draw staff and influence maps on a Miro board from Strategy."
+                : role?.isSuperAdmin
+                  ? "Needs a Miro app: add MIRO_CLIENT_ID and MIRO_CLIENT_SECRET on Render to turn this on."
+                  : "Draw staff and influence maps on a Miro board. Coming soon."
+          }
+        >
+          {miro?.connected ? (
+            <StatusChip on label="Connected" />
+          ) : miroConfigured ? (
+            <Button size="sm" onClick={() => connect.mutate()} disabled={connect.isPending} data-testid="button-connect-miro">
+              {connect.isPending ? "Connecting…" : "Connect"} <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          ) : (
+            <StatusChip on={false} label="Coming soon" />
+          )}
+        </Row>
+        <Row label="Need another connection?" hint="Calendar, CRM or a data source you already pay for. Tell us what you use.">
+          <Button size="sm" variant="outline" asChild>
+            <a href="mailto:support@governmentaffairs.io?subject=Integration%20request" target="_blank" rel="noopener noreferrer">
+              <Mail className="h-3.5 w-3.5" /> Ask us
+            </a>
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">Not available yet</span>
-        )}
-      </Row>
+        </Row>
+      </div>
     </Section>
   );
 }
 
-function AccountSection() {
-  const { logout, isLoggingOut } = useAuth();
-  return (
-    <Section id="account" title="Account">
-      <Row label="Sign out" hint="Sign out of GovernmentAffairs.io on this device.">
-        <Button variant="outline" onClick={() => logout()} disabled={isLoggingOut} data-testid="button-logout">
-          {isLoggingOut ? "Signing out…" : "Sign out"}
-        </Button>
-      </Row>
-    </Section>
-  );
-}

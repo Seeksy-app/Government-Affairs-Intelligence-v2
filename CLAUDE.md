@@ -280,10 +280,15 @@ loads just it + JetBrains Mono); every page uses `PageShell` + `PageHeader`
 (client/src/components/page-header.tsx); navigation = icon rail with
 floating menus (client/src/components/app-nav.tsx — Today | People (incl.
 Client Portals), Strategy, Research | Bills, Hearings | Knowledge). Top bar
-(h-16): News · Press · Markets · Should I be worried? · Research assistant
-(opens the GlobalAIChat sheet via `openAIChat()`) on the left, wide search,
-then theme, Settings menu (Settings/Sources/Security) and the account
-avatar top right. Today: "Ask a question" opens the Research assistant;
+(h-16): News · Press · Markets · Should I be worried? · Cards · Research
+assistant (opens the GlobalAIChat sheet via `openAIChat()`) on the left, wide
+search, then theme and the account avatar top right (its menu holds
+Settings/Sources/Security + Log out; there is no separate gear menu).
+Settings sections: Profile (photo: browser crops to a 256px JPEG data URL,
+`PUT /api/me/photo` checks the bytes and stores it in
+`users.profile_image_url` — no file storage), Firm, Practice & Today, Team,
+Integrations (`GET /api/integrations/status`: on/off booleans per source,
+never key names). No Appearance/Account sections — theme is in the top bar. Today: "Ask a question" opens the Research assistant;
 firms pin up to 6 Shortcuts (onboarding.shortcuts jsonb). Morning brief is
 stale-while-revalidate (serve ≤12h-old ranking instantly, refresh in the
 background; `?fresh=1` forces; firm warm-up starts 3 min after boot, 3 at a time). Home = Today (/dashboard = Morning Brief + rail;

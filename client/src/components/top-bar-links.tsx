@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { BarChart3, Megaphone, MessageCircleQuestion, MessageSquareText, Newspaper, type LucideIcon } from "lucide-react";
+import { BarChart3, Layers, Megaphone, MessageCircleQuestion, MessageSquareText, Newspaper, type LucideIcon } from "lucide-react";
 import { openAIChat } from "@/components/global-ai-chat";
 import { useAuth } from "@/hooks/use-auth";
 import { useSeenParams, type FeedKey } from "@/lib/feeds-seen";
@@ -16,6 +16,7 @@ const LINKS: Array<{ title: string; url: string; icon: LucideIcon; testId: strin
   { title: "Press", url: "/press-releases", icon: Megaphone, testId: "topnav-press", count: "press", countLabel: "new releases from your agencies" },
   { title: "Markets", url: "/predictions", icon: BarChart3, testId: "topnav-markets" },
   { title: "Should I be worried?", url: "/briefs", icon: MessageCircleQuestion, testId: "topnav-worried", count: "questions", countLabel: "new answers" },
+  { title: "Cards", url: "/cards", icon: Layers, testId: "topnav-cards" },
 ];
 
 export function TopBarLinks() {

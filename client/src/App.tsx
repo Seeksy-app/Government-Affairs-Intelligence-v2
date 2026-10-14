@@ -3,7 +3,7 @@ import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppNav, MobileNav, SettingsMenu, UserMenu } from "@/components/app-nav";
+import { AppNav, MobileNav, UserMenu } from "@/components/app-nav";
 import { TopBarLinks } from "@/components/top-bar-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
@@ -301,7 +301,6 @@ function AuthenticatedLayout() {
             <div className="flex items-center gap-1.5">
               <GlobalAIChat />
               <ThemeToggle />
-              <SettingsMenu />
               <UserMenu />
             </div>
           </header>

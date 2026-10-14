@@ -257,43 +257,10 @@ function PageLinks({ pages, location, onNavigate }: { pages: NavPage[]; location
   );
 }
 
-// Settings, Sources and Security, from the top bar.
-export function SettingsMenu() {
-  const { isClientView } = useNavModel();
-  const [location] = useLocation();
-  const pages = isClientView ? SETTINGS_ITEM.pages : [page("Settings", "/admin/settings", Settings, "admin-settings")];
-  const active = pages.some((p) => isActiveUrl(location, p.url));
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={`flex h-9 w-9 items-center justify-center rounded-md outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring ${
-            active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-          aria-label="Settings"
-          title="Settings"
-          data-testid="button-settings-menu"
-        >
-          <Settings className="h-[18px] w-[18px]" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {pages.map((p) => (
-          <DropdownMenuItem key={p.url} asChild>
-            <Link href={p.url} data-testid={`menu-${p.tourId}`}>
-              <p.icon className="mr-2 h-4 w-4" />
-              {p.title}
-            </Link>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
+// The account menu (top right): Settings, Sources and Security, then Log out.
 export function UserMenu({ side = "bottom" }: { side?: "right" | "top" | "bottom" }) {
-  const { user, logout, initials, displayName, roleLabel, workspaceName } = useNavModel();
+  const { user, logout, initials, displayName, roleLabel, workspaceName, isClientView } = useNavModel();
+  const pages = isClientView ? SETTINGS_ITEM.pages : [page("Settings", "/admin/settings", Settings, "admin-settings")];
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -304,7 +271,7 @@ export function UserMenu({ side = "bottom" }: { side?: "right" | "top" | "bottom
           data-testid="button-user-menu"
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
+            <AvatarImage src={user?.profileImageUrl || undefined} className="object-cover" />
             <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">{initials}</AvatarFallback>
           </Avatar>
         </button>
@@ -318,12 +285,14 @@ export function UserMenu({ side = "bottom" }: { side?: "right" | "top" | "bottom
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings" data-testid="menu-settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
+        {pages.map((p) => (
+          <DropdownMenuItem key={p.url} asChild>
+            <Link href={p.url} data-testid={`menu-${p.tourId}`}>
+              <p.icon className="mr-2 h-4 w-4" />
+              {p.title}
+            </Link>
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => logout()} className="text-destructive" data-testid="menu-logout">
           <LogOut className="mr-2 h-4 w-4" />

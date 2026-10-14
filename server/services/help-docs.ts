@@ -204,14 +204,14 @@ Agency missing? Add it in **Settings → Practice & Today → Agencies**, and te
       {
         slug: "settings-and-profile",
         title: "Settings and your profile",
-        summary: "Editing your name and firm details, inviting colleagues, signing out.",
-        content: `Open **Settings** from the gear in the top-right corner.
+        summary: "Your photo and name, firm details, inviting colleagues, integrations, signing out.",
+        content: `Click your picture or initials in the top-right corner for **Settings**, **Sources**, **Security** and **Log out**. The moon/sun button next to it switches light and dark mode.
 
-- **Profile:** edit your first and last name. Your email is how you sign in.
+- **Profile:** add or change your photo (click the circle), and edit your first and last name. Your email is how you sign in.
 - **Firm:** name, address and phone. Firm admins can edit these; members see them read-only.
 - **Practice & Today:** your setup answers, with quick switches for weather alerts and prediction markets.
 - **Team:** see who's at your firm. Admins invite colleagues by email (the link works once and expires in 7 days), change roles and remove people. The sign-up link below it is for someone who wants their own, separate firm account.
-- **Appearance:** light or dark mode.
+- **Integrations:** which data sources are switched on for you, and tools you can connect, like Miro.
 
 Forgot your password? Use **Forgot password** on the sign-in page and we'll email you a reset link.`,
       },
