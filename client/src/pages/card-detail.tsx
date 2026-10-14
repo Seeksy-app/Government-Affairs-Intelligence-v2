@@ -158,12 +158,12 @@ export default function CardDetailPage() {
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy link"}
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <a href={`sms:?&body=${encodeURIComponent(`${title}: ${url}`)}`}>
+            <a href={`sms:?&body=${encodeURIComponent(`${title}: ${url}`)}`} target="_blank" rel="noopener noreferrer">
               <MessageSquare className="h-4 w-4" /> Text
             </a>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <a href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${preview.know}\n\n${url}`)}`}>
+            <a href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${preview.know}\n\n${url}`)}`} target="_blank" rel="noopener noreferrer">
               <Mail className="h-4 w-4" /> Email
             </a>
           </Button>

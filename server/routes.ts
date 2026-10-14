@@ -3545,6 +3545,63 @@ Format your response as a structured summary with clear sections.`;
     }
   });
 
+  // GET /api/integrations/status — which data sources and services are
+  // switched on, for Settings → Integrations. Booleans only; never key names
+  // or values.
+  app.get("/api/integrations/status", isAuthenticated, async (_req, res) => {
+    const { accuWeatherKey } = await import("./services/weather-watch");
+    const { availableProviders } = await import("./services/ai-providers");
+    const on = (v?: string) => !!v?.trim();
+    res.json({
+      congress: on(process.env.CONGRESS_API_KEY),
+      legiscan: on(process.env.LEGISCAN_API_KEY),
+      legistorm: on(process.env.LEGISTORM_API_KEY),
+      weather: accuWeatherKey() ? "accuweather" : "nws",
+      research: on(process.env.PARALLEL_API_KEY) || on(process.env.PERPLEXITY_API_KEY),
+      writing: availableProviders().length > 0,
+      email: on(process.env.RESEND_API_KEY),
+      miro: on(process.env.MIRO_CLIENT_ID) && on(process.env.MIRO_CLIENT_SECRET),
+    });
+  });
+
+  // Profile photo: the browser crops and shrinks it to a small JPEG first;
+  // we store it inline as a data URL (no file storage in this app). Only real
+  // JPEG/PNG/WebP bytes are accepted — never SVG, which can carry script.
+  app.put("/api/me/photo", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const image = req.body?.image;
+      let value: string | null = null;
+      if (image !== null) {
+        const m = typeof image === "string" && image.length <= 120_000
+          ? /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(image)
+          : null;
+        const bytes = m ? Buffer.from(m[2], "base64") : null;
+        const ok = !!bytes && bytes.length > 100 && (
+          (m![1] === "jpeg" && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) ||
+          (m![1] === "png" && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) ||
+          (m![1] === "webp" && bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WEBP")
+        );
+        if (!ok) return res.status(400).json({ message: "That photo couldn't be used. Try a JPG or PNG." });
+        value = image;
+      }
+      const { db } = await import("./db");
+      const { users } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const [row] = await db
+        .update(users)
+        .set({ profileImageUrl: value, updatedAt: new Date() })
+        .where(eq(users.id, userId))
+        .returning({ id: users.id });
+      if (!row) return res.status(404).json({ message: "User not found" });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error updating profile photo:", error);
+      res.status(500).json({ message: "Couldn't save your photo." });
+    }
+  });
+
   // Firm details: firm admins (or a super admin viewing as the firm) only.
   app.patch("/api/client/info", isAuthenticated, async (req, res) => {
     try {
