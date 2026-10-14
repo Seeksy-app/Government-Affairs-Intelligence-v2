@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import type { GovernmentPressRelease } from "@shared/schema";
 import { PageHeader, PageShell } from "@/components/page-header";
 import { NewPill, NewSinceStrip } from "@/components/new-since";
-import { easternMidnight, useNewSince } from "@/lib/feeds-seen";
+import { useNewItems } from "@/lib/feeds-seen";
 
 interface ReleasesResponse {
   scope: "mine" | "all";
@@ -48,12 +48,8 @@ export default function PressReleasesPage() {
   });
 
   const releases = data?.releases ?? [];
-  // What the Press badge counted: published today, collected since your last visit.
-  const cutoff = useNewSince("press");
-  const midnight = easternMidnight();
-  const isNew = (r: GovernmentPressRelease) =>
-    !!r.publishedAt && new Date(r.publishedAt) >= midnight && !!r.createdAt && new Date(r.createdAt) > cutoff;
-  const fresh = q ? [] : releases.filter(isNew);
+  // What the Press badge counted (from the server, so the two always agree).
+  const { items: fresh, isNew } = useNewItems("press");
   const agencies = data?.agencies ?? [];
   const notCollected = agencies.filter((a) => !a.collected);
 
@@ -108,10 +104,12 @@ export default function PressReleasesPage() {
         </p>
       )}
 
-      <NewSinceStrip
-        noun={fresh.length === 1 ? "release" : "releases"}
-        items={fresh.map((r) => ({ id: r.id, title: r.title, href: r.url, meta: agencyLabel(r.departmentSlug), at: r.createdAt }))}
-      />
+      {!q && (
+        <NewSinceStrip
+          noun={fresh.length === 1 ? "release" : "releases"}
+          items={fresh.map((r) => ({ id: r.id, title: r.title, href: r.url ?? "#", meta: r.meta ? agencyLabel(r.meta) : undefined, at: r.at }))}
+        />
+      )}
 
       {isLoading ? (
         <div className="overflow-hidden rounded-lg border bg-card">
@@ -153,7 +151,7 @@ export default function PressReleasesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {isNew(r) && <NewPill />}
+                      {isNew(r.id) && <NewPill />}
                       <a
                         href={r.url}
                         target="_blank"

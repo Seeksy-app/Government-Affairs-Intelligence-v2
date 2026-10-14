@@ -48,7 +48,7 @@ import { MoreHorizontal, Mail, Share2, Target, Eye, EyeOff } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns";
 import { PageHeader, PageShell } from "@/components/page-header";
 import { NewPill, NewSinceStrip } from "@/components/new-since";
-import { useNewSince } from "@/lib/feeds-seen";
+import { useNewItems } from "@/lib/feeds-seen";
 
 interface AssignmentWithClient extends RssFeedClientAssignment {
   clientName: string;
@@ -79,10 +79,8 @@ export default function News() {
   const { data: articles, isLoading } = useQuery<NewsArticle[]>({
     queryKey: ["/api/news"],
   });
-  // What the News badge counted: important stories that arrived since your last visit.
-  const newsCutoff = useNewSince("news");
-  const isNewStory = (a: NewsArticle) => (a.relevanceScore || 0) >= 50 && !!a.createdAt && new Date(a.createdAt) > newsCutoff;
-  const freshStories = (articles ?? []).filter(isNewStory).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  // What the News badge counted (from the server, so the two always agree).
+  const { items: freshStories, isNew: isNewStory } = useNewItems("news");
 
   const { data: rssFeeds } = useQuery<RssFeed[]>({
     queryKey: ["/api/rss-feeds"],
@@ -864,7 +862,7 @@ export default function News() {
       <NewSinceStrip
         className="mb-0"
         noun={freshStories.length === 1 ? "important story" : "important stories"}
-        items={freshStories.map((a) => ({ id: a.id, title: a.title, href: a.url ?? "#", meta: a.source ?? undefined, at: a.createdAt }))}
+        items={freshStories.map((a) => ({ id: a.id, title: a.title, href: a.url ?? "#", meta: a.meta ?? undefined, at: a.at }))}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -981,7 +979,7 @@ export default function News() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          {isNewStory(article) && <NewPill />}
+                          {isNewStory(article.id) && <NewPill />}
                           {(article.relevanceScore || 0) > 0 && (
                             <span
                               className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${getRelevanceColor(article.relevanceScore || 0)}`}
