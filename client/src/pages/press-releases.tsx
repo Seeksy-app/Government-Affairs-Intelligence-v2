@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import type { GovernmentPressRelease } from "@shared/schema";
 import { PageHeader, PageShell } from "@/components/page-header";
+import { NewPill, NewSinceStrip } from "@/components/new-since";
+import { easternMidnight, useNewSince } from "@/lib/feeds-seen";
 
 interface ReleasesResponse {
   scope: "mine" | "all";
@@ -46,6 +48,12 @@ export default function PressReleasesPage() {
   });
 
   const releases = data?.releases ?? [];
+  // What the Press badge counted: published today, collected since your last visit.
+  const cutoff = useNewSince("press");
+  const midnight = easternMidnight();
+  const isNew = (r: GovernmentPressRelease) =>
+    !!r.publishedAt && new Date(r.publishedAt) >= midnight && !!r.createdAt && new Date(r.createdAt) > cutoff;
+  const fresh = q ? [] : releases.filter(isNew);
   const agencies = data?.agencies ?? [];
   const notCollected = agencies.filter((a) => !a.collected);
 
@@ -100,6 +108,11 @@ export default function PressReleasesPage() {
         </p>
       )}
 
+      <NewSinceStrip
+        noun={fresh.length === 1 ? "release" : "releases"}
+        items={fresh.map((r) => ({ id: r.id, title: r.title, href: r.url, meta: agencyLabel(r.departmentSlug), at: r.createdAt }))}
+      />
+
       {isLoading ? (
         <div className="overflow-hidden rounded-lg border bg-card">
           {[...Array(8)].map((_, i) => (
@@ -139,14 +152,17 @@ export default function PressReleasesPage() {
                     {agencyLabel(r.departmentSlug)}
                   </TableCell>
                   <TableCell>
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="line-clamp-2 text-sm font-medium transition-colors hover:text-primary sm:line-clamp-1"
-                    >
-                      {r.title}
-                    </a>
+                    <div className="flex items-center gap-2">
+                      {isNew(r) && <NewPill />}
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="line-clamp-2 text-sm font-medium transition-colors hover:text-primary sm:line-clamp-1"
+                      >
+                        {r.title}
+                      </a>
+                    </div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right text-sm tabular-nums text-muted-foreground">
                     {r.publishedAt

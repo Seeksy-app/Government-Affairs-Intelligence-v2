@@ -10848,14 +10848,16 @@ Format your response with clear headers and bullet points. Be specific and data-
 
   // ─── Top-bar counts ──────────────────────────────────────────────────────
   // GET /api/top-bar-counts — what's new today (Eastern time) for the badges
-  // on News, Press and "Should I be worried?".
+  // on News, Press and "Should I be worried?". ?news=&press=&questions= are
+  // when this browser last opened each page; only things that arrived after
+  // that (and after midnight) count, so opening a page clears its badge.
   app.get("/api/top-bar-counts", isAuthenticated, async (req, res) => {
     try {
       const clientId = await getClientId(req);
       if (!clientId) return res.json({ news: 0, press: 0, questions: 0 });
       const { db } = await import("./db");
       const { newsArticles, governmentPressReleases, briefs, clientProfiles } = await import("@shared/schema");
-      const { and, eq, gte, inArray, count, sql } = await import("drizzle-orm");
+      const { and, eq, gt, gte, inArray, count, sql } = await import("drizzle-orm");
       const { agencySlugsFor } = await import("./services/government-press-service");
 
       // Midnight in Washington, as a UTC instant.
@@ -10863,6 +10865,10 @@ Format your response with clear headers and bullet points. Be specific and data-
         sql`select (date_trunc('day', now() at time zone 'America/New_York') at time zone 'America/New_York') as since`,
       )).rows as Array<{ since: Date }>;
       const midnight = new Date(since);
+      const after = (key: string) => {
+        const v = typeof req.query[key] === "string" ? new Date(req.query[key] as string) : null;
+        return v && !isNaN(v.getTime()) && v > midnight && v <= new Date() ? v : midnight;
+      };
 
       const [profile] = await db.select().from(clientProfiles).where(eq(clientProfiles.clientId, clientId)).limit(1);
       const slugs = agencySlugsFor(profile?.relevantAgencies ?? []);
@@ -10870,14 +10876,18 @@ Format your response with clear headers and bullet points. Be specific and data-
       const [[news], [press], [questions]] = await Promise.all([
         // Only the stories worth reading: the firm's high-relevance news.
         db.select({ n: count() }).from(newsArticles).where(
-          and(eq(newsArticles.clientId, clientId), gte(newsArticles.createdAt, midnight), gte(newsArticles.relevanceScore, 50)),
+          and(eq(newsArticles.clientId, clientId), gt(newsArticles.createdAt, after("news")), gte(newsArticles.relevanceScore, 50)),
         ),
+        // Published today and collected since the last visit (some agencies
+        // publish date-only timestamps, so collection time decides "new").
         db.select({ n: count() }).from(governmentPressReleases).where(
-          slugs.length > 0
-            ? and(gte(governmentPressReleases.publishedAt, midnight), inArray(governmentPressReleases.departmentSlug, slugs))
-            : gte(governmentPressReleases.publishedAt, midnight),
+          and(
+            gte(governmentPressReleases.publishedAt, midnight),
+            gt(governmentPressReleases.createdAt, after("press")),
+            ...(slugs.length > 0 ? [inArray(governmentPressReleases.departmentSlug, slugs)] : []),
+          ),
         ),
-        db.select({ n: count() }).from(briefs).where(and(eq(briefs.clientId, clientId), gte(briefs.generatedAt, midnight))),
+        db.select({ n: count() }).from(briefs).where(and(eq(briefs.clientId, clientId), gt(briefs.generatedAt, after("questions")))),
       ]);
       res.json({ news: news.n, press: press.n, questions: questions.n });
     } catch (err: any) {
