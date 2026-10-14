@@ -3,24 +3,32 @@ import { Link, useLocation } from "wouter";
 import { BarChart3, Megaphone, MessageCircleQuestion, MessageSquareText, Newspaper, type LucideIcon } from "lucide-react";
 import { openAIChat } from "@/components/global-ai-chat";
 import { useAuth } from "@/hooks/use-auth";
+import { useSeenParams, type FeedKey } from "@/lib/feeds-seen";
 
 // Daily-read feeds and "Should I be worried?" live in the top bar, next to
-// search, so the rail can stay short. Badges count what's new today (Eastern):
-// high-relevance news, releases from the firm's agencies, answers written.
-type CountKey = "news" | "press" | "questions";
+// search, so the rail can stay short. Badges count what arrived today
+// (Eastern) since you last opened the page: high-relevance news, releases
+// from the firm's agencies, answers written. Opening the page clears it.
+type CountKey = FeedKey;
 
 const LINKS: Array<{ title: string; url: string; icon: LucideIcon; testId: string; count?: CountKey; countLabel?: string }> = [
-  { title: "News", url: "/news", icon: Newspaper, testId: "topnav-news", count: "news", countLabel: "important stories today" },
-  { title: "Press", url: "/press-releases", icon: Megaphone, testId: "topnav-press", count: "press", countLabel: "releases from your agencies today" },
+  { title: "News", url: "/news", icon: Newspaper, testId: "topnav-news", count: "news", countLabel: "new important stories" },
+  { title: "Press", url: "/press-releases", icon: Megaphone, testId: "topnav-press", count: "press", countLabel: "new releases from your agencies" },
   { title: "Markets", url: "/predictions", icon: BarChart3, testId: "topnav-markets" },
-  { title: "Should I be worried?", url: "/briefs", icon: MessageCircleQuestion, testId: "topnav-worried", count: "questions", countLabel: "answers today" },
+  { title: "Should I be worried?", url: "/briefs", icon: MessageCircleQuestion, testId: "topnav-worried", count: "questions", countLabel: "new answers" },
 ];
 
 export function TopBarLinks() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const seen = useSeenParams();
   const { data: counts } = useQuery<Record<CountKey, number>>({
-    queryKey: ["/api/top-bar-counts"],
+    queryKey: ["/api/top-bar-counts", seen],
+    queryFn: async () => {
+      const res = await fetch(`/api/top-bar-counts${seen ? `?${seen}` : ""}`, { credentials: "include" });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return res.json();
+    },
     enabled: !!user,
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
@@ -30,14 +38,15 @@ export function TopBarLinks() {
     <nav className="hidden items-stretch gap-1 py-1.5 lg:flex" aria-label="Feeds">
       {LINKS.map((l) => {
         const active = location === l.url || location.startsWith(l.url + "/");
-        const n = l.count ? counts?.[l.count] ?? 0 : 0;
+        // The page you're on has nothing unseen.
+        const n = l.count && !active ? counts?.[l.count] ?? 0 : 0;
         return (
           <Link
             key={l.url}
             href={l.url}
             aria-current={active ? "page" : undefined}
             aria-label={n > 0 ? `${l.title} — ${n} ${l.countLabel}` : l.title}
-            title={n > 0 ? `${n} ${l.countLabel}` : undefined}
+            title={n > 0 ? `${n} ${l.countLabel} since you last looked` : undefined}
             data-testid={l.testId}
             className={`relative flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-lg px-3 py-1 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring/50 ${
               active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"

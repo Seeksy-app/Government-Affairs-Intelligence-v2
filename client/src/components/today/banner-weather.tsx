@@ -19,7 +19,7 @@ export function BannerWeather() {
   const open = !dc.federalStatus || /^open$/i.test(dc.federalStatus.summary.trim());
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-white/[0.06] p-3 ring-1 ring-white/10 sm:min-w-[340px]" data-testid="banner-weather">
+    <div className="flex flex-col gap-2 sm:min-w-[340px]" data-testid="banner-weather">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6CC3EE]">Washington, D.C.</p>
         {dc.federalStatus && (
