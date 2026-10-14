@@ -10904,42 +10904,34 @@ Format your response with clear headers and bullet points. Be specific and data-
   });
 
   // ─── Top-bar counts ──────────────────────────────────────────────────────
-  // GET /api/top-bar-counts — what's new today (Eastern time) for the badges
-  // on News, Press and "Should I be worried?".
+  // GET /api/top-bar-counts — badges on News, Press and "Should I be
+  // worried?". ?news=&press=&questions= are when this browser last opened
+  // each page; only what arrived today after that counts (feed-badges.ts).
   app.get("/api/top-bar-counts", isAuthenticated, async (req, res) => {
     try {
       const clientId = await getClientId(req);
       if (!clientId) return res.json({ news: 0, press: 0, questions: 0 });
-      const { db } = await import("./db");
-      const { newsArticles, governmentPressReleases, briefs, clientProfiles } = await import("@shared/schema");
-      const { and, eq, gte, inArray, count, sql } = await import("drizzle-orm");
-      const { agencySlugsFor } = await import("./services/government-press-service");
-
-      // Midnight in Washington, as a UTC instant.
-      const [{ since }] = (await db.execute(
-        sql`select (date_trunc('day', now() at time zone 'America/New_York') at time zone 'America/New_York') as since`,
-      )).rows as Array<{ since: Date }>;
-      const midnight = new Date(since);
-
-      const [profile] = await db.select().from(clientProfiles).where(eq(clientProfiles.clientId, clientId)).limit(1);
-      const slugs = agencySlugsFor(profile?.relevantAgencies ?? []);
-
-      const [[news], [press], [questions]] = await Promise.all([
-        // Only the stories worth reading: the firm's high-relevance news.
-        db.select({ n: count() }).from(newsArticles).where(
-          and(eq(newsArticles.clientId, clientId), gte(newsArticles.createdAt, midnight), gte(newsArticles.relevanceScore, 50)),
-        ),
-        db.select({ n: count() }).from(governmentPressReleases).where(
-          slugs.length > 0
-            ? and(gte(governmentPressReleases.publishedAt, midnight), inArray(governmentPressReleases.departmentSlug, slugs))
-            : gte(governmentPressReleases.publishedAt, midnight),
-        ),
-        db.select({ n: count() }).from(briefs).where(and(eq(briefs.clientId, clientId), gte(briefs.generatedAt, midnight))),
-      ]);
-      res.json({ news: news.n, press: press.n, questions: questions.n });
+      const { feedCounts } = await import("./services/feed-badges");
+      res.json(await feedCounts(clientId, req.query as Record<string, unknown>));
     } catch (err: any) {
       console.error("GET /api/top-bar-counts error:", err);
       res.json({ news: 0, press: 0, questions: 0 });
+    }
+  });
+
+  // GET /api/feeds/new?feed=news|press&since= — the items a badge counted,
+  // for the "New since you last looked" strip on that page.
+  app.get("/api/feeds/new", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = await getClientId(req);
+      const feed = req.query.feed;
+      if (feed !== "news" && feed !== "press") return res.status(400).json({ message: "Unknown feed" });
+      if (!clientId) return res.json({ items: [] });
+      const { feedItems } = await import("./services/feed-badges");
+      res.json({ items: await feedItems(clientId, feed, req.query.since) });
+    } catch (err: any) {
+      console.error("GET /api/feeds/new error:", err);
+      res.status(500).json({ message: "Couldn't load what's new." });
     }
   });
 

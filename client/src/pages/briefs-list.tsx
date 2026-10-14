@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "date-fns";
 import type { Brief } from "@shared/schema";
 import { AskBox } from "@/components/briefs/ask-box";
 import { PageHeader, PageShell } from "@/components/page-header";
+import { useMarkSeen } from "@/lib/feeds-seen";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "ready")
@@ -50,6 +51,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function BriefsList() {
+  useMarkSeen("questions");
   const { data: briefs, isLoading } = useQuery<Brief[]>({
     queryKey: ["/api/briefs"],
     refetchInterval: (query) => {
